@@ -19,6 +19,8 @@ tags: [preferences, collaboration]
 - Prefer small, verifiable changes over broad rewrites.
 - Preserve existing project style and conventions.
 - Record meaningful decisions in `decisions/` when they affect future work.
+- For Python learning, prefer a project-first sequence: runnable demo, variable analysis, then a near-analogous practice task before generalizing.
+- For small desktop tools, prefer direct-launch entry into the main working window; avoid intermediate chooser or launcher windows unless they are explicitly kept as compatibility fallbacks.
 
 ## Review Cadence
 
