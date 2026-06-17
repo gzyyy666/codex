@@ -49,3 +49,6 @@ Use $github-memory to update my project preference memory based on this discussi
 使用 $github-memory，把这次讨论沉淀成一个新的记忆节点。
 ```
 
+## New Conversation Startup
+
+For other Codex conversations, start from `START_HERE.md`. It contains a default startup prompt and a recovery prompt for rebuilding context from this repository.
