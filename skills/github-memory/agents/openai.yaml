@@ -1,0 +1,4 @@
+interface:
+  display_name: "GitHub Memory"
+  short_description: "Manage Markdown-based memory nodes in a GitHub repository."
+  default_prompt: "Use $github-memory to create or update a durable memory node in my GitHub memory repository."
