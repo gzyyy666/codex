@@ -11,15 +11,16 @@ source: projects/fitness-ledger
 
 ## Summary
 
-Fitness Ledger is a local-first personal fitness journal with a maintained Tkinter desktop application, a read-only browser-grade desktop viewer, and a read-only mobile viewer. The authoritative local data remains JSON and is intentionally excluded from the public memory repository.
+Fitness Ledger is a local-first personal fitness journal with a maintained Tkinter desktop application, a browser-grade Web application with shared daily Parse/Review/Save, and a read-only mobile viewer. The authoritative local data remains JSON and is intentionally excluded from the public memory repository.
 
 ## Durable Architecture
 
 - Maintained desktop entry: `stable_app.pyw`.
 - Desktop source of truth: local `data/tracker.json` and `data/movement_dictionary.json`.
-- Browser UI: `web_desktop/frontend/`; local read-only service: `web_desktop/backend/server.py`.
+- Shared write boundary: `ledger_commands.py` provides UI-free Parse/Review/Save orchestration, cross-process locking, paired checkpoints, atomic writes, and rollback.
+- Browser UI: `web_desktop/frontend/`; local command/read service: `web_desktop/backend/server.py`.
 - Mobile viewer: `mobile_viewer/`.
-- All formal desktop writes use atomic JSON replacement and pre-save checkpoints.
+- Desktop and Web confirmed daily saves use the same command service and desktop parser.
 - Raw daily input is preserved; structured records can be repaired without deleting source text.
 
 ## Durable Product Behavior
@@ -27,8 +28,9 @@ Fitness Ledger is a local-first personal fitness journal with a maintained Tkint
 - Daily free-form input is parsed, reviewed, then explicitly saved.
 - Movement aliases resolve through a formal movement dictionary.
 - Adding an alias scans active historical skipped movements and restores matching sets and notes into the formal movement history.
+- Disabling a movement preserves aliases and history and still permits matching records to be stored, while hiding that movement from desktop/Web Movement Progress and active mapping choices.
 - Body, Diet, Training, Movement Progress, and Data Check provide record inspection and correction paths.
-- Web and mobile viewers remain read-only until their write commands can reuse desktop review, backup, and atomic-save behavior.
+- Web daily entry supports editable Review, duplicate-date modes, and movement add/map/skip decisions. Web record editing, Undo, and Data Check writes remain deferred.
 
 ## Visual Direction
 
@@ -45,4 +47,3 @@ Fitness Ledger is a local-first personal fitness journal with a maintained Tkint
 
 - Next review: 2026-08-02
 - Archive when the project is retired or replaced.
-

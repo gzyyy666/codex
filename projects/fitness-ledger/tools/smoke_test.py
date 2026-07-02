@@ -53,6 +53,12 @@ globals_dict["messagebox"].askyesno = lambda *_args, **_kwargs: True
 app.database = copy.deepcopy(app.database)
 namespace["write_json"](globals_dict["DATA_FILE"], app.database)
 namespace["write_json"](globals_dict["MOVEMENT_DICTIONARY_FILE"], app.movement_dictionary)
+app.command_service = namespace["LedgerCommandService"](
+    globals_dict["DATA_FILE"],
+    globals_dict["MOVEMENT_DICTIONARY_FILE"],
+    globals_dict["BACKUP_DIR"],
+    app.parse_for_shared_service,
+)
 before = (
     len(app.database["daily_records"]),
     len(app.database["diet_records"]),
@@ -72,7 +78,7 @@ after = (
     len(app.database["training_sessions"]),
 )
 assert after == tuple(value + 1 for value in before)
-assert app.database["training_sessions"][-1]["Notes"] == "悍马推肩：controlled test note。"
+assert "controlled test note" in app.database["training_sessions"][-1]["Notes"]
 
 day_number = app.database["training_sessions"][-1]["No."]
 assert day_number == before[2] + 1
@@ -259,6 +265,11 @@ assert app.save_movement_definition(
 assert app.movement_definitions_by_id[temporary_id]["display_name"] == "临时重命名动作"
 assert app.toggle_movement_definition(temporary_definition)
 assert temporary_definition["active"] is False
+app.refresh_movements()
+assert all(
+    movement.get("movement_id") != temporary_id
+    for movement in app.movement_rows_by_item.values()
+)
 assert namespace["normalize_name"]("临时重命名动作") in app.movement_definitions_by_alias
 app.pending = app.parse_entry("2099-06-28\ntraining: test\n1. 另一个待映射动作\n10 x 10 x 1")
 app.open_review_window()

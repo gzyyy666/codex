@@ -4,11 +4,18 @@ import json
 import os
 import re
 import shutil
+import sys
 import uuid
 from datetime import date, datetime
 from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox, ttk
+
+MODULE_DIR = Path(__file__).resolve().parent
+if str(MODULE_DIR) not in sys.path:
+    sys.path.insert(0, str(MODULE_DIR))
+
+from ledger_commands import LedgerCommandError, LedgerCommandService
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -686,6 +693,12 @@ class FitnessTrackerApp(tk.Tk):
             self.movement_dictionary
         )
         self.database = ensure_database()
+        self.command_service = LedgerCommandService(
+            DATA_FILE,
+            MOVEMENT_DICTIONARY_FILE,
+            BACKUP_DIR,
+            self.parse_for_shared_service,
+        )
         self.pending = None
         self.title("Fitness Ledger")
         self.geometry("1420x860+25+25")
@@ -703,6 +716,19 @@ class FitnessTrackerApp(tk.Tk):
         self.refresh_all()
         self.show_page("Quick Entry")
         self.protocol("WM_DELETE_WINDOW", self.close)
+
+    def parse_for_shared_service(self, raw: str, database: dict, dictionary: dict) -> dict:
+        current_dictionary = self.movement_dictionary
+        current_by_id = self.movement_definitions_by_id
+        current_by_alias = self.movement_definitions_by_alias
+        try:
+            self.movement_dictionary = dictionary
+            self.movement_definitions_by_id, self.movement_definitions_by_alias = movement_definition_index(dictionary)
+            return self.parse_entry(raw)
+        finally:
+            self.movement_dictionary = current_dictionary
+            self.movement_definitions_by_id = current_by_id
+            self.movement_definitions_by_alias = current_by_alias
 
     def configure_styles(self) -> None:
         self.style.configure(
@@ -1388,7 +1414,11 @@ class FitnessTrackerApp(tk.Tk):
         if not raw:
             messagebox.showwarning("Empty entry", "Paste or type a daily record first.")
             return
-        self.pending = self.parse_entry(raw)
+        try:
+            self.pending = self.command_service.parse(raw)["review"]
+        except LedgerCommandError as exc:
+            messagebox.showerror("Unable to parse", str(exc), parent=self)
+            return
         training = self.pending["training"]
         training["standardized_summary"] = "；".join(
             f"第{movement['order']}个动作：{movement.get('display_name') or movement['name']}"
@@ -1906,7 +1936,7 @@ class FitnessTrackerApp(tk.Tk):
         key, movement, _is_new = self.resolve_movement(candidate)
         return key, movement
 
-    def commit_pending(self, window: tk.Toplevel) -> None:
+    def _legacy_commit_pending(self, window: tk.Toplevel) -> None:
         parsed = self.pending
         approved_new_movements = self.review_new_movements(parsed["training"]["movements"], window)
         if approved_new_movements is None:
@@ -2036,6 +2066,35 @@ class FitnessTrackerApp(tk.Tk):
                 raw_record["skipped_movements"] = skipped_movements
 
         write_json(DATA_FILE, self.database)
+        self.raw_text.delete("1.0", "end")
+        self.quick_status.set(f"Saved {entry_date}. All views have been refreshed.")
+        self.pending = None
+        window.destroy()
+        self.refresh_all()
+        messagebox.showinfo("Saved", f"Daily record for {entry_date} was saved.")
+
+    def commit_pending(self, window: tk.Toplevel) -> None:
+        parsed = self.pending
+        entry_date = parsed["date"]
+        duplicates = self.records_on_date(entry_date)
+        save_mode = "normal"
+        if any(duplicates.values()):
+            save_mode = self.choose_duplicate_action(entry_date, duplicates, window)
+            if save_mode is None:
+                return
+        try:
+            self.command_service.save(parsed, save_mode)
+        except LedgerCommandError as exc:
+            messagebox.showerror("Unable to save", str(exc), parent=window)
+            return
+        except Exception as exc:
+            messagebox.showerror("Unable to save", f"The original files were preserved.\n\n{exc}", parent=window)
+            return
+        self.database = read_json(DATA_FILE, blank_database())
+        self.movement_dictionary = load_movement_dictionary()
+        self.movement_definitions_by_id, self.movement_definitions_by_alias = movement_definition_index(
+            self.movement_dictionary
+        )
         self.raw_text.delete("1.0", "end")
         self.quick_status.set(f"Saved {entry_date}. All views have been refreshed.")
         self.pending = None
@@ -2572,6 +2631,8 @@ class FitnessTrackerApp(tk.Tk):
         )
         for row_index, movement in enumerate(movements):
             definition = self.movement_definition(movement)
+            if definition and not definition.get("active", True):
+                continue
             searchable = normalize_name(
                 " ".join(
                     [
@@ -5114,6 +5175,8 @@ def _editorial_refresh_movements(self) -> None:
     visible_count = 0
     for row_index, movement in enumerate(movements):
         definition = self.movement_definition(movement)
+        if definition and not definition.get("active", True):
+            continue
         searchable = normalize_name(" ".join([definition.get("display_name", ""), definition.get("english_name", ""), *(definition.get("aliases") or [])]))
         if query and query not in searchable:
             continue
@@ -5845,21 +5908,21 @@ ICON_PNG = BASE_DIR / "assets" / "fitness-ledger-monogram-v3.png"
 
 COLORS.update(
     {
-        "canvas": "#F2F1ED",
-        "paper": "#FFFEFC",
+        "canvas": "#F5F1E8",
+        "paper": "#FCF8F0",
         "white": "#FFFFFF",
-        "frost": "#F7F6F2",
-        "panel_alt": "#EFEEE9",
-        "line": "#DEDDD7",
-        "shadow": "#D1CFC8",
-        "ink": "#151515",
+        "frost": "#F7F2E8",
+        "panel_alt": "#F0E9DD",
+        "line": "#D7CDBC",
+        "shadow": "#D4C7B6",
+        "ink": "#12110F",
         "hero_text": "#111111",
-        "hero_muted": "#666660",
-        "muted": "#777771",
+        "hero_muted": "#6C675F",
+        "muted": "#6B645A",
         "sidebar": "#111211",
         "sidebar_panel": "#191A18",
-        "orange": "#DFFF00",
-        "accent_soft": "#EBFF78",
+        "orange": "#E0BD1F",
+        "accent_soft": "#E7D1A0",
     }
 )
 
@@ -5867,7 +5930,7 @@ COLORS.update(
 def _premium_ensure_visual_assets(self) -> None:
     if getattr(self, "_premium_visual_assets_ready", False):
         return
-    self.hero_art = _load_scaled_photo(HERO_ART_FILE, 1600, 534)
+    self.hero_art = _load_scaled_photo(HERO_ART_FILE, 1680, 560)
     self.brand_badge = _load_scaled_photo(BADGE_ART_FILE, 96, 96)
     self.brand_badge_small = _load_scaled_photo(BADGE_ART_FILE, 48, 48)
     self._premium_visual_assets_ready = True
@@ -6016,7 +6079,7 @@ def _premium_build(self) -> None:
     brand.pack(fill="x", padx=26, pady=(28, 34))
     if getattr(self, "brand_badge_small", None):
         tk.Label(brand, image=self.brand_badge_small, bg=COLORS["sidebar"]).pack(anchor="w")
-    tk.Label(brand, text="FITNESS\nLEDGER", bg=COLORS["sidebar"], fg=COLORS["white"], justify="left", font=("Arial", 16, "bold")).pack(anchor="w", pady=(10, 0))
+    tk.Label(brand, text="FITNESS\nLEDGER", bg=COLORS["sidebar"], fg=COLORS["white"], justify="left", font=("Arial", 15, "bold")).pack(anchor="w", pady=(10, 0))
     tk.Label(brand, text="MOVE. RECORD. KNOW.", bg=COLORS["sidebar"], fg="#74746F", font=("Segoe UI", 7, "bold")).pack(anchor="w", pady=(8, 0))
 
     nav_wrap = tk.Frame(sidebar, bg=COLORS["sidebar"])
@@ -6067,7 +6130,7 @@ def _premium_build_quick_entry(self) -> None:
     page.columnconfigure(0, weight=1)
     body = tk.Frame(page, bg=COLORS["canvas"])
     self.quick_body = body
-    body.grid(row=1, column=0, sticky="nsew", padx=38, pady=(22, 28))
+    body.grid(row=1, column=0, sticky="nsew", padx=34, pady=(22, 28))
     body.rowconfigure(0, weight=1)
     body.columnconfigure(0, weight=1)
     body.columnconfigure(1, weight=0, minsize=350)
@@ -6085,7 +6148,7 @@ def _premium_build_quick_entry(self) -> None:
     tk.Label(editor, text="Raw first. Structure second.", bg=COLORS["paper"], fg=COLORS["hero_text"], font=("Arial", 20, "bold")).grid(row=1, column=0, sticky="w", padx=30)
     self.raw_text = _soft_text(editor, height=13)
     self.raw_text.grid(row=2, column=0, sticky="nsew", padx=30, pady=(18, 18))
-    self.raw_text.configure(width=1, font=("Microsoft YaHei UI", 11), bg="#FAF9F6", highlightbackground=COLORS["line"])
+    self.raw_text.configure(width=1, font=("Microsoft YaHei UI", 11), bg="#FAF7EF", highlightbackground=COLORS["line"])
     actions = tk.Frame(editor, bg=COLORS["paper"])
     actions.grid(row=3, column=0, sticky="ew", padx=30, pady=(0, 14))
     actions.columnconfigure(0, weight=1)
@@ -6102,7 +6165,7 @@ def _premium_build_quick_entry(self) -> None:
     aside.columnconfigure(0, weight=1)
 
     overview = tk.Frame(page, bg="#171816", highlightbackground="#363733", highlightthickness=1)
-    overview.place(x=650, y=18, width=260, height=160)
+    overview.place(relx=1.0, x=-18, y=18, width=280, height=168, anchor="ne")
     tk.Label(overview, text="TODAY / STATUS", bg="#171816", fg=COLORS["orange"], font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=22, pady=(20, 7))
     self.today_status_title = tk.StringVar(value="No records yet")
     tk.Label(overview, textvariable=self.today_status_title, bg="#171816", fg=COLORS["white"], font=("Arial", 17, "bold")).pack(anchor="w", padx=22)

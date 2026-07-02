@@ -33,17 +33,16 @@ Windows shell
 
 ## Safety Boundary
 
-The foundation phase is intentionally read-only. `POST` requests return `501 Not Implemented`. This prevents the web prototype from bypassing backups, review decisions, duplicate-date handling, movement approval, or atomic JSON writes.
+Web reads continue through `LedgerDataAccess`. Daily Parse and confirmed Save now pass through `ledger_commands.py`, which shares the maintained desktop parser, validates Review decisions, creates paired checkpoints, acquires a cross-process lock, writes atomically, and rolls the dictionary back if tracker replacement fails. Request handlers never write JSON directly.
 
-## Command Bridge Plan
+## Command Bridge
 
 The next migration phase should expose commands rather than direct file writes:
 
-1. `parse_entry(raw_text)` returns an immutable review payload.
-2. `confirm_review(review_payload, decisions)` invokes the existing save workflow.
-3. `edit_record(record_type, id, patch)` invokes the existing backup and atomic write path.
-4. `undo_last_save()` restores the existing paired checkpoint.
-5. `acknowledge_data_issue(issue_key)` reuses the existing Data Check state file.
+1. `POST /api/parse` returns a pending Review payload and active movement mapping options.
+2. `POST /api/save` validates the pending identity, merges only allowed edits, and runs the shared save workflow.
+3. Duplicate dates require an explicit `overwrite` or `append_training` save mode.
+4. `edit_record`, `undo_last_save`, and `acknowledge_data_issue` remain deferred until they can use the same command boundary.
 
 Each command must be covered by the existing regression tests before its matching web control is enabled.
 

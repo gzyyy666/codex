@@ -15,7 +15,19 @@ python tools/web_desktop_test.py
 node --check web_desktop/frontend/app.js
 ```
 
-The web foundation must continue returning `501` for POST requests until the safe command bridge is explicitly implemented.
+The Web service must accept only `/api/parse` and `/api/save` POST commands. Tests must use temporary tracker/dictionary files and must never write to the formal database.
+
+## Shared Web Review And Save
+
+- Parse calls the maintained desktop parser and preserves the exact raw input.
+- Review exposes editable Body, Diet, Training, movement notes, and movement decisions.
+- Save rejects a changed review identity or raw input.
+- Only allowed Review fields are merged; movement sets/order/raw cannot be forged through the Web payload.
+- Duplicate dates return `409` until overwrite or append-training is explicitly selected.
+- Saving creates paired tracker/dictionary checkpoints before writing.
+- A failed write preserves or restores the original files.
+- Inactive movements remain recognizable and recordable but are absent from desktop/Web Movement Progress and active mapping options.
+- `python tools/web_desktop_test.py` must print `FITNESS_LEDGER_WEB_SHARED_WRITE_OK`.
 
 ## Review Popup Changes
 

@@ -1,39 +1,40 @@
 # Fitness Ledger Design QA
 
-- Source visual truth: `C:\Users\26087\AppData\Local\Temp\codex-clipboard-7198746f-a123-41a3-af00-b5339d64d1d8.png`
-- Implementation screenshot: `C:\Users\26087\Documents\Codex\2026-06-16\vs-code-ai\work\fitness_tracker_app\design-qa-implementation.png`
-- Combined comparison: `C:\Users\26087\Documents\Codex\2026-06-16\vs-code-ai\work\fitness_tracker_app\design-qa-comparison.png`
-- Viewport: maximized Windows desktop, 1723 x 976 capture
-- State: Quick Entry, populated latest-day status and recent-record list
+- Source visual truth: `C:\Users\26087\.codex\generated_images\019f2308-5aef-7dd1-8b88-b373978f0b1b\exec-b665ce32-9eec-4131-868d-b33c50f5520f.png`
+- Implementation screenshot: `C:\Users\26087\Documents\Codex\2026-06-16\vs-code-ai\work\fitness_tracker_app\web_desktop\qa\review-shared-write-1440.png`
+- Focused movement screenshot: `C:\Users\26087\Documents\Codex\2026-06-16\vs-code-ai\work\fitness_tracker_app\web_desktop\qa\review-shared-write-movements-1440.png`
+- Combined comparison: `C:\Users\26087\Documents\Codex\2026-06-16\vs-code-ai\work\fitness_tracker_app\web_desktop\qa\review-comparison.png`
+- Viewport: 1440 x 1024
+- State: parsed unsaved daily entry with one existing movement and one new movement
 
 ## Full-view comparison evidence
 
-The implementation preserves the target's left navigation, cinematic Hero, central capture surface, floating status layer, and right recent-record stack. The generated Hero asset matches the target subject and monochrome product-photography direction while remaining original and logo-safe.
+The implementation follows the selected Review Scroll concept: narrow sticky chapter index, continuous warm-paper document, summary slip, editable record sections, and a fixed bottom action rail. It intentionally uses more vertical space than the image-generation target because real multiline editing and movement decisions must remain readable.
 
 ## Focused region comparison evidence
 
-- Typography: display/body hierarchy, labels, and CTA weights remain clear without clipping.
-- Spacing: the input, status, recent records, and CTA fit inside the first maximized viewport.
-- Colors: graphite, warm off-white, restrained gray, and Volt accents map consistently across navigation, status, and actions.
-- Image quality: the Hero is a dedicated high-resolution raster asset with a deliberate crop; no placeholder or code-drawn substitute is used.
-- Copy/content: all existing labels, controls, status data, and recent-record actions remain present.
-- Interaction states: navigation selection is persistent; button hover and focus feedback remain subtle.
+- Typography: DM Sans UI text and the editorial serif title preserve the existing Web hierarchy; Chinese labels remain legible at the target viewport.
+- Spacing and layout: section numbering, hairlines, fields, and the sticky action rail maintain a consistent review rhythm without card stacking.
+- Colors and tokens: warm paper, graphite, restrained amber, and mint status treatment match the Style Bible.
+- Image quality: the existing local body-archive raster is used as a faint upper-right background layer; no placeholder or remote asset is used.
+- Copy and content: Body, Diet, Training, movements, warnings, mapping controls, preserved-raw notice, and save actions are all present.
+- Interaction: Parse is live, editable fields are collected, action changes enable mapping, duplicate save modes are explicit, and Confirm invokes the shared save service.
 
 ## Findings
 
-No actionable P0, P1, or P2 findings remain.
+No actionable P0, P1, or P2 visual findings remain.
 
 ## Patches made during QA
 
-- Corrected the high-DPI three-column clipping seen in the first render.
-- Kept the primary CTA visible in the first viewport.
-- Stabilized selected navigation after hover.
-- Reframed the Hero to reveal the full fitness still-life.
-- Moved the status surface into the Hero and kept Recent Saved in the right column.
+- Replaced the stale read-only Parse mock with the real shared Parse/Review flow.
+- Fixed the duplicate module declaration that initially prevented `app.js` from loading.
+- Corrected bodyweight set formatting in movement rows.
+- Corrected the archive background asset path and reduced its opacity so it does not compete with fields.
+- Verified the upper review state and the lower movement/warning state separately.
 
 ## Follow-up polish
 
-- P3: Tkinter does not provide native blur or fully rounded composited surfaces; the implementation uses restrained borders, tonal layering, and directional shadow offsets instead.
-- P3: The target's small navigation pictograms are omitted to avoid substituting text glyphs or low-quality custom drawings for proper icon assets.
+- P3: The generated source fits more content into one viewport; the implementation keeps larger real form controls and scrolls by design.
+- P3: Summary values update after a fresh parse; live recalculation while typing can be added later if daily use shows it is necessary.
 
 final result: passed

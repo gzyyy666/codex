@@ -5,6 +5,7 @@
 | Path | Purpose | Status |
 | --- | --- | --- |
 | `stable_app.pyw` | Current Tkinter desktop application. | Main program |
+| `ledger_commands.py` | Shared UI-free Parse/Review/Save service with locking, checkpoints, atomic writes, and rollback. | Core service |
 | `FITNESS_LEDGER_MAINTENANCE.md` | Project safety and maintenance rules. | Long-term |
 | `PROJECT_BOOTSTRAP.md` | Low-token context restore guide. | Long-term |
 | `PROJECT_INDEX.md` | Project file map. | Long-term |

@@ -515,6 +515,97 @@ body{background:var(--color-paper);color:var(--color-ink);text-rendering:optimiz
   .training-aside{grid-template-columns:1fr}
 }
 
+/* Shared write review: selected Review Scroll direction. */
+.review-scroll-page{
+  position:relative;
+  display:grid;
+  grid-template-columns:150px minmax(0,1fr);
+  min-height:calc(100vh - 80px);
+  padding:40px max(36px,calc((100vw - 1440px)/2)) 118px;
+  background:
+    linear-gradient(90deg,rgba(248,245,237,.99) 0%,rgba(248,245,237,.96) 58%,rgba(248,245,237,.90) 100%),
+    url("assets/body-archive-editorial-v2.png") right top/620px auto no-repeat fixed,
+    var(--paper);
+}
+.review-index{
+  position:sticky;
+  top:104px;
+  align-self:start;
+  padding:8px 28px 0 0;
+  border-right:1px solid rgba(24,21,16,.16);
+}
+.review-index>a{display:grid;grid-template-columns:30px 1fr;gap:8px;padding:12px 0;color:var(--graphite);font-size:11px;text-decoration:none;transition:color .18s ease,transform .18s ease}
+.review-index>a:hover,.review-index>a:focus-visible{color:var(--ink);transform:translateX(3px)}
+.review-index>a b{font:400 14px var(--font-editorial);color:var(--ink)}
+.review-index>p{margin:38px 0 0;color:rgba(24,21,16,.42);font-size:8px;line-height:1.8;letter-spacing:.18em}
+.review-document{min-width:0;padding-left:30px}
+.review-document-head{display:flex;justify-content:space-between;gap:32px;align-items:flex-start;padding:0 0 24px;border-bottom:1px solid rgba(24,21,16,.28)}
+.review-document-head h1{margin:7px 0 4px;font:400 clamp(48px,5vw,72px)/.94 var(--font-editorial);letter-spacing:-.045em}
+.review-document-head p{margin:12px 0 0;color:var(--graphite);font-size:13px}
+.review-summary-paper{
+  position:relative;
+  display:grid;
+  grid-template-columns:1.35fr repeat(9,minmax(78px,1fr));
+  margin:20px 0 16px;
+  background:rgba(252,249,242,.88);
+  border:1px solid rgba(24,21,16,.22);
+  border-radius:4px 20px 4px 4px;
+  box-shadow:0 16px 34px rgba(35,29,18,.06),inset 0 1px rgba(255,255,255,.78);
+  overflow:hidden;
+}
+.review-summary-paper:after{content:"";position:absolute;right:0;top:0;border-style:solid;border-width:0 22px 22px 0;border-color:transparent var(--paper-deep) transparent transparent}
+.review-summary-date,.review-metric{min-width:0;padding:19px 14px;border-right:1px solid rgba(24,21,16,.12)}
+.review-summary-date span,.review-metric span{display:block;margin-bottom:7px;color:var(--graphite);font-size:8px;letter-spacing:.14em;text-transform:uppercase}
+.review-summary-date strong,.review-metric strong{font:400 20px/1.05 var(--font-editorial);overflow-wrap:anywhere}
+.review-metric small{display:block;margin-top:4px;color:var(--graphite);font-size:8px}
+.review-ledger-section{scroll-margin-top:100px;display:grid;grid-template-columns:128px minmax(0,1fr);gap:20px;padding:22px 0;border-bottom:1px solid rgba(24,21,16,.24)}
+.review-ledger-section>header{display:flex;align-items:flex-start;gap:10px;padding-top:4px}
+.review-ledger-section>header>span{font:400 17px var(--font-editorial)}
+.review-ledger-section h2{margin:0;font:500 13px/1.2 var(--font);letter-spacing:.13em;text-transform:uppercase}
+.review-ledger-section h2 small{display:block;margin-top:5px;color:var(--graphite);font-size:9px;letter-spacing:.06em;text-transform:none}
+.review-fields{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:14px}
+.review-field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.review-field.is-wide{grid-column:span 2}
+.review-field>span,.review-note>span{color:var(--graphite);font-size:9px;letter-spacing:.05em}
+.review-field input,.review-field textarea,.review-note input,.review-decision select,.duplicate-choice select{
+  width:100%;
+  border:1px solid rgba(24,21,16,.18);
+  border-radius:6px;
+  background:rgba(255,252,244,.72);
+  color:var(--ink);
+  font:12px/1.55 var(--font);
+  padding:9px 10px;
+  outline:none;
+  transition:border-color .18s ease,box-shadow .18s ease,background .18s ease;
+}
+.review-field textarea{resize:vertical;min-height:66px}
+.review-field input:focus,.review-field textarea:focus,.review-note input:focus,.review-decision select:focus,.duplicate-choice select:focus{border-color:rgba(24,21,16,.52);background:var(--paper-light);box-shadow:0 0 0 3px rgba(255,218,110,.22)}
+.review-movement-list{min-width:0}
+.review-movement{display:grid;grid-template-columns:42px minmax(220px,1.2fr) minmax(170px,.8fr) minmax(220px,1fr);gap:16px;align-items:center;padding:14px 0;border-top:1px solid rgba(24,21,16,.13)}
+.review-movement:first-child{border-top:0;padding-top:0}
+.review-order{display:grid;place-items:center;width:34px;height:34px;border:1px solid rgba(24,21,16,.32);border-radius:50%;font:400 14px var(--font-editorial)}
+.movement-name-input{width:100%;padding:0 0 4px;border:0;border-bottom:1px solid transparent;background:transparent;color:var(--ink);font:500 14px var(--font);outline:none}
+.movement-name-input:focus{border-bottom-color:var(--ink)}
+.review-movement-copy small{display:block;color:var(--graphite);font-size:9px}
+.review-movement-copy p{margin:6px 0 0;font-size:11px;line-height:1.5}
+.review-note{display:flex;flex-direction:column;gap:6px}
+.review-decision{display:grid;grid-template-columns:1fr;gap:6px}
+.review-status{justify-self:start;padding:3px 7px;border-radius:999px;background:rgba(110,206,157,.18);color:#287b55;font-size:8px}
+.review-status.is-new{background:rgba(255,218,110,.3);color:#725600}
+.review-decision select:disabled{opacity:.45;background:rgba(242,237,226,.62)}
+.review-warning-list{display:grid;gap:8px}
+.review-warning{display:grid;grid-template-columns:70px 1fr;gap:12px;padding:10px 12px;border-left:3px solid var(--color-volt);background:rgba(255,218,110,.12);font-size:11px}
+.review-warning.high{border-left-color:#be513e;background:rgba(190,81,62,.08)}
+.review-warning b{text-transform:uppercase;font-size:8px;letter-spacing:.12em}
+.review-clear{margin:0;color:#287b55;font-size:12px}
+.duplicate-choice{display:flex;justify-content:space-between;gap:24px;align-items:center;margin-top:14px;padding:14px 16px;background:rgba(255,218,110,.18);border:1px solid rgba(183,137,17,.3);border-radius:6px}
+.duplicate-choice span{font-size:11px}.duplicate-choice select{max-width:360px}
+.review-action-bar{position:fixed;z-index:20;left:max(24px,calc((100vw - 1440px)/2));right:max(24px,calc((100vw - 1440px)/2));bottom:16px;display:grid;grid-template-columns:160px minmax(220px,1fr) minmax(260px,1.25fr) auto;gap:12px;align-items:center;padding:11px 14px;border:1px solid rgba(24,21,16,.25);border-radius:18px 6px 18px 6px;background:rgba(252,249,242,.9);backdrop-filter:blur(16px);box-shadow:0 18px 50px rgba(30,25,18,.16),inset 0 1px rgba(255,255,255,.82)}
+.review-action-bar small{color:var(--graphite);font-size:8px;letter-spacing:.06em;white-space:nowrap}
+.review-action-bar .btn{min-height:44px}
+@media(max-width:1180px){.review-scroll-page{grid-template-columns:110px minmax(0,1fr);padding-inline:24px}.review-summary-paper{grid-template-columns:repeat(5,1fr)}.review-summary-date,.review-metric{border-bottom:1px solid rgba(24,21,16,.1)}.review-movement{grid-template-columns:36px minmax(200px,1fr) minmax(180px,1fr)}.review-decision{grid-column:2/-1;grid-template-columns:auto 1fr 1fr}.review-note{grid-column:3}.review-action-bar{grid-template-columns:120px 1fr 1.2fr}.review-action-bar small{display:none}}
+@media(max-width:780px){.review-scroll-page{display:block;padding:24px 16px 110px}.review-index{display:none}.review-document{padding:0}.review-document-head h1{font-size:46px}.review-summary-paper{grid-template-columns:repeat(2,1fr)}.review-ledger-section{display:block}.review-ledger-section>header{margin-bottom:16px}.review-fields{grid-template-columns:1fr 1fr}.review-field.is-wide{grid-column:1/-1}.review-movement{grid-template-columns:34px 1fr}.review-note,.review-decision{grid-column:2}.review-decision{grid-template-columns:1fr}.review-action-bar{left:8px;right:8px;bottom:8px;grid-template-columns:1fr 1.5fr}.review-action-bar [data-review-back]{display:none}}
+
 /* 2026-07-02 detail-density, explicit issue actions, and leg archive correction. */
 .movement-detail-page{
   max-width:1320px;

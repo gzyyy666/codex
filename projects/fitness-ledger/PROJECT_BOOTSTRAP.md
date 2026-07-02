@@ -29,10 +29,12 @@ Use this file to restore project context with low token cost.
 
 ## Web Desktop Boundary
 
-- `stable_app.pyw` remains the only write-capable application.
-- `web_desktop/backend/server.py` is currently read-only and reuses `mobile_viewer/data_access.py`.
+- `stable_app.pyw` remains the maintained desktop UI and parser implementation.
+- `ledger_commands.py` is the shared UI-free Parse/Review/Save command service used by desktop and Web.
+- `web_desktop/backend/server.py` exposes local Parse and confirmed Save commands and reuses `mobile_viewer/data_access.py` for reads.
 - `web_desktop/frontend/` is the browser-grade visual layer.
-- Do not enable web Parse, Save, Edit, Undo, or Data Check commands until they call the existing backup and atomic-save workflows.
+- Web record editing, Undo, and Data Check writes remain deferred.
+- Never bypass the shared cross-process lock, paired checkpoint, atomic-write, and rollback workflow.
 
 ## Default Workflow
 

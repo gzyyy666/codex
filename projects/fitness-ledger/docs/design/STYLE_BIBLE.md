@@ -96,6 +96,10 @@ Cinematic stage, one large title, one compact status slip, and a short recent ar
 
 The textarea is a journal page, not a default form. Ruled lines, caret baseline, line height, and placeholder must align.
 
+### Parse And Review
+
+Use the `Review Scroll` pattern: a narrow sticky chapter index, one continuous warm-paper review document, compact summary slip, editable ledger sections, inline movement decisions, and a fixed bottom action rail. A faint local archive illustration may sit behind the upper-right area but must remain below field contrast. The amber action is reserved for `Confirm & Save`.
+
 ### Body
 
 Body slips may use controlled high-saturation tones, but foreground contrast must always pass. Color is meaningful or rhythm-driven, never a blind repeating pattern.
@@ -152,4 +156,3 @@ The local desktop application should echo, not imitate, the Web design:
 ## 13. Maintenance Rule
 
 Update this document whenever a durable token, page pattern, image rule, or interaction semantic changes. Do not add one-off visual experiments until they have been validated in the running UI.
-

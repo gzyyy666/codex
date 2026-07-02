@@ -330,6 +330,7 @@ class LedgerDataAccess:
                 "aliases": movement.aliases,
                 "muscle_group": movement.muscle_group,
                 "category": movement.category,
+                "active": movement.active,
             },
             "history": history[:limit],
         }

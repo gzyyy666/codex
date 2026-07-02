@@ -2,17 +2,22 @@
 
 ## Web Desktop Foundation
 
-- `LedgerWebService.capabilities`: Reports the explicit read/write migration boundary.
+- `LedgerCommandService.parse`: Calls the maintained desktop parser through an injected UI-free adapter and produces the Review payload.
+- `LedgerCommandService.review_payload`: Adds summary, Chinese warnings, duplicate counts, and active mapping options.
+- `LedgerCommandService.save`: Uses a cross-process lock, paired checkpoints, validated Review actions, atomic writes, and rollback.
+- `LedgerWebService.capabilities`: Reports the active shared Review/Save boundary.
+- `LedgerWebService.parse_entry`: Stores a server-side pending Review identity for one parsed raw entry.
+- `LedgerWebService.save_review`: Merges only allowed Review edits and invokes the shared save service.
 - `LedgerWebService.recent`: Builds the latest three-date overview from shared local data.
 - `LedgerWebService.collection`: Returns bounded Body, Diet, or Training collections without writing data.
 - `LedgerWebService.movement_index`: Returns searchable dictionary terms for the web Movement page.
 - `LedgerRequestHandler.do_GET`: Serves static frontend assets and versioned read endpoints.
-- `LedgerRequestHandler.do_POST`: Rejects writes until the command bridge is implemented safely.
+- `LedgerRequestHandler.do_POST`: Handles `/api/parse` and `/api/save`; duplicate dates return `409` with explicit save modes.
 - `web_desktop/launcher.pyw`: Starts the local server and opens the UI in isolated Edge app mode.
 - `web_desktop/frontend/app.js`: Controls page navigation, API reads, real-data rendering, search, and detail dialogs.
 - `docs/design/STYLE_BIBLE.md`: Durable visual and interaction reference for future Web and simplified Tkinter UI maintenance.
 
-Future web write work must begin with `web_desktop/ARCHITECTURE.md` and route commands through existing `stable_app.pyw` backup, review, and atomic-write behavior.
+Future Web write work must begin with `web_desktop/ARCHITECTURE.md` and extend `ledger_commands.py` rather than writing JSON in the request handler.
 
 ## Desktop UI Presentation Layer
 

@@ -37,7 +37,8 @@ Use these rules only for the local Fitness Ledger desktop tool.
 - Movement Matrix and Movement Search resolve tracker records through permanent `movement_id` values.
 - Movement Matrix cells can edit structured history records; dictionary controls can rename or explicitly delete a whole movement row.
 - Movement Progress opens a separate term-only dictionary manager for rename, aliases, active state, and deletion; it must not display training history.
-- Inactive definitions remain available for historical display and alias recognition but are excluded from new-entry mapping choices.
+- Inactive definitions retain aliases and history and can still receive newly recognized records, but are hidden from desktop/Web Movement Progress and excluded from new-entry mapping choices.
+- Desktop and Web confirmed daily saves must pass through `ledger_commands.py`; direct Web JSON writes are forbidden.
 - A confirmed whole-movement delete may remove that dictionary entry and its structured movement history, but must never delete raw daily input text.
 - There is currently no Excel export feature. A future export must use dictionary `display_name` values.
 

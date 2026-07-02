@@ -1,5 +1,13 @@
 # Fitness Ledger Changelog
 
+## 2026-07-02 - Shared Web Parse/Review/Save
+
+- Added `ledger_commands.py` as the shared UI-free Parse/Review/Save command boundary.
+- Connected desktop confirmed saves and Web `/api/parse` + `/api/save` to paired backups, cross-process locking, atomic JSON replacement, and rollback.
+- Added the Web `Review Scroll` interface with editable structured fields, movement mapping decisions, duplicate-date modes, Chinese warnings, and a restrained archive background.
+- Changed inactive movement behavior: history and alias recognition are preserved and new matching records can still be stored, while desktop/Web Movement Progress and mapping choices hide inactive definitions.
+- Expanded temporary-database Web tests and desktop smoke coverage. No database structure changed.
+
 ## 2026-07-02
 
 ### Visual Bible And Cross-Surface Refinement
