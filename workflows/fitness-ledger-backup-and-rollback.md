@@ -15,6 +15,20 @@ Create durable GitHub source checkpoints while keeping personal fitness records 
 7. Commit with a concrete checkpoint message and push to `origin/main`.
 8. Record the commit hash in the user-facing recovery document.
 
+## Automatic Checkpoint Triggers
+
+During an active Codex maintenance turn, create and push a source checkpoint without waiting for a separate reminder when a verified change materially affects one or more of these areas:
+
+- stable user-facing functionality or interaction behavior;
+- parser, movement dictionary, save, backup, or recovery rules;
+- desktop, Web, or mobile architecture and entry points;
+- an accepted visual-system milestone that should be recoverable;
+- maintenance documentation required to understand or restore the project.
+
+Do not create a checkpoint for unverified experiments, minor cosmetic tweaks, generated QA screenshots, browser profiles, caches, local personal data changes, or work that the user has not accepted as stable. When several related changes are in progress, group them into one coherent checkpoint after verification instead of pushing every small edit.
+
+This automation applies only while Codex is actively handling a request. It is not a background service and cannot run after the conversation or computer session has ended.
+
 ## Restore Source Code
 
 1. Identify the desired commit with `git log -- projects/fitness-ledger`.
@@ -39,4 +53,3 @@ Create durable GitHub source checkpoints while keeping personal fitness records 
 - Never restore source and data in one unreviewed bulk overwrite.
 - Never delete the current local backup until the restored version has passed verification.
 - Prefer a new corrective commit over rewriting Git history.
-
