@@ -1,0 +1,10 @@
+data/
+backups/
+logs/
+__pycache__/
+*.pyc
+*.log
+*.tmp
+*.xlsx
+web_desktop/.edge-profile/
+

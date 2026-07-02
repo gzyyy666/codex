@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fitness Ledger Web</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark"><img src="assets/fitness-ledger-monogram.png" alt="Fitness Ledger monogram"></div><strong>FITNESS LEDGER</strong><small>MOVE. RECORD. KNOW.</small></div>
+      <nav aria-label="主导航">
+        <button class="nav-item is-active" data-view="home"><span>00</span><b>⌂</b>Home</button>
+        <button class="nav-item" data-view="quick"><span>01</span><b>✎</b>Daily Entry</button>
+        <button class="nav-item" data-view="body"><span>02</span><b>♙</b>Body</button>
+        <button class="nav-item" data-view="diet"><span>03</span><b>♜</b>Diet</button>
+        <button class="nav-item" data-view="training"><span>04</span><b>↔</b>Training</button>
+        <button class="nav-item" data-view="movements"><span>05</span><b>⌁</b>Movement Progress</button>
+        <button class="nav-item" data-view="checks"><span>06</span><b>✓</b>Data Check</button>
+      </nav>
+      <div class="privacy"><i></i><div>LOCAL-FIRST / PRIVATE<small>JSON remains the source of truth</small></div><span>▣</span></div>
+    </aside>
+    <main id="main" aria-live="polite"><div class="loading-page"><i></i><p>Loading your local journal…</p></div></main>
+  </div>
+  <div id="overlay-root"></div>
+  <div id="toast" role="status"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

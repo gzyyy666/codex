@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Movement · Fitness Ledger Mobile Viewer{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-head">
+    <h3>Movement progress</h3>
+    <span class="panel-note">按动作名 / 英文 / 别名搜索</span>
+  </div>
+  <form class="search-form" method="get">
+    <input type="text" name="q" value="{{ query }}" placeholder="例如：引体向上 / pull up / 诺德士高拉" autocomplete="off">
+    <select name="limit">
+      {% for size in (3, 5, 8, 12) %}
+      <option value="{{ size }}"{% if limit == size %} selected{% endif %}>最近 {{ size }} 次</option>
+      {% endfor %}
+    </select>
+    <button type="submit">Open</button>
+  </form>
+</section>
+
+{% if history.movement %}
+<section class="panel">
+  <div class="panel-head">
+    <h3>{{ history.movement.display_name }}</h3>
+    <span class="panel-note">{{ history.movement.english_name or history.movement.movement_id }}</span>
+  </div>
+  <div class="tag-strip">
+    {% for alias in history.movement.aliases[:6] %}
+    <span class="tag">{{ alias }}</span>
+    {% endfor %}
+  </div>
+  {% for record in history.history %}
+  <div class="movement-history-card">
+    <div class="session-head">
+      <strong>{{ record.date }}</strong>
+      <span>Ex {{ record.order or '-' }}</span>
+    </div>
+    <ul class="set-list compact">
+      {% for row in record.sets_lines %}
+      <li>{{ row }}</li>
+      {% else %}
+      <li>-</li>
+      {% endfor %}
+    </ul>
+    {% if record.notes %}<div class="movement-note">{{ record.notes }}</div>{% endif %}
+  </div>
+  {% else %}
+  <p class="empty-state">No history found.</p>
+  {% endfor %}
+</section>
+{% elif query %}
+<section class="panel">
+  <div class="panel-head">
+    <h3>Matches</h3>
+    <span class="panel-note">Select one movement family</span>
+  </div>
+  {% for item in suggestions %}
+  <a class="list-link" href="{{ url_for('movement', q=item.display_name, limit=limit) }}">
+    <strong>{{ item.display_name }}</strong>
+    <span>{{ item.english_name or item.movement_id }}</span>
+  </a>
+  {% else %}
+  <p class="empty-state">No movement matched this query.</p>
+  {% endfor %}
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Fitness Ledger Mobile Viewer{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css') }}">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-lockup">
+        <img class="brand-badge" src="{{ url_for('viewer_assets', filename='fitness-ledger-badge.png') }}" alt="Fitness Ledger">
+        <div>
+          <div class="eyebrow">Mobile Viewer</div>
+          <h1>Fitness Ledger</h1>
+        </div>
+      </div>
+      <nav class="nav-tabs">
+        {% for label, href in nav_items %}
+        <a href="{{ href }}" class="nav-tab{% if request.path == href %} is-active{% endif %}">{{ label }}</a>
+        {% endfor %}
+      </nav>
+    </header>
+    <main class="page-body">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

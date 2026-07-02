@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Today · Fitness Ledger Mobile Viewer{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-head">
+    <h3>{{ detail.date or 'No date' }}</h3>
+    {% if detail.date %}<a href="{{ url_for('record_detail', entry_date=detail.date) }}" class="text-link">Detail</a>{% endif %}
+  </div>
+  {% if detail.date %}
+  <details class="detail-card" open>
+    <summary>Body</summary>
+    {% set body = detail.body %}
+    <div class="kv-list">
+      <div><span>Weight</span><strong>{{ body.get('Weight (kg)', '-') }}</strong></div>
+      <div><span>排便</span><strong>{{ body.get('Bowel Movement', '-') or '-' }}</strong></div>
+      <div><span>Training</span><strong>{{ body.get('Training', '-') or '-' }}</strong></div>
+      <div><span>Cardio</span><strong>{{ body.get('Cardio', '-') or '-' }}</strong></div>
+      <div><span>Notes</span><strong>{{ body.get('Notes', '-') or '-' }}</strong></div>
+    </div>
+  </details>
+  <details class="detail-card" open>
+    <summary>Diet</summary>
+    {% set diet = detail.diet %}
+    <div class="kv-list">
+      <div><span>Calories</span><strong>{{ diet.get('Calories (kcal)', '-') }}</strong></div>
+      <div><span>Protein</span><strong>{{ diet.get('Protein (g)', '-') }}</strong></div>
+      <div><span>Carbs</span><strong>{{ diet.get('Carbs (g)', '-') }}</strong></div>
+      <div><span>Fat</span><strong>{{ diet.get('Fat (g)', '-') }}</strong></div>
+      <div class="full-row"><span>Food summary</span><strong>{{ diet.get('Food Summary', '-') or '-' }}</strong></div>
+      <div class="full-row"><span>Notes</span><strong>{{ diet.get('Notes', '-') or '-' }}</strong></div>
+    </div>
+  </details>
+  <details class="detail-card" open>
+    <summary>Training</summary>
+    {% for session in detail.training %}
+    <div class="session-card">
+      <div class="session-head">
+        <strong>Day {{ session.day_number }}</strong>
+        <span>{{ session.split or '-' }}</span>
+      </div>
+      <div class="session-summary">{{ session.standardized_summary or '-' }}</div>
+      {% for movement in session.movements %}
+      <div class="movement-card">
+        <div class="movement-top">
+          <strong>{{ movement.order }}. {{ movement.display_name }}</strong>
+        </div>
+        <ul class="set-list">
+          {% for row in movement.sets %}
+          <li>{{ (row.weight_text if row.get('weight_text') else (row.weight|string ~ 'kg')) }} × {{ row.reps }} × {{ row.sets }}</li>
+          {% else %}
+          <li>-</li>
+          {% endfor %}
+        </ul>
+        {% if movement.notes %}<div class="movement-note">{{ movement.notes }}</div>{% endif %}
+      </div>
+      {% endfor %}
+      {% if session.notes %}<div class="session-note">Session note: {{ session.notes }}</div>{% endif %}
+    </div>
+    {% else %}
+    <p class="empty-state">No training found for this date.</p>
+    {% endfor %}
+  </details>
+  {% else %}
+  <p class="empty-state">No record available.</p>
+  {% endif %}
+</section>
+{% endblock %}

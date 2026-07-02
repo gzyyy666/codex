@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Search · Fitness Ledger Mobile Viewer{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-head">
+    <h3>Search records</h3>
+    <span class="panel-note">日期 / 动作 / 饮食 / 部位</span>
+  </div>
+  <form class="search-form" method="get">
+    <input type="text" name="q" value="{{ results.query }}" placeholder="卧推 / 背部 / 鸡胸肉 / 2026-06-29" autocomplete="off">
+    <select name="scope">
+      <option value="30d"{% if results.scope == '30d' %} selected{% endif %}>最近30天</option>
+      <option value="all"{% if results.scope == 'all' %} selected{% endif %}>全部</option>
+    </select>
+    <button type="submit">Search</button>
+  </form>
+</section>
+
+{% if results.query %}
+<section class="panel">
+  <div class="panel-head">
+    <h3>Movement matches</h3>
+    <span class="panel-note">{{ results.movements|length }} found</span>
+  </div>
+  {% for movement in results.movements %}
+  <a class="list-link" href="{{ url_for('movement', q=movement.display_name) }}">
+    <strong>{{ movement.display_name }}</strong>
+    <span>{{ movement.english_name or movement.movement_id }}</span>
+  </a>
+  {% else %}
+  <p class="empty-state">No direct movement alias match.</p>
+  {% endfor %}
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h3>Record matches</h3>
+    <span class="panel-note">{{ results.records|length }} found</span>
+  </div>
+  {% for item in results.records %}
+  <a class="record-row" href="{{ url_for('record_detail', entry_date=item.date) }}">
+    <div class="record-top">
+      <strong>{{ item.date }}</strong>
+      <span>{{ item.training or '-' }}</span>
+    </div>
+    <div class="record-bottom">
+      <span>体重 {{ item.weight or '-' }}</span>
+      <span>热量 {{ item.calories or '-' }}</span>
+      <span>{{ item.movement_count }} movements</span>
+    </div>
+    <div class="tag-strip">
+      {% for tag in item.matched_sections %}
+      <span class="tag">{{ tag }}</span>
+      {% endfor %}
+    </div>
+  </a>
+  {% else %}
+  <p class="empty-state">No matching records in this scope.</p>
+  {% endfor %}
+</section>
+{% endif %}
+{% endblock %}

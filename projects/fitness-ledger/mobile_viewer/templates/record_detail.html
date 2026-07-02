@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ detail.date }} · Fitness Ledger Mobile Viewer{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-head">
+    <h3>{{ detail.date }}</h3>
+    <a href="{{ url_for('today', date=detail.date) }}" class="text-link">Today view</a>
+  </div>
+
+  <details class="detail-card" open>
+    <summary>Body + Diet</summary>
+    <div class="kv-list">
+      <div><span>Weight</span><strong>{{ detail.body.get('Weight (kg)', '-') }}</strong></div>
+      <div><span>排便</span><strong>{{ detail.body.get('Bowel Movement', '-') or '-' }}</strong></div>
+      <div><span>Calories</span><strong>{{ detail.diet.get('Calories (kcal)', '-') }}</strong></div>
+      <div><span>Protein / Carbs / Fat</span><strong>{{ detail.diet.get('Protein (g)', '-') }} / {{ detail.diet.get('Carbs (g)', '-') }} / {{ detail.diet.get('Fat (g)', '-') }}</strong></div>
+      <div class="full-row"><span>Diet summary</span><strong>{{ detail.diet.get('Food Summary', '-') or '-' }}</strong></div>
+      <div class="full-row"><span>Body notes</span><strong>{{ detail.body.get('Notes', '-') or '-' }}</strong></div>
+    </div>
+  </details>
+
+  <details class="detail-card" open>
+    <summary>Training sessions</summary>
+    {% for session in detail.training %}
+    <div class="session-card">
+      <div class="session-head">
+        <strong>Day {{ session.day_number }}</strong>
+        <span>{{ session.split or '-' }}</span>
+      </div>
+      <div class="session-summary">{{ session.standardized_summary or '-' }}</div>
+      {% for movement in session.movements %}
+      <div class="movement-card">
+        <strong>{{ movement.order }}. {{ movement.display_name }}</strong>
+        <ul class="set-list">
+          {% for row in movement.sets %}
+          <li>{{ (row.weight_text if row.get('weight_text') else (row.weight|string ~ 'kg')) }} × {{ row.reps }} × {{ row.sets }}</li>
+          {% else %}
+          <li>-</li>
+          {% endfor %}
+        </ul>
+        {% if movement.notes %}<div class="movement-note">{{ movement.notes }}</div>{% endif %}
+      </div>
+      {% endfor %}
+      {% if session.notes %}<div class="session-note">{{ session.notes }}</div>{% endif %}
+      {% if session.raw_record %}
+      <details class="inline-detail">
+        <summary>Raw record</summary>
+        <pre>{{ session.raw_record }}</pre>
+      </details>
+      {% endif %}
+    </div>
+    {% else %}
+    <p class="empty-state">No training on this date.</p>
+    {% endfor %}
+  </details>
+</section>
+{% endblock %}

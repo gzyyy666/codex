@@ -1,0 +1,376 @@
+:root {
+  --bg: #efe4d4;
+  --paper: rgba(255, 251, 245, 0.92);
+  --panel: #faf6ef;
+  --line: #d3c3af;
+  --ink: #223043;
+  --muted: #6d675f;
+  --navy: #142238;
+  --navy-2: #1d314d;
+  --teal: #2e706d;
+  --copper: #c88943;
+  --danger: #a04a43;
+  --shadow: 0 12px 28px rgba(28, 34, 45, 0.12);
+  --radius: 18px;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  color: var(--ink);
+  background:
+    linear-gradient(180deg, rgba(20, 34, 56, 0.88), rgba(20, 34, 56, 0.3) 220px, transparent 220px),
+    linear-gradient(180deg, #f3e9db, #ebe0d0 55%, #e3d7c6);
+  font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+}
+
+.app-shell {
+  max-width: 760px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+
+.topbar {
+  padding: 18px 16px 14px;
+}
+
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.brand-badge {
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  object-fit: cover;
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.2);
+}
+
+.eyebrow {
+  color: #d7c5af;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.brand-lockup h1 {
+  margin: 4px 0 0;
+  color: #fbf7ef;
+  font-size: 26px;
+  font-family: Georgia, serif;
+}
+
+.nav-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.nav-tab {
+  white-space: nowrap;
+  text-decoration: none;
+  color: #e0d4c4;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 999px;
+  padding: 9px 14px;
+  font-size: 13px;
+}
+
+.nav-tab.is-active {
+  background: #f8f2e8;
+  color: var(--navy);
+  border-color: #f8f2e8;
+}
+
+.page-body {
+  padding: 0 14px 28px;
+}
+
+.hero-card,
+.panel,
+.detail-card,
+.movement-history-card,
+.record-row,
+.list-link,
+.session-card {
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+
+.hero-card {
+  padding: 20px 18px;
+  margin-bottom: 14px;
+  background:
+    linear-gradient(145deg, rgba(20,34,56,0.92), rgba(30,49,77,0.82)),
+    url("/viewer-assets/fitness-ledger-hero.png") center/cover no-repeat;
+  color: #fbf6ed;
+}
+
+.hero-card h2 {
+  margin: 8px 0 10px;
+  font-size: 26px;
+  line-height: 1.2;
+  font-family: Georgia, serif;
+}
+
+.hero-card p {
+  margin: 0;
+  color: #ddd0bf;
+  line-height: 1.5;
+}
+
+.panel {
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.panel-head h3 {
+  margin: 0;
+  font-size: 21px;
+  font-family: Georgia, serif;
+}
+
+.panel-note,
+.text-link {
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.search-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.search-form input,
+.search-form select,
+.search-form button {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  padding: 13px 14px;
+  font-size: 15px;
+}
+
+.search-form input,
+.search-form select {
+  background: #fffdf9;
+  color: var(--ink);
+}
+
+.search-form button {
+  background: linear-gradient(135deg, #d0934e, #bd7d35);
+  color: white;
+  border: 0;
+  font-weight: 700;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.stat-card,
+.stack-card,
+.movement-card {
+  background: var(--panel);
+  border: 1px solid #e0d4c3;
+  border-radius: 14px;
+}
+
+.stat-card {
+  padding: 12px;
+}
+
+.stat-card span,
+.stack-row span,
+.kv-list span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.stat-card strong,
+.stack-row strong,
+.kv-list strong {
+  display: block;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.stack-card {
+  padding: 6px 14px;
+}
+
+.stack-row {
+  padding: 9px 0;
+  border-bottom: 1px solid #e4d8ca;
+}
+
+.stack-row:last-child { border-bottom: 0; }
+
+.chip-list,
+.tag-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.date-chip,
+.tag {
+  border-radius: 999px;
+  border: 1px solid #decab0;
+  background: #fffaf3;
+  color: var(--navy);
+  padding: 7px 11px;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.detail-card {
+  margin-bottom: 12px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.detail-card summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 15px 16px;
+  font-weight: 700;
+  background: linear-gradient(180deg, #f6efe4, #f1e7da);
+}
+
+.detail-card summary::-webkit-details-marker { display: none; }
+
+.kv-list {
+  padding: 12px 16px 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.kv-list .full-row {
+  grid-column: 1 / -1;
+}
+
+.session-card,
+.movement-history-card,
+.record-row,
+.list-link {
+  display: block;
+  padding: 14px;
+  margin-bottom: 10px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.session-head,
+.record-top,
+.record-bottom {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.session-summary {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+  margin-top: 8px;
+}
+
+.movement-card {
+  margin-top: 12px;
+  padding: 12px;
+}
+
+.movement-top {
+  margin-bottom: 6px;
+}
+
+.set-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.set-list li {
+  margin-bottom: 5px;
+  line-height: 1.45;
+}
+
+.movement-note,
+.session-note {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f3ebe0;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.inline-detail {
+  margin-top: 12px;
+}
+
+.inline-detail summary {
+  cursor: pointer;
+  color: var(--teal);
+}
+
+.inline-detail pre {
+  white-space: pre-wrap;
+  background: #fffdf9;
+  border: 1px solid #e2d7c8;
+  border-radius: 12px;
+  padding: 12px;
+  overflow-x: auto;
+  line-height: 1.45;
+}
+
+.record-bottom {
+  margin: 9px 0 10px;
+  color: var(--muted);
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.empty-state {
+  color: var(--muted);
+  margin: 0;
+}
+
+@media (min-width: 700px) {
+  .page-body {
+    padding: 0 18px 34px;
+  }
+
+  .search-form {
+    grid-template-columns: 1fr 130px 120px;
+  }
+
+  .hero-card {
+    padding: 28px 24px;
+  }
+}

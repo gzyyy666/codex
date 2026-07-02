@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Home · Fitness Ledger Mobile Viewer{% endblock %}
+{% block content %}
+<section class="hero-card">
+  <div class="hero-copy">
+    <div class="eyebrow">Gym-side view</div>
+    <h2>Fast lookup for today’s training, food, and movement history.</h2>
+    <p>Read-only mobile access built on top of your existing tracker data.</p>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h3>Search</h3>
+    <span class="panel-note">动作 / 日期 / 训练部位 / 饮食关键词</span>
+  </div>
+  <form class="search-form" action="{{ url_for('search') }}" method="get">
+    <input type="text" name="q" placeholder="例如：卧推 / bench / 2026-06-29 / 鸡胸肉" autocomplete="off">
+    <select name="scope">
+      <option value="30d">最近30天</option>
+      <option value="all">全部</option>
+    </select>
+    <button type="submit">Search</button>
+  </form>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h3>Today summary</h3>
+    <a href="{{ url_for('today', date=today.date) }}" class="text-link">Open full view</a>
+  </div>
+  {% if today.date %}
+  <div class="summary-grid">
+    <div class="stat-card"><span>Date</span><strong>{{ today.date }}</strong></div>
+    <div class="stat-card"><span>Weight</span><strong>{{ today.body.get('Weight (kg)', '-') }}</strong></div>
+    <div class="stat-card"><span>排便</span><strong>{{ today.body.get('Bowel Movement', '-') or '-' }}</strong></div>
+    <div class="stat-card"><span>训练部位</span><strong>{{ today.body.get('Training', '-') or '-' }}</strong></div>
+    <div class="stat-card"><span>热量</span><strong>{{ today.diet.get('Calories (kcal)', '-') }}</strong></div>
+    <div class="stat-card"><span>P / C / F</span><strong>{{ today.diet.get('Protein (g)', '-') }} / {{ today.diet.get('Carbs (g)', '-') }} / {{ today.diet.get('Fat (g)', '-') }}</strong></div>
+  </div>
+  <div class="stack-card">
+    <div class="stack-row"><span>Cardio</span><strong>{{ today.cardio or '-' }}</strong></div>
+    <div class="stack-row"><span>Diet</span><strong>{{ today.diet.get('Food Summary', '-') or '-' }}</strong></div>
+    <div class="stack-row"><span>Training summary</span><strong>{{ today.training.get('standardized_summary', '-') or '-' }}</strong></div>
+  </div>
+  {% else %}
+  <p class="empty-state">No saved data yet.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h3>Recent dates</h3>
+    <span class="panel-note">Quick jump</span>
+  </div>
+  <div class="chip-list">
+    {% for item in recent_dates %}
+    <a href="{{ url_for('record_detail', entry_date=item) }}" class="date-chip">{{ item }}</a>
+    {% else %}
+    <span class="empty-state">No records.</span>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
