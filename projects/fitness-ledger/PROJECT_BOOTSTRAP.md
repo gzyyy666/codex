@@ -17,6 +17,7 @@ Use this file to restore project context with low token cost.
 - Maintenance rules: `FITNESS_LEDGER_MAINTENANCE.md`
 - Function map: `FUNCTION_INDEX.md`
 - Regression guide: `REGRESSION_CHECKLIST.md`
+- Product-function review brief: `FUNCTIONAL_REVIEW_BRIEF.md`
 
 ## Core Pages
 

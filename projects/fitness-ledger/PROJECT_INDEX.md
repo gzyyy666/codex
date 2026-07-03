@@ -1,5 +1,7 @@
 # Fitness Ledger Project Index
 
+- `FUNCTIONAL_REVIEW_BRIEF.md`: Code-free product and workflow description for external functional review.
+
 ## Root Files
 
 | Path | Purpose | Status |
