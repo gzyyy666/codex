@@ -517,7 +517,7 @@ body{background:var(--color-paper);color:var(--color-ink);text-rendering:optimiz
 
 /* Shared movement dictionary administration. */
 .dictionary-page{position:relative;max-width:1460px;margin:0 auto;padding:54px 4vw 90px}
-.nav-item[data-view="dictionary"].is-active{background:var(--ink);color:var(--paper)}
+button.nav-item[data-view="dictionary"].is-active{background-color:#000!important;color:#fff!important;opacity:1!important;filter:none!important}
 .dictionary-page::before{content:"TERMS / ALIASES / STATUS";position:absolute;right:2vw;top:210px;writing-mode:vertical-rl;font:600 9px/1 var(--font);letter-spacing:.34em;color:rgba(24,21,16,.28);pointer-events:none}
 .dictionary-hero{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:36px;padding-bottom:28px;border-bottom:1px solid rgba(24,21,16,.28)}
 .dictionary-hero h1{margin:8px 0 15px;font:400 clamp(58px,7vw,104px)/.82 var(--font-editorial);letter-spacing:-.055em}
@@ -587,6 +587,37 @@ body{background:var(--color-paper);color:var(--color-ink);text-rendering:optimiz
 .trajectory-edit{position:absolute;right:14px;top:50%;transform:translateY(-50%);border:1px solid rgba(24,21,16,.2);border-radius:999px;background:rgba(255,252,244,.78);padding:7px 10px;font-size:9px;letter-spacing:.04em;transition:transform .16s ease,box-shadow .16s ease}
 .trajectory-edit:hover{transform:translateY(calc(-50% - 2px));box-shadow:0 8px 18px rgba(35,29,18,.1)}
 @media(max-width:760px){.dictionary-icon-actions button span{display:none}.dictionary-sheet-head,.dictionary-row-compact{min-width:720px}.record-edit-form{grid-template-columns:1fr}.record-edit-form label.is-wide,.record-edit-note{grid-column:auto}.trajectory-entry{padding-right:0}.trajectory-edit{position:static;transform:none;margin-top:10px}}
+
+/* Dictionary functional grid, matched to the approved compact reference. */
+.dictionary-page{max-width:none;padding:28px max(32px,calc((100vw - 1260px)/2)) 90px;background:var(--paper)}
+.dictionary-page::after{content:"";position:fixed;z-index:-1;inset:80px 0 0;background:url("assets/movement-archive-collage.png") center top/cover no-repeat;opacity:.24;border:0;border-radius:0;box-shadow:none;transform:none;pointer-events:none}
+.dictionary-page::before{right:max(18px,calc((100vw - 1400px)/2));top:220px}
+.dictionary-hero{max-width:100%;grid-template-columns:minmax(0,780px) auto;justify-content:space-between;align-items:end;margin:0 0 20px;text-align:left;padding:0 0 18px;border-bottom:0}
+.page .dictionary-hero{max-width:none;margin:0 0 20px;text-align:left}
+.dictionary-hero h1{margin:6px 0 10px;font-size:clamp(48px,5vw,72px);line-height:.8}
+.dictionary-hero p{max-width:720px;font-size:12px}
+.dictionary-toolbar{grid-template-columns:minmax(320px,1fr) 150px auto;max-width:100%;margin:10px 0 14px}
+.dictionary-sheet{overflow:visible;border:0;border-radius:0;background:transparent;box-shadow:none}
+.dictionary-sheet-head{display:none}
+#dictionary-rows{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:11px}
+.dictionary-row-compact{display:grid;grid-template-columns:1fr auto;grid-template-rows:auto minmax(42px,1fr) auto auto;gap:5px 8px;align-items:start;min-width:0;min-height:154px;padding:13px 14px 12px;border:1px solid rgba(24,21,16,.16);border-radius:8px;background:rgba(255,252,244,.82);box-shadow:0 8px 18px rgba(35,29,18,.045),inset 0 1px rgba(255,255,255,.76);backdrop-filter:blur(3px)}
+.dictionary-row-compact:hover{transform:translateY(-2px);background:rgba(255,253,247,.94);box-shadow:0 13px 24px rgba(35,29,18,.08),inset 0 1px #fff}
+.dictionary-row-compact.is-inactive{background:rgba(239,236,228,.82)}
+.dictionary-row-compact .dictionary-state{grid-column:1;grid-row:1;font-size:9px}
+.dictionary-row-compact .dictionary-name{grid-column:1/-1;grid-row:2;align-self:center;min-width:0}
+.dictionary-row-compact .dictionary-name strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:17px}
+.dictionary-row-compact .dictionary-name small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:8px}
+.dictionary-row-compact .dictionary-group{grid-column:1;grid-row:3;justify-self:start;border:1px solid rgba(202,152,34,.24);border-radius:999px;background:rgba(255,211,65,.12);padding:2px 7px;font-size:8px;font-weight:700}
+.dictionary-row-compact .dictionary-history{grid-column:2;grid-row:1;justify-self:end;display:flex;gap:3px;color:var(--graphite)}
+.dictionary-row-compact .dictionary-history strong{font:400 16px/1 var(--font-editorial)}
+.dictionary-row-compact .dictionary-history small{font-size:8px}
+.dictionary-row-compact .dictionary-icon-actions{grid-column:1/-1;grid-row:4;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:4px;padding-top:8px;border-top:1px solid rgba(24,21,16,.11)}
+.dictionary-row-compact .dictionary-icon-actions button{justify-content:center;min-width:0;padding:5px 4px;border-radius:5px;background:rgba(255,255,255,.46);font-size:8px}
+.dictionary-row-compact .dictionary-icon-actions button b{font-size:10px}
+@media(max-width:1250px){#dictionary-rows{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:960px){#dictionary-rows{grid-template-columns:repeat(3,minmax(0,1fr))}.dictionary-hero{grid-template-columns:1fr}.dictionary-hero .btn{justify-self:start}}
+@media(max-width:700px){#dictionary-rows{grid-template-columns:repeat(2,minmax(0,1fr))}.dictionary-toolbar{grid-template-columns:1fr}.dictionary-row-compact{min-width:0}.dictionary-icon-actions button span{display:none}}
+@media(max-width:440px){#dictionary-rows{grid-template-columns:1fr}}
 
 /* Shared write review: selected Review Scroll direction. */
 .review-scroll-page{

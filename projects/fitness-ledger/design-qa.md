@@ -1,40 +1,38 @@
-# Fitness Ledger Design QA
+# Fitness Ledger Dictionary Design QA
 
-- Source visual truth: `C:\Users\26087\.codex\generated_images\019f2308-5aef-7dd1-8b88-b373978f0b1b\exec-b665ce32-9eec-4131-868d-b33c50f5520f.png`
-- Implementation screenshot: `C:\Users\26087\Documents\Codex\2026-06-16\vs-code-ai\work\fitness_tracker_app\web_desktop\qa\review-shared-write-1440.png`
-- Focused movement screenshot: `C:\Users\26087\Documents\Codex\2026-06-16\vs-code-ai\work\fitness_tracker_app\web_desktop\qa\review-shared-write-movements-1440.png`
-- Combined comparison: `C:\Users\26087\Documents\Codex\2026-06-16\vs-code-ai\work\fitness_tracker_app\web_desktop\qa\review-comparison.png`
-- Viewport: 1440 x 1024
-- State: parsed unsaved daily entry with one existing movement and one new movement
+- Source visual truth: `C:\Users\26087\AppData\Local\Temp\codex-clipboard-916ecd98-335e-4b96-ac64-2a7071191619.png`
+- Implementation screenshot: `C:\Users\26087\Documents\Codex\2026-06-16\vs-code-ai\work\fitness_tracker_app\web_desktop\qa\dictionary-grid-1710.png`
+- Combined comparison: `C:\Users\26087\Documents\Codex\2026-06-16\vs-code-ai\work\fitness_tracker_app\web_desktop\qa\dictionary-grid-comparison.png`
+- Viewport: 1710 x 950
+- State: Dictionary, all statuses, 31 local movement terms
 
 ## Full-view comparison evidence
 
-The implementation follows the selected Review Scroll concept: narrow sticky chapter index, continuous warm-paper document, summary slip, editable record sections, and a fixed bottom action rail. It intentionally uses more vertical space than the image-generation target because real multiline editing and movement decisions must remain readable.
+The implementation matches the approved functional-grid direction: five equal columns, compact professional cells, left-aligned editorial heading, one search/filter row, and a restrained technical movement-archive background. The live interface shows fifteen complete terms in the first viewport while preserving legibility and direct actions.
 
 ## Focused region comparison evidence
 
-- Typography: DM Sans UI text and the editorial serif title preserve the existing Web hierarchy; Chinese labels remain legible at the target viewport.
-- Spacing and layout: section numbering, hairlines, fields, and the sticky action rail maintain a consistent review rhythm without card stacking.
-- Colors and tokens: warm paper, graphite, restrained amber, and mint status treatment match the Style Bible.
-- Image quality: the existing local body-archive raster is used as a faint upper-right background layer; no placeholder or remote asset is used.
-- Copy and content: Body, Diet, Training, movements, warnings, mapping controls, preserved-raw notice, and save actions are all present.
-- Interaction: Parse is live, editable fields are collected, action changes enable mapping, duplicate save modes are explicit, and Confirm invokes the shared save service.
+- Fonts and typography: editorial serif display title and compact DM Sans metadata preserve the source hierarchy; long Chinese and English names truncate safely.
+- Spacing and layout rhythm: title, toolbar, and grid share one left baseline; cards use consistent gaps and restrained internal spacing.
+- Colors and tokens: warm paper, graphite hairlines, mint active state, amber category chips, and restrained red deletion follow the existing Style Bible.
+- Image quality: the existing local `movement-archive-collage.png` supplies the technical anatomy/paper background and remains offline-capable.
+- Copy and content: each cell includes status, history count, standard/English name, muscle group, and the three required actions. Aliases remain in the editor rather than the index.
+- Interaction: search, status filtering, create, edit, enable/disable, and confirmed deletion remain wired to the shared service.
 
 ## Findings
 
-No actionable P0, P1, or P2 visual findings remain.
+No actionable P0, P1, or P2 findings remain.
 
 ## Patches made during QA
 
-- Replaced the stale read-only Parse mock with the real shared Parse/Review flow.
-- Fixed the duplicate module declaration that initially prevented `app.js` from loading.
-- Corrected bodyweight set formatting in movement rows.
-- Corrected the archive background asset path and reduced its opacity so it does not compete with fields.
-- Verified the upper review state and the lower movement/warning state separately.
+- Replaced the vertical dictionary list with a responsive five-column functional grid.
+- Matched the reference content width and shared left alignment.
+- Reused the local movement archive illustration as a low-contrast full-page layer.
+- Strengthened the active Dictionary navigation state and retained compact tactile action controls.
+- Added four-, three-, two-, and one-column responsive breakpoints.
 
 ## Follow-up polish
 
-- P3: The generated source fits more content into one viewport; the implementation keeps larger real form controls and scrolls by design.
-- P3: Summary values update after a fresh parse; live recalculation while typing can be added later if daily use shows it is necessary.
+- P3: The reference includes a decorative left metadata rail; it is intentionally omitted to prioritize usable grid width.
 
 final result: passed

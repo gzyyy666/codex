@@ -1,5 +1,13 @@
 # Fitness Ledger Changelog
 
+## 2026-07-03 - Dictionary Functional Grid
+
+- Reworked the Web Dictionary into a regular five-column functional grid based on the approved reference.
+- Concentrated each cell on status, history count, standard/English name, muscle group, and direct actions.
+- Kept aliases and extended metadata inside the editor to increase first-screen information density.
+- Reused the local movement archive collage as a restrained full-page technical background.
+- Added responsive four-, three-, two-, and one-column layouts without changing dictionary behavior or data.
+
 ## 2026-07-03 - Web Record Editing And Compact Dictionary
 
 - Added shared Web editing for existing Body, Diet, and Training records using the desktop field boundaries.
