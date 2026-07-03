@@ -18,6 +18,8 @@ Use this file to restore project context with low token cost.
 - Function map: `FUNCTION_INDEX.md`
 - Regression guide: `REGRESSION_CHECKLIST.md`
 - Product-function review brief: `FUNCTIONAL_REVIEW_BRIEF.md`
+- External design reference: `DESIGN.md` (Nike analysis from VoltAgent/awesome-design-md, MIT licensed)
+- Project-specific visual authority: `docs/design/STYLE_BIBLE.md`
 
 ## Core Pages
 
@@ -46,11 +48,13 @@ Use this file to restore project context with low token cost.
 1. Read `FITNESS_LEDGER_MAINTENANCE.md`.
 2. Read `PROJECT_BOOTSTRAP.md`.
 3. Read `FUNCTION_INDEX.md`.
-4. Read only the functions relevant to the request.
-5. Do not scan the full `stable_app.pyw` by default.
-6. Do not scan the full project by default.
-7. Select the minimum tests from `REGRESSION_CHECKLIST.md`.
-8. Record durable changes in `CHANGELOG.md`.
+4. Before visual design work, read `docs/design/STYLE_BIBLE.md` and then use root `DESIGN.md` as a secondary Nike interaction and composition reference.
+5. Preserve the established Fitness Ledger identity when the generic Nike reference conflicts with the project-specific Style Bible.
+6. Read only the functions relevant to the request.
+7. Do not scan the full `stable_app.pyw` by default.
+8. Do not scan the full project by default.
+9. Select the minimum tests from `REGRESSION_CHECKLIST.md`.
+10. Record durable changes in `CHANGELOG.md`.
 
 ## Shared Platform Services (2026-07-03)
 
