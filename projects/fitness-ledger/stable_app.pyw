@@ -6206,6 +6206,12 @@ FitnessTrackerApp._premium_mousewheel = _premium_mousewheel
 
 
 def _premium_show_page(self, name: str) -> None:
+    if name == "Movement Progress" and hasattr(self, "command_service"):
+        self.database, self.movement_dictionary = self.command_service.load_state()
+        self.movement_definitions_by_id, self.movement_definitions_by_alias = movement_definition_index(
+            self.movement_dictionary
+        )
+        self.refresh_movements()
     self.pages[name].tkraise()
     for page_name, nav_button in getattr(self, "nav_buttons", {}).items():
         selected = page_name == name
