@@ -215,6 +215,7 @@ app.database["raw_entries"].append(
     }
 )
 app.database["training_sessions"].append({"No.": 999, "Date": "2099-06-29"})
+namespace["write_json"](globals_dict["DATA_FILE"], app.database)
 target_definition = app.movement_definitions_by_id["CHEST_001"]
 target_tracker = app.tracker_movement_by_id("CHEST_001")
 target_values = dict(target_definition)

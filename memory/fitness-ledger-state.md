@@ -2,7 +2,7 @@
 id: fitness-ledger-state
 type: memory
 status: active
-updated: 2026-07-02
+updated: 2026-07-03
 tags: [fitness-ledger, python, desktop, web, rollback]
 source: projects/fitness-ledger
 ---
@@ -17,7 +17,7 @@ Fitness Ledger is a local-first personal fitness journal with a maintained Tkint
 
 - Maintained desktop entry: `stable_app.pyw`.
 - Desktop source of truth: local `data/tracker.json` and `data/movement_dictionary.json`.
-- Shared write boundary: `ledger_commands.py` provides UI-free Parse/Review/Save orchestration, cross-process locking, paired checkpoints, atomic writes, and rollback.
+- Shared write boundary: `ledger_commands.py` provides UI-free Parse/Review/Save and Movement Dictionary administration, cross-process locking, paired checkpoints, atomic writes, and rollback.
 - Browser UI: `web_desktop/frontend/`; local command/read service: `web_desktop/backend/server.py`.
 - Mobile viewer: `mobile_viewer/`.
 - Desktop and Web confirmed daily saves use the same command service and desktop parser.
@@ -31,6 +31,9 @@ Fitness Ledger is a local-first personal fitness journal with a maintained Tkint
 - Disabling a movement preserves aliases and history and still permits matching records to be stored, while hiding that movement from desktop/Web Movement Progress and active mapping choices.
 - Body, Diet, Training, Movement Progress, and Data Check provide record inspection and correction paths.
 - Web daily entry supports editable Review, duplicate-date modes, and movement add/map/skip decisions. Web record editing, Undo, and Data Check writes remain deferred.
+- Web Movement Dictionary supports create, rename, aliases, muscle-group/category/equipment metadata, enable/disable, and confirmed deletion.
+- Dictionary edits from desktop and Web use the same command service. Desktop shutdown does not rewrite stale in-memory JSON over newer Web changes.
+- Duplicate dates never save silently: overwrite replaces that date's structured Body/Diet/Training and movement history while superseding old raw entries; append-training adds only another training session; cancel writes nothing.
 
 ## Visual Direction
 

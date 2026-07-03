@@ -33,6 +33,7 @@ Use this file to restore project context with low token cost.
 - `ledger_commands.py` is the shared UI-free Parse/Review/Save command service used by desktop and Web.
 - `web_desktop/backend/server.py` exposes local Parse and confirmed Save commands and reuses `mobile_viewer/data_access.py` for reads.
 - `web_desktop/frontend/` is the browser-grade visual layer.
+- Web daily Review/Save and Movement Dictionary administration use the shared command service.
 - Web record editing, Undo, and Data Check writes remain deferred.
 - Never bypass the shared cross-process lock, paired checkpoint, atomic-write, and rollback workflow.
 

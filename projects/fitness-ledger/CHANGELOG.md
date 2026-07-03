@@ -1,5 +1,15 @@
 # Fitness Ledger Changelog
 
+## 2026-07-03 - Shared Web Movement Dictionary Administration
+
+- Added shared movement-dictionary commands for create, edit, aliases, metadata, enable/disable, and confirmed deletion.
+- Added a complete Web Dictionary page with search, status filtering, history counts, an editorial editor, and destructive-action confirmation.
+- Alias edits scan matching CUSTOM rows and previously skipped raw movements for safe historical reconciliation.
+- Inactive movements remain recognizable and recordable while staying hidden from desktop/Web Movement Progress.
+- Desktop dictionary mutations now use the same locked, paired-checkpoint command service as Web.
+- Desktop close no longer rewrites stale in-memory JSON, preventing it from overwriting Web changes made while both surfaces are open.
+- Expanded temporary-data integration tests; no formal database or JSON schema changes were made.
+
 ## 2026-07-02 - Shared Web Parse/Review/Save
 
 - Added `ledger_commands.py` as the shared UI-free Parse/Review/Save command boundary.

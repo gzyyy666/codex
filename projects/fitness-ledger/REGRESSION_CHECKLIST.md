@@ -15,7 +15,7 @@ python tools/web_desktop_test.py
 node --check web_desktop/frontend/app.js
 ```
 
-The Web service must accept only `/api/parse` and `/api/save` POST commands. Tests must use temporary tracker/dictionary files and must never write to the formal database.
+Web write commands must be explicitly routed through `LedgerCommandService`. Tests must use temporary tracker/dictionary files and must never write to the formal database.
 
 ## Shared Web Review And Save
 
@@ -28,6 +28,18 @@ The Web service must accept only `/api/parse` and `/api/save` POST commands. Tes
 - A failed write preserves or restores the original files.
 - Inactive movements remain recognizable and recordable but are absent from desktop/Web Movement Progress and active mapping options.
 - `python tools/web_desktop_test.py` must print `FITNESS_LEDGER_WEB_SHARED_WRITE_OK`.
+
+## Shared Movement Dictionary
+
+- Web can list active and inactive dictionary terms and their history counts.
+- Create and edit reject blank names and aliases owned by another formal movement.
+- Rename preserves the previous display name as an alias.
+- Alias edits reconcile matching CUSTOM rows and previously skipped raw movements without changing raw text.
+- Disable hides the movement from desktop/Web Movement Progress and mapping choices.
+- An inactive movement remains recognizable and can receive newly recorded history.
+- Enable restores the movement to both Movement Progress views.
+- Delete requires the exact display name, removes structured history, and preserves every raw entry.
+- Desktop shutdown must not overwrite newer Web changes with stale in-memory state.
 
 ## Review Popup Changes
 

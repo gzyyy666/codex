@@ -6223,6 +6223,73 @@ def _premium_show_page(self, name: str) -> None:
 FitnessTrackerApp.show_page = _premium_show_page
 
 
+def _shared_reload_state(self) -> None:
+    self.database, self.movement_dictionary = self.command_service.load_state()
+    self.movement_definitions_by_id, self.movement_definitions_by_alias = movement_definition_index(
+        self.movement_dictionary
+    )
+
+
+def _shared_save_movement_definition(self, movement: dict | None, definition: dict, values: dict) -> bool:
+    movement_id = str(definition.get("movement_id", ""))
+    try:
+        result = self.command_service.update_movement_definition(movement_id, values)
+    except LedgerCommandError as exc:
+        messagebox.showerror("无法保存动作词典", str(exc))
+        return False
+    _shared_reload_state(self)
+    self.refresh_all()
+    restored = sum(int(result.get("reconciliation", {}).get(key, 0)) for key in ("merged_history", "restored_skipped"))
+    if restored:
+        self.quick_status.set(f"已归并 {restored} 条历史记录。")
+    return True
+
+
+def _shared_toggle_movement_definition(self, definition: dict) -> bool:
+    next_active = not bool(definition.get("active", True))
+    try:
+        self.command_service.set_movement_active(
+            str(definition.get("movement_id", "")), next_active
+        )
+    except LedgerCommandError as exc:
+        messagebox.showerror("无法更新动作状态", str(exc))
+        return False
+    definition["active"] = next_active
+    _shared_reload_state(self)
+    self.refresh_all()
+    return True
+
+
+def _shared_delete_movement_definition(self, movement_id: str) -> bool:
+    definition = self.movement_definitions_by_id.get(str(movement_id))
+    if not definition:
+        messagebox.showerror("无法删除", "找不到动作词典条目。")
+        return False
+    try:
+        self.command_service.delete_movement_definition(
+            str(movement_id), str(definition.get("display_name", ""))
+        )
+    except LedgerCommandError as exc:
+        messagebox.showerror("无法删除", str(exc))
+        return False
+    _shared_reload_state(self)
+    self.refresh_all()
+    return True
+
+
+def _shared_safe_close(self) -> None:
+    # Every user mutation is already persisted. Rewriting stale in-memory state here
+    # could overwrite changes made by the Web process while the desktop app was open.
+    backup_data()
+    self.destroy()
+
+
+FitnessTrackerApp.save_movement_definition = _shared_save_movement_definition
+FitnessTrackerApp.toggle_movement_definition = _shared_toggle_movement_definition
+FitnessTrackerApp.delete_movement_definition = _shared_delete_movement_definition
+FitnessTrackerApp.close = _shared_safe_close
+
+
 def format_set_summary(record: dict) -> str:
     sets = record.get("sets") or []
     if sets:

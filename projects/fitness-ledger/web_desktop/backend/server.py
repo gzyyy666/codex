@@ -71,10 +71,44 @@ class LedgerWebService:
             "read": True,
             "parse": True,
             "save": True,
-            "edit": False,
+            "edit": True,
+            "dictionary_admin": True,
             "undo": False,
             "phase": "shared-review-save",
         }
+
+    def dictionary_entries(self) -> list[dict]:
+        return self.commands.movement_definitions()
+
+    def create_dictionary_entry(self, request: dict) -> dict:
+        result = self.commands.create_movement_definition(request)
+        self.data._cache = None
+        return result
+
+    def update_dictionary_entry(self, request: dict) -> dict:
+        movement_id = str(request.get("movement_id", "")).strip()
+        if not movement_id:
+            raise LedgerCommandError("Missing movement_id.")
+        result = self.commands.update_movement_definition(movement_id, request.get("definition") or {})
+        self.data._cache = None
+        return result
+
+    def set_dictionary_entry_active(self, request: dict) -> dict:
+        movement_id = str(request.get("movement_id", "")).strip()
+        if not movement_id or not isinstance(request.get("active"), bool):
+            raise LedgerCommandError("movement_id and a boolean active state are required.")
+        result = self.commands.set_movement_active(movement_id, request["active"])
+        self.data._cache = None
+        return result
+
+    def delete_dictionary_entry(self, request: dict) -> dict:
+        movement_id = str(request.get("movement_id", "")).strip()
+        confirmation = str(request.get("confirmation", ""))
+        if not movement_id:
+            raise LedgerCommandError("Missing movement_id.")
+        result = self.commands.delete_movement_definition(movement_id, confirmation)
+        self.data._cache = None
+        return result
 
     def parse_entry(self, raw_text: str) -> dict:
         payload = self.commands.parse(raw_text)
@@ -242,6 +276,8 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.collection("training", int(query.get("limit", ["50"])[0])))
             elif parsed.path == "/api/movements":
                 self.send_json(self.service.movement_index(query.get("q", [""])[0], int(query.get("limit", ["80"])[0])))
+            elif parsed.path == "/api/dictionary":
+                self.send_json(self.service.dictionary_entries())
             elif parsed.path == "/api/movement-history":
                 movement = self.service.data.get_movement_history(
                     query.get("name", [""])[0], int(query.get("limit", ["8"])[0])
@@ -276,6 +312,14 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.parse_entry(request.get("raw", "")))
             elif parsed.path == "/api/save":
                 self.send_json(self.service.save_review(request))
+            elif parsed.path == "/api/dictionary/create":
+                self.send_json(self.service.create_dictionary_entry(request))
+            elif parsed.path == "/api/dictionary/update":
+                self.send_json(self.service.update_dictionary_entry(request))
+            elif parsed.path == "/api/dictionary/active":
+                self.send_json(self.service.set_dictionary_entry_active(request))
+            elif parsed.path == "/api/dictionary/delete":
+                self.send_json(self.service.delete_dictionary_entry(request))
             else:
                 self.send_json({"error": "Unknown command."}, HTTPStatus.NOT_FOUND)
         except DuplicateDateError as exc:

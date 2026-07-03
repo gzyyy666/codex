@@ -59,7 +59,7 @@ def main() -> None:
         thread.start()
         base = f"http://127.0.0.1:{server.server_port}"
         try:
-            for endpoint in ("/api/health", "/api/capabilities", "/api/today", "/api/recent", "/api/body", "/api/diet", "/api/training", "/api/movements"):
+            for endpoint in ("/api/health", "/api/capabilities", "/api/today", "/api/recent", "/api/body", "/api/diet", "/api/training", "/api/movements", "/api/dictionary"):
                 status, content_type, body = fetch(base + endpoint)
                 assert status == 200, (endpoint, status)
                 assert content_type == "application/json", (endpoint, content_type)
@@ -68,12 +68,82 @@ def main() -> None:
             capabilities = json.loads(fetch(base + "/api/capabilities")[2].decode("utf-8"))
             assert capabilities["parse"] is True
             assert capabilities["save"] is True
+            assert capabilities["dictionary_admin"] is True
             movements = json.loads(fetch(base + "/api/movements?limit=200")[2].decode("utf-8"))
             assert inactive["movement_id"] not in {item["movement_id"] for item in movements}
             history = json.loads(
                 fetch(base + f"/api/movement-history?name={urllib.parse.quote(inactive['display_name'])}")[2].decode("utf-8")
             )
             assert history["movement"] is None
+
+            status, created = post(
+                base + "/api/dictionary/create",
+                {
+                    "display_name": "测试推举",
+                    "english_name": "Test Press",
+                    "aliases": ["测试器械推举"],
+                    "muscle_group": "Chest",
+                    "category": "Strength",
+                    "equipment": "Machine",
+                    "notes": "Temporary integration test.",
+                },
+            )
+            assert status == 200, created
+            test_id = created["definition"]["movement_id"]
+            status, updated = post(
+                base + "/api/dictionary/update",
+                {
+                    "movement_id": test_id,
+                    "definition": {
+                        **created["definition"],
+                        "aliases": ["测试器械推举", "测试胸推"],
+                        "muscle_group": "Chest",
+                    },
+                },
+            )
+            assert status == 200, updated
+            assert "测试胸推" in updated["definition"]["aliases"]
+            status, toggled = post(base + "/api/dictionary/active", {"movement_id": test_id, "active": False})
+            assert status == 200 and toggled["active"] is False
+            movements = json.loads(fetch(base + "/api/movements?limit=500")[2].decode("utf-8"))
+            assert test_id not in {item["movement_id"] for item in movements}
+
+            inactive_raw = """2099-08-16
+weight: 70.1
+bowel: no
+calories: 1750
+protein: 125
+carbs: 180
+fat: 50
+training: chest
+1. 测试胸推
+30kg x 12 x 3
+cardio:
+none
+diet:
+breakfast: oats
+notes:
+Inactive dictionary write test.
+"""
+            status, parsed_inactive = post(base + "/api/parse", {"raw": inactive_raw})
+            assert status == 200, parsed_inactive
+            assert parsed_inactive["review"]["training"]["movements"][0]["movement_id"] == test_id
+            status, saved_inactive = post(
+                base + "/api/save",
+                {"review_id": parsed_inactive["review_id"], "review": parsed_inactive["review"]},
+            )
+            assert status == 200, saved_inactive
+            stored = json.loads(data_file.read_text(encoding="utf-8"))
+            test_movement = next(item for item in stored["movements"].values() if item.get("movement_id") == test_id)
+            assert any(item.get("date") == "2099-08-16" for item in test_movement["history"])
+            status, deleted = post(
+                base + "/api/dictionary/delete",
+                {"movement_id": test_id, "confirmation": "测试推举"},
+            )
+            assert status == 200 and deleted["deleted_history"] == 1
+            stored = json.loads(data_file.read_text(encoding="utf-8"))
+            assert not any(item.get("movement_id") == test_id for item in stored["movements"].values())
+            assert any(item.get("date") == "2099-08-16" and item.get("text") == inactive_raw.strip() for item in stored["raw_entries"])
 
             status, content_type, body = fetch(base + "/")
             assert status == 200

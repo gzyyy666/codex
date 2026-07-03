@@ -42,7 +42,18 @@ The next migration phase should expose commands rather than direct file writes:
 1. `POST /api/parse` returns a pending Review payload and active movement mapping options.
 2. `POST /api/save` validates the pending identity, merges only allowed edits, and runs the shared save workflow.
 3. Duplicate dates require an explicit `overwrite` or `append_training` save mode.
-4. `edit_record`, `undo_last_save`, and `acknowledge_data_issue` remain deferred until they can use the same command boundary.
+4. Movement Dictionary create, edit, alias reconciliation, enable/disable, and confirmed deletion use the same command boundary.
+5. `edit_record`, `undo_last_save`, and `acknowledge_data_issue` remain deferred until they can use the same command boundary.
+
+## Movement Dictionary Commands
+
+- `GET /api/dictionary` returns every active and inactive term plus its structured-history count.
+- `POST /api/dictionary/create` creates a validated term and reconciles matching skipped/custom history.
+- `POST /api/dictionary/update` edits names, aliases, muscle group, category, equipment, and notes.
+- `POST /api/dictionary/active` hides or restores a term in Movement Progress without deleting aliases or history.
+- `POST /api/dictionary/delete` requires the exact display name and removes only the dictionary term and structured movement history. Raw daily input remains preserved.
+
+Desktop and Web may remain open together. Desktop dictionary changes use this service, and desktop shutdown does not rewrite stale in-memory state.
 
 Each command must be covered by the existing regression tests before its matching web control is enabled.
 

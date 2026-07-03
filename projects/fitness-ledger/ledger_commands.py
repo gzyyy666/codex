@@ -130,6 +130,245 @@ class LedgerCommandService:
         dictionary = _read_json(self.dictionary_file, {"version": "1.0", "movements": []})
         return database, dictionary
 
+    def movement_definitions(self) -> list[dict]:
+        """Return dictionary terms with tracker history counts, without exposing mutable state."""
+        database, dictionary = self.load_state()
+        counts = {
+            str(movement.get("movement_id", "")): len(movement.get("history", []) or [])
+            for movement in database.get("movements", {}).values()
+        }
+        result = []
+        for definition in dictionary.get("movements", []) or []:
+            item = copy.deepcopy(definition)
+            item["history_count"] = counts.get(str(item.get("movement_id", "")), 0)
+            result.append(item)
+        return sorted(result, key=lambda item: str(item.get("display_name", "")).casefold())
+
+    @staticmethod
+    def _definition_by_id(dictionary: dict, movement_id: str) -> dict:
+        definition = next(
+            (
+                item
+                for item in dictionary.get("movements", []) or []
+                if str(item.get("movement_id", "")) == str(movement_id)
+            ),
+            None,
+        )
+        if not definition:
+            raise LedgerCommandError("Movement dictionary entry was not found.")
+        return definition
+
+    @staticmethod
+    def _clean_aliases(values, display_name: str, old_display: str = "") -> list[str]:
+        if isinstance(values, str):
+            values = re.split(r"[\n,，;；]+", values)
+        aliases = [str(value).strip() for value in (values or []) if str(value).strip()]
+        if old_display and old_display != display_name:
+            aliases.append(old_display)
+        return list(dict.fromkeys([display_name, *aliases]))
+
+    @staticmethod
+    def _validate_definition_conflicts(dictionary: dict, movement_id: str, aliases: list[str]) -> None:
+        _by_id, by_alias = _dictionary_indexes(dictionary)
+        for alias in aliases:
+            conflict = by_alias.get(_normalize_name(alias))
+            if conflict and str(conflict.get("movement_id", "")) != movement_id:
+                raise LedgerCommandError(
+                    f"Alias '{alias}' already belongs to {conflict.get('display_name') or conflict.get('movement_id')}."
+                )
+
+    @staticmethod
+    def _history_fingerprint(history: dict) -> tuple[str, int, str]:
+        try:
+            order = int(history.get("order") or 0)
+        except (TypeError, ValueError):
+            order = 0
+        return (
+            str(history.get("date", ""))[:10],
+            order,
+            _normalize_name(str(history.get("raw", ""))),
+        )
+
+    def _reconcile_definition(self, database: dict, dictionary: dict, definition: dict) -> dict[str, int]:
+        """Merge matching custom rows and previously skipped raw movements after alias edits."""
+        movement_id = str(definition.get("movement_id", ""))
+        alias_keys = {
+            _normalize_name(value)
+            for value in [
+                definition.get("display_name", ""),
+                definition.get("english_name", ""),
+                *(definition.get("aliases") or []),
+            ]
+            if str(value).strip()
+        }
+        result = {"merged_rows": 0, "merged_history": 0, "restored_skipped": 0}
+        if not movement_id or not alias_keys:
+            return result
+        target = self._tracker_movement(database, definition, "")
+        existing = {self._history_fingerprint(row) for row in target.get("history", [])}
+        custom_ids = set()
+        for key, source in list(database.get("movements", {}).items()):
+            source_id = str(source.get("movement_id", ""))
+            if source is target or (source_id and not source_id.startswith("CUSTOM_")):
+                continue
+            names = [source.get("name", ""), *(source.get("aliases") or [])]
+            if not any(_normalize_name(name) in alias_keys for name in names if str(name).strip()):
+                continue
+            for history in source.get("history", []) or []:
+                fingerprint = self._history_fingerprint(history)
+                if fingerprint in existing:
+                    continue
+                history["movement_id"] = movement_id
+                target.setdefault("history", []).append(history)
+                existing.add(fingerprint)
+                result["merged_history"] += 1
+            target["aliases"] = list(dict.fromkeys([*target.get("aliases", []), *names, *(definition.get("aliases") or [])]))
+            database["movements"].pop(key, None)
+            if source_id.startswith("CUSTOM_"):
+                custom_ids.add(source_id)
+            result["merged_rows"] += 1
+        if custom_ids:
+            dictionary["movements"] = [
+                item for item in dictionary.get("movements", []) if item.get("movement_id") not in custom_ids
+            ]
+
+        sessions_by_date: dict[str, list[dict]] = {}
+        for session in database.get("training_sessions", []):
+            sessions_by_date.setdefault(str(session.get("Date", ""))[:10], []).append(session)
+        for sessions in sessions_by_date.values():
+            sessions.sort(key=lambda row: int(row.get("No.") or 0))
+        for raw_record in database.get("raw_entries", []):
+            if raw_record.get("superseded"):
+                continue
+            skipped = list(raw_record.get("skipped_movements") or [])
+            matching = {_normalize_name(name) for name in skipped if _normalize_name(name) in alias_keys}
+            if not matching or not str(raw_record.get("text", "")).strip():
+                continue
+            parsed = self.parser(str(raw_record.get("text", "")), database, dictionary)
+            entry_date = str(parsed.get("date") or raw_record.get("date", ""))[:10]
+            sessions = sessions_by_date.get(entry_date, [])
+            session = (sessions[-1] if raw_record.get("save_mode") == "append_training" else sessions[0]) if sessions else {}
+            restored = set()
+            for movement_data in parsed.get("training", {}).get("movements", []):
+                candidate_key = _normalize_name(movement_data.get("name", ""))
+                if candidate_key not in matching:
+                    continue
+                history = {
+                    "id": str(uuid.uuid4()), "movement_id": movement_id, "date": entry_date,
+                    "training_day": int(session.get("No.") or 0), "order": movement_data.get("order"),
+                    "sets": movement_data.get("sets") or [], "cardio": movement_data.get("cardio") or {},
+                    "raw": movement_data.get("raw", ""), "notes": movement_data.get("notes", ""),
+                    "source": "alias reconciliation",
+                }
+                fingerprint = self._history_fingerprint(history)
+                if fingerprint not in existing:
+                    target.setdefault("history", []).append(history)
+                    existing.add(fingerprint)
+                    result["restored_skipped"] += 1
+                restored.add(candidate_key)
+            remaining = [name for name in skipped if _normalize_name(name) not in restored]
+            if remaining:
+                raw_record["skipped_movements"] = remaining
+            else:
+                raw_record.pop("skipped_movements", None)
+        target["name"] = definition.get("display_name") or target.get("name", "")
+        target["aliases"] = list(dict.fromkeys([*target.get("aliases", []), *(definition.get("aliases") or [])]))
+        target["history"] = sorted(
+            target.get("history", []), key=lambda row: (str(row.get("date", "")), self._history_fingerprint(row)[1])
+        )
+        return result
+
+    def _write_pair(self, database: dict, dictionary: dict, tracker_backup: Path, dictionary_backup: Path) -> None:
+        _write_json_atomic(self.dictionary_file, dictionary)
+        try:
+            _write_json_atomic(self.data_file, database)
+        except Exception:
+            shutil.copy2(dictionary_backup, self.dictionary_file)
+            shutil.copy2(tracker_backup, self.data_file)
+            raise
+
+    def create_movement_definition(self, values: dict) -> dict:
+        with self.write_lock():
+            database, dictionary = self.load_state()
+            display_name = str(values.get("display_name", "")).strip()
+            if not display_name:
+                raise LedgerCommandError("Display name cannot be blank.")
+            aliases = self._clean_aliases(values.get("aliases", []), display_name)
+            self._validate_definition_conflicts(dictionary, "", aliases)
+            tracker_backup, dictionary_backup = self._checkpoint()
+            definition = _new_definition(display_name, display_name, dictionary)
+            definition.update({
+                "english_name": str(values.get("english_name", "")).strip(),
+                "aliases": aliases,
+                "muscle_group": str(values.get("muscle_group", "Unclassified")).strip() or "Unclassified",
+                "category": str(values.get("category", "Strength")).strip() or "Strength",
+                "equipment": str(values.get("equipment", "")).strip(),
+                "notes": str(values.get("notes", "")).strip(),
+                "active": bool(values.get("active", True)),
+            })
+            reconciliation = self._reconcile_definition(database, dictionary, definition)
+            self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
+            return {"definition": copy.deepcopy(definition), "reconciliation": reconciliation}
+
+    def update_movement_definition(self, movement_id: str, values: dict) -> dict:
+        with self.write_lock():
+            database, dictionary = self.load_state()
+            definition = self._definition_by_id(dictionary, movement_id)
+            display_name = str(values.get("display_name", definition.get("display_name", ""))).strip()
+            if not display_name:
+                raise LedgerCommandError("Display name cannot be blank.")
+            aliases = self._clean_aliases(values.get("aliases", definition.get("aliases", [])), display_name, str(definition.get("display_name", "")).strip())
+            self._validate_definition_conflicts(dictionary, str(movement_id), aliases)
+            tracker_backup, dictionary_backup = self._checkpoint()
+            definition.update({
+                "display_name": display_name,
+                "english_name": str(values.get("english_name", definition.get("english_name", ""))).strip(),
+                "aliases": aliases,
+                "muscle_group": str(values.get("muscle_group", definition.get("muscle_group", ""))).strip(),
+                "category": str(values.get("category", definition.get("category", ""))).strip(),
+                "equipment": str(values.get("equipment", definition.get("equipment", ""))).strip(),
+                "notes": str(values.get("notes", definition.get("notes", ""))).strip(),
+            })
+            for movement in database.get("movements", {}).values():
+                if str(movement.get("movement_id", "")) == str(movement_id):
+                    movement["name"] = display_name
+                    movement["aliases"] = list(dict.fromkeys([*movement.get("aliases", []), *aliases]))
+            reconciliation = self._reconcile_definition(database, dictionary, definition)
+            self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
+            return {"definition": copy.deepcopy(definition), "reconciliation": reconciliation}
+
+    def set_movement_active(self, movement_id: str, active: bool) -> dict:
+        with self.write_lock():
+            database, dictionary = self.load_state()
+            definition = self._definition_by_id(dictionary, movement_id)
+            tracker_backup, dictionary_backup = self._checkpoint()
+            definition["active"] = bool(active)
+            self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
+            return {"movement_id": movement_id, "active": bool(active)}
+
+    def delete_movement_definition(self, movement_id: str, confirmation: str) -> dict:
+        with self.write_lock():
+            database, dictionary = self.load_state()
+            definition = self._definition_by_id(dictionary, movement_id)
+            display_name = str(definition.get("display_name", ""))
+            if confirmation.strip() != display_name:
+                raise LedgerCommandError("Delete confirmation does not match the movement name.")
+            history_count = sum(
+                len(movement.get("history", []) or [])
+                for movement in database.get("movements", {}).values()
+                if str(movement.get("movement_id", "")) == str(movement_id)
+            )
+            tracker_backup, dictionary_backup = self._checkpoint()
+            dictionary["movements"] = [
+                item for item in dictionary.get("movements", []) if str(item.get("movement_id", "")) != str(movement_id)
+            ]
+            database["movements"] = {
+                key: movement for key, movement in database.get("movements", {}).items()
+                if str(movement.get("movement_id", "")) != str(movement_id)
+            }
+            self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
+            return {"movement_id": movement_id, "display_name": display_name, "deleted_history": history_count}
+
     @contextmanager
     def write_lock(self, timeout: float = 8.0):
         deadline = time.monotonic() + timeout
@@ -469,4 +708,3 @@ class LedgerCommandService:
             "saved_movements": saved_movements,
             "skipped_movements": skipped,
         }
-

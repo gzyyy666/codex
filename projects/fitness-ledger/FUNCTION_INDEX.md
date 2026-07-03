@@ -5,6 +5,11 @@
 - `LedgerCommandService.parse`: Calls the maintained desktop parser through an injected UI-free adapter and produces the Review payload.
 - `LedgerCommandService.review_payload`: Adds summary, Chinese warnings, duplicate counts, and active mapping options.
 - `LedgerCommandService.save`: Uses a cross-process lock, paired checkpoints, validated Review actions, atomic writes, and rollback.
+- `LedgerCommandService.movement_definitions`: Returns dictionary terms with tracker history counts.
+- `LedgerCommandService.create_movement_definition`: Creates a validated dictionary term and reconciles matching history.
+- `LedgerCommandService.update_movement_definition`: Updates names, aliases, metadata, tracker display names, and matching historical records.
+- `LedgerCommandService.set_movement_active`: Changes visibility without deleting aliases or history.
+- `LedgerCommandService.delete_movement_definition`: Requires exact-name confirmation and deletes structured movement history while preserving raw input.
 - `LedgerWebService.capabilities`: Reports the active shared Review/Save boundary.
 - `LedgerWebService.parse_entry`: Stores a server-side pending Review identity for one parsed raw entry.
 - `LedgerWebService.save_review`: Merges only allowed Review edits and invokes the shared save service.
@@ -12,7 +17,7 @@
 - `LedgerWebService.collection`: Returns bounded Body, Diet, or Training collections without writing data.
 - `LedgerWebService.movement_index`: Returns searchable dictionary terms for the web Movement page.
 - `LedgerRequestHandler.do_GET`: Serves static frontend assets and versioned read endpoints.
-- `LedgerRequestHandler.do_POST`: Handles `/api/parse` and `/api/save`; duplicate dates return `409` with explicit save modes.
+- `LedgerRequestHandler.do_POST`: Handles shared daily and dictionary commands; duplicate dates return `409` with explicit save modes.
 - `web_desktop/launcher.pyw`: Starts the local server and opens the UI in isolated Edge app mode.
 - `web_desktop/frontend/app.js`: Controls page navigation, API reads, real-data rendering, search, and detail dialogs.
 - `docs/design/STYLE_BIBLE.md`: Durable visual and interaction reference for future Web and simplified Tkinter UI maintenance.
