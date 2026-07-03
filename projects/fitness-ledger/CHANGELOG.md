@@ -1,5 +1,12 @@
 # Fitness Ledger Changelog
 
+## 2026-07-03 - Review Movement Priority
+
+- Moved movement recognition and mapping directly below the Web Review heading.
+- Reordered the Review index so movement decisions are the first inspection task.
+- Added a restrained primary-review surface so new/existing/mapped movement decisions are visible before Body, Diet, and Training details.
+- No parser, save behavior, or data structure changed.
+
 ## 2026-07-03 - Dictionary Functional Grid
 
 - Reworked the Web Dictionary into a regular five-column functional grid based on the approved reference.

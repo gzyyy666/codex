@@ -685,6 +685,9 @@ button.nav-item[data-view="dictionary"].is-active{background-color:#000!importan
 .review-field textarea{resize:vertical;min-height:66px}
 .review-field input:focus,.review-field textarea:focus,.review-note input:focus,.review-decision select:focus,.duplicate-choice select:focus{border-color:rgba(24,21,16,.52);background:var(--paper-light);box-shadow:0 0 0 3px rgba(255,218,110,.22)}
 .review-movement-list{min-width:0}
+.review-ledger-section.is-primary-review{margin-top:18px;padding:18px 18px 20px;border:1px solid rgba(24,21,16,.23);border-radius:8px 26px 8px 26px;background:rgba(255,252,244,.78);box-shadow:0 18px 42px rgba(35,29,18,.065),inset 0 1px rgba(255,255,255,.82)}
+.review-ledger-section.is-primary-review>header>span{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--sun);font-size:13px}
+.review-ledger-section.is-primary-review h2{font-size:14px}.review-ledger-section.is-primary-review h2 small{font-size:10px}
 .review-movement{display:grid;grid-template-columns:42px minmax(220px,1.2fr) minmax(170px,.8fr) minmax(220px,1fr);gap:16px;align-items:center;padding:14px 0;border-top:1px solid rgba(24,21,16,.13)}
 .review-movement:first-child{border-top:0;padding-top:0}
 .review-order{display:grid;place-items:center;width:34px;height:34px;border:1px solid rgba(24,21,16,.32);border-radius:50%;font:400 14px var(--font-editorial)}
