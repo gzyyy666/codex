@@ -17,3 +17,9 @@ Excluded deliberately:
 
 The source can be restored from any Git commit. Personal JSON data must be restored separately from the application's local `data/backups/` directory.
 
+## Current Verified Platform Checkpoint
+
+- Functional source checkpoint: `4275a7a` (`Add Fitness Ledger shared platform services`).
+- Includes shared Web Undo, real Data Check routing, Pre-Workout Reference, Movement Recent 3, Analysis Export, and cloud read-replica dry-run preparation.
+- Local pre-change source snapshot: `backups/platform_phase_20260703_180915` in the working application folder.
+- Verification: Python compilation, JavaScript syntax, regression test, smoke test, temporary paired Undo test, HTTP route test, payload build, and cloud dry-run all passed on 2026-07-03.
