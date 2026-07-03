@@ -110,6 +110,24 @@ class LedgerWebService:
         self.data._cache = None
         return result
 
+    def update_record(self, request: dict) -> dict:
+        result = self.commands.update_record(
+            str(request.get("record_type", "")),
+            str(request.get("record_id", "")),
+            request.get("values") or {},
+        )
+        self.data._cache = None
+        return result
+
+    def update_movement_history(self, request: dict) -> dict:
+        result = self.commands.update_movement_history(
+            str(request.get("movement_id", "")),
+            str(request.get("history_id", "")),
+            request.get("values") or {},
+        )
+        self.data._cache = None
+        return result
+
     def parse_entry(self, raw_text: str) -> dict:
         payload = self.commands.parse(raw_text)
         review_id = str(payload["review_id"])
@@ -320,6 +338,10 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.set_dictionary_entry_active(request))
             elif parsed.path == "/api/dictionary/delete":
                 self.send_json(self.service.delete_dictionary_entry(request))
+            elif parsed.path == "/api/record/update":
+                self.send_json(self.service.update_record(request))
+            elif parsed.path == "/api/movement-history/update":
+                self.send_json(self.service.update_movement_history(request))
             else:
                 self.send_json({"error": "Unknown command."}, HTTPStatus.NOT_FOUND)
         except DuplicateDateError as exc:

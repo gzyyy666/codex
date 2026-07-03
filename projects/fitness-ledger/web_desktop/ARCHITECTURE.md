@@ -43,7 +43,8 @@ The next migration phase should expose commands rather than direct file writes:
 2. `POST /api/save` validates the pending identity, merges only allowed edits, and runs the shared save workflow.
 3. Duplicate dates require an explicit `overwrite` or `append_training` save mode.
 4. Movement Dictionary create, edit, alias reconciliation, enable/disable, and confirmed deletion use the same command boundary.
-5. `edit_record`, `undo_last_save`, and `acknowledge_data_issue` remain deferred until they can use the same command boundary.
+5. Existing Body, Diet, Training, and movement-history edits use the shared command boundary.
+6. `undo_last_save` and `acknowledge_data_issue` remain deferred until they can use the same command boundary.
 
 ## Movement Dictionary Commands
 
@@ -54,6 +55,13 @@ The next migration phase should expose commands rather than direct file writes:
 - `POST /api/dictionary/delete` requires the exact display name and removes only the dictionary term and structured movement history. Raw daily input remains preserved.
 
 Desktop and Web may remain open together. Desktop dictionary changes use this service, and desktop shutdown does not rewrite stale in-memory state.
+
+## Existing Record Commands
+
+- `POST /api/record/update` edits only the same Body, Diet, or Training fields exposed by the desktop editor.
+- `POST /api/movement-history/update` edits one history record by permanent movement ID and history ID.
+- Unknown fields, invalid numeric values, invalid dates, and malformed set lines are rejected before writing.
+- Raw daily entries are not editable through these commands and remain the preserved source record.
 
 Each command must be covered by the existing regression tests before its matching web control is enabled.
 

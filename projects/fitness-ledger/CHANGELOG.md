@@ -1,5 +1,14 @@
 # Fitness Ledger Changelog
 
+## 2026-07-03 - Web Record Editing And Compact Dictionary
+
+- Added shared Web editing for existing Body, Diet, and Training records using the desktop field boundaries.
+- Added Web editing for structured movement-history order, sets, cardio values, notes, and raw movement detail.
+- All edits use the shared write lock, paired checkpoints, validation, atomic replacement, and rollback path.
+- Reworked Dictionary into a high-density index that keeps aliases and metadata inside the editor, shows more terms per screen, and places Dictionary before Data Check.
+- Added compact editorial action controls and a dedicated offline background treatment without external assets.
+- Expanded temporary-data integration tests. Raw daily entries and the JSON schema remain unchanged.
+
 ## 2026-07-03 - Shared Web Movement Dictionary Administration
 
 - Added shared movement-dictionary commands for create, edit, aliases, metadata, enable/disable, and confirmed deletion.

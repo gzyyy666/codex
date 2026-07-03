@@ -32,6 +32,8 @@ Fitness Ledger is a local-first personal fitness journal with a maintained Tkint
 - Body, Diet, Training, Movement Progress, and Data Check provide record inspection and correction paths.
 - Web daily entry supports editable Review, duplicate-date modes, and movement add/map/skip decisions. Web record editing, Undo, and Data Check writes remain deferred.
 - Web Movement Dictionary supports create, rename, aliases, muscle-group/category/equipment metadata, enable/disable, and confirmed deletion.
+- Web Body, Diet, and Training records are editable through the same maintained field sets as desktop; movement-history rows support structured set/order/cardio/note edits by permanent IDs.
+- Dictionary uses a high-density index; aliases and extended metadata remain available in its editor rather than occupying the main directory.
 - Dictionary edits from desktop and Web use the same command service. Desktop shutdown does not rewrite stale in-memory JSON over newer Web changes.
 - Duplicate dates never save silently: overwrite replaces that date's structured Body/Diet/Training and movement history while superseding old raw entries; append-training adds only another training session; cancel writes nothing.
 

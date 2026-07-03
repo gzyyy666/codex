@@ -369,6 +369,126 @@ class LedgerCommandService:
             self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
             return {"movement_id": movement_id, "display_name": display_name, "deleted_history": history_count}
 
+    @staticmethod
+    def _record_config(record_type: str) -> tuple[str, tuple[str, ...], set[str]]:
+        configs = {
+            "body": (
+                "daily_records",
+                ("Date", "Weight (kg)", "Bowel Movement", "Training", "Cardio", "Notes"),
+                {"Weight (kg)"},
+            ),
+            "diet": (
+                "diet_records",
+                ("Date", "Calories (kcal)", "Protein (g)", "Carbs (g)", "Fat (g)", "Food Summary", "Notes"),
+                {"Calories (kcal)", "Protein (g)", "Carbs (g)", "Fat (g)"},
+            ),
+            "training": (
+                "training_sessions",
+                ("Date", "Split", "Raw Record", "Standardized Summary", "Notes"),
+                set(),
+            ),
+        }
+        if record_type not in configs:
+            raise LedgerCommandError("Unsupported record type.")
+        return configs[record_type]
+
+    def update_record(self, record_type: str, record_id: str, values: dict) -> dict:
+        collection, allowed_fields, numeric_fields = self._record_config(record_type)
+        if not isinstance(values, dict):
+            raise LedgerCommandError("Record values must be an object.")
+        with self.write_lock():
+            database, dictionary = self.load_state()
+            record = next(
+                (row for row in database.get(collection, []) if str(row.get("id", "")) == str(record_id)),
+                None,
+            )
+            if not record:
+                raise LedgerCommandError("Record was not found.")
+            updates = {}
+            for field in allowed_fields:
+                if field not in values:
+                    continue
+                value = values[field]
+                if field in numeric_fields:
+                    if value in (None, ""):
+                        updates[field] = None
+                    else:
+                        try:
+                            updates[field] = float(value)
+                        except (TypeError, ValueError) as exc:
+                            raise LedgerCommandError(f"{field} must be numeric or blank.") from exc
+                else:
+                    updates[field] = str(value or "").strip()
+            if "Date" in updates:
+                try:
+                    date.fromisoformat(updates["Date"])
+                except ValueError as exc:
+                    raise LedgerCommandError("Date must use YYYY-MM-DD format.") from exc
+            tracker_backup, dictionary_backup = self._checkpoint()
+            record.update(updates)
+            record["updated_at"] = datetime.now().replace(microsecond=0).isoformat()
+            self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
+            return {"record_type": record_type, "record": copy.deepcopy(record)}
+
+    @staticmethod
+    def _parse_sets_text(text: str) -> list[dict]:
+        sets = []
+        normalized = str(text or "").replace("×", "x").replace("*", "x").replace("X", "x")
+        pattern = re.compile(r"(?P<load>自重|body\s*weight|bw|\d+(?:\.\d+)?(?:\s*kg)?)\s*x\s*(?P<reps>\d+)\s*x\s*(?P<sets>\d+)", re.I)
+        for match in pattern.finditer(normalized):
+            load = match.group("load").strip()
+            item = {"reps": int(match.group("reps")), "sets": int(match.group("sets"))}
+            number = re.search(r"\d+(?:\.\d+)?", load)
+            if number:
+                item["weight"] = float(number.group())
+            else:
+                item["weight"] = 0.0
+                item["weight_text"] = "自重"
+            sets.append(item)
+        if normalized.strip() and not sets:
+            raise LedgerCommandError("Sets must use 'weight x reps x sets', one set block per line.")
+        return sets
+
+    def update_movement_history(self, movement_id: str, history_id: str, values: dict) -> dict:
+        if not isinstance(values, dict):
+            raise LedgerCommandError("Movement history values must be an object.")
+        with self.write_lock():
+            database, dictionary = self.load_state()
+            movement = next(
+                (row for row in database.get("movements", {}).values() if str(row.get("movement_id", "")) == str(movement_id)),
+                None,
+            )
+            if not movement:
+                raise LedgerCommandError("Movement was not found.")
+            history = next(
+                (row for row in movement.get("history", []) if str(row.get("id", "")) == str(history_id)),
+                None,
+            )
+            if not history:
+                raise LedgerCommandError("Movement history record was not found.")
+            try:
+                order_text = str(values.get("order", "")).strip()
+                order = int(order_text) if order_text else None
+                cardio = {}
+                for field in ("duration_minutes", "incline", "speed", "heart_rate"):
+                    text = str(values.get(field, "")).strip()
+                    cardio[field] = float(text) if text else None
+                cardio = {key: value for key, value in cardio.items() if value is not None}
+            except (TypeError, ValueError) as exc:
+                raise LedgerCommandError("Order and cardio values must be numeric or blank.") from exc
+            updates = {
+                "order": order,
+                "sets": self._parse_sets_text(str(values.get("sets_text", ""))),
+                "cardio": cardio,
+                "raw": str(values.get("raw", "")).strip(),
+                "notes": str(values.get("notes", "")).strip(),
+                "updated_at": datetime.now().replace(microsecond=0).isoformat(),
+            }
+            tracker_backup, dictionary_backup = self._checkpoint()
+            history.update(updates)
+            self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
+            return {"movement_id": movement_id, "history": copy.deepcopy(history)}
+
     @contextmanager
     def write_lock(self, timeout: float = 8.0):
         deadline = time.monotonic() + timeout

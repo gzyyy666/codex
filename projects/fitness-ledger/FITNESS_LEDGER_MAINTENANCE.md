@@ -40,6 +40,7 @@ Use these rules only for the local Fitness Ledger desktop tool.
 - Inactive definitions retain aliases and history and can still receive newly recognized records, but are hidden from desktop/Web Movement Progress and excluded from new-entry mapping choices.
 - Desktop and Web confirmed daily saves must pass through `ledger_commands.py`; direct Web JSON writes are forbidden.
 - Desktop and Web movement-dictionary mutations must pass through `ledger_commands.py`; aliases and metadata must never be written directly by a request handler.
+- Web Body/Diet/Training and movement-history edits must pass through `ledger_commands.py`; request handlers may only expose the maintained desktop field sets.
 - Desktop close must not rewrite stale in-memory data after Web writes.
 - A confirmed whole-movement delete may remove that dictionary entry and its structured movement history, but must never delete raw daily input text.
 - There is currently no Excel export feature. A future export must use dictionary `display_name` values.

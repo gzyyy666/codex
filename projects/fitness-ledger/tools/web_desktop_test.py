@@ -183,6 +183,51 @@ Web shared service test.
             assert list(backup_dir.glob("undo_tracker_*.json"))
             assert list(backup_dir.glob("undo_dictionary_*.json"))
 
+            body_record = next(item for item in stored["daily_records"] if item.get("Date") == "2099-08-15")
+            status, edited_body = post(
+                base + "/api/record/update",
+                {
+                    "record_type": "body",
+                    "record_id": body_record["id"],
+                    "values": {"Weight (kg)": "70.4", "Notes": "Edited safely from Web."},
+                },
+            )
+            assert status == 200, edited_body
+            assert edited_body["record"]["Weight (kg)"] == 70.4
+            assert edited_body["record"]["Notes"] == "Edited safely from Web."
+
+            stored = json.loads(data_file.read_text(encoding="utf-8"))
+            movement_with_test_history = next(
+                movement
+                for movement in stored["movements"].values()
+                if any(history.get("date") == "2099-08-15" for history in movement.get("history", []))
+            )
+            test_history = next(
+                history for history in movement_with_test_history["history"] if history.get("date") == "2099-08-15"
+            )
+            status, edited_history = post(
+                base + "/api/movement-history/update",
+                {
+                    "movement_id": movement_with_test_history["movement_id"],
+                    "history_id": test_history["id"],
+                    "values": {
+                        "order": "1",
+                        "sets_text": "自重 × 9 × 3",
+                        "notes": "Web movement edit.",
+                        "raw": "bodyweight x 9 x 3",
+                        "duration_minutes": "",
+                        "incline": "",
+                        "speed": "",
+                        "heart_rate": "",
+                    },
+                },
+            )
+            assert status == 200, edited_history
+            assert edited_history["history"]["sets"] == [
+                {"reps": 9, "sets": 3, "weight": 0.0, "weight_text": "自重"}
+            ]
+            assert edited_history["history"]["notes"] == "Web movement edit."
+
             status, duplicate = post(base + "/api/parse", {"raw": raw})
             assert status == 200
             status, conflict = post(

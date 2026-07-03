@@ -41,6 +41,16 @@ Web write commands must be explicitly routed through `LedgerCommandService`. Tes
 - Delete requires the exact display name, removes structured history, and preserves every raw entry.
 - Desktop shutdown must not overwrite newer Web changes with stale in-memory state.
 
+## Shared Existing Record Editing
+
+- Body editing supports Date, Weight, Bowel Movement, Training, Cardio, and Notes.
+- Diet editing supports Date, Calories, Protein, Carbs, Fat, Food Summary, and Notes.
+- Training editing supports Date, Split, Raw Record, Standardized Summary, and Notes.
+- Numeric fields reject non-numeric values and Date requires ISO format.
+- Movement history editing locates the exact row by movement ID and history ID.
+- Movement history supports order, set lines, cardio values, notes, and raw movement detail.
+- Every edit creates paired checkpoints and leaves raw daily entries unchanged.
+
 ## Review Popup Changes
 
 - `Parse & review` opens `Review parsed entry`.

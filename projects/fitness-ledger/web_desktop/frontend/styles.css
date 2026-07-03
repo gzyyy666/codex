@@ -558,6 +558,36 @@ body{background:var(--color-paper);color:var(--color-ink);text-rendering:optimiz
   .dictionary-page{padding:30px 18px 70px}.dictionary-hero{grid-template-columns:1fr}.dictionary-toolbar{grid-template-columns:1fr}.dictionary-form{grid-template-columns:1fr}.dictionary-form label.is-wide{grid-column:auto}
 }
 
+/* High-density dictionary index and shared record editors. */
+.nav-item[data-view="dictionary"]{order:6}.nav-item[data-view="checks"]{order:7}
+.dictionary-page{isolation:isolate;overflow:hidden;padding-top:38px;background:radial-gradient(circle at 90% 10%,rgba(255,205,70,.18),transparent 26%),radial-gradient(circle at 8% 42%,rgba(112,78,148,.11),transparent 24%)}
+.dictionary-page::after{content:"";position:fixed;z-index:-1;right:-110px;bottom:-90px;width:430px;height:430px;border:1px solid rgba(24,21,16,.12);border-radius:48% 52% 42% 58%;box-shadow:-80px -40px 0 rgba(255,205,70,.07),-145px -95px 0 rgba(112,78,148,.045);transform:rotate(-18deg);pointer-events:none}
+.dictionary-hero{grid-template-columns:minmax(0,1fr) auto;padding-bottom:20px}
+.dictionary-hero h1{font-size:clamp(46px,5.2vw,76px);line-height:.84}
+.dictionary-toolbar{margin:20px 0 12px}
+.dictionary-sheet-head,.dictionary-row-compact{grid-template-columns:76px minmax(210px,1fr) 120px 62px 190px}
+.dictionary-row-compact{min-height:61px;padding:10px 20px}
+.dictionary-row-compact .dictionary-name strong{font-size:17px}
+.dictionary-row-compact .dictionary-name small{margin-top:2px;font-size:9px}
+.dictionary-row-compact .dictionary-history{display:flex;align-items:baseline;gap:3px}
+.dictionary-row-compact .dictionary-history strong{font-size:20px}
+.dictionary-icon-actions{gap:7px}
+.dictionary-icon-actions button{display:inline-flex;align-items:center;gap:5px;border:1px solid rgba(24,21,16,.2);border-radius:999px;background:rgba(255,253,247,.72);padding:5px 9px;color:var(--ink);font-size:9px;line-height:1;box-shadow:inset 0 1px rgba(255,255,255,.8);transition:transform .16s ease,box-shadow .16s ease,background .16s ease}
+.dictionary-icon-actions button b{font-size:12px;font-weight:500}
+.dictionary-icon-actions button:hover{transform:translateY(-2px);background:#fffdf7;box-shadow:0 7px 16px rgba(35,29,18,.1),inset 0 1px #fff}
+.dictionary-icon-actions button:active{transform:translateY(0);box-shadow:inset 0 2px 4px rgba(35,29,18,.12)}
+.dictionary-icon-actions button.danger{border-color:rgba(168,70,57,.24);color:#a84639}
+.record-edit-form{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:20px}
+.record-edit-form label{display:flex;flex-direction:column;gap:6px;color:var(--graphite);font-size:10px;font-weight:700;letter-spacing:.05em}
+.record-edit-form label.is-wide{grid-column:1/-1}
+.record-edit-form input,.record-edit-form textarea{width:100%;box-sizing:border-box;border:1px solid rgba(24,21,16,.24);border-radius:6px;background:rgba(255,253,247,.76);padding:10px 11px;color:var(--ink);font:400 13px/1.55 var(--font);outline:0}
+.record-edit-form input:focus,.record-edit-form textarea:focus{border-color:var(--ink);box-shadow:0 0 0 3px rgba(255,211,65,.24)}
+.record-edit-note{grid-column:1/-1;margin:0;color:var(--graphite);font-size:10px}
+.trajectory-entry{position:relative;padding-right:110px}
+.trajectory-edit{position:absolute;right:14px;top:50%;transform:translateY(-50%);border:1px solid rgba(24,21,16,.2);border-radius:999px;background:rgba(255,252,244,.78);padding:7px 10px;font-size:9px;letter-spacing:.04em;transition:transform .16s ease,box-shadow .16s ease}
+.trajectory-edit:hover{transform:translateY(calc(-50% - 2px));box-shadow:0 8px 18px rgba(35,29,18,.1)}
+@media(max-width:760px){.dictionary-icon-actions button span{display:none}.dictionary-sheet-head,.dictionary-row-compact{min-width:720px}.record-edit-form{grid-template-columns:1fr}.record-edit-form label.is-wide,.record-edit-note{grid-column:auto}.trajectory-entry{padding-right:0}.trajectory-edit{position:static;transform:none;margin-top:10px}}
+
 /* Shared write review: selected Review Scroll direction. */
 .review-scroll-page{
   position:relative;

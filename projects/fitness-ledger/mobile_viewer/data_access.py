@@ -311,11 +311,13 @@ class LedgerDataAccess:
                 sets_lines = extract_set_lines_from_raw(record.get("raw", ""))
             history.append(
                 {
+                    "id": str(record.get("id", "")),
                     "date": str(record.get("date", ""))[:10],
                     "order": record.get("order", ""),
                     "training_day": record.get("training_day", ""),
                     "sets": structured_sets,
                     "sets_lines": sets_lines,
+                    "cardio": record.get("cardio", {}) or {},
                     "notes": str(record.get("notes", "") or "").strip(),
                     "raw": str(record.get("raw", "") or "").strip(),
                 }

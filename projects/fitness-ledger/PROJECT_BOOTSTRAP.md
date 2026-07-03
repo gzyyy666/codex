@@ -34,7 +34,8 @@ Use this file to restore project context with low token cost.
 - `web_desktop/backend/server.py` exposes local Parse and confirmed Save commands and reuses `mobile_viewer/data_access.py` for reads.
 - `web_desktop/frontend/` is the browser-grade visual layer.
 - Web daily Review/Save and Movement Dictionary administration use the shared command service.
-- Web record editing, Undo, and Data Check writes remain deferred.
+- Web Body/Diet/Training and movement-history editing use the shared command service.
+- Web Undo and Data Check writes remain deferred.
 - Never bypass the shared cross-process lock, paired checkpoint, atomic-write, and rollback workflow.
 
 ## Default Workflow
