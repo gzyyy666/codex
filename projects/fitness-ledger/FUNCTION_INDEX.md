@@ -26,6 +26,8 @@
 
 ### Web Training And Export Presentation
 
+- `quickPage`: Renders the Daily Entry writing workbench while preserving the shared Parse/Review/Save workflow.
+- `compactEntryAside`: Renders the floating Today receipt and layered Recent Saved archive slips from existing local data.
 - `bodyPartThemes`: Defines the five Training Records theme identities, copy, colors, imagery, matching keywords, and empty states.
 - `matchBodyPart`: Classifies a training record in the browser from Split, Standardized Summary, Notes, and Raw Record without changing source data.
 - `bodyPartStats`: Derives session, latest-date, and frequent-movement summaries for one theme.
@@ -35,7 +37,7 @@
 - `renderTraining`: Preserves search, sorting, detail actions, and session numbering while limiting records to the selected theme.
 - `exportPage`: Renders the layered export console and explicit idle, loading, success, and error states.
 - `renderExportResult`: Presents visible Copy Markdown, Download Markdown, and Download JSON actions after generation.
-- `web_desktop/frontend/styles.css`: Owns the three-layer material system, body-area scene treatments, physical control states, reduced-motion fallback, and export-console depth.
+- `web_desktop/frontend/styles.css`: Owns the three-layer material system, Daily Entry workbench, Training body-area theme cards, physical control states, reduced-motion fallback, and export-console depth.
 - `tools/capture_web_state.mjs`: Captures a specified Web UI state through the local Edge debugging session for visual regression evidence.
 
 Future Web write work must begin with `web_desktop/ARCHITECTURE.md` and extend `ledger_commands.py` rather than writing JSON in the request handler.

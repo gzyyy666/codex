@@ -1,5 +1,14 @@
 # Fitness Ledger Changelog
 
+## 2026-07-03 - Daily Entry Material Workbench
+
+- Upgraded Daily Entry from a flat form composition to a layered writing workbench.
+- Added a thick notebook slab, tactile primary action, floating Today receipt, layered Recent Saved slips, and local readiness glass status.
+- Preserved the previously approved Training body-area theme-card controls and in-page theme behavior.
+- Added functional material roles, contact/ambient shadows, edge highlights, and reduced-motion behavior to Daily Entry.
+- Preserved all existing input, Review, save, Undo, search, sort, theme filtering, record detail, and data behavior.
+- Added no frontend dependencies and made no backend or JSON changes.
+
 ## 2026-07-03 - Training Records In-Page Body Themes
 
 - Replaced the independent Before You Train route with five body-area controls inside Training Records.

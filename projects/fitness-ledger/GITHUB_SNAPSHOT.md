@@ -32,3 +32,12 @@ The source can be restored from any Git commit. Personal JSON data must be resto
 - Export uses explicit idle/loading/success/error states and readable Copy Markdown, Download Markdown, and Download JSON actions.
 - The visual system uses three controlled depth layers, real material shadows and highlights, and reduced-motion fallbacks documented in `docs/design/STYLE_BIBLE.md`.
 - Verification: JavaScript syntax, Python compilation, regression, Web shared-write, smoke, and side-by-side visual QA passed on 2026-07-03.
+
+## Daily Material Workbench Checkpoint
+
+- Daily Entry now uses a raised notebook slab, tactile primary action, floating Today receipt, layered Recent Saved slips, and a restrained local-first readiness surface.
+- Training retains the previously approved compact horizontal rectangular body-area theme cards from checkpoint `67b0688`.
+- The connected circular Training control experiment was explicitly rejected and removed before this checkpoint.
+- No parser, shared-write, data model, desktop application, or personal JSON data changed.
+- Verification: JavaScript syntax, Python compilation, regression, Web shared-write, and smoke tests passed on 2026-07-03.
+- Local source rollback before this material pass: `backups/material_workbench_20260703_234308`.

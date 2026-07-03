@@ -34,6 +34,7 @@ Fitness Ledger is a local-first personal fitness journal with a maintained Tkint
 - Web daily entry supports editable Review, duplicate-date modes, movement add/map/skip decisions, and paired database/dictionary Undo through the shared command service.
 - Web Data Check now uses the desktop rule set, existing acknowledgement state, and direct repair routes instead of sample issues.
 - Training places five body-area controls directly on the Training Records first screen. Each control changes the current page in place, filters matching real sessions, and synchronizes the header, atmosphere, cards, and focus panel; there is no separate reference route, generated plan, or advice.
+- The accepted Training body-area controls are the compact horizontal rectangular theme cards. A later connected circular-node experiment was rejected and must not be restored unless the user explicitly requests it.
 - Movement detail includes Recent 3 performance metrics and changes.
 - Analysis Export produces local Markdown/JSON for 7/14/30-day or custom ranges, excluding full raw text by default.
 - `cloud_sync/` prepares and dry-runs a disposable read-only cloud replica. No provider, credentials, or network write are configured.
@@ -47,6 +48,7 @@ Fitness Ledger is a local-first personal fitness journal with a maintained Tkint
 
 - Current Web direction: editorial fitness journal, warm paper surfaces, graphite ink, restrained yellow highlight, cinematic fitness imagery, tactile archive slips, and high information density without spreadsheet styling.
 - The current high-availability layer adds foreground/midground/background depth, contact plus ambient shadows, inner highlights, restrained physical hover/press behavior, and reduced-motion support without changing the data architecture.
+- Daily Entry uses the approved material-workbench treatment: a raised notebook writing slab, layered saved-record slips, a floating Today receipt, and restrained local-first glass status. This material pass does not alter parser, review, or save behavior.
 - The reusable visual specification lives at `projects/fitness-ledger/docs/design/STYLE_BIBLE.md`.
 
 ## Recovery
@@ -54,6 +56,7 @@ Fitness Ledger is a local-first personal fitness journal with a maintained Tkint
 - Source rollback: use Git commits in `projects/fitness-ledger/`.
 - Local pre-change source snapshot for the 2026-07-03 platform phase: `work/fitness_tracker_app/backups/platform_phase_20260703_180915` (not uploaded because it may contain local-only artifacts).
 - Personal data rollback: use timestamped files in the local application's `data/backups/` directory.
+- Local source rollback for the approved Training controls: Git checkpoint `67b0688`; pre-material local snapshot: `backups/material_workbench_20260703_234308`.
 - Never replace current personal data with repository files because the public repository intentionally contains no personal JSON data.
 
 ## Review

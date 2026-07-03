@@ -78,6 +78,9 @@ Rules:
 - Hover: slight lift and shadow expansion. Active: pressed translation and shadow compression.
 - Respect `prefers-reduced-motion`.
 - High-availability surfaces use three explicit layers: background archive imagery, paper/glass content surfaces, and tactile foreground controls.
+- Every primary page should have one memorable dominant material object. Supporting surfaces must have distinct identities rather than repeating the same card treatment.
+- Material roles are functional: writing areas are thick paper/notebook slabs, summaries are translucent receipts, recent items are archive slips, primary actions are soft physical controls, and status is a restrained glass layer.
+- Light archive pages build depth with contact shadow, ambient shadow, translucency, overlap, and edge highlights. Do not insert a heavy black banner merely to create contrast.
 - Training body-area controls belong directly on the Training Records first screen; do not add an extra mode tab before them.
 - A selected body area changes the existing Training Records page in place. It must not navigate to a separate reference route.
 - The selected theme may change restrained atmosphere, representative offline imagery, record accents, and the right-side focus panel while preserving search, sorting, record cards, and explicit detail actions.
@@ -100,6 +103,7 @@ Cinematic stage, one large title, one compact status slip, and a short recent ar
 ### Daily Entry
 
 The textarea is a journal page, not a default form. Ruled lines, caret baseline, line height, and placeholder must align.
+The complete entry area is a floating writing workbench: notebook slab as the dominant object, Today as a summary receipt, Recent Saved as layered archive slips, and local save readiness as a small glass status layer.
 
 ### Parse And Review
 
@@ -118,6 +122,14 @@ Cards prioritize date, calories, and macros. Full meal text appears only in expl
 Cards show date, session index, split, movement summary, and a brief note. The explicit detail action is the only detail trigger.
 The first screen includes five tactile theme controls: shoulder, chest, back, legs, and arms. They are a core section rather than tabs or filter chips.
 Selecting a body area keeps the user on Training Records and synchronizes the header, atmosphere, active control, filtered records, card accents, and focus panel. `All Records` returns to the overview.
+The five controls use compact premium theme cards with live counts, representative imagery, and active expansion. They must not become a game skill tree, particle system, or black control banner.
+
+## 10. Motion Language
+
+- Motion communicates contact, connection, and state change rather than spectacle.
+- Use slight lift, compressed press, gentle shadow expansion, staggered record reveal, and restrained theme interpolation.
+- Theme color should propagate through the active control, atmosphere, record edge, focus panel, and explicit detail action.
+- Avoid particles, large parallax, neon pulses, elastic bounce, rotating 3D objects, or animation that delays daily use.
 
 ### Movement Index
 

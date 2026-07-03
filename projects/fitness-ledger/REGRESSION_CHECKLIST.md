@@ -28,6 +28,13 @@ Web write commands must be explicitly routed through `LedgerCommandService`. Tes
 - Theme classification is browser-only and never writes to tracker or dictionary data.
 - Hover, focus, active, and reduced-motion states remain usable and legible.
 
+## Daily Entry Material Workbench
+
+- Raw entry textarea remains editable and aligned with its ruled-paper baseline.
+- Parse & Review, Undo, Today summary, Recent Saved, and Back to Home retain their existing behavior.
+- Floating status and archive-slip layers do not block the textarea or any action at 1600px, 1280px, or narrow layouts.
+- The workbench collapses without horizontal overflow and reduced-motion mode removes nonessential entry animation.
+
 ## Web Export Presentation
 
 - Export generation exposes distinct idle, loading, success, and error states.
