@@ -77,6 +77,10 @@ Rules:
 - Rounded geometry has different personalities: 6px inputs, 12px images, 24px cards, large asymmetric archive shapes, and pills only for compact controls.
 - Hover: slight lift and shadow expansion. Active: pressed translation and shadow compression.
 - Respect `prefers-reduced-motion`.
+- High-availability surfaces use three explicit layers: background archive imagery, paper/glass content surfaces, and tactile foreground controls.
+- Training body-area controls belong directly on the Training Records first screen; do not add an extra mode tab before them.
+- A selected body area may change a restrained scene glow and representative offline image while preserving the same information architecture.
+- Export actions must always use visible text labels; icon-only export controls are not permitted.
 
 ## 8. Image Direction
 
@@ -111,6 +115,7 @@ Cards prioritize date, calories, and macros. Full meal text appears only in expl
 ### Training
 
 Cards show date, session index, split, movement summary, and a brief note. The explicit detail action is the only detail trigger.
+The first screen also includes five tactile read-only reference controls: shoulder, chest, back, legs, and arms. Each opens the corresponding historical reference scene directly.
 
 ### Movement Index
 

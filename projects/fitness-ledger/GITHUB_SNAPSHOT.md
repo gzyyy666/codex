@@ -23,3 +23,10 @@ The source can be restored from any Git commit. Personal JSON data must be resto
 - Includes shared Web Undo, real Data Check routing, Pre-Workout Reference, Movement Recent 3, Analysis Export, and cloud read-replica dry-run preparation.
 - Local pre-change source snapshot: `backups/platform_phase_20260703_180915` in the working application folder.
 - Verification: Python compilation, JavaScript syntax, regression test, smoke test, temporary paired Undo test, HTTP route test, payload build, and cloud dry-run all passed on 2026-07-03.
+
+## Current Verified Visual Checkpoint
+
+- Training Records contains five tactile body-area controls directly on its first screen; each opens a matching themed reference scene while Training remains the active navigation item.
+- Export uses explicit idle/loading/success/error states and readable Copy Markdown, Download Markdown, and Download JSON actions.
+- The visual system uses three controlled depth layers, real material shadows and highlights, and reduced-motion fallbacks documented in `docs/design/STYLE_BIBLE.md`.
+- Verification: JavaScript syntax, Python compilation, regression, Web shared-write, smoke, and side-by-side visual QA passed on 2026-07-03.

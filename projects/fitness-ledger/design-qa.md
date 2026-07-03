@@ -1,23 +1,24 @@
-# Fitness Ledger Dictionary Design QA
+# Fitness Ledger High-Availability Z-Axis Design QA
 
-- Source visual truth: `C:\Users\26087\AppData\Local\Temp\codex-clipboard-916ecd98-335e-4b96-ac64-2a7071191619.png`
-- Implementation screenshot: `C:\Users\26087\Documents\Codex\2026-06-16\vs-code-ai\work\fitness_tracker_app\web_desktop\qa\dictionary-grid-1710.png`
-- Combined comparison: `C:\Users\26087\Documents\Codex\2026-06-16\vs-code-ai\work\fitness_tracker_app\web_desktop\qa\dictionary-grid-comparison.png`
-- Viewport: 1710 x 950
-- State: Dictionary, all statuses, 31 local movement terms
+- Source visual truth: `C:\Users\26087\Pictures\Screenshots\屏幕截图 2026-07-03 194833.png`
+- Supporting current-state sources: `屏幕截图 2026-07-03 194319.png`, `193820.png`, `194245.png`
+- Implementation screenshots: `web_desktop/qa/z-axis/home.png`, `training-final.png`, `preworkout.png`, `export-generated.png`
+- Combined comparisons: `web_desktop/qa/z-axis/compare-concept-training.png`, `compare-preworkout.png`, `compare-export.png`, `compare-training.png`
+- Viewport: 1600 x 1000
+- State: Home, Training History, Pre-Workout all movements, Export idle and generated
 
 ## Full-view comparison evidence
 
-The implementation matches the approved functional-grid direction: five equal columns, compact professional cells, left-aligned editorial heading, one search/filter row, and a restrained technical movement-archive background. The live interface shows fifteen complete terms in the first viewport while preserving legibility and direct actions.
+The implementation preserves the established editorial archive layout while adding the requested physical hierarchy. Training now contains the five body-area controls directly on its first screen. The dark memory-access deck, raised controls, paper session cards, glass-like index, and warm background establish foreground, midground, and background without reducing record density.
 
 ## Focused region comparison evidence
 
-- Fonts and typography: editorial serif display title and compact DM Sans metadata preserve the source hierarchy; long Chinese and English names truncate safely.
-- Spacing and layout rhythm: title, toolbar, and grid share one left baseline; cards use consistent gaps and restrained internal spacing.
-- Colors and tokens: warm paper, graphite hairlines, mint active state, amber category chips, and restrained red deletion follow the existing Style Bible.
-- Image quality: the existing local `movement-archive-collage.png` supplies the technical anatomy/paper background and remains offline-capable.
-- Copy and content: each cell includes status, history count, standard/English name, muscle group, and the three required actions. Aliases remain in the editor rather than the index.
-- Interaction: search, status filtering, create, edit, enable/disable, and confirmed deletion remain wired to the shared service.
+- Fonts and typography: existing editorial serif and DM Sans remain intact; Chinese movement names and notes retain readable weight and line height.
+- Spacing and layout rhythm: Training keeps the two-column record grid and index while inserting one compact scene-control deck above search. Pre-Workout still reaches movement records within the first viewport.
+- Colors and tokens: warm paper, graphite, restrained amber, mint status, lilac/chest/back/leg/arm scene tones remain within the Style Bible.
+- Image quality: only existing offline archive and body-area assets are used. Scene imagery changes by selected body area and remains below text contrast.
+- Copy and content: Export generated state visibly shows `Copy Markdown`, `Download .md`, and `Download .json`.
+- Interaction: body-area controls enter the matching read-only reference; History search/detail remain intact; Export loading/success/error states are explicit.
 
 ## Findings
 
@@ -25,14 +26,16 @@ No actionable P0, P1, or P2 findings remain.
 
 ## Patches made during QA
 
-- Replaced the vertical dictionary list with a responsive five-column functional grid.
-- Matched the reference content width and shared left alignment.
-- Reused the local movement archive illustration as a low-contrast full-page layer.
-- Strengthened the active Dictionary navigation state and retained compact tactile action controls.
-- Added four-, three-, two-, and one-column responsive breakpoints.
+- Removed the extra History/Pre-Workout mode tab from Training.
+- Added the five tactile body-area controls directly to Training Records.
+- Added body-area scene colors and representative background assets to Pre-Workout.
+- Added contact/ambient shadows, inner highlights, pressed states, staggered entry, and reduced-motion handling.
+- Fixed invisible Export action labels and verified the generated state in Edge.
+- Added explicit Export loading, success, and error presentation.
+- Upgraded the Home secondary training-reference action from a text link to a tactile control.
 
 ## Follow-up polish
 
-- P3: The reference includes a decorative left metadata rail; it is intentionally omitted to prioritize usable grid width.
+- P3: A future pass may tune scene color intensity after longer real-world use; current values prioritize text contrast.
 
 final result: passed

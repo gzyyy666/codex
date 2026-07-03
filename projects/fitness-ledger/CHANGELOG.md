@@ -1,5 +1,14 @@
 # Fitness Ledger Changelog
 
+## 2026-07-03 - High-Availability Z-Axis Web Pass
+
+- Added the five body-area reference controls directly to Training Records and removed the extra mode-tab step.
+- Added body-area scene transitions, representative offline imagery, and staggered movement-card entry to Pre-Workout Reference.
+- Added layered material tokens, tactile hover/pressed states, contact shadows, ambient shadows, inner highlights, and reduced-motion support.
+- Fixed Analysis Export action labels and added explicit preparing, ready, and error states.
+- Upgraded the Home training-reference action into a visible secondary physical control.
+- Preserved all existing data, API, editing, Undo, movement, and export behavior.
+
 ## 2026-07-03 - Shared Platform Services
 
 - Migrated Web Undo to the shared paired tracker/dictionary checkpoint semantics with pre-undo backup and consumed-checkpoint handling.

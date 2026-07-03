@@ -17,6 +17,22 @@ node --check web_desktop/frontend/app.js
 
 Web write commands must be explicitly routed through `LedgerCommandService`. Tests must use temporary tracker/dictionary files and must never write to the formal database.
 
+## Web Training Scene Launcher
+
+- Training Records shows five body-area controls directly on its first screen: shoulders, chest, back, legs, and arms.
+- There is no extra `Prior Workouts` or mode-switch entry between Training Records and those controls.
+- Every body-area control opens its matching themed reference scene and keeps Training highlighted in primary navigation.
+- The scene uses real movement history; it must not invent sessions, weights, or movements.
+- Returning to Training restores the record list without changing stored data.
+- Hover, focus, active, and reduced-motion states remain usable and legible.
+
+## Web Export Presentation
+
+- Export generation exposes distinct idle, loading, success, and error states.
+- Successful generation shows readable Copy Markdown, Download Markdown, and Download JSON labels.
+- Export styling must not obscure button text at any supported desktop viewport.
+- Export generation remains read-only and does not write to the formal database.
+
 ## Shared Web Review And Save
 
 - Parse calls the maintained desktop parser and preserves the exact raw input.

@@ -24,6 +24,16 @@
 - `web_desktop/frontend/app.js`: Controls page navigation, API reads, real-data rendering, search, and detail dialogs.
 - `docs/design/STYLE_BIBLE.md`: Durable visual and interaction reference for future Web and simplified Tkinter UI maintenance.
 
+### Web Training And Export Presentation
+
+- `trainingPage`: Renders Training Records and its first-screen five-area launcher (shoulders, chest, back, legs, arms) without adding a separate workout-mode tab.
+- `preWorkoutPage`: Renders the selected body-area reference scene from real movement history and preserves Training as the active primary navigation item.
+- `preWorkoutTargets`: Defines the five body-area scene identities and their compact labels.
+- `exportPage`: Renders the layered export console and explicit idle, loading, success, and error states.
+- `renderExportResult`: Presents visible Copy Markdown, Download Markdown, and Download JSON actions after generation.
+- `web_desktop/frontend/styles.css`: Owns the three-layer material system, body-area scene treatments, physical control states, reduced-motion fallback, and export-console depth.
+- `tools/capture_web_state.mjs`: Captures a specified Web UI state through the local Edge debugging session for visual regression evidence.
+
 Future Web write work must begin with `web_desktop/ARCHITECTURE.md` and extend `ledger_commands.py` rather than writing JSON in the request handler.
 
 ## Desktop UI Presentation Layer

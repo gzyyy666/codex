@@ -33,7 +33,7 @@ Fitness Ledger is a local-first personal fitness journal with a maintained Tkint
 - Body, Diet, Training, Movement Progress, and Data Check provide record inspection and correction paths.
 - Web daily entry supports editable Review, duplicate-date modes, movement add/map/skip decisions, and paired database/dictionary Undo through the shared command service.
 - Web Data Check now uses the desktop rule set, existing acknowledgement state, and direct repair routes instead of sample issues.
-- Training includes a read-only Pre-Workout Reference based only on the user's recent matching sessions; it does not generate plans or advice.
+- Training places five body-area controls directly on the Training Records first screen. Each control opens a themed read-only reference scene based only on matching real sessions; there is no separate workout-mode tab and no generated plan or advice.
 - Movement detail includes Recent 3 performance metrics and changes.
 - Analysis Export produces local Markdown/JSON for 7/14/30-day or custom ranges, excluding full raw text by default.
 - `cloud_sync/` prepares and dry-runs a disposable read-only cloud replica. No provider, credentials, or network write are configured.
@@ -46,6 +46,7 @@ Fitness Ledger is a local-first personal fitness journal with a maintained Tkint
 ## Visual Direction
 
 - Current Web direction: editorial fitness journal, warm paper surfaces, graphite ink, restrained yellow highlight, cinematic fitness imagery, tactile archive slips, and high information density without spreadsheet styling.
+- The current high-availability layer adds foreground/midground/background depth, contact plus ambient shadows, inner highlights, restrained physical hover/press behavior, and reduced-motion support without changing the data architecture.
 - The reusable visual specification lives at `projects/fitness-ledger/docs/design/STYLE_BIBLE.md`.
 
 ## Recovery
