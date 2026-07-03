@@ -26,9 +26,13 @@
 
 ### Web Training And Export Presentation
 
-- `trainingPage`: Renders Training Records and its first-screen five-area launcher (shoulders, chest, back, legs, arms) without adding a separate workout-mode tab.
-- `preWorkoutPage`: Renders the selected body-area reference scene from real movement history and preserves Training as the active primary navigation item.
-- `preWorkoutTargets`: Defines the five body-area scene identities and their compact labels.
+- `bodyPartThemes`: Defines the five Training Records theme identities, copy, colors, imagery, matching keywords, and empty states.
+- `matchBodyPart`: Classifies a training record in the browser from Split, Standardized Summary, Notes, and Raw Record without changing source data.
+- `bodyPartStats`: Derives session, latest-date, and frequent-movement summaries for one theme.
+- `bodyPartThemeControls`: Renders the five primary in-page theme controls and their live record counts.
+- `trainingPage`: Renders overview or selected body-part state on the same Training Records route.
+- `trainingSidePanel`: Switches between the overview Training Index and selected Body Part Focus Panel.
+- `renderTraining`: Preserves search, sorting, detail actions, and session numbering while limiting records to the selected theme.
 - `exportPage`: Renders the layered export console and explicit idle, loading, success, and error states.
 - `renderExportResult`: Presents visible Copy Markdown, Download Markdown, and Download JSON actions after generation.
 - `web_desktop/frontend/styles.css`: Owns the three-layer material system, body-area scene treatments, physical control states, reduced-motion fallback, and export-console depth.

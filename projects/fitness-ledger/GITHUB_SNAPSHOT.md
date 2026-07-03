@@ -26,7 +26,9 @@ The source can be restored from any Git commit. Personal JSON data must be resto
 
 ## Current Verified Visual Checkpoint
 
-- Training Records contains five tactile body-area controls directly on its first screen; each opens a matching themed reference scene while Training remains the active navigation item.
+- Training Records contains five tactile body-area controls directly on its first screen. Each sets an in-page theme state and preserves the `#training` route.
+- Shoulder, chest, back, legs, and arms themes synchronize title, atmosphere, live counts, browser-only record filtering, card accents, and the right-side focus panel.
+- The previous Before You Train home action, independent reference route, and dark launcher banner are no longer part of the active frontend flow.
 - Export uses explicit idle/loading/success/error states and readable Copy Markdown, Download Markdown, and Download JSON actions.
 - The visual system uses three controlled depth layers, real material shadows and highlights, and reduced-motion fallbacks documented in `docs/design/STYLE_BIBLE.md`.
 - Verification: JavaScript syntax, Python compilation, regression, Web shared-write, smoke, and side-by-side visual QA passed on 2026-07-03.

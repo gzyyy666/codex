@@ -37,7 +37,7 @@ Use this file to restore project context with low token cost.
 - `web_desktop/backend/server.py` exposes local Parse and confirmed Save commands and reuses `mobile_viewer/data_access.py` for reads.
 - `web_desktop/frontend/` is the browser-grade visual layer.
 - Web visual rules live in `docs/design/STYLE_BIBLE.md`; current Training uses a three-layer material scene with five body-area controls directly on the Training Records first screen.
-- Body-area controls open a themed read-only reference scene through `#preworkout?split=...`; they are not a separate primary navigation page or a Training mode tab.
+- Body-area controls set an in-page `selectedBodyPart` state on `#training`. They filter and theme the existing record page without opening a separate route or writing classification results to JSON.
 - Web daily Review/Save and Movement Dictionary administration use the shared command service.
 - Web Body/Diet/Training and movement-history editing use the shared command service.
 - Web Undo and Data Check writes remain deferred.

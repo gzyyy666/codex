@@ -1,41 +1,34 @@
-# Fitness Ledger High-Availability Z-Axis Design QA
+# Fitness Ledger Training Theme Design QA
 
-- Source visual truth: `C:\Users\26087\Pictures\Screenshots\屏幕截图 2026-07-03 194833.png`
-- Supporting current-state sources: `屏幕截图 2026-07-03 194319.png`, `193820.png`, `194245.png`
-- Implementation screenshots: `web_desktop/qa/z-axis/home.png`, `training-final.png`, `preworkout.png`, `export-generated.png`
-- Combined comparisons: `web_desktop/qa/z-axis/compare-concept-training.png`, `compare-preworkout.png`, `compare-export.png`, `compare-training.png`
+- Source visual: `C:\Users\26087\Pictures\Screenshots\屏幕截图 2026-07-03 194833.png`
+- Implementation screenshots: `web_desktop/qa/training-theme/overview.png`, `back.png`, `legs.png`
+- Combined comparison: `web_desktop/qa/training-theme/comparison.png`
 - Viewport: 1600 x 1000
-- State: Home, Training History, Pre-Workout all movements, Export idle and generated
+- States: Training overview, Back theme, Legs theme
 
-## Full-view comparison evidence
+## Verified Product Structure
 
-The implementation preserves the established editorial archive layout while adding the requested physical hierarchy. Training now contains the five body-area controls directly on its first screen. The dark memory-access deck, raised controls, paper session cards, glass-like index, and warm background establish foreground, midground, and background without reducing record density.
+- Five body-area controls are directly inside the Training Records first screen.
+- Selecting shoulders, chest, back, legs, or arms does not change the route and does not open a separate reference page.
+- `All Records` and `Back to overview` restore the overview in place.
+- Search, sorting, session numbering, record cards, and explicit detail actions remain available in every theme.
+- Browser-only classification reads existing record fields and never writes its result to JSON.
 
-## Focused region comparison evidence
+## Visual Comparison
 
-- Fonts and typography: existing editorial serif and DM Sans remain intact; Chinese movement names and notes retain readable weight and line height.
-- Spacing and layout rhythm: Training keeps the two-column record grid and index while inserting one compact scene-control deck above search. Pre-Workout still reaches movement records within the first viewport.
-- Colors and tokens: warm paper, graphite, restrained amber, mint status, lilac/chest/back/leg/arm scene tones remain within the Style Bible.
-- Image quality: only existing offline archive and body-area assets are used. Scene imagery changes by selected body area and remains below text contrast.
-- Copy and content: Export generated state visibly shows `Copy Markdown`, `Download .md`, and `Download .json`.
-- Interaction: body-area controls enter the matching read-only reference; History search/detail remain intact; Export loading/success/error states are explicit.
+- The selected visual target contributes foreground, midground, and background depth rather than a literal component copy.
+- The implementation keeps the established Fitness Ledger editorial archive layout and increases depth through real offline body-area imagery, warm paper surfaces, contact shadows, restrained atmosphere, and tactile controls.
+- The former dark banner was removed. The body controls now read as a central paper-and-image interaction deck integrated with the record page.
+- Selected themes synchronize title, copy, image, accent, record treatment, focus statistics, and empty-state language.
+- Type, spacing, and density remain suitable for real record reading rather than becoming a concept-only landing page.
 
-## Findings
+## Interaction And Accessibility
 
-No actionable P0, P1, or P2 findings remain.
+- Theme controls expose hover, pressed, active, and focus-visible states.
+- Reduced-motion mode removes stagger and theme motion.
+- Active state is communicated by color, expansion, underline, image strength, and right-panel content rather than color alone.
+- Empty states provide a clear return to all records.
 
-## Patches made during QA
+## Result
 
-- Removed the extra History/Pre-Workout mode tab from Training.
-- Added the five tactile body-area controls directly to Training Records.
-- Added body-area scene colors and representative background assets to Pre-Workout.
-- Added contact/ambient shadows, inner highlights, pressed states, staggered entry, and reduced-motion handling.
-- Fixed invisible Export action labels and verified the generated state in Edge.
-- Added explicit Export loading, success, and error presentation.
-- Upgraded the Home secondary training-reference action from a text link to a tactile control.
-
-## Follow-up polish
-
-- P3: A future pass may tune scene color intensity after longer real-world use; current values prioritize text contrast.
-
-final result: passed
+Passed. No P0, P1, or P2 visual or interaction findings remain for this scoped Training Records change.

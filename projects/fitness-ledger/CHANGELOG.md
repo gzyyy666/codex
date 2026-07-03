@@ -1,5 +1,14 @@
 # Fitness Ledger Changelog
 
+## 2026-07-03 - Training Records In-Page Body Themes
+
+- Replaced the independent Before You Train route with five body-area controls inside Training Records.
+- Added browser-only shoulder, chest, back, legs, and arms classification across Split, summary, notes, and raw record text.
+- Added synchronized theme state for the page header, atmosphere, active control, record filter, card accents, focus panel, and empty state.
+- Preserved Training search, sorting, session numbering, record editing, and explicit detail actions.
+- Added `All Records` and `Back to overview` without changing the URL, backend contracts, or local JSON.
+- Added restrained theme transitions and reduced-motion fallback without new frontend dependencies.
+
 ## 2026-07-03 - High-Availability Z-Axis Web Pass
 
 - Added the five body-area reference controls directly to Training Records and removed the extra mode-tab step.

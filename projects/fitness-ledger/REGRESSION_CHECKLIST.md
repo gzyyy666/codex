@@ -21,9 +21,11 @@ Web write commands must be explicitly routed through `LedgerCommandService`. Tes
 
 - Training Records shows five body-area controls directly on its first screen: shoulders, chest, back, legs, and arms.
 - There is no extra `Prior Workouts` or mode-switch entry between Training Records and those controls.
-- Every body-area control opens its matching themed reference scene and keeps Training highlighted in primary navigation.
-- The scene uses real movement history; it must not invent sessions, weights, or movements.
-- Returning to Training restores the record list without changing stored data.
+- Every body-area control changes the current Training Records page in place; the URL remains `#training`.
+- Header, atmosphere, active control, records, card accents, and right-side panel all reflect the selected theme.
+- Search and sort operate within the selected theme.
+- `All Records` and `Back to overview` restore the complete record list without changing stored data.
+- Theme classification is browser-only and never writes to tracker or dictionary data.
 - Hover, focus, active, and reduced-motion states remain usable and legible.
 
 ## Web Export Presentation

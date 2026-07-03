@@ -79,7 +79,8 @@ Rules:
 - Respect `prefers-reduced-motion`.
 - High-availability surfaces use three explicit layers: background archive imagery, paper/glass content surfaces, and tactile foreground controls.
 - Training body-area controls belong directly on the Training Records first screen; do not add an extra mode tab before them.
-- A selected body area may change a restrained scene glow and representative offline image while preserving the same information architecture.
+- A selected body area changes the existing Training Records page in place. It must not navigate to a separate reference route.
+- The selected theme may change restrained atmosphere, representative offline imagery, record accents, and the right-side focus panel while preserving search, sorting, record cards, and explicit detail actions.
 - Export actions must always use visible text labels; icon-only export controls are not permitted.
 
 ## 8. Image Direction
@@ -115,7 +116,8 @@ Cards prioritize date, calories, and macros. Full meal text appears only in expl
 ### Training
 
 Cards show date, session index, split, movement summary, and a brief note. The explicit detail action is the only detail trigger.
-The first screen also includes five tactile read-only reference controls: shoulder, chest, back, legs, and arms. Each opens the corresponding historical reference scene directly.
+The first screen includes five tactile theme controls: shoulder, chest, back, legs, and arms. They are a core section rather than tabs or filter chips.
+Selecting a body area keeps the user on Training Records and synchronizes the header, atmosphere, active control, filtered records, card accents, and focus panel. `All Records` returns to the overview.
 
 ### Movement Index
 
