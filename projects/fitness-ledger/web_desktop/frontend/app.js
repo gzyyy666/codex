@@ -145,7 +145,7 @@ async function deleteDictionaryEntry(movementId){const confirmation=$('#dictiona
 renderDictionary=function(){const target=$('#dictionary-rows');if(!target)return;const query=($('#dictionary-search')?.value||'').trim().toLowerCase(),status=$('#dictionary-status')?.value||'all';const rows=state.dictionary.filter(item=>{const active=item.active!==false;if(status==='active'&&!active)return false;if(status==='inactive'&&active)return false;return !query||JSON.stringify(item).toLowerCase().includes(query)});const head=$('.dictionary-sheet-head');if(head)head.innerHTML='<span>状态</span><span>标准动作</span><span>训练部位</span><span>历史</span><span>操作</span>';target.innerHTML=rows.map(item=>{const active=item.active!==false;return `<article class="dictionary-row dictionary-row-compact ${active?'':'is-inactive'}"><span class="dictionary-state ${active?'is-active':'is-inactive'}"><i></i>${active?'启用':'停用'}</span><div class="dictionary-name"><strong>${esc(item.display_name||'未命名')}</strong><small>${esc(item.english_name||item.movement_id||'')}</small></div><span class="dictionary-group">${esc(groupLabel(item.muscle_group||'Unclassified'))}</span><span class="dictionary-history"><strong>${Number(item.history_count||0)}</strong><small>条</small></span><div class="dictionary-actions dictionary-icon-actions"><button title="编辑动作" aria-label="编辑 ${esc(item.display_name)}" data-dictionary-edit="${esc(item.movement_id)}"><b>✎</b><span>编辑</span></button><button title="${active?'停用动作':'启用动作'}" aria-label="${active?'停用':'启用'} ${esc(item.display_name)}" data-dictionary-toggle="${esc(item.movement_id)}"><b>${active?'◐':'●'}</b><span>${active?'停用':'启用'}</span></button><button class="danger" title="删除动作" aria-label="删除 ${esc(item.display_name)}" data-dictionary-delete="${esc(item.movement_id)}"><b>×</b><span>删除</span></button></div></article>`}).join('')||'<div class="empty-copy"><h3>没有匹配动作</h3><p>调整搜索词或状态筛选。</p></div>';const count=$('#dictionary-count');if(count)count.textContent=`${rows.length} / ${state.dictionary.length} movements`};
 
 async function load(){try{[state.today,state.recent,state.body,state.diet,state.training,state.movements]=await Promise.all([api('/api/today'),api('/api/recent?limit=5'),api('/api/body?limit=100'),api('/api/diet?limit=100'),api('/api/training?limit=100'),api('/api/movements?limit=100')]);navigate(location.hash.slice(1)||'home')}catch(e){main.innerHTML=`<div class="loading-page"><h2>Local data service unavailable</h2><p>${esc(e.message)}</p></div>`}}
-function navigate(v){state.view=v;location.hash=v;$$('.nav-item').forEach(b=>b.classList.toggle('is-active',b.dataset.view===v));({home:homePage,quick:quickPage,body:bodyPage,diet:dietPage,training:trainingPage,movements:movementPage,checks:checksPage,dictionary:dictionaryPage}[v]||homePage)();window.scrollTo(0,0)}
+function navigate(v){state.view=v;location.hash=v;$$('.nav-item').forEach(b=>b.classList.toggle('is-active',b.dataset.view===v));({home:homePage,quick:quickPage,body:bodyPage,diet:dietPage,training:trainingPage,movements:movementPage,checks:checksPage,dictionary:dictionaryPage,export:analysisExportPage}[v]||homePage)();window.scrollTo(0,0)}
 document.addEventListener('click',event=>{const target=event.target.closest('button,a');if(!target)return;if(target.id==='parse'){event.preventDefault();event.stopImmediatePropagation();parseWebEntry();return}if(target.dataset.reviewSave!==undefined){event.preventDefault();event.stopImmediatePropagation();saveWebReview();return}if(target.dataset.reviewBack!==undefined){event.preventDefault();event.stopImmediatePropagation();navigate('quick');return}if(target.dataset.reviewCancel!==undefined){event.preventDefault();event.stopImmediatePropagation();state.reviewPayload=null;state.draftRaw='';navigate('quick');return}if(target.matches('.review-index a')){event.preventDefault();event.stopImmediatePropagation();document.querySelector(target.getAttribute('href'))?.scrollIntoView({behavior:'smooth',block:'start'})}},true);
 document.addEventListener('change',event=>{const action=event.target.closest('[data-movement-action]');if(!action)return;const mapping=$(`[data-movement-map="${action.dataset.movementAction}"]`);if(mapping)mapping.disabled=action.value!=='map'});
 document.addEventListener('click',e=>{const b=e.target.closest('button,[data-detail],[data-movement],[data-issue]');if(!b)return;if(b.dataset.view)navigate(b.dataset.view);if(b.dataset.go)navigate(b.dataset.go);if(b.dataset.close!==undefined){root.innerHTML='';return}if(b.dataset.mock)showToast(b.dataset.mock);if(b.dataset.record)recordDetail(b.dataset.record);if(b.dataset.detail)detail(b.dataset.detail,Number(b.dataset.index));if(b.dataset.movementIndex!==undefined)movementPage();else if(b.dataset.selectMovement)loadMovementFocus(b.dataset.selectMovement);else if(b.dataset.movement)movementDetail(b.dataset.movement);if(b.dataset.issue!==undefined)modal('Issue detail',`<span class="severity ${issues[b.dataset.issue][0].toLowerCase()}">${issues[b.dataset.issue][0]}</span><div class="detail-list"><div class="detail-row"><label>Date</label><div>${issues[b.dataset.issue][1]}</div></div><div class="detail-row"><label>Area</label><div>${issues[b.dataset.issue][2]}</div></div><div class="detail-row"><label>Issue</label><div>${issues[b.dataset.issue][3]}</div></div></div>`,{actions:'<button class="btn btn-primary" data-mock="Open action is a UI preview.">Take action →</button>'});if(b.id==='parse')reviewPage($('#raw-entry').value);if(b.dataset.back!==undefined)navigate('quick');if(b.dataset.duplicate!==undefined)duplicate();if(b.dataset.approval!==undefined)approval();if(b.dataset.drawer)drawer(b.dataset.drawer)});
@@ -158,4 +158,117 @@ document.addEventListener('input',event=>{if(event.target.id==='dictionary-searc
 document.addEventListener('change',event=>{if(event.target.id==='dictionary-status')renderDictionary()});
 document.addEventListener('click',event=>{const target=event.target.closest('[data-dictionary-new],[data-dictionary-edit],[data-dictionary-toggle],[data-dictionary-delete],[data-dictionary-save],[data-dictionary-delete-confirm]');if(!target)return;event.preventDefault();event.stopPropagation();if(target.dataset.dictionaryNew!==undefined)openDictionaryEditor();else if(target.dataset.dictionaryEdit)openDictionaryEditor(target.dataset.dictionaryEdit);else if(target.dataset.dictionaryToggle)toggleDictionaryEntry(target.dataset.dictionaryToggle);else if(target.dataset.dictionaryDelete)confirmDictionaryDelete(target.dataset.dictionaryDelete);else if(target.dataset.dictionarySave!==undefined)saveDictionaryForm(target.dataset.dictionarySave);else if(target.dataset.dictionaryDeleteConfirm)deleteDictionaryEntry(target.dataset.dictionaryDeleteConfirm)},true);
 document.addEventListener('click',event=>{const target=event.target.closest('[data-record-save],[data-movement-history-edit],[data-movement-history-save]');if(!target)return;event.preventDefault();event.stopPropagation();if(target.dataset.recordSave!==undefined)saveRecordEdit();else if(target.dataset.movementHistoryEdit!==undefined)movementHistoryEditor(Number(target.dataset.movementHistoryEdit));else if(target.dataset.movementHistorySave!==undefined)saveMovementHistory()},true);
+const quickPageBeforePlatformServices=quickPage;
+quickPage=function(){
+  quickPageBeforePlatformServices();
+  const undoButton=$('.capture .actions .btn-light');
+  if(undoButton){
+    undoButton.removeAttribute('data-mock');
+    undoButton.dataset.undo='';
+    undoButton.textContent='Undo last save';
+    api('/api/undo-status').then(status=>{
+      undoButton.disabled=!status.available;
+      undoButton.title=status.available?`可撤销 ${status.created_at}`:'没有可撤销记录';
+    }).catch(()=>{undoButton.disabled=true});
+  }
+}
+
+function issueCounts(rows){return rows.reduce((counts,item)=>{const key=String(item.severity||'').toLowerCase();counts[key]=(counts[key]||0)+1;return counts},{})}
+checksPage=async function(){
+  main.innerHTML='<div class="loading-page"><i></i><p>正在读取本地数据检查结果…</p></div>';
+  try{
+    state.dataCheck=await api('/api/data-check');
+    const rows=state.dataCheck.issues||[],counts=issueCounts(rows);
+    main.innerHTML=`<section class="page page-grid checks-page"><div class="content">${pageHeader('Data Check','真实扫描本地记录；Open 会直接带你到对应修正位置。')}<div class="toolbar check-filters"><button class="btn btn-primary is-selected" data-check-filter="all">全部问题 &nbsp; ${rows.length}</button><button class="btn" data-check-filter="high">高 ${counts.high||0}</button><button class="btn" data-check-filter="medium">中 ${counts.medium||0}</button><button class="btn" data-check-filter="low">低 ${counts.low||0}</button></div><div class="table-wrap check-table-wrap"><table class="check-table"><thead><tr><th>级别</th><th>日期</th><th>区域</th><th>问题</th><th>建议处理</th><th>操作</th></tr></thead><tbody>${rows.map((item,index)=>`<tr data-severity="${esc(String(item.severity).toLowerCase())}"><td><span class="severity ${esc(String(item.severity).toLowerCase())}">${esc(item.severity)}</span></td><td>${esc(item.date)}</td><td>${esc(item.area)}</td><td>${esc(item.issue)}</td><td>${esc(item.action)}</td><td><button class="link issue-open" data-real-issue="${index}">Open</button></td></tr>`).join('')}</tbody></table></div><div class="records-status" aria-live="polite">显示 ${rows.length} 个未确认问题 · 已隐藏 ${state.dataCheck.acknowledged_count||0} 个</div></div><aside class="rail"><section class="rail-section" style="margin-top:0"><span class="eyebrow">处理原则</span><h2 style="font:400 24px var(--serif)">定位、修正、再确认</h2><p>检查只提供定位，不会自动修改正式记录。</p></section><section class="rail-section"><span class="eyebrow">状态说明</span><div class="state-stack" style="margin-top:16px"><div class="state error">High · 优先核对</div><div class="state warning">Medium · 影响准确性</div><div class="state success">Low · 提示性问题</div></div></section></aside></section>`;
+  }catch(error){main.innerHTML=`<div class="loading-page"><h2>Data Check unavailable</h2><p>${esc(error.message)}</p></div>`}
+}
+
+function openRealIssue(index){
+  const issue=state.dataCheck?.issues?.[index];if(!issue)return;
+  modal('问题详情',`<span class="severity ${esc(String(issue.severity).toLowerCase())}">${esc(issue.severity)}</span><div class="detail-list"><div class="detail-row"><label>日期</label><div>${esc(issue.date)}</div></div><div class="detail-row"><label>区域</label><div>${esc(issue.area)}</div></div><div class="detail-row"><label>具体问题</label><div>${esc(issue.issue)}</div></div><div class="detail-row"><label>建议处理</label><div>${esc(issue.action)}</div></div></div>`,{actions:`<button class="btn" data-issue-ack="${index}">确认并隐藏</button><button class="btn btn-primary" data-issue-repair="${index}">前往处理 →</button>`});
+}
+
+function repairIssue(index){
+  const issue=state.dataCheck?.issues?.[index];if(!issue)return;
+  root.innerHTML='';state.repairReturn=true;
+  if(['body','diet','training'].includes(issue.target_type)){
+    const rows={body:state.body,diet:state.diet,training:state.training}[issue.target_type]||[];
+    const recordIndex=rows.findIndex(row=>String(row.id||'')===String(issue.target_id||'')||(dateOf(row)===issue.date&&!issue.target_id));
+    if(recordIndex>=0){realRecordDetail(issue.target_type,recordIndex);return}
+    navigate(issue.target_type);return;
+  }
+  if(issue.target_type==='movement'){
+    const movement=state.movements.find(row=>String(row.movement_id)===String(issue.movement_id));
+    if(movement){loadMovementFocus(movement.display_name);return}
+    navigate('movements');return;
+  }
+  if(issue.target_type==='dictionary'){navigate('dictionary');return}
+  if(issue.target_type==='raw'){recordDetail(issue.date);return}
+  navigate(issue.area==='Diet'?'diet':issue.area==='Training'?'training':'body');
+}
+
+async function acknowledgeRealIssue(index){
+  const issue=state.dataCheck?.issues?.[index];if(!issue)return;
+  try{await postApi('/api/data-check/acknowledge',{issue_key:issue.issue_key});root.innerHTML='';await checksPage();showToast('该提示已确认并隐藏。')}catch(error){showToast(error.message||'确认失败。')}
+}
+
+async function undoLastWebWrite(){
+  if(!window.confirm('确定撤销最近一次保存或编辑吗？\n当前数据库和动作词典会一起恢复。'))return;
+  try{await postApi('/api/undo',{});await refreshWebState();navigate('quick');showToast('最近一次写入已撤销。')}catch(error){showToast(error.message||'撤销失败。')}
+}
+
+const homePageBeforeReference=homePage;
+homePage=function(){homePageBeforeReference();const actions=$('.home-actions');if(actions)actions.insertAdjacentHTML('beforeend','<button class="home-text-link" data-preworkout>今天训练什么？</button>')}
+
+const trainingPageBeforeReference=trainingPage;
+trainingPage=function(){trainingPageBeforeReference();const toolbar=$('.training-main .toolbar');if(toolbar)toolbar.insertAdjacentHTML('afterbegin','<div class="view-switch"><button class="is-active">History</button><button data-preworkout>Pre-Workout Reference</button></div>')}
+
+async function preWorkoutPage(split=''){
+  main.innerHTML='<div class="loading-page"><i></i><p>正在整理最近训练参考…</p></div>';
+  try{
+    const data=await api(`/api/workout-reference?split=${encodeURIComponent(split)}`);state.workoutReference=data;
+    main.innerHTML=`<section class="page preworkout-page"><header class="preworkout-hero"><div><span class="eyebrow">TRAINING / READ-ONLY REFERENCE</span><h1>Before<br>you train.</h1><p>只回看你自己的近期记录，不生成训练计划。</p></div><button class="home-text-link" data-go="training">← Training history</button></header><div class="preworkout-controls"><label>选择训练分部<select id="preworkout-split"><option value="">全部近期训练</option>${data.available_splits.map(item=>`<option ${item===split?'selected':''}>${esc(item)}</option>`).join('')}</select></label><div class="preworkout-last"><span>LAST SESSION</span><strong>${esc(data.last_session?.Date||'—')}</strong><small>${esc(data.last_session?.Split||'暂无匹配记录')}</small></div></div><section class="reference-grid">${data.movements.map((item,index)=>`<article class="reference-slip"><span>0${index+1}</span><h2>${esc(item.display_name)}</h2><p>${esc(groupLabel(item.muscle_group))} · 最近出现 ${item.frequency} 次</p><div>${item.recent.map(row=>`<button data-select-movement="${esc(item.display_name)}"><b>${esc(row.date)}</b><small>${row.metrics.max_weight||'自重'} kg · ${row.metrics.total_reps} reps · ${row.metrics.volume} volume</small></button>`).join('')}</div></article>`).join('')||'<p class="empty-note">该分部尚无可用动作历史。</p>'}</section></section>`;
+  }catch(error){main.innerHTML=`<div class="loading-page"><h2>Reference unavailable</h2><p>${esc(error.message)}</p></div>`}
+}
+
+const loadMovementFocusBeforeInsight=loadMovementFocus;
+loadMovementFocus=async function(name){
+  await loadMovementFocusBeforeInsight(name);
+  try{
+    const insight=await api(`/api/movement-insight?name=${encodeURIComponent(name)}&limit=8`);
+    const anchor=$('.movement-trajectory');if(!anchor||!insight.recent_performance?.length)return;
+    anchor.insertAdjacentHTML('beforebegin',`<section class="recent-performance"><div><span class="eyebrow">RECENT 3 / PERFORMANCE</span><h2>Latest signal</h2></div><div class="performance-strip">${insight.recent_performance.map((row,index)=>`<article><span>0${index+1} · ${esc(row.date)}</span><strong>${row.metrics.max_weight||'BW'}<small>${row.metrics.max_weight?' kg':''}</small></strong><p>${row.metrics.total_reps} reps · ${row.metrics.volume} volume</p>${row.change.max_weight==null?'':`<em>${row.change.max_weight>=0?'+':''}${row.change.max_weight} kg vs previous</em>`}</article>`).join('')}</div></section>`);
+  }catch(_error){}
+}
+
+function analysisExportPage(){
+  main.innerHTML=`<section class="page export-page"><header class="export-hero"><span class="eyebrow">08 / PORTABLE CONTEXT</span><h1>Analysis<br>Export.</h1><p>生成供 ChatGPT 或其他分析工具阅读的 Markdown 与 JSON。不会上传数据。</p></header><section class="export-workbench"><form id="export-form"><label>范围<select name="days"><option value="7">最近 7 天</option><option value="14" selected>最近 14 天</option><option value="30">最近 30 天</option></select></label><label>开始日期（可选）<input type="date" name="start"></label><label>结束日期（可选）<input type="date" name="end"></label><label class="export-check"><input type="checkbox" name="include_raw_preview"> 包含原始输入的 180 字预览</label><button class="btn btn-primary" data-build-export>Generate export →</button></form><div class="export-result" id="export-result"><span class="eyebrow">PREVIEW</span><h2>尚未生成</h2><p>默认仅整理结构化数据；完整原始输入不会进入导出。</p></div></section></section>`;
+}
+
+async function buildAnalysisExport(){
+  const form=$('#export-form');if(!form)return;const values=Object.fromEntries(new FormData(form).entries());values.days=Number(values.days||14);values.include_raw_preview=Boolean(values.include_raw_preview);
+  try{state.analysisExport=await postApi('/api/analysis-export',values);const result=$('#export-result');result.innerHTML=`<span class="eyebrow">READY / ${esc(state.analysisExport.payload.range.start)} → ${esc(state.analysisExport.payload.range.end)}</span><h2>${state.analysisExport.payload.summary.training_sessions} sessions</h2><p>${state.analysisExport.payload.summary.movement_records} 条动作记录已整理。</p><div class="export-actions"><button class="btn" data-copy-export="markdown">Copy Markdown</button><button class="btn" data-download-export="markdown">Download .md</button><button class="btn" data-download-export="json">Download .json</button></div>`}catch(error){showToast(error.message||'导出失败。')}
+}
+
+function downloadExport(kind){const content=state.analysisExport?.[kind];if(!content)return;const blob=new Blob([content],{type:kind==='json'?'application/json':'text/markdown'}),link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`fitness-ledger-export.${kind==='json'?'json':'md'}`;link.click();URL.revokeObjectURL(link.href)}
+
+document.addEventListener('click',event=>{
+  const target=event.target.closest('[data-undo],[data-real-issue],[data-issue-repair],[data-issue-ack]');if(!target)return;
+  event.preventDefault();event.stopImmediatePropagation();
+  if(target.dataset.undo!==undefined)undoLastWebWrite();
+  else if(target.dataset.realIssue!==undefined)openRealIssue(Number(target.dataset.realIssue));
+  else if(target.dataset.issueRepair!==undefined)repairIssue(Number(target.dataset.issueRepair));
+  else if(target.dataset.issueAck!==undefined)acknowledgeRealIssue(Number(target.dataset.issueAck));
+},true);
+
+document.addEventListener('click',event=>{
+  const target=event.target.closest('[data-preworkout],[data-build-export],[data-copy-export],[data-download-export]');if(!target)return;
+  event.preventDefault();event.stopImmediatePropagation();
+  if(target.dataset.preworkout!==undefined)preWorkoutPage();
+  else if(target.dataset.buildExport!==undefined)buildAnalysisExport();
+  else if(target.dataset.copyExport)navigator.clipboard.writeText(state.analysisExport?.[target.dataset.copyExport]||'').then(()=>showToast('已复制到剪贴板。'));
+  else if(target.dataset.downloadExport)downloadExport(target.dataset.downloadExport);
+},true);
+document.addEventListener('change',event=>{if(event.target.id==='preworkout-split')preWorkoutPage(event.target.value)});
+
 window.addEventListener('hashchange',()=>{const v=location.hash.slice(1);if(v&&v!==state.view)navigate(v)});load();

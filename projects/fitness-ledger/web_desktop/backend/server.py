@@ -21,6 +21,9 @@ if str(PROJECT_DIR) not in sys.path:
 
 from mobile_viewer.data_access import LedgerDataAccess  # noqa: E402
 from ledger_commands import DuplicateDateError, LedgerCommandError, LedgerCommandService  # noqa: E402
+from fitness_ledger_core.data_quality_view import acknowledge_issue, collect_issues  # noqa: E402
+from fitness_ledger_core.analysis_export import build_export  # noqa: E402
+from fitness_ledger_core.shared_view_models import LedgerViewModels  # noqa: E402
 
 
 def load_stable_module():
@@ -52,8 +55,10 @@ class LedgerWebService:
         dictionary_file = dictionary_file or PROJECT_DIR / "data" / "movement_dictionary.json"
         backup_dir = backup_dir or PROJECT_DIR / "data" / "backups"
         self.data = LedgerDataAccess(data_file, dictionary_file)
+        self.views = LedgerViewModels(data_file, dictionary_file)
         self.stable = load_stable_module()
         self.commands = LedgerCommandService(data_file, dictionary_file, backup_dir, self._parse_with_stable_app)
+        self.data_check_state_file = Path(data_file).parent / "data_check_state.json"
         self.pending_reviews: dict[str, dict] = {}
         self.pending_lock = threading.RLock()
 
@@ -73,9 +78,37 @@ class LedgerWebService:
             "save": True,
             "edit": True,
             "dictionary_admin": True,
-            "undo": False,
-            "phase": "shared-review-save",
+            "undo": True,
+            "data_check_repair": True,
+            "phase": "shared-platform-services",
         }
+
+    def undo_status(self) -> dict:
+        return self.commands.undo_status()
+
+    def undo_last_write(self) -> dict:
+        result = self.commands.undo_last_write()
+        self.data._cache = None
+        return result
+
+    def data_check(self) -> dict:
+        database, dictionary = self.commands.load_state()
+        return collect_issues(database, dictionary, self.stable, self.data_check_state_file)
+
+    def workout_reference(self, split: str) -> dict:
+        return self.views.workout_reference(split)
+
+    def movement_insight(self, name: str, limit: int = 8) -> dict:
+        return self.views.movement_history(name, limit)
+
+    def analysis_export(self, request: dict) -> dict:
+        return build_export(self.views, request)
+
+    def acknowledge_data_issue(self, request: dict) -> dict:
+        key = str(request.get("issue_key", "")).strip()
+        if not key:
+            raise LedgerCommandError("缺少问题标识。")
+        return acknowledge_issue(self.data_check_state_file, key)
 
     def dictionary_entries(self) -> list[dict]:
         return self.commands.movement_definitions()
@@ -282,6 +315,14 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json({"ok": True, "service": "fitness-ledger-web"})
             elif parsed.path == "/api/capabilities":
                 self.send_json(self.service.capabilities())
+            elif parsed.path == "/api/undo-status":
+                self.send_json(self.service.undo_status())
+            elif parsed.path == "/api/data-check":
+                self.send_json(self.service.data_check())
+            elif parsed.path == "/api/workout-reference":
+                self.send_json(self.service.workout_reference(query.get("split", [""])[0]))
+            elif parsed.path == "/api/movement-insight":
+                self.send_json(self.service.movement_insight(query.get("name", [""])[0], int(query.get("limit", ["8"])[0])))
             elif parsed.path == "/api/today":
                 self.send_json(self.service.data.get_today_summary())
             elif parsed.path == "/api/recent":
@@ -328,6 +369,12 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
             request = self.read_json_body()
             if parsed.path == "/api/parse":
                 self.send_json(self.service.parse_entry(request.get("raw", "")))
+            elif parsed.path == "/api/undo":
+                self.send_json(self.service.undo_last_write())
+            elif parsed.path == "/api/data-check/acknowledge":
+                self.send_json(self.service.acknowledge_data_issue(request))
+            elif parsed.path == "/api/analysis-export":
+                self.send_json(self.service.analysis_export(request))
             elif parsed.path == "/api/save":
                 self.send_json(self.service.save_review(request))
             elif parsed.path == "/api/dictionary/create":

@@ -279,3 +279,16 @@ Check body, macros, movement order, aliases, strength sets, and cardio metrics.
 - All table containers use `sticky="nsew"` and expansion weights.
 - Long-text tables retain horizontal scrolling.
 - Detail windows remain scrollable.
+
+## Shared Platform Services
+
+- `python -m py_compile stable_app.pyw ledger_commands.py web_desktop/backend/server.py fitness_ledger_core/*.py`
+- Run Web JavaScript syntax validation with `node --check web_desktop/frontend/app.js` when Node is available.
+- Test Undo only against temporary tracker/dictionary copies: paired files restore together, pre-undo backups exist, and the consumed checkpoint becomes `undone_*`.
+- Confirm `/api/data-check` contains no hard-coded sample issues and respects existing acknowledgements.
+- Confirm Data Check Open routes Body/Diet/Training to the real editor, Movement to movement detail, Dictionary to Dictionary, and Raw Entry to preserved raw detail.
+- Confirm Training History remains available and Pre-Workout Reference is read-only.
+- Confirm movement detail shows up to three recent performance records with load, reps, volume, and comparison.
+- Confirm Analysis Export supports 7/14/30-day and custom ranges, Markdown/JSON copy or download, and excludes full raw text by default.
+- Run `python cloud_sync/build_cloud_payload.py` and `python cloud_sync/sync_to_cloud.py --dry-run`; verify the latter states that no network request was made.
+- Never commit `cloud_sync/out/*.json`.

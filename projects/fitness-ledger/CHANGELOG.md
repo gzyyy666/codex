@@ -1,5 +1,16 @@
 # Fitness Ledger Changelog
 
+## 2026-07-03 - Shared Platform Services
+
+- Migrated Web Undo to the shared paired tracker/dictionary checkpoint semantics with pre-undo backup and consumed-checkpoint handling.
+- Replaced the hard-coded Web Data Check sample with the established desktop rules, acknowledgement filtering, and real repair navigation.
+- Added one read-only view-model layer shared by Pre-Workout Reference, Movement Recent 3, Analysis Export, and cloud payload preparation.
+- Added Training Pre-Workout Reference without generating plans or advice.
+- Added Recent 3 movement performance with maximum load, total reps, volume, and previous-record change.
+- Added local Markdown/JSON Analysis Export for 7/14/30-day or custom ranges; full raw text is excluded by default.
+- Added a cloud read-replica contract, payload builder, and dry-run validator. No provider, credential, or network write is configured.
+- Preserved tracker/dictionary structures, parser behavior, raw input, and local JSON as the sole source of truth.
+
 ## 2026-07-03 - Review Movement Priority
 
 - Moved movement recognition and mapping directly below the Web Review heading.

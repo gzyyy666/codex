@@ -1,10 +1,11 @@
 data/
 backups/
 logs/
+cloud_sync/out/*.json
+cloud_sync/cloud_config.local.json
 __pycache__/
 *.pyc
 *.log
 *.tmp
 *.xlsx
 web_desktop/.edge-profile/
-

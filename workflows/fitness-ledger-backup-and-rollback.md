@@ -9,6 +9,7 @@ Create durable GitHub source checkpoints while keeping personal fitness records 
 1. Run syntax, regression, smoke, and Web tests in the working application folder.
 2. Refresh `projects/fitness-ledger/` from the working folder.
 3. Exclude `data/`, `backups/`, logs, caches, browser profiles, spreadsheets, and temporary files.
+   Also exclude generated `cloud_sync/out/*.json`, because the read-replica payload contains personal fitness data.
 4. Update `memory/fitness-ledger-state.md` when architecture or durable behavior changes.
 5. Update the source mirror `CHANGELOG.md` and design documentation.
 6. Review `git diff --stat` and confirm that no personal JSON or credentials are present.

@@ -50,6 +50,14 @@ Use this file to restore project context with low token cost.
 7. Select the minimum tests from `REGRESSION_CHECKLIST.md`.
 8. Record durable changes in `CHANGELOG.md`.
 
+## Shared Platform Services (2026-07-03)
+
+- `ledger_commands.py` is the only shared write boundary for desktop and Web. Web Undo must call `LedgerCommandService.undo_last_write`; do not recreate restore logic in JavaScript.
+- `fitness_ledger_core/shared_view_models.py` is the read-only projection layer for Pre-Workout Reference, movement insight, Analysis Export, and cloud payloads.
+- `fitness_ledger_core/data_quality_view.py` exposes the desktop Data Check rules to Web and preserves `data/data_check_state.json` acknowledgement semantics.
+- `cloud_sync/` prepares a disposable read-only replica only. Local JSON remains the sole source of truth; no provider or network uploader is configured.
+- Generated `cloud_sync/out/*.json` files contain personal data and must remain untracked.
+
 ## Request Routing
 
 - Review popup missing buttons: `parse_and_review`, `open_review_window`, `commit_pending`.
@@ -89,7 +97,7 @@ Use this file to restore project context with low token cost.
 - Weekly/monthly reports
 - AI diet or training analysis
 - Training-plan generation
-- Cloud sync, accounts, mobile apps, and wearable integrations
+- Actual cloud upload/provider configuration, accounts, two-way sync, conflict resolution, and wearable integrations
 
 ## Display Rules
 

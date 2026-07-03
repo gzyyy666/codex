@@ -130,6 +130,77 @@ class LedgerCommandService:
         dictionary = _read_json(self.dictionary_file, {"version": "1.0", "movements": []})
         return database, dictionary
 
+    def undo_status(self) -> dict:
+        """Describe the newest valid paired checkpoint without changing data."""
+        for tracker_checkpoint in sorted(
+            self.backup_dir.glob("undo_tracker_*.json"),
+            key=lambda path: path.stat().st_mtime,
+            reverse=True,
+        ):
+            suffix = tracker_checkpoint.name[len("undo_tracker_") :]
+            dictionary_checkpoint = self.backup_dir / f"undo_dictionary_{suffix}"
+            if not dictionary_checkpoint.exists():
+                continue
+            try:
+                tracker = _read_json(tracker_checkpoint, None)
+                dictionary = _read_json(dictionary_checkpoint, None)
+            except Exception:
+                continue
+            if isinstance(tracker, dict) and isinstance(dictionary, dict):
+                stamp = suffix.removesuffix(".json")
+                return {
+                    "available": True,
+                    "checkpoint": stamp,
+                    "created_at": datetime.fromtimestamp(tracker_checkpoint.stat().st_mtime).replace(microsecond=0).isoformat(),
+                }
+        return {"available": False, "checkpoint": "", "created_at": ""}
+
+    def undo_last_write(self) -> dict:
+        """Restore the latest paired checkpoint using the same semantics as desktop Undo."""
+        with self.write_lock():
+            status = self.undo_status()
+            if not status["available"]:
+                raise LedgerCommandError("没有可撤销的保存记录。")
+            suffix = f"{status['checkpoint']}.json"
+            tracker_checkpoint = self.backup_dir / f"undo_tracker_{suffix}"
+            dictionary_checkpoint = self.backup_dir / f"undo_dictionary_{suffix}"
+            restored_database = _read_json(tracker_checkpoint, None)
+            restored_dictionary = _read_json(dictionary_checkpoint, None)
+            if not isinstance(restored_database, dict) or not isinstance(restored_dictionary, dict):
+                raise LedgerCommandError("最近的撤销检查点无效，数据未更改。")
+
+            self.backup_dir.mkdir(parents=True, exist_ok=True)
+            stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            pre_tracker = self.backup_dir / f"pre_undo_tracker_{stamp}.json"
+            pre_dictionary = self.backup_dir / f"pre_undo_dictionary_{stamp}.json"
+            shutil.copy2(self.data_file, pre_tracker)
+            shutil.copy2(self.dictionary_file, pre_dictionary)
+            try:
+                _write_json_atomic(self.dictionary_file, restored_dictionary)
+                try:
+                    _write_json_atomic(self.data_file, restored_database)
+                except Exception:
+                    shutil.copy2(pre_dictionary, self.dictionary_file)
+                    raise
+            except Exception as exc:
+                if not self.data_file.exists():
+                    shutil.copy2(pre_tracker, self.data_file)
+                raise LedgerCommandError("撤销失败，原数据已保留。") from exc
+
+            tracker_checkpoint.rename(
+                tracker_checkpoint.with_name(tracker_checkpoint.name.replace("undo_tracker_", "undone_tracker_", 1))
+            )
+            dictionary_checkpoint.rename(
+                dictionary_checkpoint.with_name(
+                    dictionary_checkpoint.name.replace("undo_dictionary_", "undone_dictionary_", 1)
+                )
+            )
+            return {
+                "undone": True,
+                "checkpoint": status["checkpoint"],
+                "pre_undo_backups": [pre_tracker.name, pre_dictionary.name],
+            }
+
     def movement_definitions(self) -> list[dict]:
         """Return dictionary terms with tracker history counts, without exposing mutable state."""
         database, dictionary = self.load_state()

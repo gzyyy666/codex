@@ -172,6 +172,28 @@ Future desktop visual work must modify the final `_premium_*` presentation layer
 | `FitnessTrackerApp.close` | Back up and safely save before closing. | Window close |
 | `main` | Start the desktop application. | Launcher |
 
+## Shared Web Platform Services
+
+| Function | Responsibility | Used by |
+| --- | --- | --- |
+| `LedgerCommandService.undo_status` | Find the newest valid paired tracker/dictionary checkpoint without changing data. | Web Daily Entry |
+| `LedgerCommandService.undo_last_write` | Restore the paired checkpoint, create pre-undo backups, and consume the checkpoint. | Web Undo |
+| `data_quality_view.collect_issues` | Run the established desktop Data Check rules headlessly and filter acknowledged issues. | Web Data Check |
+| `data_quality_view.acknowledge_issue` | Atomically persist a confirmed issue key. | Web Data Check |
+| `LedgerViewModels.movement_history` | Return normalized history, metrics, changes, and Recent 3 performance. | Movement detail, export |
+| `LedgerViewModels.workout_reference` | Build a read-only reference from the user's matching recent sessions. | Training Pre-Workout |
+| `LedgerViewModels.analysis` | Build one date-range projection for export and cloud payloads. | Analysis Export, cloud payload |
+| `analysis_export.build_export` | Render Markdown and JSON from the shared analysis view. | Web Export |
+| `cloud_payload.build_cloud_payload` | Build the disposable read-only replica collections without full raw text. | Cloud dry-run |
+
+## Web API Additions
+
+- `GET /api/undo-status`, `POST /api/undo`
+- `GET /api/data-check`, `POST /api/data-check/acknowledge`
+- `GET /api/workout-reference`
+- `GET /api/movement-insight`
+- `POST /api/analysis-export`
+
 ## Future Change Routing
 
 | Future task | Primary functions to inspect first |
