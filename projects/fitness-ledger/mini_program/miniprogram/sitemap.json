@@ -1,1 +1,9 @@
-{"desc":"Fitness Ledger private read-only viewer","rules":[]}
+{
+  "desc": "Fitness Ledger private read-only viewer",
+  "rules": [
+    {
+      "action": "disallow",
+      "page": "*"
+    }
+  ]
+}

@@ -1,5 +1,10 @@
 # Fitness Ledger Changelog
 
+## 2026-07-05 - WeChat Sitemap Validation
+
+- Replaced the empty Mini Program sitemap rule list with an explicit private `disallow` rule for all pages.
+- Fixed WeChat DevTools real-device error `-80055 Invalid SiteMap` without changing page access or application behavior.
+
 ## 2026-07-05 - WeChat Archive Navigation And Theme Art
 
 - Promoted the five-body-area training archive to the Mini Program Home tab and removed the redundant standalone Home and Search tabs.
