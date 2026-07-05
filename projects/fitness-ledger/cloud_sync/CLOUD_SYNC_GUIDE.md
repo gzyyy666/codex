@@ -3,7 +3,7 @@
 ## Local Review
 
 1. Run `python cloud_sync/build_cloud_payload.py`.
-2. Inspect `cloud_sync/out/fitness_ledger_cloud_payload.json` locally and the generated per-collection `.jsonl` files.
+2. Inspect `cloud_sync/out/fitness_ledger_cloud_payload.json` locally and the generated per-collection `.json` files. Their content is JSON Lines for CloudBase import compatibility.
 3. Run `python cloud_sync/sync_to_cloud.py --dry-run`.
 4. Inspect `cloud_sync/out/fitness_ledger_cloud_sync_report.json`.
 

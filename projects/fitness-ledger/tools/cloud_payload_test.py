@@ -30,7 +30,7 @@ def main() -> None:
     assert '"raw"' not in serialized
     import_dir = PAYLOAD.parent / "cloudbase_import"
     for name, rows in payload.items():
-        lines = (import_dir / f"{name}.jsonl").read_text(encoding="utf-8").splitlines()
+        lines = (import_dir / f"{name}.json").read_text(encoding="utf-8").splitlines()
         assert len(lines) == len(rows)
         assert all(isinstance(json.loads(line), dict) for line in lines)
     subprocess.run([sys.executable, str(PROJECT / "cloud_sync" / "sync_to_cloud.py"), "--dry-run"], check=True)

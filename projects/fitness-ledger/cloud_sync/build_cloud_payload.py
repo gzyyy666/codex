@@ -43,7 +43,7 @@ def main() -> Path:
         stale.unlink()
     for name, rows in payload.items():
         content = "\n".join(json.dumps(row, ensure_ascii=False, separators=(",", ":")) for row in rows)
-        (import_dir / f"{name}.jsonl").write_text(
+        (import_dir / f"{name}.json").write_text(
             f"{content}\n" if content else "",
             encoding="utf-8",
         )
