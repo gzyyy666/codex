@@ -4,16 +4,16 @@ Use this file to restore project context with low token cost.
 
 ## Current Files
 
-- Working project: `%USERPROFILE%\Documents\Codex\2026-06-16\vs-code-ai\work\fitness_tracker_app`
+- Project: `C:\Users\26087\Documents\Codex\2026-06-16\vs-code-ai\work\fitness_tracker_app`
 - Main program: `stable_app.pyw`
 - Core database: `data/tracker.json`
 - Movement dictionary: `data/movement_dictionary.json`
 - Historical import: `data/history_import.json`
-- Desktop launcher: `%USERPROFILE%\Desktop\Fitness Ledger.lnk`
-- Web launcher: `%USERPROFILE%\Desktop\Fitness Ledger Web.lnk`
+- Desktop launcher: `C:\Users\26087\Desktop\Fitness Ledger.lnk`
+- Web preview launcher: `C:\Users\26087\Desktop\Fitness Ledger Web Preview.lnk`
 - Web desktop foundation: `web_desktop/`
 - Web architecture: `web_desktop/ARCHITECTURE.md`
-- Original workbook: `%USERPROFILE%\Desktop\fitness_tracker_clean_en.xlsx`
+- Original workbook: `C:\Users\26087\Desktop\fitness_tracker_clean_en.xlsx`
 - Maintenance rules: `FITNESS_LEDGER_MAINTENANCE.md`
 - Function map: `FUNCTION_INDEX.md`
 - Regression guide: `REGRESSION_CHECKLIST.md`
@@ -63,6 +63,8 @@ Use this file to restore project context with low token cost.
 - `fitness_ledger_core/data_quality_view.py` exposes the desktop Data Check rules to Web and preserves `data/data_check_state.json` acknowledgement semantics.
 - `cloud_sync/` prepares a disposable read-only replica only. Local JSON remains the sole source of truth; no provider or network uploader is configured.
 - Generated `cloud_sync/out/*.json` files contain personal data and must remain untracked.
+- `mini_program/` is a WeChat DevTools-ready, read-only viewer skeleton with one allowlisted read cloud function. It contains no real AppID, env_id, credentials, or uploaded data.
+- CloudBase is not connected yet. `fl_meta.sync_state=local_payload_only` is the authoritative current status.
 
 ## Request Routing
 
@@ -104,6 +106,7 @@ Use this file to restore project context with low token cost.
 - AI diet or training analysis
 - Training-plan generation
 - Actual cloud upload/provider configuration, accounts, two-way sync, conflict resolution, and wearable integrations
+- Real CloudBase deployment, collection import, OpenID allowlist setup, and real-device Mini Program preview
 
 ## Display Rules
 

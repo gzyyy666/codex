@@ -28,7 +28,9 @@
 | `data/backups/` | Automatic database backups. | Keep |
 | `assets/` | App icon files. | Current assets |
 | `tools/` | Extraction and regression utilities. | Auxiliary |
-| `backups/` | Legacy copied project snapshots. | Do not recreate; use Git checkpoints |
+| `cloud_sync/` | Builds and validates the sanitized read-only cloud replica. | Local-to-cloud preparation |
+| `mini_program/` | WeChat read-only viewer, cloud-function contract, and setup documentation. | Prepared, not deployed |
+| `backups/` | Manual project snapshots before maintenance. | Keep |
 | `__pycache__/` | Generated Python bytecode. | Disposable |
 
 ## Auxiliary Files
@@ -38,6 +40,8 @@
 | `tools/extract_history.mjs` | Read the original workbook into `history_import.json`. |
 | `tools/smoke_test.py` | Test parser and confirmed-save behavior with temporary data. |
 | `tools/regression_test.py` | Test tables, detail windows, Matrix structure, and search. |
+| `tools/cloud_payload_test.py` | Validate replica collections, counts, no-network status, and raw-text exclusion. |
+| `tools/mini_program_test.py` | Validate the seven registered pages and read-only cloud function. |
 | `tools/zh_display_migration.py` | Idempotent migration for Chinese display names and historical Diet main-view conversion. |
 | `tools/body_bowel_cardio_migration.py` | One-time/idempotent migration for Body bowel field, recent cardio repair, and polluted display fields cleanup. |
 | `tools/training_notes_zh_migration.py` | Safe migration for Chinese structured display fields and recoverable movement notes. |
@@ -50,6 +54,7 @@
 - No runtime `logs/` directory is currently written.
 - Documentation is maintained in the root Markdown files.
 - There are no alternate or historical main-program files in the project.
+- There is no configured cloud provider or real cloud database upload yet.
 
 ## Maintenance File Set
 
@@ -64,5 +69,5 @@
 
 | Path | Purpose |
 | --- | --- |
-| `%USERPROFILE%\Desktop\Fitness Ledger.lnk` | Desktop launcher |
-| `%USERPROFILE%\Desktop\fitness_tracker_clean_en.xlsx` | Original historical workbook; do not modify |
+| `C:\Users\26087\Desktop\Fitness Ledger.lnk` | Desktop launcher |
+| `C:\Users\26087\Desktop\fitness_tracker_clean_en.xlsx` | Original historical workbook; do not modify |

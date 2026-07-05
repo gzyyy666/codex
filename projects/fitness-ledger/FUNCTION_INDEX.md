@@ -202,6 +202,15 @@ Future desktop visual work must modify the final `_premium_*` presentation layer
 | `analysis_export.build_export` | Render Markdown and JSON from the shared analysis view. | Web Export |
 | `cloud_payload.build_cloud_payload` | Build the disposable read-only replica collections without full raw text. | Cloud dry-run |
 
+## Cloud Replica And WeChat Viewer
+
+- `cloud_sync/build_cloud_payload.py`: Builds schema v2, ten collection files, and a CloudBase import manifest from shared local view models.
+- `cloud_sync/sync_to_cloud.py --dry-run`: Validates the payload and writes an explicit no-network sync report.
+- `mini_program/miniprogram/services/ledger.js`: Central Mini Program cloud-function client with unconfigured and network error states.
+- `mini_program/cloudfunctions/ledgerRead/index.js`: OpenID-allowlisted, read-only query boundary for status, latest, recent, reference, search, movement history, and record detail.
+- `tools/cloud_payload_test.py`: Verifies collection contract, counts, raw-text exclusion, and no-network status.
+- `tools/mini_program_test.py`: Verifies project skeleton completeness and absence of cloud write calls.
+
 ## Web API Additions
 
 - `GET /api/undo-status`, `POST /api/undo`

@@ -1,0 +1,5 @@
+<view class="page"><view class="eyebrow">SEARCH THE ARCHIVE</view><view class="title">搜索</view><view class="readonly">只读索引</view>
+  <input class="input" placeholder="动作、别名、日期、训练部位或饮食" value="{{query}}" bindinput="onInput" confirm-type="search" bindconfirm="search"/><view class="button" bindtap="search">搜索记录</view>
+  <view wx:if="{{loading}}" class="state">搜索中…</view><view wx:elif="{{error}}" class="state error">{{error}}</view><view wx:elif="{{query && !results.length}}" class="state">没有找到相关记录。</view>
+  <view wx:for="{{results}}" wx:key="id" data-index="{{index}}" bindtap="open" class="card"><view class="eyebrow">{{item.type}} / {{item.date || ''}}</view><view class="long">{{item.text}}</view></view>
+</view>

@@ -1,0 +1,13 @@
+<view class="page">
+  <view class="eyebrow">TODAY / READ ONLY</view><view class="title">今日记录</view><view class="readonly">最后同步副本</view>
+  <view wx:if="{{loading}}" class="state">读取中…</view><view wx:elif="{{error}}" class="state error">{{error}}</view>
+  <block wx:elif="{{item}}">
+    <view class="card"><view class="eyebrow">{{item.date}}</view><view class="metric">{{item.body['Weight (kg)'] || '-'}} kg</view>
+      <view class="row"><text>排便</text><text>{{item.body['Bowel Movement'] || '未记录'}}</text></view>
+      <view class="row"><text>训练</text><text>{{item.body.Training || '未记录'}}</text></view>
+      <view class="row"><text>有氧</text><text>{{item.body.Cardio || '未记录'}}</text></view></view>
+    <view class="card"><view class="eyebrow">NUTRITION</view><view class="row"><text>热量</text><text>{{item.diet['Calories (kcal)'] || '-'}} kcal</text></view><view class="row"><text>蛋白质</text><text>{{item.diet['Protein (g)'] || '-'}} g</text></view><view class="long">{{item.diet['Food Summary'] || '没有饮食摘要'}}</view></view>
+    <view class="button" bindtap="openRecord">查看完整记录</view>
+  </block>
+  <view wx:else class="state">云端尚无记录。</view>
+</view>

@@ -1,6 +1,7 @@
 from __future__ import annotations
 import argparse
 import json
+from datetime import datetime
 from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
@@ -15,5 +16,16 @@ def main() -> None:
     payload = json.loads(path.read_text(encoding="utf-8"))
     print("DRY RUN: no network request was made.")
     for name, rows in payload.items(): print(f"{name}: {len(rows)}")
+    report = {
+        "status": "validated_local_payload",
+        "network_request_made": False,
+        "validated_at": datetime.now().replace(microsecond=0).isoformat(),
+        "payload": str(path),
+        "collections": {name: len(rows) for name, rows in payload.items()},
+        "warnings": ["CloudBase provider and environment are not configured."],
+    }
+    report_path = path.with_name("fitness_ledger_cloud_sync_report.json")
+    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"report: {report_path}")
 
 if __name__ == "__main__": main()

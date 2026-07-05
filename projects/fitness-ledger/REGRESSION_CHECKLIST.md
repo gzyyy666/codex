@@ -317,3 +317,14 @@ Check body, macros, movement order, aliases, strength sets, and cardio metrics.
 - Confirm Analysis Export supports 7/14/30-day and custom ranges, Markdown/JSON copy or download, and excludes full raw text by default.
 - Run `python cloud_sync/build_cloud_payload.py` and `python cloud_sync/sync_to_cloud.py --dry-run`; verify the latter states that no network request was made.
 - Never commit `cloud_sync/out/*.json`.
+
+## Cloud Replica And Mini Program Preparation
+
+- Run `python tools/cloud_payload_test.py`; expect `FITNESS_LEDGER_CLOUD_PAYLOAD_OK`.
+- Run `python tools/mini_program_test.py`; expect `FITNESS_LEDGER_MINI_PROGRAM_SKELETON_OK`.
+- Confirm `fl_meta.sync_state` remains `local_payload_only` until a real provider upload completes.
+- Confirm all ten collection counts match `fl_meta.collection_counts`.
+- Confirm no full `Raw Record`, movement `raw`, or raw-entry text is present in the payload.
+- Confirm `ledgerRead` contains no database add, update, set, or remove operations.
+- Confirm AppID, env_id, OpenID allowlist, credentials, payloads, and personal data remain untracked.
+- Real CloudBase import and real-device preview require explicit user environment setup and are not implied by local test success.

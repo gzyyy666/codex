@@ -1,0 +1,30 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/today/index",
+    "pages/reference/index",
+    "pages/search/index",
+    "pages/movement/index",
+    "pages/record/index",
+    "pages/status/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "Fitness Ledger",
+    "navigationBarBackgroundColor": "#f6f1e7",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f6f1e7"
+  },
+  "tabBar": {
+    "color": "#706d67",
+    "selectedColor": "#11110f",
+    "backgroundColor": "#fbf8f1",
+    "list": [
+      {"pagePath": "pages/home/index", "text": "首页"},
+      {"pagePath": "pages/today/index", "text": "今日"},
+      {"pagePath": "pages/search/index", "text": "搜索"},
+      {"pagePath": "pages/status/index", "text": "状态"}
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

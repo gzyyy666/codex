@@ -2,6 +2,8 @@
 
 Local Windows desktop tracker for body data, diet, training sessions, and movement progress.
 
+The project also includes a browser UI, a sanitized cloud-replica preparation layer, and a WeChat read-only viewer skeleton. CloudBase is not connected until an AppID, env_id, collections, and OpenID allowlist are configured explicitly.
+
 ## Current entry workflow
 
 1. Paste one natural-language daily record into `Quick Entry`.

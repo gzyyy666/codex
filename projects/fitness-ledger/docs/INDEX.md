@@ -30,6 +30,8 @@ Use this index instead of scanning the project.
 | Git source rollback and local data rollback | `maintenance/ROLLBACK.md` |
 | Reusable engineering and design lessons | `maintenance/WORKFLOW_LESSONS.md` |
 | Chronological changes | `../CHANGELOG.md` |
+| Cloud replica truth, collections, and review | `../cloud_sync/CLOUD_REVIEW.md` |
+| WeChat setup, API, UI states, and preview | `../mini_program/README.md`, `../mini_program/docs/` |
 
 ## Source Boundaries
 
@@ -38,6 +40,7 @@ Use this index instead of scanning the project.
 - `fitness_ledger_core/`: shared projections, export, data quality, and cloud payload preparation.
 - `web_desktop/`: browser UI and local HTTP service.
 - `mobile_viewer/`: read-only phone viewer.
+- `mini_program/`: WeChat read-only viewer preparation and allowlisted cloud query boundary.
 - `tools/`: tests and deliberate migrations, not runtime state.
 
 ## What Is Deliberately Absent

@@ -11,6 +11,8 @@ For Fitness Ledger work, do not reconstruct context from chat history. Read in t
 3. `projects/fitness-ledger/docs/INDEX.md`
 4. The task-specific file linked by that index
 
+For WeChat or CloudBase work, also read `memory/fitness-ledger-wechat-preparation.md` before making claims about deployment or sync state.
+
 The public repository contains source and documentation, but never the user's live `data/` directory.
 
 ## Default Startup Prompt

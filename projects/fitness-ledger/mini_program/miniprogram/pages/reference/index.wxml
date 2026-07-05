@@ -1,0 +1,6 @@
+<view class="page"><view class="eyebrow">BEFORE YOU TRAIN</view><view class="title">训练前参考</view><view class="readonly">历史只读参考</view>
+  <input class="input" placeholder="输入训练部位，例如：肩" value="{{split}}" bindinput="onInput"/><view class="button" bindtap="load">读取最近训练</view>
+  <view wx:if="{{loading}}" class="state">读取中…</view><view wx:elif="{{error}}" class="state error">{{error}}</view>
+  <view wx:elif="{{!records.length}}" class="state">输入部位后查看最近记录；没有结果时不会生成训练计划。</view>
+  <view wx:for="{{records}}" wx:key="id" class="card"><view class="eyebrow">{{item.Date}}</view><view class="metric">{{item.Split}}</view><view class="long">{{item['Standardized Summary'] || item.Notes || '没有摘要'}}</view></view>
+</view>

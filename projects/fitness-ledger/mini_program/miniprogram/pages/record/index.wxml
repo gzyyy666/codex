@@ -1,0 +1,7 @@
+<view class="page"><view class="eyebrow">DAILY ARCHIVE</view><view class="title">{{detail.date || '记录详情'}}</view><view class="readonly">只读记录</view>
+  <view wx:if="{{loading}}" class="state">读取中…</view><view wx:elif="{{error}}" class="state error">{{error}}</view>
+  <block wx:elif="{{detail}}"><view class="card"><view class="eyebrow">BODY</view><view wx:for="{{detail.body}}" wx:key="_id" class="long">体重 {{item['Weight (kg)'] || '-'}} kg<br/>{{item.Training}}<br/>{{item.Cardio}}<br/>{{item.Notes}}</view></view>
+    <view class="card"><view class="eyebrow">DIET</view><view wx:for="{{detail.diet}}" wx:key="_id" class="long">{{item['Calories (kcal)'] || '-'}} kcal<br/>{{item['Food Summary']}}</view></view>
+    <view class="card"><view class="eyebrow">TRAINING</view><view wx:for="{{detail.training}}" wx:key="_id" class="long">{{item.Split}}<br/>{{item['Standardized Summary']}}<br/>{{item.Notes}}</view></view>
+  </block><view wx:else class="state">该日期没有记录。</view>
+</view>

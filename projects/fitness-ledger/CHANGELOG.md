@@ -1,5 +1,15 @@
 # Fitness Ledger Changelog
 
+## 2026-07-05 - Cloud Review And WeChat Read-Only Preparation
+
+- Audited the previous cloud-sync claim and documented that no provider, environment, or network upload is configured.
+- Upgraded the disposable replica to schema v2 with ten collections, latest summary, data-quality issues, complete movement aliases, counts, and explicit local-only sync state.
+- Removed full raw record fields from the default replica and retained empty raw references only.
+- Added per-collection CloudBase import files, manifest, dry-run report, review guide, and maintenance contract.
+- Added a WeChat DevTools project skeleton with seven mobile pages and one OpenID-allowlisted read-only cloud function.
+- Added setup, API, UI-state, preview, payload, and Mini Program validation documentation.
+- Preserved local JSON as the source of truth and made no desktop, Web, parser, or formal data-structure changes.
+
 ## 2026-07-03 - Daily Entry Material Workbench
 
 - Upgraded Daily Entry from a flat form composition to a layered writing workbench.

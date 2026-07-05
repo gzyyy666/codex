@@ -1,7 +1,19 @@
 # Cloud Data Contract
 
-Schema: `fitness-ledger-read-replica-v1`
+Schema: `fitness-ledger-read-replica-v2`
 
-Collections: `fl_meta`, `fl_daily_records`, `fl_diet_records`, `fl_training_sessions`, `fl_movements`, `fl_movement_history`, `fl_raw_entries`, and `fl_search_index`.
+The authoritative contract is the output of `fitness_ledger_core.cloud_payload.build_cloud_payload`. It contains ten collections documented in `CLOUD_REVIEW.md`.
 
-`fl_raw_entries` contains identifiers and dates only by default, not full raw text. The payload is derivative and disposable; it must never be treated as an editable primary database.
+## Guarantees
+
+- The replica is generated from the shared local projection layer.
+- Collection values are arrays of JSON objects.
+- `fl_meta` contains schema, generation time, source, sync state, latest record date, raw text policy, and collection counts.
+- `fl_movements` contains names, aliases, body area, category, and active state.
+- `fl_raw_entries.preview` is empty unless a future explicit opt-in changes the policy.
+- The replica is disposable and must never become an editable primary database.
+- Mini program and cloud functions must not reproduce parser or migration logic.
+
+## Replacement Strategy
+
+The first CloudBase release replaces each replica collection from a complete validated payload, then writes `fl_meta` last. Incremental or two-way synchronization is intentionally unsupported.

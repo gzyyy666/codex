@@ -2,12 +2,13 @@ data/
 backups/
 logs/
 cloud_sync/out/*.json
+cloud_sync/out/cloudbase_import/
 cloud_sync/cloud_config.local.json
+mini_program/project.private.config.json
+mini_program/miniprogram/config/env.local.js
 __pycache__/
 *.pyc
 *.log
 *.tmp
 *.xlsx
 web_desktop/.edge-profile/
-web_desktop/qa/
-web_desktop/frontend/design-qa*.png
