@@ -1,54 +1,36 @@
-# GitHub Memory System
+# Codex Memory And Project Archive
 
-这是一个把个人工作流、偏好、项目背景和决策记录工程化管理的最小模板。建议把整个目录作为一个 GitHub 仓库维护，让 Codex 在需要时读取、更新、归档这些 Markdown 节点。
+这是一个版本化的长期上下文仓库，用于保存可复用的项目状态、决策、工作流和非敏感源码快照。它不是原始聊天备份，也不保存密码、令牌或个人数据库。
 
-## 目录结构
+## 从哪里开始
 
-- `memory/`: 长期记忆节点，例如个人偏好、项目背景、协作上下文。
-- `decisions/`: 技术或工作流决策记录，使用 ADR 风格。
-- `workflows/`: 可复用流程，例如周复盘、想法拆解为 GitHub Issues。
-- `skills/`: 可安装到 Codex 的自定义 Skill。
-- `templates/`: 新建记忆节点、决策、Issue 时复用的模板。
+- 新对话或上下文恢复：`START_HERE.md`
+- Fitness Ledger：`projects/fitness-ledger/START_HERE.md`
+- 长期项目索引：`memory/projects.md`
+- 重要决策：`decisions/`
+- 可复用流程：`workflows/`
 
-## 推荐使用方式
+## 目录
 
-1. 在 GitHub 创建一个私有仓库，例如 `personal-memory-system`。
-2. 把本目录内容推送到仓库。
-3. 日常让 Codex 读取这个仓库里的 `memory/` 和 `workflows/`，再执行具体任务。
-4. 当出现新的稳定偏好、长期项目背景或重要决策时，让 Codex 新增或更新记忆节点。
-5. 每周运行一次 `workflows/weekly-review.md`，把临时记录整理成可追踪资产。
+- `memory/`: 当前事实、偏好和项目状态
+- `decisions/`: 影响后续行为的 ADR 决策
+- `workflows/`: 可重复执行的维护与恢复流程
+- `projects/`: 不含个人数据的项目源码与文档快照
+- `skills/`: Codex 自定义 Skill
+- `templates/`: 新节点、决策和 Issue 模板
 
-## 记忆边界
+## 基本规则
 
-适合写入：
+1. 优先更新已有节点，避免同一事实多处重复。
+2. 保存结论、边界和恢复方法，不保存原始聊天全文。
+3. 项目源码与个人数据分开：Git 负责源码回退，本地自动备份负责数据回退。
+4. 只有经过测试的稳定节点才提交和标记。
+5. 不提交 `data/`、备份、浏览器配置、缓存、临时 QA 截图或凭据。
 
-- 长期偏好
-- 反复出现的项目背景
-- 可复用工作流
-- 重要决策及原因
-- 不含敏感信息的协作上下文
-
-不适合写入：
-
-- 密码、令牌、Cookie、私钥
-- 身份证、银行卡、家庭住址等敏感个人信息
-- 未经允许的他人隐私
-- 一次性临时信息
-
-## Codex Skill
-
-`skills/github-memory/` 是一个最小可用 Skill。安装到 Codex 后，可以用类似请求触发：
+## Fitness Ledger 快速恢复
 
 ```text
-Use $github-memory to update my project preference memory based on this discussion.
+Read START_HERE.md, then projects/fitness-ledger/START_HERE.md.
+Use projects/fitness-ledger/docs/INDEX.md to select only the context needed for the current task.
+Do not inspect or overwrite live personal data.
 ```
-
-或者中文：
-
-```text
-使用 $github-memory，把这次讨论沉淀成一个新的记忆节点。
-```
-
-## New Conversation Startup
-
-For other Codex conversations, start from `START_HERE.md`. It contains a default startup prompt and a recovery prompt for rebuilding context from this repository.

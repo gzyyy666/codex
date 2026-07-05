@@ -2,7 +2,7 @@
 id: projects
 type: memory
 status: active
-updated: 2026-07-02
+updated: 2026-07-05
 tags: [projects, context]
 ---
 
@@ -17,7 +17,7 @@ Use this file as the index of active projects. Keep detailed project context in 
 | Codex engineering workflow | active | local/GitHub | Build a reusable memory, automation, and Skill system. |
 | Todo Studio desktop task manager | active | local/GitHub | Tkinter task manager with local JSON storage, a direct desktop shortcut, and a single-window main UI. |
 | Vocab Studio desktop vocabulary trainer | active | local/GitHub | Python/Tkinter personal vocabulary trainer with batch import, cached meanings, Windows TTS, weighted review, and rollback snapshot `vocab-studio-state-20260620`. |
-| Fitness Ledger | active | `projects/fitness-ledger/` | Local-first fitness journal with a maintained desktop app, read-only Web/mobile viewers, movement dictionary, safe JSON writes, and separate source/data rollback procedures. |
+| Fitness Ledger | active | `projects/fitness-ledger/START_HERE.md` | Local-first fitness journal with maintained desktop and Web interfaces, a read-only mobile viewer, shared safe writes, indexed design guidance, and separate source/data rollback. |
 
 ## Project Notes
 

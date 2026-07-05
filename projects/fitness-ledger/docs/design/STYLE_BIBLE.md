@@ -73,9 +73,12 @@ Rules:
 
 - Paper surfaces use a warm tint, subtle inner highlight, and low ambient shadow.
 - Physical slips may use a contact shadow close to the surface plus a larger diffuse shadow.
+- Contact shadows use two stages: a tight 1-5px grounding shadow and a wider low-opacity ambient shadow. Floating surfaces may increase the ambient stage, but must keep the contact stage visible.
+- Paper grain is allowed only as a very low-opacity local texture layer. It must not reduce Chinese text contrast or become a decorative pattern.
 - Hairlines use low-opacity ink; avoid thick gray borders.
 - Rounded geometry has different personalities: 6px inputs, 12px images, 24px cards, large asymmetric archive shapes, and pills only for compact controls.
 - Hover: slight lift and shadow expansion. Active: pressed translation and shadow compression.
+- Frosted surfaces require a solid warm-paper fallback and both standard and WebKit backdrop filters; blur is never the only source of contrast.
 - Respect `prefers-reduced-motion`.
 - High-availability surfaces use three explicit layers: background archive imagery, paper/glass content surfaces, and tactile foreground controls.
 - Every primary page should have one memorable dominant material object. Supporting surfaces must have distinct identities rather than repeating the same card treatment.
@@ -85,6 +88,9 @@ Rules:
 - A selected body area changes the existing Training Records page in place. It must not navigate to a separate reference route.
 - The selected theme may change restrained atmosphere, representative offline imagery, record accents, and the right-side focus panel while preserving search, sorting, record cards, and explicit detail actions.
 - Export actions must always use visible text labels; icon-only export controls are not permitted.
+- Export is a compact single-screen workbench on standard desktop viewports: a restrained editorial header, warm paper control card, and dominant graphite export capsule.
+- The control card should read as paper/frosted material; the capsule should read as a dark sanded physical slab with warm reflected light, not a flat black rectangle.
+- The gold Generate control is the page's only strong CTA and uses a subtle top highlight, contact shadow, and pressed compression. Material depth must never obscure the date controls or generated download actions.
 
 ## 8. Image Direction
 
@@ -112,10 +118,12 @@ Use the `Review Scroll` pattern: a narrow sticky chapter index, one continuous w
 ### Body
 
 Body slips may use controlled high-saturation tones, but foreground contrast must always pass. Color is meaningful or rhythm-driven, never a blind repeating pattern.
+Body filtering stays intentionally small: free-text/date search, a recent-days range, and newest/oldest ordering. Training, bowel, and cardio filter controls do not belong in the primary archive toolbar.
 
 ### Diet
 
 Cards prioritize date, calories, and macros. Full meal text appears only in explicit detail.
+Diet uses free-text/date search plus newest/oldest ordering. Meal-category selectors are omitted because the archive is organized by day rather than by meal taxonomy.
 
 ### Training
 
@@ -123,6 +131,18 @@ Cards show date, session index, split, movement summary, and a brief note. The e
 The first screen includes five tactile theme controls: shoulder, chest, back, legs, and arms. They are a core section rather than tabs or filter chips.
 Selecting a body area keeps the user on Training Records and synchronizes the header, atmosphere, active control, filtered records, card accents, and focus panel. `All Records` returns to the overview.
 The five controls use compact premium theme cards with live counts, representative imagery, and active expansion. They must not become a game skill tree, particle system, or black control banner.
+- In a selected body-area state, the active control moves to the foreground and expands into the archive anchor. The other four controls remain readable, discoverable switching indexes rather than fading into disabled decoration.
+- On wide desktop screens, the selected state uses a focused archive composition: a tall body-area cover at left, a factual receipt summary at upper right, and dense chronological record slips below it. This replaces blank filtered space with a deliberate editorial hierarchy.
+- The receipt may show only facts derived from current records, such as session count, latest date, movement count, frequent movements, and recent notes. Do not invent 1RM, monthly trends, or training conclusions.
+- Focused record slips should be compact enough for comparison, with a themed edge and restrained alternating paper offsets; they must remain searchable, sortable, and explicitly openable.
+- The focused layout may reorganize the control grid, but it must preserve the record search, sort, filtered history, and right-side factual summary.
+- Shoulder uses the abstract lifted-arm artwork; Arms uses the separate dynamic push/arm artwork. Training and Movement Progress must resolve these assets consistently.
+- Entering Training from another primary navigation page resets the view to the all-records overview. In-page body-area switching does not change the route.
+- Training search matches only the stored training theme/split and date. Movement names and movement dictionary categories must not pull an unrelated daily session into search results.
+- Selected body-area archives follow the same theme/split rule. A chest-theme day containing a shoulder accessory movement does not become a shoulder-theme day.
+- Once a day is included by its training theme, its focused card must narrow Key Movements and movement notes to the selected body area. Mixed-theme days remain visible, but unrelated movements and notes do not.
+- On selected desktop views, the four alternate body-area controls form a compact vertical index beside the active cover so the factual summary and first records remain visible in the first screen.
+- The selected-state header may retain representative artwork, but it must also carry the search, order, and overview controls. Decorative space must not push the factual summary or first record below the fold.
 
 ## 10. Motion Language
 
@@ -134,6 +154,7 @@ The five controls use compact premium theme cards with live counts, representati
 ### Movement Index
 
 An archive wall grouped by body area and sorted by use frequency. High-frequency movements receive more visual weight. Avoid spreadsheet grids and oversized single tiles.
+Movement Dictionary administration is entered from a tactile contextual control in the Movement Index heading area, not from the global navigation.
 
 ### Movement Detail
 
@@ -147,8 +168,11 @@ Only the Open control opens issue details. The row itself is not clickable. Prob
 
 - A visual action must be genuinely interactive.
 - Do not attach hidden navigation to an entire record when a named action exists.
+- Explicit record links should expose a restrained hover/focus hit area, not remain visually indistinguishable from static underlined text.
 - Focus-visible states are mandatory.
 - Search and filters must perform real filtering.
+- Training search and sort state must remain functional in both the overview and selected body-area archive.
+- Movement Dictionary must provide an explicit route back to Movement Index.
 - Read-only Web actions must say that formal editing belongs to the stable desktop app.
 
 ## 11. Desktop Tkinter Translation

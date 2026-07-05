@@ -9,3 +9,5 @@ __pycache__/
 *.tmp
 *.xlsx
 web_desktop/.edge-profile/
+web_desktop/qa/
+web_desktop/frontend/design-qa*.png

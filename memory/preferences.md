@@ -2,7 +2,7 @@
 id: preferences
 type: memory
 status: active
-updated: 2026-06-17
+updated: 2026-07-05
 tags: [preferences, collaboration]
 ---
 
@@ -22,6 +22,8 @@ tags: [preferences, collaboration]
 - For Python learning, prefer a project-first sequence: runnable demo, variable analysis, then a near-analogous practice task before generalizing.
 - For small desktop tools, prefer direct-launch entry into the main working window; avoid intermediate chooser or launcher windows unless they are explicitly kept as compatibility fallbacks.
 - When generating or replacing an artifact, remove the superseded version afterward when it is safe to do so, including old desktop shortcuts or obsolete local outputs.
+- For long-lived projects, keep one indexed GitHub source/context checkpoint instead of many copied full-project backup folders; keep personal data backups local and separate.
+- After a verified durable project milestone, update the repository memory/indexes and create one coherent checkpoint rather than relying on chat compression.
 
 ## Review Cadence
 

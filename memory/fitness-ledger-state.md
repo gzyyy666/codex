@@ -2,7 +2,7 @@
 id: fitness-ledger-state
 type: memory
 status: active
-updated: 2026-07-03
+updated: 2026-07-05
 tags: [fitness-ledger, python, desktop, web, rollback]
 source: projects/fitness-ledger
 ---
@@ -11,7 +11,7 @@ source: projects/fitness-ledger
 
 ## Summary
 
-Fitness Ledger is a local-first personal fitness journal with a maintained Tkinter desktop application, a browser-grade Web application with shared daily Parse/Review/Save, and a read-only mobile viewer. The authoritative local data remains JSON and is intentionally excluded from the public memory repository.
+Fitness Ledger is a local-first personal fitness journal with a maintained Tkinter desktop application, a browser-grade Web application using shared safe read/write services, and a read-only mobile viewer. The authoritative local data remains JSON and is intentionally excluded from the public memory repository.
 
 ## Durable Architecture
 
@@ -50,16 +50,18 @@ Fitness Ledger is a local-first personal fitness journal with a maintained Tkint
 - The current high-availability layer adds foreground/midground/background depth, contact plus ambient shadows, inner highlights, restrained physical hover/press behavior, and reduced-motion support without changing the data architecture.
 - Daily Entry uses the approved material-workbench treatment: a raised notebook writing slab, layered saved-record slips, a floating Today receipt, and restrained local-first glass status. This material pass does not alter parser, review, or save behavior.
 - The reusable visual specification lives at `projects/fitness-ledger/docs/design/STYLE_BIBLE.md`.
+- The complete low-token project entry is `projects/fitness-ledger/START_HERE.md`; topic routing is in `projects/fitness-ledger/docs/INDEX.md`.
+- Final visual evidence and reproduction guidance live under `projects/fitness-ledger/docs/design/`.
+- The accepted Web baseline includes functional Body/Diet search and ordering, Training split/date search and ordering in overview and body-area views, contextual Movement Dictionary access and return, and explicit-only record/detail actions.
 
 ## Recovery
 
-- Source rollback: use Git commits in `projects/fitness-ledger/`.
-- Local pre-change source snapshot for the 2026-07-03 platform phase: `work/fitness_tracker_app/backups/platform_phase_20260703_180915` (not uploaded because it may contain local-only artifacts).
+- Source rollback: use Git commits and tag `fitness-ledger-web-final-2026-07-05` in `projects/fitness-ledger/`.
 - Personal data rollback: use timestamped files in the local application's `data/backups/` directory.
-- Local source rollback for the approved Training controls: Git checkpoint `67b0688`; pre-material local snapshot: `backups/material_workbench_20260703_234308`.
+- Copied full-project source backups and obsolete local source snapshots are no longer authoritative and were removed after the Git checkpoint was verified.
 - Never replace current personal data with repository files because the public repository intentionally contains no personal JSON data.
 
 ## Review
 
-- Next review: 2026-08-02
+- Next review: 2026-08-05
 - Archive when the project is retired or replaced.

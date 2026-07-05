@@ -626,3 +626,173 @@ Changes:
 Data structure impact: None.
 
 User data modified: No. Tests use temporary tracker and dictionary files.
+
+## 2026-07-04 - Web Material Depth Reconciliation
+
+Modified files:
+
+- `web_desktop/frontend/styles.css`
+- `docs/design/STYLE_BIBLE.md`
+- `design-qa.md`
+
+Changes:
+
+- Refined the existing material tokens instead of introducing a competing style system.
+- Added low-opacity local paper grain, two-stage contact/ambient shadows, and WebKit frosted-surface fallbacks.
+- Improved Daily Entry ruled-paper alignment, journal-slab grounding, receipt depth, archive-slip edges, and primary-control focus states.
+- Improved Training node contact depth, active-theme glow, archive-card grain, toolbar controls, and focus-panel frosting.
+- Added restrained material treatment to existing modal and drawer surfaces.
+- Preserved all routes, DOM contracts, data structures, API calls, parser behavior, and save behavior.
+
+Data structure impact: None.
+
+User data modified: No.
+
+Tests:
+
+- `node --check web_desktop/frontend/app.js`
+- CSS brace validation
+- `python tools/regression_test.py`
+- Edge render review at 1440 x 1100 for Daily Entry and Training Records
+
+## 2026-07-04 - Training Focused Archive Metamorphosis
+
+Modified files:
+
+- `web_desktop/frontend/app.js`
+- `web_desktop/frontend/styles.css`
+- `docs/design/STYLE_BIBLE.md`
+- `design-qa.md`
+
+Changes:
+
+- Preserved the shoulder illustration and assigned the separate dynamic arm artwork to Arms, matching Movement Progress.
+- Added a controlled selected-body-part grid transformation: the active archive becomes the foreground anchor while the remaining controls stay legible and interactive.
+- Completed the wide-screen focused composition with a tall cover, horizontal factual receipt, and compact chronological training slips, eliminating dead space after filtering.
+- Reused the existing filtered records and Focus Panel as the factual summary instead of inventing unsupported 1RM or monthly metrics.
+- Added explicit Training-route reset behavior so returning from another primary page opens the all-records overview.
+- Preserved in-page body-area switching without a new route.
+
+Data structure impact: None.
+
+User data modified: No.
+
+Tests:
+
+- JavaScript syntax validation
+- CSS brace validation
+- `python tools/regression_test.py`
+- Edge/CDP interaction render for Arms focused state at 1440 x 1100
+- Visual evidence: `web_desktop/frontend/design-qa-training-arms-v2.png`
+- Navigation test: Training -> Home -> Training returns `overview`
+
+## 2026-07-04 - Export Material Workbench
+
+Modified files:
+
+- `web_desktop/frontend/styles.css`
+- `docs/design/STYLE_BIBLE.md`
+
+Changes:
+
+- Compressed the Export hero and vertical rhythm so the complete build workflow fits in one standard desktop viewport.
+- Upgraded the Build Range card to warm paper/frosted material with inset controls and gold focus treatment.
+- Upgraded the Export Capsule to a layered graphite slab with edge highlights, grain, warm ambient reflection, and grounded contact shadows.
+- Refined the Generate export button as the sole tactile gold CTA while preserving all existing behavior and generated actions.
+
+Data structure impact: None.
+
+User data modified: No.
+
+Tests:
+
+- JavaScript syntax validation
+- CSS brace validation
+- `python -m py_compile web_desktop/backend/server.py`
+- `python tools/regression_test.py`
+- Real export generation and Edge render at 1600 x 1000
+- Visual evidence: `web_desktop/frontend/design-qa-export-material.png`
+- Success-state evidence: `web_desktop/frontend/design-qa-export-success.png`
+
+## 2026-07-04 - Final Archive Interaction Pass
+
+Modified files:
+
+- `web_desktop/frontend/index.html`
+- `web_desktop/frontend/app.js`
+- `web_desktop/frontend/styles.css`
+- `web_desktop/frontend/final-pass.css`
+- `docs/design/STYLE_BIBLE.md`
+
+Changes:
+
+- Reduced Body controls to search, recent-days range, and newest/oldest ordering.
+- Reduced Diet controls to search and newest/oldest ordering.
+- Corrected Training search and body-area archives to match only the daily training theme/split and date, not movement contents.
+- Rebalanced selected Training views with alternate body-area controls as a vertical index beside the active cover and denser first-screen information.
+- Moved selected Training search, ordering, and overview controls into the former decorative header space so the summary and records begin higher.
+- Kept mixed-theme days eligible by their stored split while limiting each focused card's Key Movements and notes to the selected body area.
+- Removed Dictionary from global navigation and added a contextual tactile entry to Movement Index.
+- Removed the idle Export capsule's decorative corner orbit while preserving state color changes.
+
+Data structure impact: None.
+
+User data modified: No.
+
+Tests:
+
+- JavaScript syntax validation
+- CSS brace validation
+- `python -m py_compile web_desktop/backend/server.py`
+- `python tools/regression_test.py`
+- Edge render review at 1600 x 1000 for Body, Diet, Training Shoulder, Movement Index, and Export
+
+## 2026-07-04 - Web Interaction Closure
+
+Modified files:
+
+- `web_desktop/frontend/app.js`
+- `web_desktop/frontend/final-pass.css`
+- `docs/design/STYLE_BIBLE.md`
+
+Changes:
+
+- Added a restrained hover, focus, and pressed treatment to Body `Open record` actions without making the full slip clickable.
+- Added an explicit Movement Dictionary return control to Movement Index.
+- Rebound Training search and ordering directly to the current page and persisted their state across overview/body-area rerenders.
+- Confirmed Training search and ordering work in both the archive overview and selected body-area pages.
+
+Data structure impact: None.
+
+User data modified: No.
+
+Tests:
+
+- JavaScript syntax validation
+- CSS brace validation
+- `python tools/regression_test.py`
+- Browser interaction test at 1600 x 1000 covering Training overview search/order, Shoulder search/order, Dictionary back navigation, and Body action hover/focus styling
+
+## 2026-07-05 - Training Control Click Fix
+
+Modified files:
+
+- `web_desktop/frontend/app.js`
+
+Changes:
+
+- Restricted the Training theme click handler to actual `button[data-training-theme]` controls.
+- Prevented clicks on search and ordering controls from matching the themed page container and rerendering the whole page.
+- Disabled browser autocomplete on Training search to avoid saved-value overlays during local archive search.
+
+Root cause:
+
+- The Training page root also carries `data-training-theme`. The previous broad `closest('[data-training-theme]')` handler treated any click inside the page as a theme-selection click.
+
+Tests:
+
+- Real mouse click retained the same Training page DOM node.
+- Sequential keyboard input retained focus and the entered value.
+- Overview search for `肩` returned 9 records.
+- Oldest-first ordering returned the earliest matching record.
+- The same click, search, and ordering checks passed in the Shoulder archive.

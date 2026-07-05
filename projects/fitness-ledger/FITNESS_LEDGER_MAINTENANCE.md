@@ -4,12 +4,12 @@ Use these rules only for the local Fitness Ledger desktop tool.
 
 ## Project Boundary
 
-- Project: `C:\Users\26087\Documents\Codex\2026-06-16\vs-code-ai\work\fitness_tracker_app`
+- Working project: `%USERPROFILE%\Documents\Codex\2026-06-16\vs-code-ai\work\fitness_tracker_app`
 - Main program: `stable_app.pyw`
 - Core database: `data/tracker.json`
 - Movement dictionary: `data/movement_dictionary.json`
 - Historical import: `data/history_import.json`
-- Desktop launcher: `C:\Users\26087\Desktop\Fitness Ledger.lnk`
+- Desktop launcher: `%USERPROFILE%\Desktop\Fitness Ledger.lnk`
 
 ## Safety Rules
 

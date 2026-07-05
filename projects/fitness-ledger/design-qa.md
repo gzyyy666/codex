@@ -1,32 +1,40 @@
-# Fitness Ledger Daily Entry Material Workbench QA
+# Design QA - Web Material Depth Reconciliation
 
-- Current-state source: `屏幕截图 2026-07-03 221215.png`
-- Material-depth target: `屏幕截图 2026-07-03 194833.png`
-- Implementation screenshot: `web_desktop/qa/material-workbench/after-daily.png`
-- Training rollback verification: `web_desktop/qa/material-workbench/training-reverted.png`
-- Combined Daily comparison: `web_desktop/qa/material-workbench/compare-daily.png`
-- Viewport: 1600 x 1000
+Date: 2026-07-04
 
-## Daily Entry
+## Scope
 
-- The writing surface remains the dominant functional area and fits the primary workflow in one desktop viewport.
-- The former flat form now reads as a notebook slab through edge layers, contact shadow, inset paper treatment, and a tactile primary action.
-- Today is visually distinct as a floating receipt; Recent Saved reads as layered archive slips rather than another identical sidebar card.
-- The local readiness layer adds status depth without blocking input or save actions.
-- Existing textarea, Parse & Review, Undo, recent-record, and navigation interactions remain intact.
+- Daily Entry material hierarchy
+- Training Records five-node archive hierarchy
+- Existing routes, data contracts, and interactions
 
-## Training Records
+## Evidence
 
-- The experimental connected circular nodes were rejected and removed.
-- The five body-area controls use the previously approved horizontal theme-card treatment.
-- In-page body theme switching, filtering, search, sorting, record details, and focus panels remain unchanged.
+- `web_desktop/frontend/design-qa-entry.png` at 1440 x 1100
+- `web_desktop/frontend/design-qa-training.png` at 1440 x 1100
+- `web_desktop/frontend/design-qa-training-arms-v2.png` at 1440 x 1100
+- Reference direction: project Style Bible and the supplied tactile layered-interface render
 
-## Accessibility And Motion
+## Review
 
-- Primary text retains strong contrast on warm paper surfaces.
-- Focus-visible states remain present on primary controls.
-- Reduced-motion mode disables the floating status entrance and nonessential slip transitions.
+- Daily Entry keeps the writing surface as the dominant object.
+- Ruled-paper spacing, text line height, and caret rhythm use the same 32px baseline.
+- Today, Recent Saved, and local-save status remain visually secondary and readable.
+- Training retains all five in-page body-area controls and the overview record layout.
+- Arms focused state uses the dedicated dynamic arm artwork and expands into the foreground archive anchor.
+- The focused layout resolves into three clear layers: body-area cover, factual receipt, and dense record slips; filtered records do not leave a hidden-card void.
+- The receipt uses existing record facts only and does not imply unsupported performance metrics.
+- The four inactive body-area controls remain readable and usable as switching indexes.
+- Returning to Training from another primary page resets the view to the overview state.
+- Contact shadows, ambient shadows, edge highlights, and frosting are visible without heavy dashboard glow.
+- Chinese text, dates, metrics, search controls, and explicit detail actions remain legible.
+- No business logic, route, API, or data structure changed.
 
-## Final Result
+## Findings
 
-Passed. Daily Entry receives the scoped material refinement; Training controls match the approved prior version.
+- P0: None.
+- P1: None.
+- P2: None.
+- P3: Material depth remains intentionally restrained on dense secondary pages; future work should remain page-specific.
+
+Final result: passed

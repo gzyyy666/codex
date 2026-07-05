@@ -2,6 +2,17 @@
 
 Use this file when starting a new Codex conversation or recovering from a confused conversation state.
 
+## Fast Project Recovery
+
+For Fitness Ledger work, do not reconstruct context from chat history. Read in this order:
+
+1. `memory/fitness-ledger-state.md`
+2. `projects/fitness-ledger/START_HERE.md`
+3. `projects/fitness-ledger/docs/INDEX.md`
+4. The task-specific file linked by that index
+
+The public repository contains source and documentation, but never the user's live `data/` directory.
+
 ## Default Startup Prompt
 
 ```text

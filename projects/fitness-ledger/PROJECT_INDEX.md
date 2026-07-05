@@ -28,7 +28,7 @@
 | `data/backups/` | Automatic database backups. | Keep |
 | `assets/` | App icon files. | Current assets |
 | `tools/` | Extraction and regression utilities. | Auxiliary |
-| `backups/` | Manual project snapshots before maintenance. | Keep |
+| `backups/` | Legacy copied project snapshots. | Do not recreate; use Git checkpoints |
 | `__pycache__/` | Generated Python bytecode. | Disposable |
 
 ## Auxiliary Files
@@ -64,5 +64,5 @@
 
 | Path | Purpose |
 | --- | --- |
-| `C:\Users\26087\Desktop\Fitness Ledger.lnk` | Desktop launcher |
-| `C:\Users\26087\Desktop\fitness_tracker_clean_en.xlsx` | Original historical workbook; do not modify |
+| `%USERPROFILE%\Desktop\Fitness Ledger.lnk` | Desktop launcher |
+| `%USERPROFILE%\Desktop\fitness_tracker_clean_en.xlsx` | Original historical workbook; do not modify |

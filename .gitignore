@@ -8,4 +8,12 @@ Thumbs.db
 *.pfx
 secrets/
 private/
+__pycache__/
+*.pyc
+*.pyo
+*.log
+*.tmp
+web_desktop/qa/
+web_desktop/.edge-profile/
+design-qa*.png
 
