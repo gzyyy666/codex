@@ -55,6 +55,7 @@ Fitness Ledger is a local-first personal fitness journal with a maintained Tkint
 - Final visual evidence and reproduction guidance live under `projects/fitness-ledger/docs/design/`.
 - The accepted Web baseline includes functional Body/Diet search and ordering, Training split/date search and ordering in overview and body-area views, contextual Movement Dictionary access and return, and explicit-only record/detail actions.
 - The accepted Mini Program visual translation uses one dark archive stage, five restrained body-area theme controls, tactile paper slips, compact comparison signals, and explicit expansion for long prose.
+- Mini Program Home is the gym-side decision surface: it defaults to the latest body area, previews two high-frequency movements, and routes to complete body-area archives. Training supports frequency/recent/name sorting; Body and Diet remain secondary Status routes.
 
 ## Recovery
 

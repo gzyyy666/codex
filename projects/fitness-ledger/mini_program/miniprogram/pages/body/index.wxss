@@ -1,0 +1,17 @@
+.body-page { background: radial-gradient(circle at 100% 15%, rgba(49,108,171,.12), transparent 32%), #f8f5ed; }
+.body-intro { color: #77736b; font-size: 24rpx; line-height: 1.55; }
+.body-slip { position: relative; overflow: hidden; margin-top: 18rpx; padding: 26rpx; border-radius: 30rpx 8rpx 30rpx 30rpx; box-shadow: 0 4rpx 8rpx rgba(53,44,29,.06), 0 18rpx 36rpx rgba(53,44,29,.09), inset 0 2rpx 0 rgba(255,255,255,.3); }
+.palette-0 { background: #ff7650; color: #2c160f; }
+.palette-1 { background: #514bc7; color: #fffdf8; }
+.palette-2 { background: #59b7ad; color: #122b27; }
+.palette-3 { background: #f1c84c; color: #29200c; }
+.slip-index { position: absolute; right: 24rpx; top: 18rpx; opacity: .28; font-family: serif; font-size: 30rpx; }
+.slip-date { font-family: "Songti SC", serif; font-size: 34rpx; }
+.slip-weight { margin-top: 18rpx; font-family: "Songti SC", serif; font-size: 68rpx; line-height: 1; }
+.slip-weight text { margin-left: 7rpx; font-family: sans-serif; font-size: 22rpx; }
+.slip-facts { margin-top: 20rpx; border-top: 1rpx solid currentColor; border-bottom: 1rpx solid currentColor; }
+.slip-facts > view { display: grid; grid-template-columns: 90rpx 1fr; gap: 12rpx; padding: 12rpx 0; border-bottom: 1rpx solid currentColor; font-size: 21rpx; }
+.slip-facts > view:last-child { border-bottom: 0; }
+.slip-facts text:last-child { text-align: right; }
+.slip-note { margin-top: 16rpx; font-size: 22rpx; opacity: .82; }
+.slip-action { display: inline-flex; margin-top: 17rpx; padding: 9rpx 0 4rpx; border-bottom: 1rpx solid currentColor; font-size: 21rpx; font-weight: 650; }

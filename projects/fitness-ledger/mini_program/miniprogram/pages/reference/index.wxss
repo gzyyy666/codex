@@ -25,6 +25,10 @@
 .part-switch-inner { display: inline-flex; gap: 10rpx; padding: 8rpx 30rpx 14rpx; }
 .part-pill { min-width: 70rpx; padding: 16rpx 22rpx; border: 1rpx solid rgba(23,23,20,.12); border-radius: 999rpx; background: rgba(253,250,243,.8); text-align: center; font-size: 23rpx; }
 .part-pill.active { font-weight: 650; box-shadow: 0 8rpx 18rpx rgba(53,44,29,.1); }
+.sort-rail { display: flex; align-items: center; gap: 8rpx; margin-top: 6rpx; padding: 9rpx; border-radius: 18rpx; background: rgba(239,233,221,.72); }
+.sort-label { margin: 0 5rpx; color: #817b72; font-size: 18rpx; letter-spacing: 2rpx; }
+.sort-option { flex: 1; padding: 12rpx 6rpx; border-radius: 13rpx; text-align: center; color: #77736b; font-size: 19rpx; }
+.sort-option.active { background: #171714; color: #f8f5ed; box-shadow: 0 5rpx 12rpx rgba(23,23,20,.13); }
 .movement-list { margin-top: 28rpx; }
 .list-heading { display: flex; align-items: flex-end; justify-content: space-between; padding: 0 4rpx 10rpx; }
 .count { font-family: serif; font-size: 48rpx; color: #aaa297; }

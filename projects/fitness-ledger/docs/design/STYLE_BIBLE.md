@@ -213,3 +213,7 @@ The Mini Program is a gym-side reference tool, not a compressed copy of the desk
 - Mobile surfaces use one dark archive stage, tactile body-area controls, compact paper slips, and restrained contact shadows. Do not repeat one generic white rounded card for every content type.
 - Search results show a clean title, type, date, and short preview. Never expose concatenated search-index text or duplicated aliases as the primary result.
 - Mobile layouts optimize one-handed scanning and comparison. They must not preserve desktop whitespace, wide columns, or paragraph-heavy cards.
+- Mini Program Home keeps the hero compact enough to show the body-area control and at least one movement card in the first practical scroll region.
+- Home shows the two highest-frequency movements for the selected area; the Training tab owns the complete list and frequency/recent/name sorting.
+- Movement Detail separates the latest three sessions from older history and shows reps plus volume as secondary comparison signals.
+- Body and Diet are secondary archives entered from Status. Body uses controlled high-energy color slips; Diet uses warm paper notes. Neither belongs in the bottom navigation.

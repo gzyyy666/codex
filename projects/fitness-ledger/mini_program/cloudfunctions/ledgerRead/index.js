@@ -135,6 +135,8 @@ exports.main = async (event) => {
       case "status": return result((await list(COLLECTIONS.meta, 1, 0, "generated_at"))[0] || null);
       case "latest": return result((await list(COLLECTIONS.latest, 1, 0, "date"))[0] || null);
       case "recent": return result(await list(COLLECTIONS.daily, Number(event.limit || 10), Number(event.skip || 0)));
+      case "bodyRecords": return result(await list(COLLECTIONS.daily, Number(event.limit || 30), Number(event.skip || 0)));
+      case "dietRecords": return result(await list(COLLECTIONS.diet, Number(event.limit || 30), Number(event.skip || 0)));
       case "bodyAreas": {
         const datasets = await Promise.all([
           all(COLLECTIONS.movements, 200),

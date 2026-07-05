@@ -1,0 +1,10 @@
+<view class="page diet-page">
+  <view class="eyebrow">DIET ARCHIVE / READ ONLY</view><view class="title">饮食便签。</view><view class="diet-intro">先看热量与三大营养素，需要时再打开完整餐食。</view>
+  <view wx:if="{{loading}}" class="state">正在读取饮食档案…</view><view wx:elif="{{error}}" class="state error">{{error}}</view><view wx:elif="{{!records.length}}" class="state">暂无饮食记录。</view>
+  <view wx:for="{{records}}" wx:key="_id" class="diet-slip offset-{{index % 3}}">
+    <view class="diet-head"><view><view class="eyebrow">NUTRITION NOTE</view><view class="diet-date">{{item.Date}}</view></view><view class="diet-kcal">{{item['Calories (kcal)'] || '-'}}<text>kcal</text></view></view>
+    <view class="macro-strip"><view><text>P</text><text>{{item['Protein (g)'] || '-'}}g</text></view><view><text>C</text><text>{{item['Carbs (g)'] || '-'}}g</text></view><view><text>F</text><text>{{item['Fat (g)'] || '-'}}g</text></view></view>
+    <view class="diet-summary clamp-3">{{item['Food Summary'] || '没有饮食摘要'}}</view>
+    <view class="diet-action" data-date="{{item.Date}}" catchtap="open">阅读全文 →</view>
+  </view>
+</view>

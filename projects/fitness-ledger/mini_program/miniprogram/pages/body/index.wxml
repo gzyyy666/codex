@@ -1,0 +1,11 @@
+<view class="page body-page">
+  <view class="eyebrow">BODY ARCHIVE / READ ONLY</view><view class="title">身体记录。</view><view class="body-intro">体重、训练与当天状态，按日期倒序保留。</view>
+  <view wx:if="{{loading}}" class="state">正在读取身体档案…</view><view wx:elif="{{error}}" class="state error">{{error}}</view><view wx:elif="{{!records.length}}" class="state">暂无身体记录。</view>
+  <view wx:for="{{records}}" wx:key="_id" class="body-slip palette-{{index % 4}}">
+    <view class="slip-index">{{index < 9 ? '0' + (index + 1) : index + 1}}</view>
+    <view class="slip-date">{{item.Date}}</view><view class="slip-weight">{{item['Weight (kg)'] || '-'}}<text>kg</text></view>
+    <view class="slip-facts"><view><text>训练</text><text>{{item.Training || '休息'}}</text></view><view><text>排便</text><text>{{item['Bowel Movement'] || '-'}}</text></view><view><text>有氧</text><text class="clamp-2">{{item.Cardio || '无'}}</text></view></view>
+    <view class="slip-note clamp-2">{{item.Notes || '没有备注'}}</view>
+    <view class="slip-action" data-date="{{item.Date}}" catchtap="open">查看记录 →</view>
+  </view>
+</view>

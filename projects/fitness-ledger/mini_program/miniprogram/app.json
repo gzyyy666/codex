@@ -6,6 +6,8 @@
     "pages/search/index",
     "pages/movement/index",
     "pages/record/index",
+    "pages/body/index",
+    "pages/diet/index",
     "pages/status/index"
   ],
   "window": {

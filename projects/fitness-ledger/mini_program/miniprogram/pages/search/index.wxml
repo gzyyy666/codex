@@ -1,5 +1,5 @@
 <view class="page search-page"><view class="eyebrow">SEARCH THE ARCHIVE</view><view class="title">查动作，<br/>也查日期。</view>
-  <view class="search-bar"><input class="input" placeholder="卧推、肩、6-30…" value="{{query}}" bindinput="onInput" confirm-type="search" bindconfirm="search"/><view class="search-button" bindtap="search">搜索</view></view>
+  <view class="search-bar"><input class="input" placeholder="动作、日期、饮食或记录关键词" value="{{query}}" bindinput="onInput" confirm-type="search" bindconfirm="search"/><view class="search-button" bindtap="search">搜索</view></view>
   <view class="search-hint">支持动作名、英文名、别名、训练部位与日期。</view>
   <view wx:if="{{loading}}" class="state">搜索中…</view><view wx:elif="{{error}}" class="state error">{{error}}</view><view wx:elif="{{query && !results.length}}" class="state">没有找到相关记录。</view>
   <view wx:for="{{results}}" wx:key="id" data-index="{{index}}" bindtap="open" class="result-slip">

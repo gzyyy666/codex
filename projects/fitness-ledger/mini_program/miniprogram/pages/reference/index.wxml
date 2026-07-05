@@ -27,6 +27,12 @@
         <view wx:for="{{areas}}" wx:key="id" class="part-pill {{selected === item.id ? 'active tone-' + item.tone : ''}}" data-part="{{item.id}}" bindtap="selectArea">{{item.cn}}</view>
       </view>
     </scroll-view>
+    <view class="sort-rail">
+      <view class="sort-label">排序</view>
+      <view class="sort-option {{sortBy === 'frequency' ? 'active' : ''}}" data-sort="frequency" bindtap="setSort">训练频率</view>
+      <view class="sort-option {{sortBy === 'recent' ? 'active' : ''}}" data-sort="recent" bindtap="setSort">最近训练</view>
+      <view class="sort-option {{sortBy === 'name' ? 'active' : ''}}" data-sort="name" bindtap="setSort">动作名称</view>
+    </view>
     <view wx:if="{{loading}}" class="state">正在读取{{area.label || ''}}部档案…</view>
     <view wx:elif="{{error}}" class="state error">{{error}}</view>
     <view wx:elif="{{!area.movements.length}}" class="state">该部位暂时没有动作历史。</view>

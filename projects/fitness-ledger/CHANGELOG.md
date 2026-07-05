@@ -1,5 +1,17 @@
 # Fitness Ledger Changelog
 
+## 2026-07-05 - WeChat Gym Reference UX Completion
+
+- Compressed the Mini Program Home hero and made body-area selection plus the first two high-frequency movements visible in the primary mobile flow.
+- Home now defaults to the most recently trained body area and switches movement content in place.
+- Added real Training sorting by frequency, latest date, and movement name.
+- Promoted the latest three movement sessions, including reps and volume, above older history.
+- Added secondary read-only Body and Diet archive pages, entered from Status rather than the main tab bar.
+- Added `bodyRecords` and `dietRecords` read-only cloud actions without changing collections or formal data structures.
+- Added backward-compatible search-result cleanup so older cloud responses do not expose concatenated index blobs.
+- Kept long notes and meal text collapsed behind explicit actions.
+- JavaScript, Mini Program structure, JSON, and cloud payload tests passed.
+
 ## 2026-07-05 - WeChat Gym-Side Training Workbench
 
 - Replaced the generic Mini Program dashboard with a body-area-first gym reference flow.

@@ -31,6 +31,10 @@ tags: [wechat, cloudbase, read-only, cloud-replica]
 - Selecting shoulder, chest, back, legs, or arms loads movement frequency, latest performance, previous performance, historical best, and full trajectory links.
 - Long daily food/training prose is collapsed until explicitly expanded.
 - Search results use clean titles and compact previews rather than raw concatenated index text.
+- Home defaults to the most recently trained area, keeps five body controls visible, and previews the two most frequent movements.
+- Training supports real frequency, recent-date, and movement-name ordering.
+- Movement Detail promotes the latest three sessions before older history.
+- Body and Diet are secondary read-only archives entered from Status.
 
 ## Deployment Steps After Code Changes
 
