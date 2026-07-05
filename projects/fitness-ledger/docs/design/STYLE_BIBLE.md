@@ -206,14 +206,19 @@ The Mini Program is a gym-side reference tool, not a compressed copy of the desk
 
 - Its primary flow is `body area -> movement signals -> full trajectory`.
 - Home prioritizes the five body areas above weight, calories, sync status, or long daily prose.
-- The bottom navigation is `Home / Training / Search / Status`; the daily record is a secondary route.
+- The bottom navigation is `Home / Training Records / Status`. Home is the five-body-area archive; the redundant dashboard and standalone search tab are intentionally removed.
 - A movement list card shows latest performance, previous performance, historical best, session count, and at most two lines of notes.
 - Daily food, body notes, and training prose are collapsed by default and always expose an explicit expand or detail action.
 - Body-area colors follow the Web themes: shoulder amber, chest coral, back teal, legs violet, arms cyan.
 - Mobile surfaces use one dark archive stage, tactile body-area controls, compact paper slips, and restrained contact shadows. Do not repeat one generic white rounded card for every content type.
 - Search results show a clean title, type, date, and short preview. Never expose concatenated search-index text or duplicated aliases as the primary result.
 - Mobile layouts optimize one-handed scanning and comparison. They must not preserve desktop whitespace, wide columns, or paragraph-heavy cards.
-- Mini Program Home keeps the hero compact enough to show the body-area control and at least one movement card in the first practical scroll region.
-- Home shows the two highest-frequency movements for the selected area; the Training tab owns the complete list and frequency/recent/name sorting.
+- Home opens directly on the complete five-body-area archive and owns frequency/recent/name movement sorting.
+- Training Records is a separate date-first archive with tolerant date search and newest/oldest ordering.
+- Body and Diet remain secondary archives entered from Status and provide date search plus newest/oldest ordering.
 - Movement Detail separates the latest three sessions from older history and shows reps plus volume as secondary comparison signals.
 - Body and Diet are secondary archives entered from Status. Body uses controlled high-energy color slips; Diet uses warm paper notes. Neither belongs in the bottom navigation.
+- The approved body-area image set lives in `mini_program/miniprogram/images/themes-v2/` for the Mini Program and `web_desktop/frontend/assets/body-themes-v2/` for future Web reuse. The images are abstract representative body-area scenes, not exact exercise instructions.
+- Selected body-area pages use a matching low-contrast page wash and faint illustration: shoulder amber, chest coral, back teal, legs violet, arms cyan. Art stays below the data layer and never reduces text contrast.
+- Returning to the Home tab resets to the five-area overview; selected themes are session-local inspection states, not persistent navigation state.
+- Training Records may borrow the Diet archive's paper-slip rhythm, but uses training-specific summaries, shallow print motifs, and explicit daily-detail actions.

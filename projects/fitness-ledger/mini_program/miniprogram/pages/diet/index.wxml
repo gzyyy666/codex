@@ -1,5 +1,6 @@
 <view class="page diet-page">
   <view class="eyebrow">DIET ARCHIVE / READ ONLY</view><view class="title">饮食便签。</view><view class="diet-intro">先看热量与三大营养素，需要时再打开完整餐食。</view>
+  <view class="archive-tools"><input value="{{query}}" bindinput="onInput" placeholder="搜索日期，如 6-30 / 06.30"/><view bindtap="toggleOrder">{{order === 'newest' ? '最新 ↓' : '最早 ↑'}}</view></view>
   <view wx:if="{{loading}}" class="state">正在读取饮食档案…</view><view wx:elif="{{error}}" class="state error">{{error}}</view><view wx:elif="{{!records.length}}" class="state">暂无饮食记录。</view>
   <view wx:for="{{records}}" wx:key="_id" class="diet-slip offset-{{index % 3}}">
     <view class="diet-head"><view><view class="eyebrow">NUTRITION NOTE</view><view class="diet-date">{{item.Date}}</view></view><view class="diet-kcal">{{item['Calories (kcal)'] || '-'}}<text>kcal</text></view></view>

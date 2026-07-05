@@ -1,4 +1,5 @@
-<view class="page reference-page">
+<view class="page reference-page {{selected ? 'selected-theme tone-page-' + area.tone : ''}}">
+  <image wx:if="{{selected}}" class="theme-art" src="/images/themes-v2/{{selected}}.webp" mode="aspectFill" />
   <block wx:if="{{!selected}}">
     <view class="eyebrow">BEFORE YOU TRAIN / READ ONLY</view>
     <view class="title">训练部位<br/>档案。</view>

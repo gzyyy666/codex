@@ -1,5 +1,8 @@
 .diet-page { background: radial-gradient(circle at 0 12%, rgba(255,218,110,.12), transparent 30%), #f8f5ed; }
 .diet-intro { color: #77736b; font-size: 24rpx; line-height: 1.55; }
+.archive-tools { display: grid; grid-template-columns: 1fr auto; gap: 10rpx; margin-top: 24rpx; padding: 8rpx; border-radius: 22rpx; background: rgba(253,250,243,.84); box-shadow: 0 10rpx 24rpx rgba(53,44,29,.06), inset 0 2rpx 0 rgba(255,255,255,.8); }
+.archive-tools input { height: 66rpx; padding: 0 17rpx; border-radius: 15rpx; background: rgba(239,233,221,.7); font-size: 22rpx; }
+.archive-tools > view { display: flex; align-items: center; padding: 0 20rpx; border-radius: 15rpx; background: #171714; color: #f8f5ed; font-size: 20rpx; }
 .diet-slip { margin-top: 18rpx; padding: 26rpx; border: 1rpx solid rgba(91,70,34,.12); border-radius: 7rpx 28rpx 28rpx 28rpx; background: linear-gradient(145deg, #fff6d9, #f2dfaa); box-shadow: 0 3rpx 6rpx rgba(53,44,29,.05), 0 18rpx 38rpx rgba(53,44,29,.08), inset 0 2rpx 0 rgba(255,255,255,.55); }
 .offset-1 { transform: rotate(-.25deg); background: linear-gradient(145deg, #f7eadb, #e7ceb7); }
 .offset-2 { transform: rotate(.18deg); background: linear-gradient(145deg, #edf0da, #d4d9af); }

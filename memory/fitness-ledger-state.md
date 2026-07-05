@@ -38,7 +38,7 @@ Fitness Ledger is a local-first personal fitness journal with a maintained Tkint
 - Movement detail includes Recent 3 performance metrics and changes.
 - Analysis Export produces local Markdown/JSON for 7/14/30-day or custom ranges, excluding full raw text by default.
 - `cloud_sync/` builds the disposable read-only CloudBase replica; import and deployment are user-controlled. CloudBase is connected as of 2026-07-05, while local JSON remains authoritative.
-- The WeChat Mini Program is an operational read-only gym reference surface. Its primary flow is body area -> movement signals -> full trajectory, not a generic dashboard or paragraph-heavy date list.
+- The WeChat Mini Program is an operational read-only gym reference surface. Its primary flow is Home body area -> movement signals -> full trajectory, with a separate date-first Training Records tab.
 - Web Movement Dictionary supports create, rename, aliases, muscle-group/category/equipment metadata, enable/disable, and confirmed deletion.
 - Web Body, Diet, and Training records are editable through the same maintained field sets as desktop; movement-history rows support structured set/order/cardio/note edits by permanent IDs.
 - Dictionary uses a professional five-column functional grid; aliases and extended metadata remain available in its editor rather than occupying the main directory.
@@ -55,7 +55,8 @@ Fitness Ledger is a local-first personal fitness journal with a maintained Tkint
 - Final visual evidence and reproduction guidance live under `projects/fitness-ledger/docs/design/`.
 - The accepted Web baseline includes functional Body/Diet search and ordering, Training split/date search and ordering in overview and body-area views, contextual Movement Dictionary access and return, and explicit-only record/detail actions.
 - The accepted Mini Program visual translation uses one dark archive stage, five restrained body-area theme controls, tactile paper slips, compact comparison signals, and explicit expansion for long prose.
-- Mini Program Home is the gym-side decision surface: it defaults to the latest body area, previews two high-frequency movements, and routes to complete body-area archives. Training supports frequency/recent/name sorting; Body and Diet remain secondary Status routes.
+- Mini Program Home is the complete body-area archive and supports frequency/recent/name movement sorting. Training Records provides tolerant date search and newest/oldest ordering; Body and Diet remain secondary Status routes with equivalent date controls.
+- The approved Mini Program theme art is stored under `projects/fitness-ledger/mini_program/miniprogram/images/themes-v2/`; reusable full-resolution versions are under `projects/fitness-ledger/web_desktop/frontend/assets/body-themes-v2/`.
 
 ## Recovery
 

@@ -18,6 +18,9 @@ Page({
     if (pending) await this.loadArea(pending);
     else if (!this.data.selected) this.setData({ loading: false });
   },
+  onTabItemTap() {
+    this.overview();
+  },
   async loadOverview() {
     this.setData({ loading: true, error: "" });
     const response = await ledger.call("bodyAreas");

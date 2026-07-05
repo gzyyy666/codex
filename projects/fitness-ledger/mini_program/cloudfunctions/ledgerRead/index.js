@@ -137,6 +137,11 @@ exports.main = async (event) => {
       case "recent": return result(await list(COLLECTIONS.daily, Number(event.limit || 10), Number(event.skip || 0)));
       case "bodyRecords": return result(await list(COLLECTIONS.daily, Number(event.limit || 30), Number(event.skip || 0)));
       case "dietRecords": return result(await list(COLLECTIONS.diet, Number(event.limit || 30), Number(event.skip || 0)));
+      case "trainingRecords": {
+        const rows = await all(COLLECTIONS.training, 200);
+        rows.sort((a, b) => String(b.Date || "").localeCompare(String(a.Date || "")));
+        return result(rows);
+      }
       case "bodyAreas": {
         const datasets = await Promise.all([
           all(COLLECTIONS.movements, 200),

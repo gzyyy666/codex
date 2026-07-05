@@ -64,8 +64,8 @@ Use this file to restore project context with low token cost.
 - `cloud_sync/` prepares a disposable read-only replica only. Local JSON remains the sole source of truth; no provider or network uploader is configured.
 - Generated `cloud_sync/out/*.json` files contain personal data and must remain untracked.
 - `mini_program/` is the maintained WeChat read-only gym reference client with one OpenID-allowlisted `ledgerRead` cloud function.
-- The Mini Program primary flow is `five body areas -> movement signals -> full movement trajectory`; do not regress it to date-summary paragraphs or a generic dashboard.
-- `ledgerRead` exposes safe identity diagnostics plus allowlisted read actions. `bodyAreas` and `bodyArea` are the mobile aggregation boundary.
+- The Mini Program primary flow is `Home body areas -> movement signals -> full movement trajectory`; the second tab is a date-first Training Records archive and Status links to Body/Diet.
+- `ledgerRead` exposes safe identity diagnostics plus allowlisted read actions. `bodyAreas`, `bodyArea`, and `trainingRecords` are the current mobile read boundaries.
 - Local `miniprogram/config/env.local.js` contains the active CloudBase environment and remains untracked. Never commit OpenID allowlists, environment credentials, or generated personal payloads.
 - CloudBase deployment and collection import are operational as of 2026-07-05. Local JSON remains the source of truth; refreshes still originate from `cloud_sync` payload generation and manual CloudBase import/deployment.
 

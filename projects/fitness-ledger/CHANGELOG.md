@@ -1,5 +1,18 @@
 # Fitness Ledger Changelog
 
+## 2026-07-05 - WeChat Archive Navigation And Theme Art
+
+- Promoted the five-body-area training archive to the Mini Program Home tab and removed the redundant standalone Home and Search tabs.
+- Added a compact daily Training Records tab with tolerant date search, newest/oldest ordering, and explicit day-detail actions.
+- Added tolerant date search and newest/oldest ordering to the secondary Body and Diet archives.
+- Added one read-only `trainingRecords` CloudBase action without changing any collection or formal data structure.
+- Added a cohesive five-image abstract training set: shoulder amber, chest coral, back teal, legs violet, and arms cyan.
+- Selected body-area pages now use matching background washes and low-opacity representative art while preserving movement-first readability.
+- Re-entering the Home tab resets a selected body-area theme to the five-area overview.
+- Training Records now uses a restrained printed-paper background and layered nutrition-note-inspired archive slips.
+- Removed the superseded first-generation Mini Program theme images.
+- JavaScript syntax, Mini Program structure, JSON, and cloud payload tests passed.
+
 ## 2026-07-05 - WeChat Gym Reference UX Completion
 
 - Compressed the Mini Program Home hero and made body-area selection plus the first two high-frequency movements visible in the primary mobile flow.

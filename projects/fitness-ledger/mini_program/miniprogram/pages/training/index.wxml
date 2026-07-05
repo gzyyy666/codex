@@ -1,0 +1,26 @@
+<view class="page training-page">
+  <image class="archive-art" src="/images/training-archive.webp" mode="aspectFill" />
+  <view class="training-content">
+    <view class="eyebrow">TRAINING ARCHIVE / DAILY</view>
+    <view class="title">训练记录。</view>
+    <view class="training-intro">按日期回看当天训练主题与记录，需要细节时再展开。</view>
+    <view class="archive-tools">
+      <input value="{{query}}" bindinput="onInput" placeholder="搜索日期，如 6-30 / 06.30" />
+      <view class="order-button" bindtap="toggleOrder">{{order === 'newest' ? '最新优先 ↓' : '最早优先 ↑'}}</view>
+    </view>
+    <view wx:if="{{loading}}" class="state">正在读取训练档案…</view>
+    <view wx:elif="{{error}}" class="state error">{{error}}</view>
+    <view wx:elif="{{!records.length}}" class="state">没有匹配的训练记录。</view>
+    <view wx:else class="training-list">
+      <view wx:for="{{records}}" wx:key="_id" class="training-slip slip-tone-{{index % 3}}">
+        <view class="training-index">{{index < 9 ? '0' + (index + 1) : index + 1}}</view>
+        <view class="slip-label">TRAINING NOTE</view>
+        <view class="training-date">{{item.Date}}</view>
+        <view class="training-split">{{item.Split || '未标注训练主题'}}</view>
+        <view class="training-summary clamp-2">{{item['Standardized Summary'] || item.Summary || '暂无训练摘要'}}</view>
+        <view wx:if="{{item.Notes}}" class="training-note clamp-2">{{item.Notes}}</view>
+        <view class="training-action" data-date="{{item.Date}}" catchtap="open">查看当日训练 →</view>
+      </view>
+    </view>
+  </view>
+</view>

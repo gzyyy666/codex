@@ -13,7 +13,7 @@ def main() -> None:
     app = json.loads((ROOT / "miniprogram" / "app.json").read_text(encoding="utf-8"))
     assert config["miniprogramRoot"] == "miniprogram/"
     assert config["cloudfunctionRoot"] == "cloudfunctions/"
-    assert len(app["pages"]) == 9
+    assert len(app["pages"]) == 8
     for page in app["pages"]:
         base = ROOT / "miniprogram" / page
         for suffix in (".js", ".json", ".wxml", ".wxss"):
@@ -25,13 +25,18 @@ def main() -> None:
     assert 'case "bodyArea"' in cloud
     assert 'case "bodyRecords"' in cloud
     assert 'case "dietRecords"' in cloud
-    assert app["tabBar"]["list"][1]["pagePath"] == "pages/reference/index"
+    assert 'case "trainingRecords"' in cloud
+    assert app["pages"][0] == "pages/reference/index"
+    assert app["tabBar"]["list"][0]["pagePath"] == "pages/reference/index"
+    assert app["tabBar"]["list"][1]["pagePath"] == "pages/training/index"
     reference = (ROOT / "miniprogram" / "pages" / "reference" / "index.wxml").read_text(encoding="utf-8")
     assert "动作与最近表现" in reference
     assert "Standardized Summary" not in reference
     assert "训练频率" in reference and "最近训练" in reference and "动作名称" in reference
-    home = (ROOT / "miniprogram" / "pages" / "home" / "index.wxml").read_text(encoding="utf-8")
-    assert "高频动作" in home and "查看动作轨迹" in home
+    training = (ROOT / "miniprogram" / "pages" / "training" / "index.wxml").read_text(encoding="utf-8")
+    assert "搜索日期" in training and "查看当日训练" in training
+    assert not (ROOT / "miniprogram" / "pages" / "home").exists()
+    assert not (ROOT / "miniprogram" / "pages" / "search").exists()
     print("FITNESS_LEDGER_MINI_PROGRAM_MOBILE_WORKBENCH_OK")
 
 

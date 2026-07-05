@@ -1,9 +1,8 @@
 {
   "pages": [
-    "pages/home/index",
-    "pages/today/index",
     "pages/reference/index",
-    "pages/search/index",
+    "pages/training/index",
+    "pages/today/index",
     "pages/movement/index",
     "pages/record/index",
     "pages/body/index",
@@ -22,9 +21,8 @@
     "backgroundColor": "#fbf8f1",
     "borderStyle": "white",
     "list": [
-      {"pagePath": "pages/home/index", "text": "首页"},
-      {"pagePath": "pages/reference/index", "text": "训练"},
-      {"pagePath": "pages/search/index", "text": "搜索"},
+      {"pagePath": "pages/reference/index", "text": "首页"},
+      {"pagePath": "pages/training/index", "text": "训练记录"},
       {"pagePath": "pages/status/index", "text": "状态"}
     ]
   },

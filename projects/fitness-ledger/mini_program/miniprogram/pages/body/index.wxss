@@ -1,5 +1,8 @@
 .body-page { background: radial-gradient(circle at 100% 15%, rgba(49,108,171,.12), transparent 32%), #f8f5ed; }
 .body-intro { color: #77736b; font-size: 24rpx; line-height: 1.55; }
+.archive-tools { display: grid; grid-template-columns: 1fr auto; gap: 10rpx; margin-top: 24rpx; padding: 8rpx; border-radius: 22rpx; background: rgba(253,250,243,.82); box-shadow: 0 10rpx 24rpx rgba(53,44,29,.06), inset 0 2rpx 0 rgba(255,255,255,.8); }
+.archive-tools input { height: 66rpx; padding: 0 17rpx; border-radius: 15rpx; background: rgba(239,233,221,.7); font-size: 22rpx; }
+.archive-tools > view { display: flex; align-items: center; padding: 0 20rpx; border-radius: 15rpx; background: #171714; color: #f8f5ed; font-size: 20rpx; }
 .body-slip { position: relative; overflow: hidden; margin-top: 18rpx; padding: 26rpx; border-radius: 30rpx 8rpx 30rpx 30rpx; box-shadow: 0 4rpx 8rpx rgba(53,44,29,.06), 0 18rpx 36rpx rgba(53,44,29,.09), inset 0 2rpx 0 rgba(255,255,255,.3); }
 .palette-0 { background: #ff7650; color: #2c160f; }
 .palette-1 { background: #514bc7; color: #fffdf8; }

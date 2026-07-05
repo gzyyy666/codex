@@ -1,5 +1,6 @@
 <view class="page body-page">
   <view class="eyebrow">BODY ARCHIVE / READ ONLY</view><view class="title">身体记录。</view><view class="body-intro">体重、训练与当天状态，按日期倒序保留。</view>
+  <view class="archive-tools"><input value="{{query}}" bindinput="onInput" placeholder="搜索日期，如 6-30 / 06.30"/><view bindtap="toggleOrder">{{order === 'newest' ? '最新 ↓' : '最早 ↑'}}</view></view>
   <view wx:if="{{loading}}" class="state">正在读取身体档案…</view><view wx:elif="{{error}}" class="state error">{{error}}</view><view wx:elif="{{!records.length}}" class="state">暂无身体记录。</view>
   <view wx:for="{{records}}" wx:key="_id" class="body-slip palette-{{index % 4}}">
     <view class="slip-index">{{index < 9 ? '0' + (index + 1) : index + 1}}</view>

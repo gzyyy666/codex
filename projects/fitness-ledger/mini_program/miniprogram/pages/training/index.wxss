@@ -1,0 +1,21 @@
+.training-page { position: relative; overflow: hidden; min-height: 100vh; background: radial-gradient(circle at 15% 15%, rgba(255,215,113,.11), transparent 31%), radial-gradient(circle at 100% 45%, rgba(179,155,205,.1), transparent 34%), #f8f5ed; }
+.training-page::before { content: ""; position: absolute; inset: 0; opacity: .18; pointer-events: none; background-image: linear-gradient(115deg, transparent 0 48%, rgba(61,54,46,.055) 48% 48.35%, transparent 48.35%), radial-gradient(circle at 20rpx 20rpx, rgba(61,54,46,.09) 0 2rpx, transparent 2.5rpx); background-size: 240rpx 240rpx, 76rpx 76rpx; }
+.archive-art { position: absolute; top: 70rpx; right: -150rpx; width: 660rpx; height: 920rpx; opacity: .12; pointer-events: none; filter: grayscale(.35); }
+.training-content { position: relative; z-index: 1; }
+.training-intro { max-width: 610rpx; color: #77736b; font-size: 24rpx; line-height: 1.55; }
+.archive-tools { display: grid; grid-template-columns: 1fr auto; gap: 10rpx; margin-top: 28rpx; padding: 9rpx; border: 1rpx solid rgba(23,23,20,.1); border-radius: 24rpx; background: rgba(253,250,243,.88); box-shadow: 0 10rpx 28rpx rgba(53,44,29,.06), inset 0 2rpx 0 rgba(255,255,255,.8); }
+.archive-tools input { min-width: 0; height: 70rpx; padding: 0 18rpx; border-radius: 17rpx; background: rgba(240,234,223,.62); font-size: 23rpx; }
+.order-button { display: flex; align-items: center; padding: 0 20rpx; border-radius: 17rpx; background: #171714; color: #f8f5ed; font-size: 21rpx; }
+.training-list { margin-top: 24rpx; }
+.training-slip { position: relative; overflow: hidden; margin-top: 16rpx; padding: 26rpx; border: 1rpx solid rgba(75,59,34,.11); border-radius: 7rpx 29rpx 29rpx 29rpx; background: linear-gradient(145deg, rgba(255,247,219,.96), rgba(241,224,173,.92)); box-shadow: 0 4rpx 8rpx rgba(53,44,29,.05), 0 17rpx 34rpx rgba(53,44,29,.08), inset 0 2rpx 0 rgba(255,255,255,.72); }
+.training-slip::after { content: ""; position: absolute; right: -36rpx; top: -42rpx; width: 170rpx; height: 170rpx; border: 1rpx solid rgba(63,52,34,.07); border-radius: 50%; box-shadow: inset 0 0 0 18rpx rgba(255,255,255,.07); pointer-events: none; }
+.slip-tone-1 { transform: rotate(-.18deg); background: linear-gradient(145deg, rgba(246,235,223,.96), rgba(230,206,184,.91)); }
+.slip-tone-2 { transform: rotate(.15deg); background: linear-gradient(145deg, rgba(236,240,219,.96), rgba(211,219,176,.91)); }
+.slip-label { margin-bottom: 8rpx; color: #7f776b; font-size: 16rpx; font-weight: 650; letter-spacing: 4rpx; }
+.training-index { position: absolute; top: 19rpx; right: 22rpx; color: #b8b0a4; font-family: serif; font-size: 27rpx; }
+.training-date { font-family: "Songti SC", serif; font-size: 34rpx; }
+.training-split { margin-top: 18rpx; font-family: "Songti SC", serif; font-size: 46rpx; }
+.training-summary { margin-top: 18rpx; padding-top: 17rpx; border-top: 1rpx solid rgba(23,23,20,.11); color: #3e3a35; font-size: 23rpx; line-height: 1.55; }
+.training-note { margin-top: 12rpx; color: #77736b; font-size: 21rpx; line-height: 1.55; }
+.training-action { display: inline-flex; margin-top: 18rpx; padding: 9rpx 2rpx 5rpx; border-bottom: 1rpx solid #171714; font-size: 21rpx; font-weight: 650; }
+.training-action:active, .order-button:active { transform: translateY(2rpx); opacity: .76; }
