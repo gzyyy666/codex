@@ -37,7 +37,8 @@ Fitness Ledger is a local-first personal fitness journal with a maintained Tkint
 - The accepted Training body-area controls are the compact horizontal rectangular theme cards. A later connected circular-node experiment was rejected and must not be restored unless the user explicitly requests it.
 - Movement detail includes Recent 3 performance metrics and changes.
 - Analysis Export produces local Markdown/JSON for 7/14/30-day or custom ranges, excluding full raw text by default.
-- `cloud_sync/` prepares and dry-runs a disposable read-only cloud replica. No provider, credentials, or network write are configured.
+- `cloud_sync/` builds the disposable read-only CloudBase replica; import and deployment are user-controlled. CloudBase is connected as of 2026-07-05, while local JSON remains authoritative.
+- The WeChat Mini Program is an operational read-only gym reference surface. Its primary flow is body area -> movement signals -> full trajectory, not a generic dashboard or paragraph-heavy date list.
 - Web Movement Dictionary supports create, rename, aliases, muscle-group/category/equipment metadata, enable/disable, and confirmed deletion.
 - Web Body, Diet, and Training records are editable through the same maintained field sets as desktop; movement-history rows support structured set/order/cardio/note edits by permanent IDs.
 - Dictionary uses a professional five-column functional grid; aliases and extended metadata remain available in its editor rather than occupying the main directory.
@@ -53,6 +54,7 @@ Fitness Ledger is a local-first personal fitness journal with a maintained Tkint
 - The complete low-token project entry is `projects/fitness-ledger/START_HERE.md`; topic routing is in `projects/fitness-ledger/docs/INDEX.md`.
 - Final visual evidence and reproduction guidance live under `projects/fitness-ledger/docs/design/`.
 - The accepted Web baseline includes functional Body/Diet search and ordering, Training split/date search and ordering in overview and body-area views, contextual Movement Dictionary access and return, and explicit-only record/detail actions.
+- The accepted Mini Program visual translation uses one dark archive stage, five restrained body-area theme controls, tactile paper slips, compact comparison signals, and explicit expansion for long prose.
 
 ## Recovery
 

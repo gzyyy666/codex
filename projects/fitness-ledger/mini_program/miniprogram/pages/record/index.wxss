@@ -1,1 +1,13 @@
-/* Shared styles come from app.wxss. */
+.record-section { margin-top: 20rpx; padding: 27rpx; border: 1rpx solid rgba(23,23,20,.11); border-radius: 28rpx 28rpx 7rpx 28rpx; box-shadow: 0 3rpx 6rpx rgba(53,44,29,.04), 0 16rpx 34rpx rgba(53,44,29,.06), inset 0 2rpx 0 rgba(255,255,255,.7); }
+.body-section { background: linear-gradient(145deg, #f4dfd0, #efb89f); }
+.diet-section { background: linear-gradient(145deg, #f7efcf, #e9d594); }
+.training-section { background: linear-gradient(145deg, #dce9e4, #aecfc4); }
+.record-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20rpx; }
+.expand { padding: 9rpx 0 5rpx; border-bottom: 1rpx solid currentColor; font-size: 21rpx; }
+.record-line { display: grid; grid-template-columns: 92rpx 1fr; gap: 18rpx; padding: 15rpx 0; border-bottom: 1rpx solid rgba(23,23,20,.11); font-size: 23rpx; }
+.record-line text:last-child { text-align: right; }
+.macro-line { display: flex; flex-direction: column; gap: 7rpx; padding: 16rpx; border-radius: 17rpx; background: rgba(255,255,255,.28); font-variant-numeric: tabular-nums; }
+.macro-line text:first-child { font-family: serif; font-size: 36rpx; }
+.macro-line text:last-child { font-size: 21rpx; }
+.detail-text { margin-top: 18rpx; white-space: pre-wrap; font-size: 24rpx; line-height: 1.65; }
+.training-note { margin-top: 18rpx; padding-top: 18rpx; border-top: 1rpx solid rgba(23,23,20,.12); font-size: 23rpx; line-height: 1.6; }

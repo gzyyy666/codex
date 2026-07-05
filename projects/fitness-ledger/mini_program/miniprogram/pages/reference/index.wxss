@@ -1,1 +1,44 @@
-/* Shared styles come from app.wxss. */
+.reference-page { overflow: hidden; }
+.intro { max-width: 620rpx; margin-top: 20rpx; color: #77736b; font-size: 25rpx; line-height: 1.65; }
+.area-list { margin-top: 36rpx; }
+.area-row { position: relative; display: grid; grid-template-columns: 62rpx 1fr auto 34rpx; align-items: center; gap: 14rpx; min-height: 130rpx; margin-bottom: 14rpx; padding: 20rpx 22rpx; border: 1rpx solid rgba(23,23,20,.1); border-radius: 26rpx; box-shadow: 0 4rpx 8rpx rgba(53,44,29,.05), 0 16rpx 30rpx rgba(53,44,29,.06), inset 0 2rpx 0 rgba(255,255,255,.65); }
+.area-row:active { transform: translateX(5rpx); }
+.area-number { font-family: serif; font-size: 25rpx; opacity: .45; }
+.area-name { display: flex; flex-direction: column; }
+.area-name text:first-child { font-family: "Songti SC", serif; font-size: 50rpx; }
+.area-name text:last-child { margin-top: 2rpx; font-size: 17rpx; font-weight: 650; letter-spacing: 3rpx; }
+.area-data { display: flex; flex-direction: column; align-items: flex-end; gap: 6rpx; font-size: 20rpx; opacity: .7; }
+.area-arrow { font-size: 30rpx; }
+.tone-amber { background: linear-gradient(145deg, #ffe39a, #e9bd45); }
+.tone-coral { background: linear-gradient(145deg, #f7d5cb, #e9a997); }
+.tone-teal { background: linear-gradient(145deg, #d8ebe6, #9dc9bf); }
+.tone-violet { background: linear-gradient(145deg, #e8e0f4, #c8b6df); }
+.tone-cyan { background: linear-gradient(120deg, #d9edf0, #add4dd); }
+.part-hero { position: relative; overflow: hidden; min-height: 300rpx; box-sizing: border-box; padding: 30rpx; border-radius: 12rpx 52rpx 52rpx 52rpx; box-shadow: 0 5rpx 8rpx rgba(53,44,29,.08), 0 26rpx 54rpx rgba(53,44,29,.12); }
+.part-hero::after { content: "ARCHIVE"; position: absolute; right: -8rpx; bottom: -26rpx; color: rgba(255,255,255,.3); font-family: serif; font-size: 78rpx; letter-spacing: 4rpx; }
+.hero-top { position: relative; z-index: 1; display: flex; justify-content: space-between; }
+.overview-link { padding-bottom: 4rpx; border-bottom: 1rpx solid currentColor; font-size: 21rpx; }
+.part-title { position: relative; z-index: 1; margin-top: 20rpx; font-family: "Songti SC", serif; font-size: 96rpx; line-height: 1; }
+.part-meta, .part-latest { position: relative; z-index: 1; margin-top: 14rpx; font-size: 23rpx; }
+.part-latest { opacity: .68; }
+.part-switch { width: calc(100% + 60rpx); margin: 18rpx -30rpx 0; white-space: nowrap; }
+.part-switch-inner { display: inline-flex; gap: 10rpx; padding: 8rpx 30rpx 14rpx; }
+.part-pill { min-width: 70rpx; padding: 16rpx 22rpx; border: 1rpx solid rgba(23,23,20,.12); border-radius: 999rpx; background: rgba(253,250,243,.8); text-align: center; font-size: 23rpx; }
+.part-pill.active { font-weight: 650; box-shadow: 0 8rpx 18rpx rgba(53,44,29,.1); }
+.movement-list { margin-top: 28rpx; }
+.list-heading { display: flex; align-items: flex-end; justify-content: space-between; padding: 0 4rpx 10rpx; }
+.count { font-family: serif; font-size: 48rpx; color: #aaa297; }
+.movement-card { margin-top: 18rpx; padding: 26rpx; border: 1rpx solid rgba(23,23,20,.11); border-radius: 26rpx 26rpx 8rpx 26rpx; background: rgba(253,250,243,.94); box-shadow: 0 3rpx 6rpx rgba(53,44,29,.04), 0 16rpx 36rpx rgba(53,44,29,.07), inset 0 2rpx 0 rgba(255,255,255,.88); }
+.movement-card:active { transform: translateY(2rpx); box-shadow: 0 3rpx 7rpx rgba(53,44,29,.08); }
+.movement-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16rpx; }
+.movement-name { font-family: "Songti SC", serif; font-size: 40rpx; line-height: 1.2; }
+.movement-en { margin-top: 7rpx; color: #77736b; font-size: 20rpx; }
+.session-badge { flex: none; padding: 8rpx 12rpx; border-radius: 999rpx; background: #eee7da; font-size: 19rpx; }
+.latest-set { display: flex; justify-content: space-between; margin-top: 24rpx; padding-top: 18rpx; border-top: 1rpx solid rgba(23,23,20,.12); color: #77736b; font-size: 20rpx; letter-spacing: 1rpx; }
+.set-summary { margin-top: 10rpx; font-size: 28rpx; line-height: 1.5; }
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10rpx; margin-top: 18rpx; }
+.compare-cell { min-height: 82rpx; padding: 14rpx; border-radius: 16rpx; background: #f0eadf; }
+.compare-label { color: #817b72; font-size: 17rpx; letter-spacing: 2rpx; }
+.compare-value { margin-top: 7rpx; font-size: 21rpx; line-height: 1.45; }
+.movement-note { margin-top: 16rpx; color: #6f6a62; font-size: 22rpx; }
+.movement-action { margin-top: 20rpx; font-size: 23rpx; font-weight: 650; }

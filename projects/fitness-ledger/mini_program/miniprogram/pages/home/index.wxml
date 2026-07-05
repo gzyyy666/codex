@@ -1,16 +1,43 @@
-<view class="page">
-  <view class="eyebrow">PRIVATE FITNESS ARCHIVE</view>
-  <view class="title">随身查看，<br/>不改动记录。</view>
-  <view class="readonly">只读副本</view>
-  <view wx:if="{{loading}}" class="state">正在读取最近同步数据…</view>
-  <view wx:elif="{{error}}" class="state error">{{error}}</view>
-  <view wx:elif="{{latest}}" class="card">
-    <view class="eyebrow">LATEST / {{latest.date}}</view>
-    <view class="metric">{{latest.body['Weight (kg)'] || '-'}} kg</view>
-    <view class="row"><text>训练</text><text>{{latest.body.Training || '未记录'}}</text></view>
-    <view class="row"><text>热量</text><text>{{latest.diet['Calories (kcal)'] || '-'}} kcal</text></view>
+<view class="page home-page">
+  <view class="home-hero">
+    <view class="eyebrow hero-label">PRIVATE TRAINING ARCHIVE</view>
+    <view class="title hero-title">今天练<br/>什么？</view>
+    <view class="hero-copy">先选部位，再看动作。最近表现、上次重量和历史轨迹都在手边。</view>
+    <view class="readonly">只读 · 最近同步</view>
   </view>
-  <view class="button" bindtap="today">查看今日</view>
-  <view class="button secondary" bindtap="reference">训练前参考</view>
-  <view class="button secondary" bindtap="search">搜索动作与记录</view>
+
+  <view wx:if="{{loading}}" class="state">正在整理训练档案…</view>
+  <view wx:elif="{{error}}" class="state error">{{error}}</view>
+  <block wx:else>
+    <view class="area-stage">
+      <view class="stage-head">
+        <view><view class="eyebrow">CHOOSE A BODY AREA</view><view class="section-title">训练部位</view></view>
+        <view class="stage-meta">点按即查</view>
+      </view>
+      <view class="area-grid">
+        <view wx:for="{{areas}}" wx:key="id" class="area-card tone-{{item.tone}} area-{{item.id}}" data-part="{{item.id}}" bindtap="openArea">
+          <view class="area-index">0{{index + 1}}</view>
+          <view class="area-cn">{{item.cn}}</view>
+          <view class="area-en">{{item.en}}</view>
+          <view class="area-stats">{{item.movement_count || 0}} 动作 · {{item.session_count || 0}} 次</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="latest-strip" wx:if="{{latest}}">
+      <view>
+        <view class="eyebrow">LATEST / {{latest.date}}</view>
+        <view class="latest-main">{{latest.body.Training || '休息日'}}</view>
+      </view>
+      <view class="latest-signals">
+        <text>{{latest.body['Weight (kg)'] || '-'}} kg</text>
+        <text>{{latest.diet['Calories (kcal)'] || '-'}} kcal</text>
+      </view>
+      <view class="text-link" bindtap="today">查看当日记录 →</view>
+    </view>
+    <view class="quick-links">
+      <view class="quick-link" bindtap="today">今日档案</view>
+      <view class="quick-link" bindtap="search">全库搜索</view>
+    </view>
+  </block>
 </view>

@@ -199,3 +199,17 @@ The local desktop application should echo, not imitate, the Web design:
 ## 13. Maintenance Rule
 
 Update this document whenever a durable token, page pattern, image rule, or interaction semantic changes. Do not add one-off visual experiments until they have been validated in the running UI.
+
+## 14. WeChat Mini Program Translation
+
+The Mini Program is a gym-side reference tool, not a compressed copy of the desktop Web app.
+
+- Its primary flow is `body area -> movement signals -> full trajectory`.
+- Home prioritizes the five body areas above weight, calories, sync status, or long daily prose.
+- The bottom navigation is `Home / Training / Search / Status`; the daily record is a secondary route.
+- A movement list card shows latest performance, previous performance, historical best, session count, and at most two lines of notes.
+- Daily food, body notes, and training prose are collapsed by default and always expose an explicit expand or detail action.
+- Body-area colors follow the Web themes: shoulder amber, chest coral, back teal, legs violet, arms cyan.
+- Mobile surfaces use one dark archive stage, tactile body-area controls, compact paper slips, and restrained contact shadows. Do not repeat one generic white rounded card for every content type.
+- Search results show a clean title, type, date, and short preview. Never expose concatenated search-index text or duplicated aliases as the primary result.
+- Mobile layouts optimize one-handed scanning and comparison. They must not preserve desktop whitespace, wide columns, or paragraph-heavy cards.

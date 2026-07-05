@@ -15,4 +15,7 @@ Fitness Ledger is a single-user local-first archive. Keeping formal writes in th
 - Local JSON remains authoritative.
 - The complete cloud payload replaces replica collections; `fl_meta` is written last.
 - Full raw text is excluded by default.
-- CloudBase setup, import, allowlist, and real-device preview remain explicit deployment steps.
+- CloudBase setup, collection import, allowlist, and initial read-chain validation were completed by the user on 2026-07-05.
+- Mobile aggregation is implemented inside the read-only `ledgerRead` boundary through `bodyAreas` and `bodyArea`; no collection or formal local-data structure changed.
+- The Mini Program's primary gym flow is body area -> movement comparison -> trajectory. Daily prose and sync diagnostics are secondary.
+- Cloud-function redeployment and real-device preview remain explicit user-controlled steps after code changes.

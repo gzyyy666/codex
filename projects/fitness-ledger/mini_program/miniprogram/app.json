@@ -15,12 +15,13 @@
     "backgroundColor": "#f6f1e7"
   },
   "tabBar": {
-    "color": "#706d67",
+    "color": "#858078",
     "selectedColor": "#11110f",
     "backgroundColor": "#fbf8f1",
+    "borderStyle": "white",
     "list": [
       {"pagePath": "pages/home/index", "text": "首页"},
-      {"pagePath": "pages/today/index", "text": "今日"},
+      {"pagePath": "pages/reference/index", "text": "训练"},
       {"pagePath": "pages/search/index", "text": "搜索"},
       {"pagePath": "pages/status/index", "text": "状态"}
     ]

@@ -63,8 +63,11 @@ Use this file to restore project context with low token cost.
 - `fitness_ledger_core/data_quality_view.py` exposes the desktop Data Check rules to Web and preserves `data/data_check_state.json` acknowledgement semantics.
 - `cloud_sync/` prepares a disposable read-only replica only. Local JSON remains the sole source of truth; no provider or network uploader is configured.
 - Generated `cloud_sync/out/*.json` files contain personal data and must remain untracked.
-- `mini_program/` is a WeChat DevTools-ready, read-only viewer skeleton with one allowlisted read cloud function. It contains no real AppID, env_id, credentials, or uploaded data.
-- CloudBase is not connected yet. `fl_meta.sync_state=local_payload_only` is the authoritative current status.
+- `mini_program/` is the maintained WeChat read-only gym reference client with one OpenID-allowlisted `ledgerRead` cloud function.
+- The Mini Program primary flow is `five body areas -> movement signals -> full movement trajectory`; do not regress it to date-summary paragraphs or a generic dashboard.
+- `ledgerRead` exposes safe identity diagnostics plus allowlisted read actions. `bodyAreas` and `bodyArea` are the mobile aggregation boundary.
+- Local `miniprogram/config/env.local.js` contains the active CloudBase environment and remains untracked. Never commit OpenID allowlists, environment credentials, or generated personal payloads.
+- CloudBase deployment and collection import are operational as of 2026-07-05. Local JSON remains the source of truth; refreshes still originate from `cloud_sync` payload generation and manual CloudBase import/deployment.
 
 ## Request Routing
 

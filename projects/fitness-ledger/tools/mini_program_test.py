@@ -21,7 +21,13 @@ def main() -> None:
     cloud = (ROOT / "cloudfunctions" / "ledgerRead" / "index.js").read_text(encoding="utf-8")
     for forbidden in (".add(", ".update(", ".set(", ".remove("):
         assert forbidden not in cloud
-    print("FITNESS_LEDGER_MINI_PROGRAM_SKELETON_OK")
+    assert 'case "bodyAreas"' in cloud
+    assert 'case "bodyArea"' in cloud
+    assert app["tabBar"]["list"][1]["pagePath"] == "pages/reference/index"
+    reference = (ROOT / "miniprogram" / "pages" / "reference" / "index.wxml").read_text(encoding="utf-8")
+    assert "动作与最近表现" in reference
+    assert "Standardized Summary" not in reference
+    print("FITNESS_LEDGER_MINI_PROGRAM_MOBILE_WORKBENCH_OK")
 
 
 if __name__ == "__main__":

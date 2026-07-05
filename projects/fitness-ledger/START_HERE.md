@@ -18,7 +18,7 @@ This is the authoritative source and context entry for Fitness Ledger. It is des
 - Web service: `web_desktop/backend/server.py`
 - Web UI: `web_desktop/frontend/index.html`, `app.js`, `styles.css`, `final-pass.css`
 - Mobile read-only viewer: `mobile_viewer/`
-- WeChat read-only viewer preparation: `mini_program/`
+- WeChat read-only gym reference client: `mini_program/`
 - Cloud replica review and contract: `cloud_sync/CLOUD_REVIEW.md`, `cloud_sync/CLOUD_DATA_CONTRACT.md`
 - Visual authority: `docs/design/STYLE_BIBLE.md`
 
@@ -37,7 +37,7 @@ This is the authoritative source and context entry for Fitness Ledger. It is des
 - Web behavior: `web_desktop/ARCHITECTURE.md`, then `web_desktop/frontend/app.js`
 - Web visual changes: `docs/design/STYLE_BIBLE.md`, `docs/design/DESIGN_RESOURCES.md`
 - Environment or launch issues: `docs/maintenance/ENVIRONMENT.md`
-- WeChat or CloudBase preparation: `mini_program/README.md`, `mini_program/docs/`, then `cloud_sync/CLOUD_REVIEW.md`
+- WeChat or CloudBase maintenance: `mini_program/README.md`, `mini_program/docs/`, `../../workflows/fitness-ledger-wechat-readonly-release.md`, then `cloud_sync/CLOUD_REVIEW.md`
 - Backup or rollback: `docs/maintenance/ROLLBACK.md`
 - Why the architecture looks this way: `docs/maintenance/WORKFLOW_LESSONS.md`
 - Final visual references: `docs/design/evidence/`

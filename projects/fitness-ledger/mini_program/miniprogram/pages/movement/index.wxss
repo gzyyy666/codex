@@ -1,1 +1,19 @@
-/* Shared styles come from app.wxss. */
+.movement-hero { padding: 30rpx 4rpx 28rpx; border-bottom: 1rpx solid rgba(23,23,20,.16); }
+.movement-title { max-width: 650rpx; font-size: 70rpx; }
+.movement-sub { color: #77736b; font-size: 23rpx; line-height: 1.5; }
+.alias-toggle { display: inline-flex; margin-top: 20rpx; padding-bottom: 5rpx; border-bottom: 1rpx solid #171714; font-size: 21rpx; }
+.aliases { margin-top: 15rpx; }
+.signal-board { margin-top: 24rpx; padding: 28rpx; border-radius: 36rpx 10rpx 36rpx 36rpx; background: linear-gradient(145deg, #1a1a18, #2a2925); color: #f8f5ed; box-shadow: 0 5rpx 8rpx rgba(0,0,0,.14), 0 25rpx 54rpx rgba(35,30,21,.16); }
+.signal-board .eyebrow { color: rgba(248,245,237,.55); }
+.signal-board .signal { background: rgba(255,255,255,.08); }
+.signal-board .signal-label { color: rgba(248,245,237,.5); }
+.board-head, .trajectory-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 20rpx; }
+.latest-date { color: rgba(248,245,237,.65); font-size: 21rpx; }
+.trajectory { margin-top: 36rpx; }
+.history-count { font-family: serif; font-size: 48rpx; color: #aaa297; }
+.history-slip { position: relative; margin-top: 16rpx; padding: 25rpx; border: 1rpx solid rgba(23,23,20,.11); border-radius: 24rpx 24rpx 7rpx 24rpx; background: rgba(253,250,243,.94); box-shadow: 0 3rpx 6rpx rgba(53,44,29,.04), 0 14rpx 30rpx rgba(53,44,29,.06); }
+.history-head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 14rpx; border-bottom: 1rpx solid rgba(23,23,20,.11); }
+.history-date { font-family: "Songti SC", serif; font-size: 35rpx; }
+.history-order { color: #aaa297; font-family: serif; font-size: 25rpx; }
+.set-row { display: flex; justify-content: space-between; padding: 15rpx 0; border-bottom: 1rpx solid rgba(23,23,20,.09); font-size: 25rpx; }
+.history-note { margin-top: 15rpx; color: #6e6961; font-size: 22rpx; line-height: 1.55; }

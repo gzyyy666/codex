@@ -6,7 +6,7 @@ try {
 }
 
 App({
-  globalData: { config },
+  globalData: { config, selectedBodyPart: "" },
   onLaunch() {
     if (wx.cloud && config.envId) {
       wx.cloud.init({ env: config.envId, traceUser: true });

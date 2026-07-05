@@ -1,7 +1,30 @@
-<view class="page"><view class="eyebrow">MOVEMENT / RECENT 5</view><view wx:if="{{loading}}" class="state">读取中…</view><view wx:elif="{{error}}" class="state error">{{error}}</view>
-  <block wx:elif="{{movement}}"><view class="title">{{movement.display_name}}</view><view class="muted">{{movement.english_name}} · {{movement.muscle_group}}</view><view class="readonly">只读动作历史</view>
-    <view><text wx:for="{{movement.aliases}}" wx:key="*this" class="chip">{{item}}</text></view>
+<view class="page movement-page">
+  <view wx:if="{{loading}}" class="state">读取中…</view><view wx:elif="{{error}}" class="state error">{{error}}</view>
+  <block wx:elif="{{movement}}">
+    <view class="movement-hero">
+      <view class="eyebrow">MOVEMENT TRAJECTORY</view>
+      <view class="title movement-title">{{movement.display_name}}</view>
+      <view class="movement-sub">{{movement.english_name}} · {{movement.muscle_group}}</view>
+      <view class="alias-toggle" bindtap="toggleAliases">{{showAliases ? '收起别名' : '查看别名'}} →</view>
+      <view wx:if="{{showAliases}}" class="aliases"><text wx:for="{{movement.aliases}}" wx:key="*this" class="chip">{{item}}</text></view>
+    </view>
+    <view wx:if="{{latest}}" class="signal-board">
+      <view class="board-head"><view><view class="eyebrow">RECENT SIGNALS</view><view class="section-title">最近变化</view></view><view class="latest-date">{{latest.date}}</view></view>
+      <view class="signal-grid">
+        <view class="signal"><view class="signal-label">LATEST MAX</view><view class="signal-value">{{latest.maxWeight ? latest.maxWeight + 'kg' : '自重'}}</view></view>
+        <view class="signal"><view class="signal-label">TOTAL REPS</view><view class="signal-value">{{latest.totalReps || '-'}}</view></view>
+        <view class="signal"><view class="signal-label">VOLUME</view><view class="signal-value">{{latest.volume || '-'}}</view></view>
+        <view class="signal"><view class="signal-label">PREVIOUS MAX</view><view class="signal-value">{{previous ? (previous.maxWeight ? previous.maxWeight + 'kg' : '自重') : '-'}}</view></view>
+      </view>
+    </view>
     <view wx:if="{{!history.length}}" class="state">该动作暂无历史。</view>
-    <view wx:for="{{history}}" wx:key="_id" class="card"><view class="eyebrow">{{item.date}}</view><view wx:for="{{item.sets}}" wx:key="index" class="row"><text>{{item.weight_text || item.weight || '自重'}}</text><text>{{item.reps}} × {{item.sets}}</text></view><view class="muted">{{item.notes}}</view></view>
+    <view wx:else class="trajectory">
+      <view class="trajectory-head"><view><view class="eyebrow">NEWEST FIRST</view><view class="section-title">训练轨迹</view></view><view class="history-count">{{history.length}}</view></view>
+      <view wx:for="{{history}}" wx:key="_id" class="history-slip">
+        <view class="history-head"><view class="history-date">{{item.date}}</view><view class="history-order">#{{index + 1}}</view></view>
+        <view wx:for="{{item.sets}}" wx:key="index" class="set-row"><text>{{item.weight_text || (item.weight ? item.weight + ' kg' : '自重')}}</text><text>{{item.reps}} 次 × {{item.sets}} 组</text></view>
+        <view wx:if="{{item.notes}}" class="history-note">{{item.notes}}</view>
+      </view>
+    </view>
   </block><view wx:else class="state">没有找到该动作。</view>
 </view>

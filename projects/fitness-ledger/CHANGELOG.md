@@ -1,5 +1,17 @@
 # Fitness Ledger Changelog
 
+## 2026-07-05 - WeChat Gym-Side Training Workbench
+
+- Replaced the generic Mini Program dashboard with a body-area-first gym reference flow.
+- Added shoulder, chest, back, legs, and arms archive controls using the established Web theme colors.
+- Added read-only `bodyAreas` and `bodyArea` cloud-function actions that aggregate movement frequency, latest performance, previous performance, historical best, and recent sessions without changing formal data structures.
+- Reworked movement detail into recent signals plus a compact chronological trajectory.
+- Reworked Today, search, and record details so long food/training prose is collapsed behind explicit expand or detail actions.
+- Cleaned search results so users see movement names, dates, record types, and short previews instead of concatenated search-index text.
+- Changed Mini Program navigation to Home, Training, Search, and Status; Today remains accessible as a secondary archive route.
+- Preserved OpenID allowlisting, read-only CloudBase access, local JSON authority, and all desktop/Web behavior.
+- Validation: JavaScript syntax, Mini Program structure, JSON files, and cloud payload tests passed. WeChat DevTools visual QA remains a manual user step.
+
 ## 2026-07-05 - Cloud Review And WeChat Read-Only Preparation
 
 - Audited the previous cloud-sync claim and documented that no provider, environment, or network upload is configured.
