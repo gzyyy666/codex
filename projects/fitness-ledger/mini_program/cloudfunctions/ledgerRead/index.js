@@ -20,8 +20,15 @@ async function list(name, limit = 20, skip = 0, orderField = "Date") {
 }
 
 exports.main = async (event) => {
-  const openid = cloud.getWXContext().OPENID;
-  if (event.action === "whoami") return result({ openid });
+  const wxContext = cloud.getWXContext();
+  const openid = wxContext.OPENID;
+  if (event.action === "whoami" || event.action === "getOpenId") {
+    return result({
+      openid,
+      appid: wxContext.APPID || "",
+      env: process.env.TCB_ENV || process.env.SCF_NAMESPACE || ""
+    });
+  }
   if (!allowed(openid)) return failure("FORBIDDEN", "当前微信账号未加入只读访问名单。");
   try {
     switch (event.action) {

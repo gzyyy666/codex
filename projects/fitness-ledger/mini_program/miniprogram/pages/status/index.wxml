@@ -1,5 +1,5 @@
 <view class="page"><view class="eyebrow">DATA STATUS</view><view class="title">同步状态</view><view class="readonly">只读副本</view>
   <view wx:if="{{loading}}" class="state">检查中…</view><view wx:elif="{{error}}" class="state error">{{error}}</view>
   <view wx:if="{{status}}" class="card"><view class="row"><text>Schema</text><text>{{status.schema}}</text></view><view class="row"><text>最后同步</text><text>{{status.generated_at}}</text></view><view class="row"><text>最新记录</text><text>{{status.latest_record_date}}</text></view><view class="row"><text>Raw text</text><text>{{status.raw_text_policy}}</text></view></view>
-  <view class="card"><view class="eyebrow">ACCESS ID</view><view class="muted">将此 openid 加入云函数环境变量 FITNESS_LEDGER_ALLOWED_OPENIDS：</view><view class="long">{{openid || '配置 env_id 后显示'}}</view></view>
+  <view class="card"><view class="eyebrow">ACCESS DEBUG / NO PRIVATE DATA</view><view class="muted">将此 openid 加入云函数环境变量 FITNESS_LEDGER_ALLOWED_OPENIDS：</view><view class="row"><text>OpenID</text><text selectable="true">{{identity.openid || '未获取'}}</text></view><view class="row"><text>AppID</text><text selectable="true">{{identity.appid || '未获取'}}</text></view><view class="row"><text>Environment</text><text selectable="true">{{identity.env || '由当前部署环境决定'}}</text></view></view>
 </view>

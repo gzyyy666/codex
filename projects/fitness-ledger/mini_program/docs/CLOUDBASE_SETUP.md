@@ -32,4 +32,6 @@ After import:
 
 Deploy `cloudfunctions/ledgerRead`, open the Data Status page, and copy the returned openid. Add it to the cloud function environment variable `FITNESS_LEDGER_ALLOWED_OPENIDS`. Multiple IDs are comma-separated.
 
+After changing the allowlist, redeploy `ledgerRead` from WeChat DevTools: right-click `cloudfunctions/ledgerRead`, choose **Upload and deploy: cloud install dependencies**, wait for success, then reopen Data Status. `whoami` remains accessible without allowlist but returns identity metadata only, never Fitness Ledger records.
+
 Do not place credentials or private keys in Mini Program JavaScript. Do not enable direct client database access; the Mini Program reads through the allowlisted cloud function only.

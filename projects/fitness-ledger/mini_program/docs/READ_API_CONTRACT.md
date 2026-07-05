@@ -16,7 +16,7 @@ Except for `whoami`, every action requires the caller openid in `FITNESS_LEDGER_
 
 | Action | Input | Data | Empty result | Collections |
 | --- | --- | --- | --- | --- |
-| `whoami` | none | `{openid}` | OpenID string may be empty only in invalid runtime | none |
+| `whoami` / `getOpenId` | none | `{openid, appid, env}` | Values may be empty only in invalid runtime | none |
 | `status` | none | latest sync metadata | `null` | `fl_meta` |
 | `latest` | none | latest daily summary | `null` | `fl_latest_summary` |
 | `recent` | `limit`, `skip` | recent Body records | `[]` | `fl_daily_records` |
