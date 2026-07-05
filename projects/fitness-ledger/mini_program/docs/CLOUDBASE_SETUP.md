@@ -17,6 +17,8 @@ There is no real CloudBase environment connected yet. The project contains a loc
 
 Run `python cloud_sync/build_cloud_payload.py`, then open `cloud_sync/out/cloudbase_import/manifest.json`. In the CloudBase document-database console, clear the previous disposable replica collection and import its matching UTF-8 `.json` file using **Insert** mode. Import `fl_meta` last. Although the extension is `.json` for the file picker, the content uses JSON Lines: one complete JSON object per line.
 
+Collections listed in `manifest.json.empty_collections` intentionally have no import file. Create those collections but leave them empty; CloudBase rejects zero-byte imports.
+
 After import:
 
 1. Open `fl_meta`, check schema, generated time, latest date, and counts.

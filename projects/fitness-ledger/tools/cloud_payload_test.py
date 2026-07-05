@@ -30,9 +30,15 @@ def main() -> None:
     assert '"raw"' not in serialized
     import_dir = PAYLOAD.parent / "cloudbase_import"
     for name, rows in payload.items():
-        lines = (import_dir / f"{name}.json").read_text(encoding="utf-8").splitlines()
+        import_file = import_dir / f"{name}.json"
+        if not rows:
+            assert not import_file.exists()
+            continue
+        lines = import_file.read_text(encoding="utf-8").splitlines()
         assert len(lines) == len(rows)
         assert all(isinstance(json.loads(line), dict) for line in lines)
+    manifest = json.loads((import_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["empty_collections"] == [name for name, rows in payload.items() if not rows]
     subprocess.run([sys.executable, str(PROJECT / "cloud_sync" / "sync_to_cloud.py"), "--dry-run"], check=True)
     report = json.loads(PAYLOAD.with_name("fitness_ledger_cloud_sync_report.json").read_text(encoding="utf-8"))
     assert report["network_request_made"] is False

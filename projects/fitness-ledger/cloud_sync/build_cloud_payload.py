@@ -42,6 +42,8 @@ def main() -> Path:
     for stale in (*import_dir.glob("fl_*.json"), *import_dir.glob("fl_*.jsonl")):
         stale.unlink()
     for name, rows in payload.items():
+        if not rows:
+            continue
         content = "\n".join(json.dumps(row, ensure_ascii=False, separators=(",", ":")) for row in rows)
         (import_dir / f"{name}.json").write_text(
             f"{content}\n" if content else "",
@@ -52,6 +54,8 @@ def main() -> Path:
             "schema": payload["fl_meta"][0]["schema"],
             "generated_at": payload["fl_meta"][0]["generated_at"],
             "collections": {name: len(rows) for name, rows in payload.items()},
+            "empty_collections": [name for name, rows in payload.items() if not rows],
+            "import_files": [f"{name}.json" for name, rows in payload.items() if rows],
             "upload_order": [name for name in payload if name != "fl_meta"] + ["fl_meta"],
         }, ensure_ascii=False, indent=2),
         encoding="utf-8",
