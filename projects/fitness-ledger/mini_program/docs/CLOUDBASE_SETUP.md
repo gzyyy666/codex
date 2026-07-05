@@ -15,7 +15,7 @@ There is no real CloudBase environment connected yet. The project contains a loc
 
 ## Review And Import
 
-Run `python cloud_sync/build_cloud_payload.py`, then open `cloud_sync/out/cloudbase_import/manifest.json`. In the CloudBase database console, import each matching JSON file. Import `fl_meta` last.
+Run `python cloud_sync/build_cloud_payload.py`, then open `cloud_sync/out/cloudbase_import/manifest.json`. In the CloudBase document-database console, clear the previous disposable replica collection and import its matching UTF-8 `.jsonl` file using **Insert** mode. Import `fl_meta` last. JSON Lines uses one complete JSON object per line, matching the CloudBase import format.
 
 After import:
 

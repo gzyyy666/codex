@@ -28,6 +28,11 @@ def main() -> None:
     serialized = json.dumps(payload, ensure_ascii=False).lower()
     assert '"raw record"' not in serialized
     assert '"raw"' not in serialized
+    import_dir = PAYLOAD.parent / "cloudbase_import"
+    for name, rows in payload.items():
+        lines = (import_dir / f"{name}.jsonl").read_text(encoding="utf-8").splitlines()
+        assert len(lines) == len(rows)
+        assert all(isinstance(json.loads(line), dict) for line in lines)
     subprocess.run([sys.executable, str(PROJECT / "cloud_sync" / "sync_to_cloud.py"), "--dry-run"], check=True)
     report = json.loads(PAYLOAD.with_name("fitness_ledger_cloud_sync_report.json").read_text(encoding="utf-8"))
     assert report["network_request_made"] is False

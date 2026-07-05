@@ -39,9 +39,13 @@ def main() -> Path:
     output.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     import_dir = output.parent / "cloudbase_import"
     import_dir.mkdir(parents=True, exist_ok=True)
+    for stale in (*import_dir.glob("fl_*.json"), *import_dir.glob("fl_*.jsonl")):
+        stale.unlink()
     for name, rows in payload.items():
-        (import_dir / f"{name}.json").write_text(
-            json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8"
+        content = "\n".join(json.dumps(row, ensure_ascii=False, separators=(",", ":")) for row in rows)
+        (import_dir / f"{name}.jsonl").write_text(
+            f"{content}\n" if content else "",
+            encoding="utf-8",
         )
     (import_dir / "manifest.json").write_text(
         json.dumps({
