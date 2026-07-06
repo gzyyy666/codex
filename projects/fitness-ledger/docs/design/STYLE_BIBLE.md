@@ -156,6 +156,10 @@ The five controls use compact premium theme cards with live counts, representati
 An archive wall grouped by body area and sorted by use frequency. High-frequency movements receive more visual weight. Avoid spreadsheet grids and oversized single tiles.
 Movement Dictionary administration is entered from a tactile contextual control in the Movement Index heading area, not from the global navigation.
 
+Movement group panels use a four-layer hierarchy: weighted graphite base, one cropped monochrome body-area illustration at the outer edge, a controlled dark veil behind dense content, and tactile movement cards in the foreground. The representative illustration is a semantic layer rather than a full-bleed poster. It remains recognizable on second inspection, but quieter than every movement name and action.
+
+Black, warm yellow, paper white, and graphite gray are the dominant Movement Index materials so the archive wall stays connected to the global page. Body-area colors are restrained accents rather than large fills: shoulder amber, chest coral, back teal, legs violet, and arms cool blue appear in edge strokes, atmospheric traces, numbering, and subtle glow. Lead movements use a substantial warm-yellow physical card; medium-frequency movements use raised paper-gray surfaces; low-frequency movements use quieter graphite glass without appearing disabled. Cards, not artwork, are always the first visual read.
+
 ### Movement Detail
 
 The progression chart and recent records are primary. The title/illustration banner is compact and auxiliary.

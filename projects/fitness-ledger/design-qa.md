@@ -1,40 +1,53 @@
-# Design QA - Web Material Depth Reconciliation
+# Design QA - Refined Movement Index
 
-Date: 2026-07-04
-
-## Scope
-
-- Daily Entry material hierarchy
-- Training Records five-node archive hierarchy
-- Existing routes, data contracts, and interactions
+Date: 2026-07-06
 
 ## Evidence
 
-- `web_desktop/frontend/design-qa-entry.png` at 1440 x 1100
-- `web_desktop/frontend/design-qa-training.png` at 1440 x 1100
-- `web_desktop/frontend/design-qa-training-arms-v2.png` at 1440 x 1100
-- Reference direction: project Style Bible and the supplied tactile layered-interface render
+- Source visual truth: `C:\Users\26087\Pictures\Screenshots\屏幕截图 2026-07-03 221209.png`
+- Theme-art reference: `C:\Users\26087\Pictures\Screenshots\屏幕截图 2026-07-05 225247.png`
+- Previous image-heavy implementation: `C:\Users\26087\Pictures\Screenshots\屏幕截图 2026-07-06 130732.png`
+- Final implementation screenshot: `design-qa-implementation.png`
+- Side-by-side comparison: `design-qa-comparison.png`
+- Viewport: 1600 x 1000
+- State: Movement Index, default archive view, live local data
 
-## Review
+## Full-view comparison
 
-- Daily Entry keeps the writing surface as the dominant object.
-- Ruled-paper spacing, text line height, and caret rhythm use the same 32px baseline.
-- Today, Recent Saved, and local-save status remain visually secondary and readable.
-- Training retains all five in-page body-area controls and the overview record layout.
-- Arms focused state uses the dedicated dynamic arm artwork and expands into the foreground archive anchor.
-- The focused layout resolves into three clear layers: body-area cover, factual receipt, and dense record slips; filtered records do not leave a hidden-card void.
-- The receipt uses existing record facts only and does not imply unsupported performance metrics.
-- The four inactive body-area controls remain readable and usable as switching indexes.
-- Returning to Training from another primary page resets the view to the overview state.
-- Contact shadows, ambient shadows, edge highlights, and frosting are visible without heavy dashboard glow.
-- Chinese text, dates, metrics, search controls, and explicit detail actions remain legible.
-- No business logic, route, API, or data structure changed.
+- The page retains the cream paper background, editorial heading, compact two-column archive density, search, movement count, and dictionary entry.
+- Group panels are visually heavier than the page without becoming full-color poster blocks.
+- Black, warm yellow, paper gray, and graphite are the dominant materials; body-area colors appear as restrained edge and trajectory accents.
+- The approved body-area illustration is cropped at the panel edge, monochrome, and visible on second inspection.
+
+## Focused region comparison
+
+- Back and shoulder panels were reviewed at original screenshot resolution.
+- Lead cards are larger, warmer, and more elevated than medium- and low-frequency cards.
+- Medium-frequency paper-gray cards retain transparency so the panel and colored trajectory traces remain visible.
+- Low-frequency graphite cards remain readable and do not resemble disabled controls.
+- Chinese names, English subtitles, session counts, and `Open trajectory` remain clear over every surface.
+
+## Required fidelity surfaces
+
+- Typography: unchanged editorial hierarchy; movement labels retain readable optical weight and truncation behavior.
+- Spacing: existing compact archive matrix and two-column rhythm preserved.
+- Colors: global cream/graphite/yellow palette restored; five body-area colors restricted to accents and traces.
+- Image quality: existing approved local body-area artwork retained; no placeholder or code-drawn illustration introduced.
+- Copy: no copy or data behavior changed.
+
+## Patches made
+
+- Replaced large body-area color fills with weighted neutral graphite panel gradients.
+- Added theme-colored header anchors, panel trajectory traces, card edge accents, and numbering.
+- Changed artwork to a cropped monochrome semantic layer with controlled visibility.
+- Established three card levels: yellow lead card, translucent gray medium-frequency card, graphite low-frequency card.
+- Preserved hover lift, focus visibility, reduced-motion behavior, search, sorting, and detail navigation.
 
 ## Findings
 
 - P0: None.
 - P1: None.
 - P2: None.
-- P3: Material depth remains intentionally restrained on dense secondary pages; future work should remain page-specific.
+- P3: Theme trace intensity can be tuned later per body area without changing the shared hierarchy.
 
-Final result: passed
+final result: passed

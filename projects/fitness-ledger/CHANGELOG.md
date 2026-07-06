@@ -1,5 +1,17 @@
 # Fitness Ledger Changelog
 
+## 2026-07-06 - Refined Movement Index material hierarchy
+
+- Rebalanced all five Movement Index body-area panels from image-led colored posters to weighted graphite archive boards.
+- Kept the approved shoulder, chest, back, legs, and arms artwork as cropped monochrome semantic layers at panel edges.
+- Restricted body-area colors to edge traces, numbering, subtle glow, and atmosphere so large panels remain visually coherent with the cream/graphite page.
+- Restored a three-level card hierarchy: warm-yellow lead card, raised paper-gray medium-frequency card, and quieter graphite low-frequency slip.
+- Added a controlled dark veil between artwork and dense movement content so illustrations remain recognizable without competing with labels or actions.
+- Preserved Movement Index structure, sorting, search, dictionary entry, movement data, and detail navigation.
+- Modified files: `web_desktop/frontend/final-pass.css`, `docs/design/STYLE_BIBLE.md`, `CHANGELOG.md`.
+- Data structure impact: none.
+- User verification: visually compare all five body-area panels at 1280px and 1600px widths.
+
 ## 2026-07-06 - Unified Web Body-Area Art
 
 - Replaced the Web Training and Movement Progress body-area images with the approved five-image abstract set shared with the Mini Program.
