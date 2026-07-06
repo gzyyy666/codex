@@ -219,6 +219,7 @@ The Mini Program is a gym-side reference tool, not a compressed copy of the desk
 - Movement Detail separates the latest three sessions from older history and shows reps plus volume as secondary comparison signals.
 - Body and Diet are secondary archives entered from Status. Body uses controlled high-energy color slips; Diet uses warm paper notes. Neither belongs in the bottom navigation.
 - The approved body-area image set lives in `mini_program/miniprogram/images/themes-v2/` for the Mini Program and `web_desktop/frontend/assets/body-themes-v2/` for future Web reuse. The images are abstract representative body-area scenes, not exact exercise instructions.
+- Web Training and Movement Progress now use this same five-image set everywhere, including first-level groups and Movement Detail. Web rendering darkens the assets beneath translucent controls; the underlying body-area color mapping remains unchanged.
 - Selected body-area pages use a matching low-contrast page wash and faint illustration: shoulder amber, chest coral, back teal, legs violet, arms cyan. Art stays below the data layer and never reduces text contrast.
 - Returning to the Home tab resets to the five-area overview; selected themes are session-local inspection states, not persistent navigation state.
 - Training Records may borrow the Diet archive's paper-slip rhythm, but uses training-specific summaries, shallow print motifs, and explicit daily-detail actions.

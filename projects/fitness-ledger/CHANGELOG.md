@@ -1,5 +1,12 @@
 # Fitness Ledger Changelog
 
+## 2026-07-06 - Unified Web Body-Area Art
+
+- Replaced the Web Training and Movement Progress body-area images with the approved five-image abstract set shared with the Mini Program.
+- Kept shoulder amber, chest coral, back teal, legs violet, and arms cyan consistent across Training entry controls, selected Training themes, Movement Index groups, and Movement Detail headers.
+- Added a darker editorial treatment for Web imagery so translucent controls and movement cards remain readable.
+- No layout, filtering, data, API, or record behavior changed.
+
 ## 2026-07-05 - WeChat Sitemap Validation
 
 - Replaced the empty Mini Program sitemap rule list with an explicit private `disallow` rule for all pages.

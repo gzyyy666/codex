@@ -57,6 +57,7 @@ Fitness Ledger is a local-first personal fitness journal with a maintained Tkint
 - The accepted Mini Program visual translation uses one dark archive stage, five restrained body-area theme controls, tactile paper slips, compact comparison signals, and explicit expansion for long prose.
 - Mini Program Home is the complete body-area archive and supports frequency/recent/name movement sorting. Training Records provides tolerant date search and newest/oldest ordering; Body and Diet remain secondary Status routes with equivalent date controls.
 - The approved Mini Program theme art is stored under `projects/fitness-ledger/mini_program/miniprogram/images/themes-v2/`; reusable full-resolution versions are under `projects/fitness-ledger/web_desktop/frontend/assets/body-themes-v2/`.
+- The same five-image set is now the only body-area visual authority for Web Training and Movement Progress: shoulder amber, chest coral, back teal, legs violet, and arms cyan. Web presentation darkens the artwork beneath translucent controls and applies the same asset to index and detail states.
 
 ## Recovery
 
