@@ -1,5 +1,15 @@
 # Fitness Ledger Changelog
 
+## 2026-07-06 - Movement Index original-art restoration
+
+- Restored the five approved body-area illustrations as direct, unfiltered panel backgrounds.
+- Removed grayscale, brightness, multiply, mask, and dark-overlay treatments from Movement Index artwork.
+- Enlarged and centrally cropped each illustration so the athlete and exercise occupy at least 70% of the panel.
+- Reduced ordinary movement cards to highly translucent light/dark glass layers while keeping the lead card visually dominant.
+- Preserved all Movement Index data, sorting, search, dictionary, and trajectory behavior.
+- Modified files: `web_desktop/frontend/final-pass.css`, `docs/design/STYLE_BIBLE.md`, `design-qa.md`, `CHANGELOG.md`.
+- Data structure impact: none.
+
 ## 2026-07-06 - Refined Movement Index material hierarchy
 
 - Rebalanced all five Movement Index panels around dominant black-gray geometric figures, with mustard, coral, blue-green, smoky violet, and gray-blue retained only as local underglow.

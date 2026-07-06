@@ -15,9 +15,9 @@ Date: 2026-07-06
 ## Full-view comparison
 
 - The page retains the cream paper background, editorial heading, compact two-column archive density, search, movement count, and dictionary entry.
-- Group panels are led by a cropped black-gray geometric body figure rather than a flat color field.
-- Mustard, coral, blue-green, smoky violet, and gray-blue act as local underglow in the space around the figure and through card gaps.
-- The approved body-area figure occupies roughly 60-75% of each panel and is legible before the theme color becomes the dominant impression.
+- Group panels use the approved five original body-area illustrations without filters or dark overlays.
+- Each illustration is enlarged and centrally cropped so the athlete and exercise remain recognizable across at least 70% of the panel.
+- Amber, coral, teal, violet, and blue come directly from the approved source artwork rather than a separate flat panel tint.
 
 ## Focused region comparison
 
@@ -37,9 +37,9 @@ Date: 2026-07-06
 
 ## Patches made
 
-- Built each panel from a body-area underglow plus a dominant cropped monochrome figure.
-- Kept restrained dark structural bands and panel edge accents behind the cards.
-- Raised artwork coverage and visibility so black-gray human geometry occupies the panel majority instead of reading as a faint watermark.
+- Removed grayscale, brightness, multiply, masking, and dark overlay treatments from the five source illustrations.
+- Centered and enlarged the original artwork so the athlete is the panel's primary visual content.
+- Reduced ordinary cards to 0.08 light glass and 0.18 dark glass while retaining a 0.82/0.74 translucent lead card.
 - Established three card levels: translucent yellow lead card, light-glass medium-frequency card, dark-glass low-frequency card.
 - Preserved hover lift, focus visibility, reduced-motion behavior, search, sorting, and detail navigation.
 

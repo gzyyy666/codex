@@ -97,8 +97,8 @@ Rules:
 - Home uses cinematic monochrome fitness photography with directional crop and vignette.
 - Archive pages use low-opacity collage, receipt, anatomical, or training-document motifs.
 - Movement groups use one representative illustration per body area, applied to the group rather than implying one exact exercise.
-- In Movement Index panels, the monochrome black-gray figure is the dominant background geometry and occupies roughly 60-75% of the panel. The body-area color is an underglow visible mainly around the figure and through card gaps; it must never become a flat full-panel color plate.
-- Movement cards remain translucent enough to reveal the figure beneath. Lead cards are warmer and more substantial, while ordinary cards use restrained dark/light glass surfaces without hiding the body silhouette.
+- In Movement Index panels, use the approved five original body-area illustrations directly: no grayscale filter, tint filter, multiply treatment, dark veil, or decorative mask. Crop and enlarge each source so the recognizable athlete occupies at least 70% of the panel and sits centrally.
+- Movement cards remain highly translucent so the original athlete, action, and body-area color remain visible beneath. Lead cards are warmer and more substantial, while ordinary cards use 0.08 light glass or 0.18 dark glass surfaces.
 - Images remain local and offline. Do not use remote hotlinks.
 - Illustrations support data hierarchy; they never cover core values or labels.
 

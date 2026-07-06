@@ -75,7 +75,7 @@
   pointer-events:none;
   background:linear-gradient(105deg,rgba(8,8,7,.72) 0%,rgba(20,20,18,.48) 38%,rgba(12,12,11,.58) 100%);
   mix-blend-mode:multiply;
-  opacity:.72;
+  opacity:0;
 }
 .movement-group[class*="group-"]::after{
   content:"";
@@ -90,7 +90,7 @@
   background:
     linear-gradient(120deg,transparent 0 32%,rgba(0,0,0,.22) 32% 52%,transparent 52%),
     linear-gradient(28deg,transparent 0 58%,rgba(255,255,255,.08) 58% 64%,transparent 64%);
-  opacity:.24;
+  opacity:0;
   mix-blend-mode:multiply;
 }
 .movement-group.group-shoulders .movement-group-art,
@@ -99,16 +99,20 @@
 .movement-group.group-legs .movement-group-art,
 .movement-group.group-arms .movement-group-art{
   z-index:2;
-  top:-4%;
-  right:-6%;
-  width:94%;
-  height:116%;
+  top:-2.5%;
+  right:auto;
+  left:50%;
+  width:105%;
+  height:105%;
+  object-fit:cover;
   object-position:center;
-  opacity:.86;
-  filter:grayscale(1) contrast(1.42) brightness(.84);
-  mix-blend-mode:multiply;
-  -webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.82) 7%,#000 22%,#000 88%,rgba(0,0,0,.72) 100%);
-  mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.82) 7%,#000 22%,#000 88%,rgba(0,0,0,.72) 100%);
+  opacity:1;
+  filter:none;
+  mix-blend-mode:normal;
+  transform:translateX(-50%) scale(1.18);
+  transform-origin:center;
+  -webkit-mask-image:none;
+  mask-image:none;
 }
 .movement-group.group-shoulders .movement-tile,
 .movement-group.group-chest .movement-tile,
@@ -116,23 +120,23 @@
 .movement-group.group-legs .movement-tile,
 .movement-group.group-arms .movement-tile{
   border-color:rgba(255,255,255,.18);
-  background:rgba(8,8,7,.22);
+  background:rgba(0,0,0,.18);
   color:#fffaf2;
   box-shadow:
     0 2px 4px rgba(0,0,0,.12),
     0 8px 18px rgba(0,0,0,.1),
     inset 0 1px rgba(255,255,255,.14),
     inset 0 -1px rgba(0,0,0,.12);
-  -webkit-backdrop-filter:blur(7px) saturate(.86);
-  backdrop-filter:blur(7px) saturate(.86);
+  -webkit-backdrop-filter:blur(5px) saturate(.86);
+  backdrop-filter:blur(5px) saturate(.86);
 }
 .movement-group[class*="group-"] .movement-tile.tile-wide{
-  border-color:rgba(255,255,255,.18);
-  background:rgba(255,255,255,.1);
+  border-color:rgba(255,255,255,.16);
+  background:rgba(255,255,255,.08);
   color:rgba(255,250,238,.92);
   box-shadow:0 8px 18px rgba(0,0,0,.1),inset 0 1px rgba(255,255,255,.14),inset 2px 0 rgba(255,255,255,.12);
-  -webkit-backdrop-filter:blur(7px) saturate(.82);
-  backdrop-filter:blur(7px) saturate(.82);
+  -webkit-backdrop-filter:blur(5px) saturate(.82);
+  backdrop-filter:blur(5px) saturate(.82);
 }
 .movement-group.group-shoulders .movement-tile.tile-lead,
 .movement-group.group-chest .movement-tile.tile-lead,
@@ -140,7 +144,7 @@
 .movement-group.group-legs .movement-tile.tile-lead,
 .movement-group.group-arms .movement-tile.tile-lead{
   border-color:rgba(255,255,255,.5);
-  background:linear-gradient(135deg,rgba(244,214,92,.86),rgba(222,181,66,.78));
+  background:linear-gradient(135deg,rgba(244,214,92,.82),rgba(214,171,55,.74));
   color:#171511;
   box-shadow:
     0 4px 9px rgba(0,0,0,.16),
@@ -166,17 +170,24 @@
   box-shadow:0 4px 9px rgba(0,0,0,.15),0 22px 46px rgba(0,0,0,.18),inset 0 1px rgba(255,255,255,.9);
   outline:none;
 }
-.movement-group[class*="group-"]:hover .movement-group-art{transform:translate3d(-6px,0,0) scale(1.03);opacity:.6}
+.movement-group[class*="group-"]:hover .movement-group-art{transform:translateX(-50%) scale(1.2);opacity:1}
 
-.movement-group.group-back .movement-group-art{right:-13%;top:-7%;width:98%;height:120%;opacity:.9}
-.movement-group.group-shoulders .movement-group-art{right:-14%;top:-17%;width:94%;height:124%;opacity:.88}
-.movement-group.group-chest .movement-group-art{right:-11%;top:-9%;width:98%;height:122%;opacity:.88}
-.movement-group.group-legs .movement-group-art{right:-8%;top:-5%;width:96%;height:124%;opacity:.9}
-.movement-group.group-arms .movement-group-art{right:-16%;top:-2%;width:92%;height:114%;opacity:.86}
+.movement-group.group-back .movement-group-art{object-position:center center}
+.movement-group.group-shoulders .movement-group-art{object-position:82% 45%}
+.movement-group.group-chest .movement-group-art{object-position:center center}
+.movement-group.group-legs .movement-group-art{object-position:center 55%}
+.movement-group.group-arms .movement-group-art{object-position:center center}
+
+.movement-group[class*="group-"] .movement-tile.tile-slip{
+  border-color:rgba(255,255,255,.12);
+  background:rgba(0,0,0,.18);
+  -webkit-backdrop-filter:blur(5px);
+  backdrop-filter:blur(5px);
+}
 
 .movement-group[class*="group-"] .movement-tile:not(.tile-lead):hover,
 .movement-group[class*="group-"] .movement-tile:not(.tile-lead):focus-visible{
-  background:rgba(255,255,255,.18);
+  background:rgba(255,255,255,.14);
   border-color:rgba(255,255,255,.28);
   transform:translateY(-2px);
 }
