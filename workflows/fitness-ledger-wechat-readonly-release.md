@@ -26,15 +26,27 @@ From the local Fitness Ledger project:
 4. Confirm the active CloudBase environment is the intended environment.
 5. Do not replace or remove `FITNESS_LEDGER_ALLOWED_OPENIDS` during redeployment.
 
+## Replica Refresh
+
+1. In Web Export, open the quiet Cloud Sync workbench.
+2. Generate and locally validate the ten-collection package.
+3. Import non-meta collections in the manifest order, using full replacement.
+4. Import `fl_meta` last.
+5. Copy/export the resulting single `fl_meta` row and run post-sync verification in the Web workbench.
+6. A passing report requires matching schema, generation timestamp, and collection counts. It does not authorize cloud writes from the Mini Program.
+
 ## Mobile Acceptance
 
 1. Home shows shoulder, chest, back, legs, and arms with nonzero counts where history exists.
 2. The Training tab opens the body-area archive rather than a text-search form.
 3. Selecting a body area shows movement cards with latest, previous, best, and trajectory actions.
-4. A bodyweight movement such as pull-up still shows its set history.
-5. Today and record details keep long text collapsed until explicit expansion.
-6. Search results show clean titles rather than concatenated search-index blobs.
-7. Status remains read-only and identity diagnostics return no private Fitness Ledger data.
+4. The body-area screen switches between movement-first and related-training-day views.
+5. Pinned movements appear before normal frequency ordering.
+6. Training and Reference show the cloud generation time/latest record date and warn quietly when older than 48 hours.
+7. A bodyweight movement such as pull-up still shows its set history.
+8. Today and record details keep long text collapsed until explicit expansion.
+9. Search results show clean titles rather than concatenated search-index blobs.
+10. Status remains read-only and identity diagnostics return no private Fitness Ledger data.
 
 ## Recovery
 

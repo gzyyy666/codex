@@ -1592,11 +1592,16 @@ class FitnessTrackerApp(tk.Tk):
             movement["display_name"] = controls["standard_name"].get().strip() or movement.get("name", "")
             movement["notes"] = self.review_widget_value(controls["notes"])
             movement["_review_action"] = action_codes.get(controls["action"].get(), "use")
+            movement["_muscle_group"] = controls.get("group").get().strip() if controls.get("group") else ""
             selected = controls["mapping"].get().strip()
             movement["_mapped_movement_id"] = selected.split(" | ", 1)[0] if " | " in selected else ""
             if movement["_review_action"] == "map" and not movement["_mapped_movement_id"]:
                 if show_errors:
                     messagebox.showerror("缺少映射", f"请为“{movement.get('name', '')}”选择一个已有动作。")
+                return False
+            if movement["_review_action"] == "add" and not movement["_muscle_group"]:
+                if show_errors:
+                    messagebox.showerror("缺少训练部位", f"请为新动作“{movement.get('name', '')}”选择训练部位。")
                 return False
         active_movements = [
             movement
@@ -1926,6 +1931,7 @@ class FitnessTrackerApp(tk.Tk):
         if action == "add" and normalize_name(candidate) not in self.movement_definitions_by_alias:
             standard_name = movement_data.get("display_name") or candidate
             definition = add_custom_movement_definition(standard_name, self.movement_dictionary)
+            definition["muscle_group"] = str(movement_data.get("_muscle_group") or "Unclassified")
             if candidate and candidate not in definition.setdefault("aliases", []):
                 definition["aliases"].append(candidate)
                 write_json(MOVEMENT_DICTIONARY_FILE, self.movement_dictionary)
@@ -5465,13 +5471,20 @@ def _editorial_open_review_window(self) -> None:
         action = ttk.Combobox(combo_row, values=action_values, state="readonly", width=24)
         action.set(action_values[0])
         action.pack(side="left")
+        group = ttk.Combobox(
+            combo_row,
+            values=["Shoulder", "Chest", "Back", "Legs", "Arms", "Core", "Cardio", "Other"],
+            state="readonly",
+            width=14,
+        )
+        group.pack(side="left", padx=(10, 0))
         mapping = ttk.Combobox(combo_row, values=mapping_values, state="readonly", width=42)
         movement_id = movement.get("movement_id", "")
         if movement_id:
             current = next((value for value in mapping_values if value.startswith(f"{movement_id} | ")), "")
             mapping.set(current)
         mapping.pack(side="left", padx=(10, 0), fill="x", expand=True)
-        self.review_movement_widgets.append({"standard_name": standard_name, "notes": notes_widget, "action": action, "mapping": mapping})
+        self.review_movement_widgets.append({"standard_name": standard_name, "notes": notes_widget, "action": action, "group": group, "mapping": mapping})
 
     actions = tk.Frame(shell, bg=COLORS["paper"])
     actions.grid(row=4, column=0, sticky="ew", padx=26, pady=(0, 22))

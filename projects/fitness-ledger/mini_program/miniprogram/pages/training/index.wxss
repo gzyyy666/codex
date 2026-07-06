@@ -3,6 +3,7 @@
 .archive-art { position: absolute; top: 70rpx; right: -150rpx; width: 660rpx; height: 920rpx; opacity: .12; pointer-events: none; filter: grayscale(.35); }
 .training-content { position: relative; z-index: 1; }
 .training-intro { max-width: 610rpx; color: #77736b; font-size: 24rpx; line-height: 1.55; }
+.freshness { margin-top: 14rpx; color: #77736b; font-size: 18rpx; letter-spacing: 1rpx; }.freshness::before { content:""; display:inline-block; width:11rpx; height:11rpx; margin-right:9rpx; border-radius:50%; background:#55b98c; box-shadow:0 0 0 5rpx rgba(85,185,140,.12); }.freshness.is-stale { color:#9a641e; }.freshness.is-stale::before { background:#e1a53c; }
 .archive-tools { display: grid; grid-template-columns: 1fr auto; gap: 10rpx; margin-top: 28rpx; padding: 9rpx; border: 1rpx solid rgba(23,23,20,.1); border-radius: 24rpx; background: rgba(253,250,243,.88); box-shadow: 0 10rpx 28rpx rgba(53,44,29,.06), inset 0 2rpx 0 rgba(255,255,255,.8); }
 .archive-tools input { min-width: 0; height: 70rpx; padding: 0 18rpx; border-radius: 17rpx; background: rgba(240,234,223,.62); font-size: 23rpx; }
 .order-button { display: flex; align-items: center; padding: 0 20rpx; border-radius: 17rpx; background: #171714; color: #f8f5ed; font-size: 21rpx; }

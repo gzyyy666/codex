@@ -201,6 +201,13 @@ Future desktop visual work must modify the final `_premium_*` presentation layer
 | `LedgerViewModels.analysis` | Build one date-range projection for export and cloud payloads. | Analysis Export, cloud payload |
 | `analysis_export.build_export` | Render Markdown and JSON from the shared analysis view. | Web Export |
 | `cloud_payload.build_cloud_payload` | Build the disposable read-only replica collections without full raw text. | Cloud dry-run |
+| `sync_to_cloud.validate_payload` | Validate all ten collection arrays and write an explicit no-network report. | Web Cloud Sync, CLI dry-run |
+| `LedgerWebService.cloud_sync_status` | Read the current local manifest and validation report. | Web Cloud Sync |
+| `LedgerWebService.build_cloud_sync_package` | Rebuild and validate the CloudBase import package. | Web Cloud Sync |
+| `LedgerWebService.verify_cloud_sync` | Compare a supplied cloud `fl_meta` row with the local manifest. | Post-sync verification |
+| `issueCanRepair` / `repairIssue` | Expose direct, user-confirmed repair routing from Data Check. | Web Data Check |
+| `freshness.describe` | Format cloud generation age and stale state without reading private data. | Mini Program Training/Reference |
+| `buildBodyArea` | Return pinned-first movements and related training-day summaries for one body part. | Mini Program Reference |
 
 ## Cloud Replica And WeChat Viewer
 

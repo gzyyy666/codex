@@ -2,7 +2,7 @@
 id: fitness-ledger-state
 type: memory
 status: active
-updated: 2026-07-05
+updated: 2026-07-06
 tags: [fitness-ledger, python, desktop, web, rollback]
 source: projects/fitness-ledger
 ---
@@ -44,6 +44,11 @@ Fitness Ledger is a local-first personal fitness journal with a maintained Tkint
 - Dictionary uses a professional five-column functional grid; aliases and extended metadata remain available in its editor rather than occupying the main directory.
 - Dictionary edits from desktop and Web use the same command service. Desktop shutdown does not rewrite stale in-memory JSON over newer Web changes.
 - Duplicate dates never save silently: overwrite replaces that date's structured Body/Diet/Training and movement history while superseding old raw entries; append-training adds only another training session; cancel writes nothing.
+- New movement approval requires an explicit training-area selection before dictionary creation in desktop and Web Review.
+- Movement dictionary entries may set optional `pinned: true`; pinned movements sort before frequency-based movements while preserving all history.
+- Web Data Check separates Details from direct Repair routing; repair opens an existing editor and never silently changes data.
+- Web Export contains a deliberately quiet Cloud Sync workbench for local ten-collection package generation, validation, and post-import `fl_meta` comparison. It does not perform or claim a network upload.
+- Mini Program body-area archives can switch between movement-first and training-day-first views and show cloud freshness from `fl_meta`.
 
 ## Visual Direction
 

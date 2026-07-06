@@ -1,5 +1,6 @@
 const ledger = require("../../services/ledger");
 const { BODY_PARTS, byId } = require("../../utils/bodyParts");
+const freshness = require("../../utils/freshness");
 
 function sortedArea(area, sortBy) {
   const movements = (area.movements || []).slice();
@@ -10,7 +11,7 @@ function sortedArea(area, sortBy) {
 }
 
 Page({
-  data: { loading: true, error: "", selected: "", sortBy: "frequency", areas: BODY_PARTS, area: null },
+  data: { loading: true, error: "", selected: "", sortBy: "frequency", viewMode: "movements", freshness: null, areas: BODY_PARTS, area: null },
   async onShow() {
     const pending = getApp().globalData.selectedBodyPart || "";
     getApp().globalData.selectedBodyPart = "";
@@ -23,11 +24,12 @@ Page({
   },
   async loadOverview() {
     this.setData({ loading: true, error: "" });
-    const response = await ledger.call("bodyAreas");
+    const [response, status] = await Promise.all([ledger.call("bodyAreas"), ledger.call("status")]);
     const counts = response.ok ? response.data.reduce((map, item) => { map[item.id] = item; return map; }, {}) : {};
     this.setData({
       loading: false,
       areas: BODY_PARTS.map(item => ({ ...item, ...(counts[item.id] || {}) })),
+      freshness: status.ok ? freshness.describe(status.data) : null,
       error: response.ok ? "" : response.message
     });
   },
@@ -35,7 +37,7 @@ Page({
   async loadArea(part) {
     const theme = byId(part);
     if (!theme) return;
-    this.setData({ loading: true, error: "", selected: part, area: { label: theme.cn, labelEn: theme.en, tone: theme.tone, session_count: 0, movement_count: 0, latest_date: "", movements: [] } });
+    this.setData({ loading: true, error: "", selected: part, viewMode: "movements", area: { label: theme.cn, labelEn: theme.en, tone: theme.tone, session_count: 0, movement_count: 0, latest_date: "", movements: [], sessions: [] } });
     const response = await ledger.call("bodyArea", { part });
     const area = response.ok ? sortedArea({ ...response.data, tone: theme.tone }, this.data.sortBy) : null;
     this.setData({ loading: false, area, error: response.ok ? "" : response.message });
@@ -44,6 +46,7 @@ Page({
     const sortBy = event.currentTarget.dataset.sort;
     this.setData({ sortBy, area: this.data.area ? sortedArea(this.data.area, sortBy) : null });
   },
+  setViewMode(event) { this.setData({ viewMode: event.currentTarget.dataset.mode }); },
   overview() { this.setData({ selected: "", area: null, error: "" }); },
   openMovement(event) { wx.navigateTo({ url: `/pages/movement/index?id=${event.currentTarget.dataset.id}` }); }
 });

@@ -1,4 +1,5 @@
 const ledger = require("../../services/ledger");
+const freshness = require("../../utils/freshness");
 
 function normalizedDate(value) {
   const source = String(value || "").trim().replace(/[./]/g, "-");
@@ -15,14 +16,15 @@ function filterRecords(records, query, order) {
 }
 
 Page({
-  data: { loading: true, error: "", sourceRecords: [], records: [], query: "", order: "newest" },
+  data: { loading: true, error: "", freshness: null, sourceRecords: [], records: [], query: "", order: "newest" },
   async onLoad() {
-    const response = await ledger.call("trainingRecords");
+    const [response, status] = await Promise.all([ledger.call("trainingRecords"), ledger.call("status")]);
     const sourceRecords = response.ok ? response.data : [];
     this.setData({
       loading: false,
       sourceRecords,
       records: filterRecords(sourceRecords, "", "newest"),
+      freshness: status.ok ? freshness.describe(status.data) : null,
       error: response.ok ? "" : response.message
     });
   },

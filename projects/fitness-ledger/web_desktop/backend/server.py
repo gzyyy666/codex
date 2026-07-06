@@ -24,6 +24,8 @@ from ledger_commands import DuplicateDateError, LedgerCommandError, LedgerComman
 from fitness_ledger_core.data_quality_view import acknowledge_issue, collect_issues  # noqa: E402
 from fitness_ledger_core.analysis_export import build_export  # noqa: E402
 from fitness_ledger_core.shared_view_models import LedgerViewModels  # noqa: E402
+from cloud_sync.build_cloud_payload import main as build_cloud_replica  # noqa: E402
+from cloud_sync.sync_to_cloud import validate_payload  # noqa: E402
 
 
 def load_stable_module():
@@ -109,6 +111,55 @@ class LedgerWebService:
         if not key:
             raise LedgerCommandError("缺少问题标识。")
         return acknowledge_issue(self.data_check_state_file, key)
+
+    @staticmethod
+    def cloud_sync_status() -> dict:
+        out_dir = PROJECT_DIR / "cloud_sync" / "out"
+        manifest_path = out_dir / "cloudbase_import" / "manifest.json"
+        report_path = out_dir / "fitness_ledger_cloud_sync_report.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else None
+        report = json.loads(report_path.read_text(encoding="utf-8")) if report_path.exists() else None
+        return {
+            "mode": "manual_cloudbase_import",
+            "network_upload_configured": False,
+            "manifest": manifest,
+            "validation": report,
+            "import_directory": str(out_dir / "cloudbase_import"),
+        }
+
+    @staticmethod
+    def build_cloud_sync_package() -> dict:
+        build_cloud_replica()
+        report = validate_payload()
+        return {**LedgerWebService.cloud_sync_status(), "validation": report}
+
+    @staticmethod
+    def verify_cloud_sync(request: dict) -> dict:
+        """Compare an exported CloudBase fl_meta row with the local manifest."""
+        cloud_meta = request.get("cloud_meta") or {}
+        if isinstance(cloud_meta, list):
+            cloud_meta = cloud_meta[0] if cloud_meta else {}
+        if not isinstance(cloud_meta, dict):
+            raise LedgerCommandError("fl_meta 必须是 JSON 对象或单元素数组。")
+        status = LedgerWebService.cloud_sync_status()
+        manifest = status.get("manifest") or {}
+        expected_counts = manifest.get("collections") or {}
+        actual_counts = cloud_meta.get("collection_counts") or {}
+        checks = {
+            "schema": cloud_meta.get("schema") == manifest.get("schema"),
+            "generated_at": cloud_meta.get("generated_at") == manifest.get("generated_at"),
+            "collection_counts": all(
+                int(actual_counts.get(name, -1)) == int(count)
+                for name, count in expected_counts.items()
+                if name != "fl_meta"
+            ),
+        }
+        return {
+            "verified": bool(checks) and all(checks.values()),
+            "checks": checks,
+            "expected_generated_at": manifest.get("generated_at", ""),
+            "cloud_generated_at": cloud_meta.get("generated_at", ""),
+        }
 
     def dictionary_entries(self) -> list[dict]:
         return self.commands.movement_definitions()
@@ -209,7 +260,7 @@ class LedgerWebService:
         for target, source in zip(original_movements, submitted_movements):
             if not isinstance(source, dict):
                 raise LedgerCommandError("Invalid movement review data.")
-            for field in ("display_name", "notes", "_review_action", "_mapped_movement_id"):
+            for field in ("display_name", "notes", "_review_action", "_mapped_movement_id", "_muscle_group"):
                 if field in source:
                     target[field] = source[field]
         return reviewed
@@ -250,12 +301,21 @@ class LedgerWebService:
 
     def movement_index(self, query: str = "", limit: int = 80) -> list[dict]:
         cache = self.data._ensure_loaded()
+        pinned_by_id = {
+            str(item.get("movement_id", "")): bool(item.get("pinned", False))
+            for item in self.commands.load_state()[1].get("movements", []) or []
+        }
         definitions = list(cache["movements_by_id"].values())
         if query.strip():
             definitions = self.data.find_movement_candidates(query, limit=limit)
         definitions = [item for item in definitions if item.active]
         if not query.strip():
-            definitions.sort(key=lambda item: item.display_name or item.english_name)
+            definitions.sort(
+                key=lambda item: (
+                    not pinned_by_id.get(str(item.movement_id), False),
+                    item.display_name or item.english_name,
+                )
+            )
         return [
             {
                 "movement_id": item.movement_id,
@@ -265,6 +325,7 @@ class LedgerWebService:
                 "muscle_group": item.muscle_group,
                 "category": item.category,
                 "active": item.active,
+                "pinned": pinned_by_id.get(str(item.movement_id), False),
             }
             for item in definitions[: max(1, min(limit, 200))]
         ]
@@ -319,6 +380,8 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.undo_status())
             elif parsed.path == "/api/data-check":
                 self.send_json(self.service.data_check())
+            elif parsed.path == "/api/cloud-sync/status":
+                self.send_json(self.service.cloud_sync_status())
             elif parsed.path == "/api/workout-reference":
                 self.send_json(self.service.workout_reference(query.get("split", [""])[0]))
             elif parsed.path == "/api/movement-insight":
@@ -373,6 +436,10 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.undo_last_write())
             elif parsed.path == "/api/data-check/acknowledge":
                 self.send_json(self.service.acknowledge_data_issue(request))
+            elif parsed.path == "/api/cloud-sync/build":
+                self.send_json(self.service.build_cloud_sync_package())
+            elif parsed.path == "/api/cloud-sync/verify":
+                self.send_json(self.service.verify_cloud_sync(request))
             elif parsed.path == "/api/analysis-export":
                 self.send_json(self.service.analysis_export(request))
             elif parsed.path == "/api/save":

@@ -56,6 +56,7 @@ def build_cloud_payload(view_models, data_quality: dict | None = None) -> dict:
             "muscle_group": item.get("muscle_group", ""),
             "category": definition.get("category", ""),
             "active": bool(definition.get("active", True)),
+            "pinned": bool(definition.get("pinned", False)),
         }
         movements.append(movement)
         search_index.append({

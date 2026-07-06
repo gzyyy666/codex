@@ -4,6 +4,7 @@
     <view class="eyebrow">TRAINING ARCHIVE / DAILY</view>
     <view class="title">训练记录。</view>
     <view class="training-intro">按日期回看当天训练主题与记录，需要细节时再展开。</view>
+    <view wx:if="{{freshness}}" class="freshness {{freshness.stale ? 'is-stale' : ''}}">{{freshness.text}}</view>
     <view class="archive-tools">
       <input value="{{query}}" bindinput="onInput" placeholder="搜索日期，如 6-30 / 06.30" />
       <view class="order-button" bindtap="toggleOrder">{{order === 'newest' ? '最新优先 ↓' : '最早优先 ↑'}}</view>

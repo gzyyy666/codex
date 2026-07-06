@@ -877,3 +877,27 @@ Tests:
 - Overview search for `肩` returned 9 records.
 - Oldest-first ordering returned the earliest matching record.
 - The same click, search, and ordering checks passed in the Shoulder archive.
+
+## 2026-07-06 - Review Classification, Repair Routing, Cloud Workbench, Mini Freshness
+
+Modified areas:
+
+- Shared review/save commands and desktop/Web review UI
+- Web Data Check and Cloud Sync workbench
+- Cloud payload contract and validation report
+- Mini Program training reference and freshness display
+
+Changes:
+
+- New movements now require a training-area selection before they can be added to the dictionary.
+- Movement definitions support an optional `pinned` flag; pinned movements sort before frequency-based results.
+- Data Check rows expose separate Detail and Repair actions while preserving user-confirmed edits.
+- Export includes a quiet Cloud Sync entry for building the ten-collection import package and comparing post-import `fl_meta`.
+- Mini Program body-part pages can switch between movement history and related training days.
+- Mini Program Training and Reference pages show cloud generation time and latest record date, warning after 48 hours.
+
+Data structure impact: optional `movement_dictionary.movements[*].pinned` boolean only; missing values remain false.
+
+Cloud policy: local JSON remains authoritative; no automatic network upload or two-way sync was introduced.
+
+Tests: Python compile, JavaScript syntax checks, regression, smoke, payload build, dry-run validation, service-level fl_meta verification.

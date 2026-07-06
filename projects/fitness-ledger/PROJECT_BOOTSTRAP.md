@@ -111,6 +111,14 @@ Use this file to restore project context with low token cost.
 - Actual cloud upload/provider configuration, accounts, two-way sync, conflict resolution, and wearable integrations
 - Real CloudBase deployment, collection import, OpenID allowlist setup, and real-device Mini Program preview
 
+## Current Cloud Maintenance Boundary (2026-07-06)
+
+- Web `Cloud Sync` builds and validates the disposable ten-collection package locally.
+- Network upload remains manual CloudBase import; the workbench must not claim otherwise.
+- After import, paste/export the single `fl_meta` row into the Web verifier to compare schema, generation timestamp, and collection counts.
+- Mini Program freshness labels come from `fl_meta.generated_at` and `latest_record_date`.
+- All cloud and Mini Program views remain read-only; edit and repair operations route back to the local command service.
+
 ## Display Rules
 
 - New entries can use Chinese by default.

@@ -243,6 +243,7 @@ app.pending = app.parse_entry(custom_raw)
 custom_movement = app.pending["training"]["movements"][0]
 custom_movement["_review_action"] = "add"
 custom_movement["display_name"] = "临时待删除动作"
+custom_movement["_muscle_group"] = "Other"
 app.raw_text.insert("1.0", custom_raw)
 app.commit_pending(DummyWindow())
 temporary_definition = app.movement_definitions_by_alias[namespace["normalize_name"]("临时待删除动作")]

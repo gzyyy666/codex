@@ -1,5 +1,16 @@
 # Cloud Sync Guide
 
+## Web Workbench
+
+Open `Export` and use the quiet `Cloud Sync` entry. It can:
+
+1. rebuild all ten CloudBase import files;
+2. validate collection structure and counts locally;
+3. show the exact import directory;
+4. compare an imported/exported `fl_meta` row after manual CloudBase import.
+
+The workbench does not perform a network upload. This is deliberate: no CloudBase management credential is stored by the project, and local JSON remains the only writable source of truth.
+
 ## Local Review
 
 1. Run `python cloud_sync/build_cloud_payload.py`.

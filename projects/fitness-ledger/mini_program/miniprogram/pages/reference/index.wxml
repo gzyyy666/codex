@@ -4,6 +4,7 @@
     <view class="eyebrow">BEFORE YOU TRAIN / READ ONLY</view>
     <view class="title">训练部位<br/>档案。</view>
     <view class="intro">不是训练计划。选择今天可能练的部位，快速回看动作、最近表现与历史轨迹。</view>
+    <view wx:if="{{freshness}}" class="freshness {{freshness.stale ? 'is-stale' : ''}}">{{freshness.text}}</view>
     <view wx:if="{{loading}}" class="state">正在整理动作档案…</view>
     <view wx:elif="{{error}}" class="state error">{{error}}</view>
     <view wx:else class="area-list">
@@ -34,10 +35,15 @@
       <view class="sort-option {{sortBy === 'recent' ? 'active' : ''}}" data-sort="recent" bindtap="setSort">最近训练</view>
       <view class="sort-option {{sortBy === 'name' ? 'active' : ''}}" data-sort="name" bindtap="setSort">动作名称</view>
     </view>
+    <view class="view-mode-switch" aria-label="展示方式">
+      <view class="view-mode-option {{viewMode === 'movements' ? 'active' : ''}}" data-mode="movements" bindtap="setViewMode">按动作</view>
+      <view class="view-mode-option {{viewMode === 'sessions' ? 'active' : ''}}" data-mode="sessions" bindtap="setViewMode">按训练日</view>
+    </view>
     <view wx:if="{{loading}}" class="state">正在读取{{area.label || ''}}部档案…</view>
     <view wx:elif="{{error}}" class="state error">{{error}}</view>
-    <view wx:elif="{{!area.movements.length}}" class="state">该部位暂时没有动作历史。</view>
-    <view wx:else class="movement-list">
+    <view wx:elif="{{viewMode === 'movements' && !area.movements.length}}" class="state">该部位暂时没有动作历史。</view>
+    <view wx:elif="{{viewMode === 'sessions' && !area.sessions.length}}" class="state">该部位暂时没有相关训练日。</view>
+    <view wx:elif="{{viewMode === 'movements'}}" class="movement-list">
       <view class="list-heading"><view><view class="eyebrow">MOVEMENTS / FREQUENCY</view><view class="section-title">动作与最近表现</view></view><view class="count">{{area.movement_count}}</view></view>
       <view wx:for="{{area.movements}}" wx:key="movement_id" class="movement-card" data-id="{{item.movement_id}}" bindtap="openMovement">
         <view class="movement-head">
@@ -52,6 +58,14 @@
         </view>
         <view wx:if="{{item.latest.notes}}" class="movement-note clamp-2">{{item.latest.notes}}</view>
         <view class="movement-action">查看完整轨迹 →</view>
+      </view>
+    </view>
+    <view wx:else class="session-list">
+      <view class="list-heading"><view><view class="eyebrow">TRAINING DAYS / RECENT</view><view class="section-title">相关训练日</view></view><view class="count">{{area.sessions.length}}</view></view>
+      <view wx:for="{{area.sessions}}" wx:key="id" class="session-card">
+        <view class="session-card-head"><text>{{item.date}}</text><text>{{item.split}}</text></view>
+        <view class="session-summary clamp-3">{{item.movement_summary || '暂无结构化动作摘要'}}</view>
+        <view wx:if="{{item.notes}}" class="session-note clamp-3">{{item.notes}}</view>
       </view>
     </view>
   </block>

@@ -25,7 +25,10 @@ assert all(
     for movement in app.database["movements"].values()
     for record in movement.get("history", [])
 )
-assert not {"CUSTOM_003", "CUSTOM_004"} & {item["movement_id"] for item in dictionary["movements"]}
+assert all(
+    item.get("muscle_group") not in (None, "")
+    for item in dictionary["movements"]
+)
 for movement_id, expected_sets in (
     ("LEG_001", [{"weight": 100.0, "reps": 12, "sets": 3}]),
     ("LEG_002", [{"weight": 90.0, "reps": 12, "sets": 3}]),

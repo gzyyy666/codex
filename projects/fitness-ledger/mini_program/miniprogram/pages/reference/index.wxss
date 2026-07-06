@@ -8,6 +8,9 @@
 .theme-art { position: absolute; z-index: 0; top: 220rpx; right: -230rpx; width: 780rpx; height: 1080rpx; opacity: .12; pointer-events: none; }
 .part-hero, .part-switch, .sort-rail, .movement-list, .state { position: relative; z-index: 1; }
 .intro { max-width: 620rpx; margin-top: 20rpx; color: #77736b; font-size: 25rpx; line-height: 1.65; }
+.freshness { margin-top: 18rpx; color: #77736b; font-size: 19rpx; letter-spacing: 1rpx; }
+.freshness::before { content: ""; display: inline-block; width: 12rpx; height: 12rpx; margin-right: 10rpx; border-radius: 50%; background: #55b98c; box-shadow: 0 0 0 5rpx rgba(85,185,140,.12); }
+.freshness.is-stale { color: #9a641e; }.freshness.is-stale::before { background: #e1a53c; box-shadow: 0 0 0 5rpx rgba(225,165,60,.14); }
 .area-list { margin-top: 36rpx; }
 .area-row { position: relative; display: grid; grid-template-columns: 62rpx 1fr auto 34rpx; align-items: center; gap: 14rpx; min-height: 130rpx; margin-bottom: 14rpx; padding: 20rpx 22rpx; border: 1rpx solid rgba(23,23,20,.1); border-radius: 26rpx; box-shadow: 0 4rpx 8rpx rgba(53,44,29,.05), 0 16rpx 30rpx rgba(53,44,29,.06), inset 0 2rpx 0 rgba(255,255,255,.65); }
 .area-row:active { transform: translateX(5rpx); }
@@ -37,6 +40,9 @@
 .sort-label { margin: 0 5rpx; color: #817b72; font-size: 18rpx; letter-spacing: 2rpx; }
 .sort-option { flex: 1; padding: 12rpx 6rpx; border-radius: 13rpx; text-align: center; color: #77736b; font-size: 19rpx; }
 .sort-option.active { background: #171714; color: #f8f5ed; box-shadow: 0 5rpx 12rpx rgba(23,23,20,.13); }
+.view-mode-switch { position: relative; z-index: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 7rpx; margin-top: 12rpx; padding: 7rpx; border: 1rpx solid rgba(23,23,20,.1); border-radius: 999rpx; background: rgba(253,250,243,.74); }
+.view-mode-option { padding: 14rpx; border-radius: 999rpx; text-align: center; color: #77736b; font-size: 21rpx; }
+.view-mode-option.active { background: #171714; color: #f8f5ed; box-shadow: 0 7rpx 16rpx rgba(23,23,20,.12); }
 .movement-list { margin-top: 28rpx; }
 .list-heading { display: flex; align-items: flex-end; justify-content: space-between; padding: 0 4rpx 10rpx; }
 .count { font-family: serif; font-size: 48rpx; color: #aaa297; }
@@ -54,3 +60,8 @@
 .compare-value { margin-top: 7rpx; font-size: 21rpx; line-height: 1.45; }
 .movement-note { margin-top: 16rpx; color: #6f6a62; font-size: 22rpx; }
 .movement-action { margin-top: 20rpx; font-size: 23rpx; font-weight: 650; }
+.session-list { position: relative; z-index: 1; margin-top: 28rpx; }
+.session-card { margin-top: 16rpx; padding: 25rpx; border: 1rpx solid rgba(23,23,20,.11); border-radius: 8rpx 28rpx 28rpx 28rpx; background: rgba(253,250,243,.9); box-shadow: 0 4rpx 9rpx rgba(53,44,29,.05),0 18rpx 34rpx rgba(53,44,29,.07),inset 0 2rpx 0 rgba(255,255,255,.82); }
+.session-card-head { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 15rpx; border-bottom: 1rpx solid rgba(23,23,20,.11); }
+.session-card-head text:first-child { font-family: "Songti SC",serif; font-size: 35rpx; }.session-card-head text:last-child { color:#77736b; font-size:22rpx; }
+.session-summary { margin-top: 17rpx; font-size: 24rpx; line-height: 1.6; }.session-note { margin-top: 14rpx; padding-top: 14rpx; border-top: 1rpx dashed rgba(23,23,20,.12); color:#6f6a62; font-size:21rpx; line-height:1.55; }

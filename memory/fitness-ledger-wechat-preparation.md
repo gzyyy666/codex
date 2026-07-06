@@ -1,7 +1,7 @@
 ---
 title: Fitness Ledger WeChat read-only deployment state
 status: active
-updated: 2026-07-05
+updated: 2026-07-06
 project: fitness-ledger
 tags: [wechat, cloudbase, read-only, cloud-replica]
 ---
@@ -35,14 +35,18 @@ tags: [wechat, cloudbase, read-only, cloud-replica]
 - Movement Detail promotes the latest three sessions before older history.
 - Body and Diet are secondary read-only archives entered from Status and support date search plus newest/oldest ordering.
 - Selected body-area pages use the approved five-image abstract theme set with matching amber/coral/teal/violet/cyan page washes.
+- Body-area detail supports `按动作` and `按训练日` without another route; the cloud function returns both movement history and recent related sessions.
+- Training and Reference show `fl_meta.generated_at` plus `latest_record_date`; data older than 48 hours receives a quiet stale warning.
+- `pinned` movement definitions sort before normal frequency ordering when present; missing fields remain backward-compatible as false.
 
 ## Deployment Steps After Code Changes
 
-1. Redeploy `ledgerRead` when its `index.js` changes.
-2. Compile the Mini Program in WeChat DevTools.
-3. Verify Home body-area counts, open one movement trajectory, and confirm the matching theme illustration.
-4. Verify Training Records, Body, and Diet date filtering plus order switching.
-5. Perform real-device review before uploading for audit.
+1. Rebuild/import the cloud replica after local data or dictionary changes; import `fl_meta` last.
+2. Redeploy `ledgerRead` when its `index.js` changes.
+3. Compile the Mini Program in WeChat DevTools.
+4. Verify Home body-area counts, movement/training-day toggle, pinned ordering, and freshness text.
+5. Verify Training Records, Body, and Diet date filtering plus order switching.
+6. Perform real-device review before uploading for audit.
 
 ## Recovery Prompt
 

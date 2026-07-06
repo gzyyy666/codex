@@ -53,6 +53,7 @@ def main() -> Path:
         json.dumps({
             "schema": payload["fl_meta"][0]["schema"],
             "generated_at": payload["fl_meta"][0]["generated_at"],
+            "latest_record_date": payload["fl_meta"][0]["latest_record_date"],
             "collections": {name: len(rows) for name, rows in payload.items()},
             "empty_collections": [name for name, rows in payload.items() if not rows],
             "import_files": [f"{name}.json" for name, rows in payload.items() if rows],

@@ -89,17 +89,23 @@ def _next_custom_id(dictionary: dict) -> str:
     return f"CUSTOM_{number:03d}"
 
 
-def _new_definition(candidate: str, display_name: str, dictionary: dict) -> dict:
+def _new_definition(
+    candidate: str,
+    display_name: str,
+    dictionary: dict,
+    muscle_group: str = "Unclassified",
+) -> dict:
     name = str(display_name or candidate).strip()
     definition = {
         "movement_id": _next_custom_id(dictionary),
         "display_name": name,
         "english_name": name if not re.search(r"[\u4e00-\u9fff]", name) else "",
         "aliases": [candidate] if candidate else [],
-        "muscle_group": "Unclassified",
+        "muscle_group": str(muscle_group or "Unclassified").strip() or "Unclassified",
         "category": "Strength",
         "equipment": "",
         "active": True,
+        "pinned": False,
         "notes": "Registered from a confirmed training entry.",
     }
     dictionary.setdefault("movements", []).append(definition)
@@ -213,7 +219,13 @@ class LedgerCommandService:
             item = copy.deepcopy(definition)
             item["history_count"] = counts.get(str(item.get("movement_id", "")), 0)
             result.append(item)
-        return sorted(result, key=lambda item: str(item.get("display_name", "")).casefold())
+        return sorted(
+            result,
+            key=lambda item: (
+                not bool(item.get("pinned", False)),
+                str(item.get("display_name", "")).casefold(),
+            ),
+        )
 
     @staticmethod
     def _definition_by_id(dictionary: dict, movement_id: str) -> dict:
@@ -376,6 +388,7 @@ class LedgerCommandService:
                 "equipment": str(values.get("equipment", "")).strip(),
                 "notes": str(values.get("notes", "")).strip(),
                 "active": bool(values.get("active", True)),
+                "pinned": bool(values.get("pinned", False)),
             })
             reconciliation = self._reconcile_definition(database, dictionary, definition)
             self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
@@ -399,6 +412,7 @@ class LedgerCommandService:
                 "category": str(values.get("category", definition.get("category", ""))).strip(),
                 "equipment": str(values.get("equipment", definition.get("equipment", ""))).strip(),
                 "notes": str(values.get("notes", definition.get("notes", ""))).strip(),
+                "pinned": bool(values.get("pinned", definition.get("pinned", False))),
             })
             for movement in database.get("movements", {}).values():
                 if str(movement.get("movement_id", "")) == str(movement_id):
@@ -726,6 +740,8 @@ class LedgerCommandService:
                 raise LedgerCommandError("Invalid movement review action.")
             if action == "map" and not movement.get("_mapped_movement_id"):
                 raise LedgerCommandError(f"Movement {movement.get('name', '')} needs a mapping target.")
+            if action == "add" and not str(movement.get("_muscle_group", "")).strip():
+                raise LedgerCommandError(f"请为新动作“{movement.get('name', '')}”选择训练部位。")
 
     def _checkpoint(self) -> tuple[Path, Path]:
         try:
@@ -856,7 +872,12 @@ class LedgerCommandService:
                     if candidate and candidate not in definition.setdefault("aliases", []):
                         definition["aliases"].append(candidate)
                 elif action == "add" and _normalize_name(candidate) not in by_alias:
-                    definition = _new_definition(candidate, movement_data.get("display_name", ""), dictionary)
+                    definition = _new_definition(
+                        candidate,
+                        movement_data.get("display_name", ""),
+                        dictionary,
+                        movement_data.get("_muscle_group", "Unclassified"),
+                    )
                 else:
                     definition = by_id.get(str(movement_data.get("movement_id", ""))) or by_alias.get(_normalize_name(candidate))
                 if not definition:

@@ -328,3 +328,14 @@ Check body, macros, movement order, aliases, strength sets, and cardio metrics.
 - Confirm `ledgerRead` contains no database add, update, set, or remove operations.
 - Confirm AppID, env_id, OpenID allowlist, credentials, payloads, and personal data remain untracked.
 - Real CloudBase import and real-device preview require explicit user environment setup and are not implied by local test success.
+
+## Review, Repair, And Freshness Additions
+
+- Parse an unknown movement, choose `加入动作词典`, and confirm save is blocked until a training area is selected.
+- Confirm mapping an unknown name to an existing movement does not require a new area.
+- Mark a movement as particularly followed and confirm it sorts before non-pinned movements in Web/cloud/Mini views.
+- In Data Check, `详情` opens only the issue modal and `修正` opens the correct existing editor.
+- Build the cloud package from Web and confirm the report explicitly says no network upload occurred.
+- Paste the generated `fl_meta` into post-sync verification; matching values pass and altered timestamps fail.
+- In Mini Program Reference, switch between `按动作` and `按训练日` without another cloud query.
+- Confirm Mini Training and Reference show generated time/latest date and use stale styling after 48 hours.

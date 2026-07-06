@@ -86,13 +86,14 @@ function buildBodyArea(partId, movements, history, sessions) {
       display_name: movement.display_name,
       english_name: movement.english_name || "",
       muscle_group: movement.muscle_group || "",
+      pinned: movement.pinned === true,
       sessions: compact.length,
       latest: compact[0] || null,
       previous: compact[1] || null,
       best,
       recent: compact.slice(0, 3)
     };
-  }).filter(item => item.sessions > 0).sort((a, b) => b.sessions - a.sessions || String(a.display_name).localeCompare(String(b.display_name), "zh-CN"));
+  }).filter(item => item.sessions > 0).sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.sessions - a.sessions || String(a.display_name).localeCompare(String(b.display_name), "zh-CN"));
   const matchedSessions = sessions.filter(item => matchesAny(item.Split, theme.split)).sort((a, b) => String(b.Date).localeCompare(String(a.Date)));
   return {
     id: partId,
@@ -102,11 +103,12 @@ function buildBodyArea(partId, movements, history, sessions) {
     movement_count: movementCards.length,
     latest_date: matchedSessions[0] ? matchedSessions[0].Date : "",
     movements: movementCards,
-    sessions: matchedSessions.slice(0, 5).map(item => ({
+    sessions: matchedSessions.slice(0, 12).map(item => ({
       id: item.id || item._id,
       date: item.Date,
       split: item.Split,
-      notes: item.Notes || ""
+      notes: item.Notes || "",
+      movement_summary: item["Standardized Summary"] || ""
     }))
   };
 }
