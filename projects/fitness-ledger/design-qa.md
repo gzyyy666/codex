@@ -15,32 +15,32 @@ Date: 2026-07-06
 ## Full-view comparison
 
 - The page retains the cream paper background, editorial heading, compact two-column archive density, search, movement count, and dictionary entry.
-- Group panels are visually heavier than the page without becoming full-color poster blocks.
-- Black, warm yellow, paper gray, and graphite are the dominant materials; body-area colors appear as restrained edge and trajectory accents.
-- The approved body-area illustration is cropped at the panel edge, monochrome, and visible on second inspection.
+- Group panels are led by a cropped black-gray geometric body figure rather than a flat color field.
+- Mustard, coral, blue-green, smoky violet, and gray-blue act as local underglow in the space around the figure and through card gaps.
+- The approved body-area figure occupies roughly 60-75% of each panel and is legible before the theme color becomes the dominant impression.
 
 ## Focused region comparison
 
 - Back and shoulder panels were reviewed at original screenshot resolution.
 - Lead cards are larger, warmer, and more elevated than medium- and low-frequency cards.
-- Medium-frequency paper-gray cards retain transparency so the panel and colored trajectory traces remain visible.
-- Low-frequency graphite cards remain readable and do not resemble disabled controls.
+- Medium-frequency light-glass cards remain near 10% white opacity so the dominant figure and local underglow remain visible.
+- Low-frequency dark-glass cards remain translucent, readable, and do not resemble disabled controls.
 - Chinese names, English subtitles, session counts, and `Open trajectory` remain clear over every surface.
 
 ## Required fidelity surfaces
 
 - Typography: unchanged editorial hierarchy; movement labels retain readable optical weight and truncation behavior.
 - Spacing: existing compact archive matrix and two-column rhythm preserved.
-- Colors: global cream/graphite/yellow palette restored; five body-area colors restricted to accents and traces.
+- Colors: the cream editorial page remains global context; local body-area colors support the black-gray figure instead of replacing it.
 - Image quality: existing approved local body-area artwork retained; no placeholder or code-drawn illustration introduced.
 - Copy: no copy or data behavior changed.
 
 ## Patches made
 
-- Replaced large body-area color fills with weighted neutral graphite panel gradients.
-- Added theme-colored header anchors, panel trajectory traces, card edge accents, and numbering.
-- Changed artwork to a cropped monochrome semantic layer with controlled visibility.
-- Established three card levels: yellow lead card, translucent gray medium-frequency card, graphite low-frequency card.
+- Built each panel from a body-area underglow plus a dominant cropped monochrome figure.
+- Kept restrained dark structural bands and panel edge accents behind the cards.
+- Raised artwork coverage and visibility so black-gray human geometry occupies the panel majority instead of reading as a faint watermark.
+- Established three card levels: translucent yellow lead card, light-glass medium-frequency card, dark-glass low-frequency card.
 - Preserved hover lift, focus visibility, reduced-motion behavior, search, sorting, and detail navigation.
 
 ## Findings

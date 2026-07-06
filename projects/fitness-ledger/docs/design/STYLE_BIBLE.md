@@ -97,6 +97,8 @@ Rules:
 - Home uses cinematic monochrome fitness photography with directional crop and vignette.
 - Archive pages use low-opacity collage, receipt, anatomical, or training-document motifs.
 - Movement groups use one representative illustration per body area, applied to the group rather than implying one exact exercise.
+- In Movement Index panels, the monochrome black-gray figure is the dominant background geometry and occupies roughly 60-75% of the panel. The body-area color is an underglow visible mainly around the figure and through card gaps; it must never become a flat full-panel color plate.
+- Movement cards remain translucent enough to reveal the figure beneath. Lead cards are warmer and more substantial, while ordinary cards use restrained dark/light glass surfaces without hiding the body silhouette.
 - Images remain local and offline. Do not use remote hotlinks.
 - Illustrations support data hierarchy; they never cover core values or labels.
 
@@ -156,9 +158,9 @@ The five controls use compact premium theme cards with live counts, representati
 An archive wall grouped by body area and sorted by use frequency. High-frequency movements receive more visual weight. Avoid spreadsheet grids and oversized single tiles.
 Movement Dictionary administration is entered from a tactile contextual control in the Movement Index heading area, not from the global navigation.
 
-Movement group panels use a four-layer hierarchy: weighted graphite base, one cropped monochrome body-area illustration at the outer edge, a controlled dark veil behind dense content, and tactile movement cards in the foreground. The representative illustration is a semantic layer rather than a full-bleed poster. It remains recognizable on second inspection, but quieter than every movement name and action.
+Movement group panels use a four-layer hierarchy: a compressed body-area color base, one cropped monochrome geometric figure at the outer edge, a controlled veil behind dense content, and translucent movement cards in the foreground. The representative figure is a semantic layer rather than a full-bleed poster. It remains recognizable on second inspection at roughly 20-30% presence, but quieter than every movement name and action.
 
-Black, warm yellow, paper white, and graphite gray are the dominant Movement Index materials so the archive wall stays connected to the global page. Body-area colors are restrained accents rather than large fills: shoulder amber, chest coral, back teal, legs violet, and arms cool blue appear in edge strokes, atmospheric traces, numbering, and subtle glow. Lead movements use a substantial warm-yellow physical card; medium-frequency movements use raised paper-gray surfaces; low-frequency movements use quieter graphite glass without appearing disabled. Cards, not artwork, are always the first visual read.
+Body-area color leads each panel without becoming bright or toy-like: shoulder mustard gold, chest brick coral, back blue-green, legs smoky violet, and arms gray-blue. Lead movements use a brighter semi-translucent warm-yellow surface; ordinary movements use highly translucent light or dark glass so panel color and the geometric figure remain visible. Cards, not artwork, are always the first visual read.
 
 ### Movement Detail
 

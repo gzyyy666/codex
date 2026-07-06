@@ -2,11 +2,11 @@
 
 ## 2026-07-06 - Refined Movement Index material hierarchy
 
-- Rebalanced all five Movement Index body-area panels from image-led colored posters to weighted graphite archive boards.
-- Kept the approved shoulder, chest, back, legs, and arms artwork as cropped monochrome semantic layers at panel edges.
-- Restricted body-area colors to edge traces, numbering, subtle glow, and atmosphere so large panels remain visually coherent with the cream/graphite page.
-- Restored a three-level card hierarchy: warm-yellow lead card, raised paper-gray medium-frequency card, and quieter graphite low-frequency slip.
-- Added a controlled dark veil between artwork and dense movement content so illustrations remain recognizable without competing with labels or actions.
+- Rebalanced all five Movement Index panels around dominant black-gray geometric figures, with mustard, coral, blue-green, smoky violet, and gray-blue retained only as local underglow.
+- Enlarged and strengthened the approved shoulder, chest, back, legs, and arms figures to occupy roughly 60-75% of each panel instead of appearing as faint edge decoration.
+- Increased ordinary movement-card transparency so panel color and body-area artwork remain visible through the foreground surface.
+- Preserved a three-level hierarchy: semi-translucent warm-yellow lead card, light glass medium-frequency card, and dark glass low-frequency card.
+- Added a controlled veil and no more than two trajectory lines per panel so illustrations remain recognizable without competing with labels or actions.
 - Preserved Movement Index structure, sorting, search, dictionary entry, movement data, and detail navigation.
 - Modified files: `web_desktop/frontend/final-pass.css`, `docs/design/STYLE_BIBLE.md`, `CHANGELOG.md`.
 - Data structure impact: none.
