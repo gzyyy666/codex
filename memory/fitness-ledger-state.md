@@ -51,7 +51,12 @@ Fitness Ledger is a local-first personal fitness journal with a maintained Tkint
 - Mini Program body-area archives can switch between movement-first and training-day-first views and show cloud freshness from `fl_meta`.
 - Body-area Training Day views are aggregated from movement history by date, not only from the session title. A multi-part training day appears under every body part that has a recorded movement, and the Mini Program opens the existing date-detail page.
 - Web Export > Cloud Sync remains a manual CloudBase-import workbench. It reports local/cloud freshness, raw-text policy, configuration uncertainty, recent local operations, and per-collection verification. Direct upload and automatic sync are intentionally disabled until provider credentials and a verified upload path exist.
+- Cloud Sync is Chinese-first and task-oriented: current mode, local/cloud dates, payload timestamp, environment ID, raw-text policy, ledgerRead/allowlist uncertainty, and automatic-sync status are shown separately from grouped local preparation, cloud checking, and help actions.
+- Web formal daily-record details must never use JSON dumps. Recent Saved and date-detail surfaces render structured Body, Diet, Training, movement sets, and notes; raw source is secondary and collapsed.
+- Web Movement Index is movement-first only. The movement/training-day segmented view belongs exclusively to the Mini Program training reference page.
+- Mini Program training-day view preserves the selected body part and shows date, split, up to four related movement chips, a short note, and the existing date-detail route.
 - Data Check repair actions reuse the existing Body/Diet/Training editors, raw-entry detail, Movement trajectory, Movement Dictionary, and Cloud Sync workbench; issue acknowledgement remains separate from repair.
+- Data Check CUSTOM movement issues open Movement Dictionary with `CUSTOM_` prefilled so unstandardized entries are immediately visible; navigation never performs automatic data repair.
 
 ## Visual Direction
 

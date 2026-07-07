@@ -64,9 +64,11 @@
       <view class="list-heading"><view><view class="eyebrow">TRAINING DAYS / RECENT</view><view class="section-title">相关训练日</view></view><view class="count">{{area.sessions.length}}</view></view>
       <view wx:for="{{area.sessions}}" wx:key="id" class="session-card" data-date="{{item.date}}" bindtap="openSession">
         <view class="session-card-head"><text>{{item.date}}</text><text>{{item.split}}</text></view>
-        <view class="session-related">{{item.related_count || 0}} 个相关动作 · {{item.related_movements.join(' / ')}}</view>
-        <view class="session-summary clamp-3">{{item.movement_summary || '暂无结构化动作摘要'}}</view>
-        <view wx:if="{{item.notes}}" class="session-note clamp-3">{{item.notes}}</view>
+        <view class="session-meta"><text>{{item.related_count || 0}} 个相关动作</text><text>只显示当前部位</text></view>
+        <view class="session-movement-chips">
+          <text wx:for="{{item.related_movements}}" wx:for-item="movement" wx:key="*this" wx:if="{{index < 4}}">{{movement}}</text>
+        </view>
+        <view wx:if="{{item.notes}}" class="session-note clamp-2">{{item.notes}}</view>
         <view class="movement-action">查看当日训练 →</view>
       </view>
     </view>

@@ -1,5 +1,16 @@
 # Fitness Ledger Changelog
 
+## 2026-07-07 - Sync workbench, repair routing, and structured details
+
+- Reorganized Web Cloud Sync into a Chinese-first manual-import control surface with explicit status, local preparation, cloud-check, and help groups.
+- Added real fixed-target actions for opening the CloudBase import directory and setup guide; automatic upload remains intentionally disabled.
+- Added direct Data Check repair routes, including a dedicated CUSTOM movement action that opens Movement Dictionary focused on unstandardized entries.
+- Replaced Recent Saved daily-record JSON dumps with structured Body, Diet, Training, movement-set, note, and collapsed raw-input sections.
+- Removed the incorrectly scoped training-day switch from Web Movement Index; the movement/training-day segmented switch remains only in the Mini Program training reference page.
+- Refined Mini Program training-day cards into compact date/split records with current-body-part movement chips, notes, and a clear daily-detail action.
+- Tests: Python compile, JavaScript syntax, regression, smoke, Web shared-write, Mini Program, and Cloud payload tests passed.
+- Data structure impact: none.
+
 ## 2026-07-06 - Movement Index original-art restoration
 
 - Restored the five approved body-area illustrations as direct, unfiltered panel backgrounds.

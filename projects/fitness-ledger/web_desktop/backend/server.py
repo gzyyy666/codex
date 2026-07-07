@@ -4,6 +4,8 @@ import json
 import copy
 import importlib.util
 import mimetypes
+import os
+import re
 import sys
 import threading
 from datetime import datetime
@@ -137,10 +139,15 @@ class LedgerWebService:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else None
         report = json.loads(report_path.read_text(encoding="utf-8")) if report_path.exists() else None
         env_config = PROJECT_DIR / "mini_program" / "miniprogram" / "config" / "env.local.js"
+        env_id = ""
+        if env_config.exists():
+            match = re.search(r'envId\s*:\s*["\']([^"\']+)', env_config.read_text(encoding="utf-8"))
+            env_id = match.group(1) if match else ""
         return {
             "mode": "manual_cloudbase_import",
             "network_upload_configured": False,
             "environment_configured": env_config.exists(),
+            "environment_id": env_id,
             "ledger_read_status": "unknown",
             "allowlist_status": "unknown",
             "raw_text_policy": (manifest or {}).get("raw_text_policy", "preview-disabled / excluded"),
@@ -150,7 +157,24 @@ class LedgerWebService:
             "validation": report,
             "logs": LedgerWebService._cloud_sync_log(),
             "import_directory": str(out_dir / "cloudbase_import"),
+            "setup_guide": str(PROJECT_DIR / "mini_program" / "docs" / "CLOUDBASE_SETUP.md"),
         }
+
+    @staticmethod
+    def open_cloud_sync_target(target: str) -> dict:
+        allowed = {
+            "directory": PROJECT_DIR / "cloud_sync" / "out" / "cloudbase_import",
+            "guide": PROJECT_DIR / "mini_program" / "docs" / "CLOUDBASE_SETUP.md",
+        }
+        path = allowed.get(str(target or ""))
+        if path is None:
+            raise LedgerCommandError("未知的云同步打开目标。")
+        if target == "directory":
+            path.mkdir(parents=True, exist_ok=True)
+        if not path.exists():
+            raise LedgerCommandError(f"目标不存在：{path}")
+        os.startfile(str(path))
+        return {"opened": True, "target": target, "path": str(path)}
 
     @staticmethod
     def build_cloud_sync_package() -> dict:
@@ -500,6 +524,8 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.build_cloud_sync_package())
             elif parsed.path == "/api/cloud-sync/verify":
                 self.send_json(self.service.verify_cloud_sync(request))
+            elif parsed.path == "/api/cloud-sync/open":
+                self.send_json(self.service.open_cloud_sync_target(request.get("target", "")))
             elif parsed.path == "/api/analysis-export":
                 self.send_json(self.service.analysis_export(request))
             elif parsed.path == "/api/save":
