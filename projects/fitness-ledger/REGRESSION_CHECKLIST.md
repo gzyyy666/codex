@@ -339,3 +339,9 @@ Check body, macros, movement order, aliases, strength sets, and cardio metrics.
 - Paste the generated `fl_meta` into post-sync verification; matching values pass and altered timestamps fail.
 - In Mini Program Reference, switch between `按动作` and `按训练日` without another cloud query.
 - Confirm Mini Training and Reference show generated time/latest date and use stale styling after 48 hours.
+- In Web Export > Cloud Sync, confirm direct upload is disabled, payload preview is available after generation, and verification shows expected/actual counts.
+- Confirm a failed or mismatched verification is recorded in the local sync log and is not described as successful synchronization.
+- In Data Check, confirm record issues open the existing editor/raw input and movement issues open trajectory/dictionary targets.
+- Set two movements as focused with different `focus_rank` values; confirm both Web and Mini place the lower rank first.
+- In Web Movement Index and Mini Reference, switch to Training Days and confirm a multi-part day appears when its movement history contains the selected body part.
+- Open a Mini Training Day card and confirm it routes to the existing date detail page.

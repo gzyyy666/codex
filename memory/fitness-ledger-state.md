@@ -45,10 +45,13 @@ Fitness Ledger is a local-first personal fitness journal with a maintained Tkint
 - Dictionary edits from desktop and Web use the same command service. Desktop shutdown does not rewrite stale in-memory JSON over newer Web changes.
 - Duplicate dates never save silently: overwrite replaces that date's structured Body/Diet/Training and movement history while superseding old raw entries; append-training adds only another training session; cancel writes nothing.
 - New movement approval requires an explicit training-area selection before dictionary creation in desktop and Web Review.
-- Movement dictionary entries may set optional `pinned: true`; pinned movements sort before frequency-based movements while preserving all history.
+- Movement dictionary entries may set optional `pinned: true` and `focus_rank`; focused movements sort by rank before frequency and name while preserving all history. Web Dictionary is the write surface; Web Movement Index and the Mini Program are read/display surfaces.
 - Web Data Check separates Details from direct Repair routing; repair opens an existing editor and never silently changes data.
 - Web Export contains a deliberately quiet Cloud Sync workbench for local ten-collection package generation, validation, and post-import `fl_meta` comparison. It does not perform or claim a network upload.
 - Mini Program body-area archives can switch between movement-first and training-day-first views and show cloud freshness from `fl_meta`.
+- Body-area Training Day views are aggregated from movement history by date, not only from the session title. A multi-part training day appears under every body part that has a recorded movement, and the Mini Program opens the existing date-detail page.
+- Web Export > Cloud Sync remains a manual CloudBase-import workbench. It reports local/cloud freshness, raw-text policy, configuration uncertainty, recent local operations, and per-collection verification. Direct upload and automatic sync are intentionally disabled until provider credentials and a verified upload path exist.
+- Data Check repair actions reuse the existing Body/Diet/Training editors, raw-entry detail, Movement trajectory, Movement Dictionary, and Cloud Sync workbench; issue acknowledgement remains separate from repair.
 
 ## Visual Direction
 

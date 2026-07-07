@@ -87,14 +87,39 @@ function buildBodyArea(partId, movements, history, sessions) {
       english_name: movement.english_name || "",
       muscle_group: movement.muscle_group || "",
       pinned: movement.pinned === true,
+      focus_rank: Number(movement.focus_rank || 0),
       sessions: compact.length,
       latest: compact[0] || null,
       previous: compact[1] || null,
       best,
       recent: compact.slice(0, 3)
     };
-  }).filter(item => item.sessions > 0).sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.sessions - a.sessions || String(a.display_name).localeCompare(String(b.display_name), "zh-CN"));
-  const matchedSessions = sessions.filter(item => matchesAny(item.Split, theme.split)).sort((a, b) => String(b.Date).localeCompare(String(a.Date)));
+  }).filter(item => item.sessions > 0).sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.focus_rank - b.focus_rank || b.sessions - a.sessions || String(a.display_name).localeCompare(String(b.display_name), "zh-CN"));
+  const activeIds = new Set(activeMovements.map(item => String(item.movement_id || "")));
+  const movementById = Object.fromEntries(activeMovements.map(item => [String(item.movement_id || ""), item]));
+  const relatedByDate = {};
+  history.forEach(item => {
+    const movementId = String(item.movement_id || "");
+    const date = String(item.date || "").slice(0, 10);
+    if (!date || !activeIds.has(movementId)) return;
+    if (!relatedByDate[date]) relatedByDate[date] = [];
+    relatedByDate[date].push({ ...compactHistory(item), movement_id: movementId, display_name: movementById[movementId].display_name || "" });
+  });
+  const sessionsByDate = {};
+  sessions.forEach(item => { const date = String(item.Date || "").slice(0, 10); if (date && !sessionsByDate[date]) sessionsByDate[date] = item; });
+  const matchedSessions = Object.keys(relatedByDate).sort((a, b) => b.localeCompare(a)).map(date => {
+    const session = sessionsByDate[date] || {};
+    const related = relatedByDate[date].sort((a, b) => Number(a.order || 999) - Number(b.order || 999));
+    return {
+      id: session.id || session._id || date,
+      date,
+      split: session.Split || "",
+      notes: session.Notes || "",
+      related_count: related.length,
+      related_movements: related.map(item => item.display_name).filter(Boolean),
+      movement_summary: related.map(item => `${item.display_name}${item.summary ? `：${item.summary}` : ""}`).join("；")
+    };
+  });
   return {
     id: partId,
     label: theme.label,
@@ -103,13 +128,7 @@ function buildBodyArea(partId, movements, history, sessions) {
     movement_count: movementCards.length,
     latest_date: matchedSessions[0] ? matchedSessions[0].Date : "",
     movements: movementCards,
-    sessions: matchedSessions.slice(0, 12).map(item => ({
-      id: item.id || item._id,
-      date: item.Date,
-      split: item.Split,
-      notes: item.Notes || "",
-      movement_summary: item["Standardized Summary"] || ""
-    }))
+    sessions: matchedSessions.slice(0, 12)
   };
 }
 async function bodyAreaPayload(partId) {

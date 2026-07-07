@@ -248,3 +248,6 @@ Future desktop visual work must modify the final `_premium_*` presentation layer
 | Chinese display and historical Diet conversion | `movement_dictionary.json`, `display_name_for_movement`, `standardized_summary_for_day`, `refresh_diet`, `refresh_training`, `open_record_detail_window`, `tools/zh_display_migration.py` |
 | Bowel movement / Body field issues | `extract_bowel_movement`, `extract_labeled_section`, `parse_entry`, `commit_pending`, `refresh_body`, `tools/body_bowel_cardio_migration.py` |
 | Existing record editing | `open_record_editor`, `save_record_edit`, `open_selected_body_detail`, `open_selected_diet_detail`, `open_selected_training_detail` |
+| Web cloud replica maintenance | `cloud_sync_status`, `build_cloud_sync_package`, `verify_cloud_sync`, `_cloud_sync_log`, `cloudSyncPage` |
+| Focused movement ordering | `movement_definitions`, `movement_index`, `renderMovementDirectory`, `buildBodyArea` |
+| Body-part training-day aggregation | `renderMovementDirectory`, `buildBodyArea`, `openSession` |

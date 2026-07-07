@@ -901,3 +901,26 @@ Data structure impact: optional `movement_dictionary.movements[*].pinned` boolea
 Cloud policy: local JSON remains authoritative; no automatic network upload or two-way sync was introduced.
 
 Tests: Python compile, JavaScript syntax checks, regression, smoke, payload build, dry-run validation, service-level fl_meta verification.
+
+## 2026-07-07 - Cloud Maintenance Workbench, Focus Rank, And Training-Day Views
+
+Modified areas:
+
+- Web Cloud Sync status, verification, logs, and safety messaging
+- Web Data Check repair routing
+- Movement dictionary focus ordering and cloud contract
+- Web Movement Index movement/training-day views
+- Mini Program body-area movement/training-day views
+
+Changes:
+
+- Cloud Sync now reports manual mode, local/cloud freshness, environment detection, raw-text policy, recent local operations, and per-collection verification results.
+- Direct CloudBase upload remains explicitly disabled because provider credentials are not configured.
+- Data Check reuses existing editors and exposes issue-specific destinations instead of inventing a second repair system.
+- Movement definitions support optional `focus_rank`; pinned items sort by rank before frequency and name.
+- Web Movement Index can switch between movement cards and training days aggregated from movement history.
+- Mini Program training days use movement-history membership, support multi-part days, show related movement counts, and open the existing daily record page.
+
+Data structure impact: optional `movement_dictionary.movements[*].focus_rank` integer only; missing values remain `0`.
+
+Tests: Python compile, JavaScript syntax checks, regression, smoke, cloud payload, and Mini Program workbench tests.

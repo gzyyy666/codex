@@ -57,6 +57,7 @@ def build_cloud_payload(view_models, data_quality: dict | None = None) -> dict:
             "category": definition.get("category", ""),
             "active": bool(definition.get("active", True)),
             "pinned": bool(definition.get("pinned", False)),
+            "focus_rank": max(0, int(definition.get("focus_rank", 0) or 0)),
         }
         movements.append(movement)
         search_index.append({

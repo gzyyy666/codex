@@ -6,6 +6,7 @@ import importlib.util
 import mimetypes
 import sys
 import threading
+from datetime import datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.machinery import SourceFileLoader
@@ -113,24 +114,62 @@ class LedgerWebService:
         return acknowledge_issue(self.data_check_state_file, key)
 
     @staticmethod
+    def _cloud_sync_log(event: dict | None = None) -> list[dict]:
+        log_path = PROJECT_DIR / "cloud_sync" / "out" / "sync_log.json"
+        try:
+            rows = json.loads(log_path.read_text(encoding="utf-8")) if log_path.exists() else []
+        except (OSError, json.JSONDecodeError):
+            rows = []
+        if event:
+            rows.insert(0, {"time": datetime.now().isoformat(timespec="seconds"), **event})
+            rows = rows[:20]
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            temp = log_path.with_suffix(".tmp")
+            temp.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
+            temp.replace(log_path)
+        return rows
+
+    @staticmethod
     def cloud_sync_status() -> dict:
         out_dir = PROJECT_DIR / "cloud_sync" / "out"
         manifest_path = out_dir / "cloudbase_import" / "manifest.json"
         report_path = out_dir / "fitness_ledger_cloud_sync_report.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else None
         report = json.loads(report_path.read_text(encoding="utf-8")) if report_path.exists() else None
+        env_config = PROJECT_DIR / "mini_program" / "miniprogram" / "config" / "env.local.js"
         return {
             "mode": "manual_cloudbase_import",
             "network_upload_configured": False,
+            "environment_configured": env_config.exists(),
+            "ledger_read_status": "unknown",
+            "allowlist_status": "unknown",
+            "raw_text_policy": (manifest or {}).get("raw_text_policy", "preview-disabled / excluded"),
+            "local_latest_record_date": (manifest or {}).get("latest_record_date", ""),
+            "cloud_latest_record_date": (report or {}).get("cloud_latest_record_date", ""),
             "manifest": manifest,
             "validation": report,
+            "logs": LedgerWebService._cloud_sync_log(),
             "import_directory": str(out_dir / "cloudbase_import"),
         }
 
     @staticmethod
     def build_cloud_sync_package() -> dict:
-        build_cloud_replica()
-        report = validate_payload()
+        try:
+            build_cloud_replica()
+            report = validate_payload()
+            LedgerWebService._cloud_sync_log({
+                "trigger": "manual",
+                "mode": "generate_payload",
+                "result": "success",
+                "latest_record_date": report.get("latest_record_date", ""),
+                "error": "",
+            })
+        except Exception as exc:
+            LedgerWebService._cloud_sync_log({
+                "trigger": "manual", "mode": "generate_payload", "result": "error",
+                "latest_record_date": "", "error": str(exc),
+            })
+            raise
         return {**LedgerWebService.cloud_sync_status(), "validation": report}
 
     @staticmethod
@@ -154,11 +193,31 @@ class LedgerWebService:
                 if name != "fl_meta"
             ),
         }
+        collection_checks = {
+            name: {
+                "expected": int(count),
+                "actual": int(actual_counts.get(name, -1)),
+                "ok": int(actual_counts.get(name, -1)) == int(count),
+            }
+            for name, count in expected_counts.items()
+            if name != "fl_meta"
+        }
+        verified = bool(checks) and all(checks.values())
+        LedgerWebService._cloud_sync_log({
+            "trigger": "manual",
+            "mode": "verify_cloud_replica",
+            "result": "success" if verified else "mismatch",
+            "latest_record_date": str(cloud_meta.get("latest_record_date", "")),
+            "error": "" if verified else "Cloud metadata differs from the local payload.",
+        })
         return {
-            "verified": bool(checks) and all(checks.values()),
+            "verified": verified,
             "checks": checks,
+            "collections": collection_checks,
             "expected_generated_at": manifest.get("generated_at", ""),
             "cloud_generated_at": cloud_meta.get("generated_at", ""),
+            "local_latest_record_date": manifest.get("latest_record_date", ""),
+            "cloud_latest_record_date": cloud_meta.get("latest_record_date", ""),
         }
 
     def dictionary_entries(self) -> list[dict]:
@@ -301,10 +360,9 @@ class LedgerWebService:
 
     def movement_index(self, query: str = "", limit: int = 80) -> list[dict]:
         cache = self.data._ensure_loaded()
-        pinned_by_id = {
-            str(item.get("movement_id", "")): bool(item.get("pinned", False))
-            for item in self.commands.load_state()[1].get("movements", []) or []
-        }
+        dictionary_rows = self.commands.load_state()[1].get("movements", []) or []
+        pinned_by_id = {str(item.get("movement_id", "")): bool(item.get("pinned", False)) for item in dictionary_rows}
+        rank_by_id = {str(item.get("movement_id", "")): int(item.get("focus_rank", 0) or 0) for item in dictionary_rows}
         definitions = list(cache["movements_by_id"].values())
         if query.strip():
             definitions = self.data.find_movement_candidates(query, limit=limit)
@@ -313,6 +371,7 @@ class LedgerWebService:
             definitions.sort(
                 key=lambda item: (
                     not pinned_by_id.get(str(item.movement_id), False),
+                    rank_by_id.get(str(item.movement_id), 0),
                     item.display_name or item.english_name,
                 )
             )
@@ -326,6 +385,7 @@ class LedgerWebService:
                 "category": item.category,
                 "active": item.active,
                 "pinned": pinned_by_id.get(str(item.movement_id), False),
+                "focus_rank": rank_by_id.get(str(item.movement_id), 0),
             }
             for item in definitions[: max(1, min(limit, 200))]
         ]

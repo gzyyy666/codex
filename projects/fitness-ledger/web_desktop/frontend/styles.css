@@ -135,6 +135,19 @@ body:has(.export-page) .privacy i{box-shadow:0 0 10px rgba(80,170,115,.35)}
 @media(max-width:1100px){.export-hero{grid-template-columns:auto 1fr}.export-hero p{grid-column:1/-1;max-width:620px}.export-workbench{grid-template-columns:1fr}.export-result{min-height:350px}}
 @media(max-width:680px){.export-page{padding:22px 20px 34px}.export-hero{display:block}.export-hero h1{margin:12px 0 16px;font-size:58px}.export-workbench{margin-top:24px;gap:24px}.export-console{padding:22px}.export-result{padding:30px 24px}}
 
+/* Maintenance workbenches: cloud status, focused movements, and session view. */
+.cloud-sync-status{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;margin:24px 0;background:rgba(20,18,14,.12);border-radius:16px;overflow:hidden}
+.cloud-sync-status>div{padding:14px;background:rgba(255,252,245,.86)}.cloud-sync-status dt{font-size:10px;letter-spacing:.13em;color:var(--graphite)}.cloud-sync-status dd{margin:5px 0 0;font-weight:650}
+.cloud-sync-actions{display:flex;flex-wrap:wrap;gap:9px;margin:18px 0}.cloud-sync-logs{margin-top:24px;padding:26px;border-radius:24px}.cloud-log{display:grid;grid-template-columns:180px 1fr 100px 2fr;gap:12px;padding:12px 0;border-bottom:1px solid var(--stroke-hairline);font-size:12px}.cloud-log small{color:var(--graphite)}
+.cloud-sync-verification>div{display:grid;grid-template-columns:1fr auto 80px;gap:12px;padding:8px 0;border-top:1px solid currentColor}.cloud-sync-verification code{font-size:11px}.cloud-preview{max-height:360px;overflow:auto;padding:18px;border-radius:14px;background:#1b1a18;color:#f7f1e6}
+.issue-actions{display:flex;flex-wrap:wrap;gap:6px 12px}.issue-actions .link{white-space:nowrap;font-size:12px}
+.movement-view-switch{display:inline-flex;padding:4px;border:1px solid rgba(20,18,14,.18);border-radius:999px;background:rgba(255,252,245,.55)}.movement-view-switch button{padding:8px 14px;border:0;border-radius:999px;background:transparent;cursor:pointer}.movement-view-switch button.is-active{background:#161512;color:#fff;box-shadow:0 5px 14px rgba(20,18,14,.16)}
+.movement-focus-mark{display:block;margin-bottom:9px;color:var(--theme-accent,#b67e11);font-size:9px;font-style:normal;font-weight:800;letter-spacing:.16em}
+.movement-session-list{position:relative;z-index:2;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:16px}.movement-session-card{display:flex;align-items:end;justify-content:space-between;gap:18px;padding:20px;border:1px solid rgba(255,255,255,.2);border-radius:20px;background:rgba(255,255,255,.16);color:inherit;backdrop-filter:blur(10px);box-shadow:inset 0 1px rgba(255,255,255,.24),0 12px 28px rgba(0,0,0,.1)}.movement-session-card h3{margin:6px 0;font:400 28px var(--serif)}.movement-session-card p{margin:0;line-height:1.5}.movement-session-card .link{flex:none;color:inherit}
+.dictionary-row.is-focused{box-shadow:inset 4px 0 #d49a27}.dictionary-row.is-focused .dictionary-state{color:#805800}
+@media(max-width:900px){.cloud-sync-status,.movement-session-list{grid-template-columns:1fr}.cloud-log{grid-template-columns:1fr 1fr}.movement-toolbar{flex-wrap:wrap}}
+@media(prefers-reduced-motion:reduce){.movement-view-switch button,.movement-session-card{transition:none!important}}
+
 /* Quiet maintenance actions and the read-only cloud replica workbench. */
 .issue-actions{display:flex;align-items:center;gap:10px;white-space:nowrap}.issue-repair{color:#6f5a22;text-decoration-color:rgba(111,90,34,.35)}
 .dictionary-pin{align-content:start}.dictionary-pin input{width:20px;height:20px;margin-top:8px;accent-color:#171714}

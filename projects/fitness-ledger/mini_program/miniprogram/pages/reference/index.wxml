@@ -47,7 +47,7 @@
       <view class="list-heading"><view><view class="eyebrow">MOVEMENTS / FREQUENCY</view><view class="section-title">动作与最近表现</view></view><view class="count">{{area.movement_count}}</view></view>
       <view wx:for="{{area.movements}}" wx:key="movement_id" class="movement-card" data-id="{{item.movement_id}}" bindtap="openMovement">
         <view class="movement-head">
-          <view><view class="movement-name">{{item.display_name}}</view><view class="movement-en">{{item.english_name}}</view></view>
+          <view><view wx:if="{{item.pinned}}" class="focus-mark">★ FOCUS</view><view class="movement-name">{{item.display_name}}</view><view class="movement-en">{{item.english_name}}</view></view>
           <view class="session-badge">{{item.sessions}} 次</view>
         </view>
         <view class="latest-set" wx:if="{{item.latest}}"><text>最近</text><text>{{item.latest.date}}</text></view>
@@ -62,10 +62,12 @@
     </view>
     <view wx:else class="session-list">
       <view class="list-heading"><view><view class="eyebrow">TRAINING DAYS / RECENT</view><view class="section-title">相关训练日</view></view><view class="count">{{area.sessions.length}}</view></view>
-      <view wx:for="{{area.sessions}}" wx:key="id" class="session-card">
+      <view wx:for="{{area.sessions}}" wx:key="id" class="session-card" data-date="{{item.date}}" bindtap="openSession">
         <view class="session-card-head"><text>{{item.date}}</text><text>{{item.split}}</text></view>
+        <view class="session-related">{{item.related_count || 0}} 个相关动作 · {{item.related_movements.join(' / ')}}</view>
         <view class="session-summary clamp-3">{{item.movement_summary || '暂无结构化动作摘要'}}</view>
         <view wx:if="{{item.notes}}" class="session-note clamp-3">{{item.notes}}</view>
+        <view class="movement-action">查看当日训练 →</view>
       </view>
     </view>
   </block>

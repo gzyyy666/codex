@@ -223,6 +223,8 @@ class LedgerCommandService:
             result,
             key=lambda item: (
                 not bool(item.get("pinned", False)),
+                int(item.get("focus_rank", 0) or 0),
+                -int(item.get("history_count", 0) or 0),
                 str(item.get("display_name", "")).casefold(),
             ),
         )
@@ -389,6 +391,7 @@ class LedgerCommandService:
                 "notes": str(values.get("notes", "")).strip(),
                 "active": bool(values.get("active", True)),
                 "pinned": bool(values.get("pinned", False)),
+                "focus_rank": max(0, int(values.get("focus_rank", 0) or 0)),
             })
             reconciliation = self._reconcile_definition(database, dictionary, definition)
             self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
@@ -413,6 +416,7 @@ class LedgerCommandService:
                 "equipment": str(values.get("equipment", definition.get("equipment", ""))).strip(),
                 "notes": str(values.get("notes", definition.get("notes", ""))).strip(),
                 "pinned": bool(values.get("pinned", definition.get("pinned", False))),
+                "focus_rank": max(0, int(values.get("focus_rank", definition.get("focus_rank", 0)) or 0)),
             })
             for movement in database.get("movements", {}).values():
                 if str(movement.get("movement_id", "")) == str(movement_id):

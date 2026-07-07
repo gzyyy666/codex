@@ -33,6 +33,13 @@ Use this index instead of scanning the project.
 | Cloud replica truth, collections, and review | `../cloud_sync/CLOUD_REVIEW.md` |
 | WeChat setup, API, UI states, and preview | `../mini_program/README.md`, `../mini_program/docs/` |
 
+## 2026-07 Maintenance Entry
+
+- Cloud Sync and verification: `../web_desktop/backend/server.py`, `../web_desktop/frontend/app.js`
+- Focused movement ordering: `../ledger_commands.py`, `../fitness_ledger_core/cloud_payload.py`
+- Body-part Training Day views: `../web_desktop/frontend/app.js`, `../mini_program/cloudfunctions/ledgerRead/index.js`, `../mini_program/miniprogram/pages/reference/`
+- Acceptance steps: `../REGRESSION_CHECKLIST.md`
+
 ## Source Boundaries
 
 - `stable_app.pyw`: desktop UI and maintained parser.

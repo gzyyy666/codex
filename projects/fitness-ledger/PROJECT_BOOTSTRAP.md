@@ -118,6 +118,9 @@ Use this file to restore project context with low token cost.
 - After import, paste/export the single `fl_meta` row into the Web verifier to compare schema, generation timestamp, and collection counts.
 - Mini Program freshness labels come from `fl_meta.generated_at` and `latest_record_date`.
 - All cloud and Mini Program views remain read-only; edit and repair operations route back to the local command service.
+- Payload generation is not cloud synchronization. Direct upload stays disabled until provider credentials and a verified upload path are explicitly configured.
+- Focus state belongs to optional movement-dictionary fields `pinned` and `focus_rank`, never to movement history.
+- Body-part Training Day views are derived from movement history grouped by date, so multi-part days can appear under every relevant body part.
 
 ## Display Rules
 
