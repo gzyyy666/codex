@@ -57,6 +57,8 @@ Fitness Ledger is a local-first personal fitness journal with a maintained Tkint
 - Mini Program training-day view preserves the selected body part and shows date, split, up to four related movement chips, a short note, and the existing date-detail route.
 - Data Check repair actions reuse the existing Body/Diet/Training editors, raw-entry detail, Movement trajectory, Movement Dictionary, and Cloud Sync workbench; issue acknowledgement remains separate from repair.
 - Data Check CUSTOM movement issues open Movement Dictionary with `CUSTOM_` prefilled so unstandardized entries are immediately visible; navigation never performs automatic data repair.
+- Data Check uses a five-column responsive table so issue details, suggested handling, and direct repair actions remain visible in the normal desktop viewport; do not restore a fixed 930px table inside the narrow content rail.
+- Movement focus rank semantics are `0 = normal`, `1 = highest priority`, followed by `2`, `3`, and so on. Any positive rank counts as focused; movements with rank `0` remain ordered by recorded training frequency.
 
 ## Visual Direction
 

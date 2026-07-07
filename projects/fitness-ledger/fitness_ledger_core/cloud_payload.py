@@ -48,6 +48,7 @@ def build_cloud_payload(view_models, data_quality: dict | None = None) -> dict:
     movements, movement_history, search_index = [], [], []
     for item in data["movements"]:
         definition = definitions.get(str(item.get("movement_id", "")), {})
+        focus_rank = max(0, int(definition.get("focus_rank", 0) or 0))
         movement = {
             "movement_id": item.get("movement_id", ""),
             "display_name": item.get("display_name", ""),
@@ -56,8 +57,8 @@ def build_cloud_payload(view_models, data_quality: dict | None = None) -> dict:
             "muscle_group": item.get("muscle_group", ""),
             "category": definition.get("category", ""),
             "active": bool(definition.get("active", True)),
-            "pinned": bool(definition.get("pinned", False)),
-            "focus_rank": max(0, int(definition.get("focus_rank", 0) or 0)),
+            "pinned": bool(definition.get("pinned", False)) or focus_rank > 0,
+            "focus_rank": focus_rank,
         }
         movements.append(movement)
         search_index.append({

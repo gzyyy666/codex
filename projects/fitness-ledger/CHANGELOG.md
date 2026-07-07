@@ -1,5 +1,15 @@
 # Fitness Ledger Changelog
 
+## 2026-07-07 - Visible Data Check repair actions and intuitive focus ranks
+
+- Rebuilt the Data Check table as a five-column layout so the repair column remains visible without horizontal scrolling.
+- Combined each issue with its suggested action and verified the CUSTOM repair CTA opens Movement Dictionary with `CUSTOM_` prefilled.
+- Defined focus rank semantics as `0 = normal`, `1 = highest priority`, then `2`, `3`, and so on.
+- Positive focus ranks automatically mark a movement as focused; non-focused movements continue sorting strictly by training frequency before name/date tie-breakers.
+- Applied the same focus ordering to Web Movement Index, dictionary ordering, cloud payloads, ledgerRead, and the Mini Program.
+- Visual QA screenshots confirmed the action column and direct CUSTOM route in the running Web app.
+- Data structure impact: none.
+
 ## 2026-07-07 - Sync workbench, repair routing, and structured details
 
 - Reorganized Web Cloud Sync into a Chinese-first manual-import control surface with explicit status, local preparation, cloud-check, and help groups.

@@ -94,7 +94,13 @@ function buildBodyArea(partId, movements, history, sessions) {
       best,
       recent: compact.slice(0, 3)
     };
-  }).filter(item => item.sessions > 0).sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.focus_rank - b.focus_rank || b.sessions - a.sessions || String(a.display_name).localeCompare(String(b.display_name), "zh-CN"));
+  }).filter(item => item.sessions > 0).sort((a, b) => {
+    const aFocused = Boolean(a.pinned) || a.focus_rank > 0, bFocused = Boolean(b.pinned) || b.focus_rank > 0;
+    return Number(bFocused) - Number(aFocused)
+      || (a.focus_rank > 0 ? a.focus_rank : Number.MAX_SAFE_INTEGER) - (b.focus_rank > 0 ? b.focus_rank : Number.MAX_SAFE_INTEGER)
+      || b.sessions - a.sessions
+      || String(a.display_name).localeCompare(String(b.display_name), "zh-CN");
+  });
   const activeIds = new Set(activeMovements.map(item => String(item.movement_id || "")));
   const movementById = Object.fromEntries(activeMovements.map(item => [String(item.movement_id || ""), item]));
   const relatedByDate = {};

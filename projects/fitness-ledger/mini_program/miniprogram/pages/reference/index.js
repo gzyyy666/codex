@@ -6,7 +6,14 @@ function sortedArea(area, sortBy) {
   const movements = (area.movements || []).slice();
   if (sortBy === "recent") movements.sort((a, b) => String(b.latest && b.latest.date || "").localeCompare(String(a.latest && a.latest.date || "")) || b.sessions - a.sessions);
   else if (sortBy === "name") movements.sort((a, b) => String(a.display_name || "").localeCompare(String(b.display_name || ""), "zh-CN"));
-  else movements.sort((a, b) => Number(b.pinned) - Number(a.pinned) || Number(a.focus_rank || 0) - Number(b.focus_rank || 0) || b.sessions - a.sessions || String(b.latest && b.latest.date || "").localeCompare(String(a.latest && a.latest.date || "")));
+  else movements.sort((a, b) => {
+    const aRank = Number(a.focus_rank || 0), bRank = Number(b.focus_rank || 0);
+    const aFocused = Boolean(a.pinned) || aRank > 0, bFocused = Boolean(b.pinned) || bRank > 0;
+    return Number(bFocused) - Number(aFocused)
+      || (aRank > 0 ? aRank : Number.MAX_SAFE_INTEGER) - (bRank > 0 ? bRank : Number.MAX_SAFE_INTEGER)
+      || b.sessions - a.sessions
+      || String(b.latest && b.latest.date || "").localeCompare(String(a.latest && a.latest.date || ""));
+  });
   return { ...area, movements };
 }
 

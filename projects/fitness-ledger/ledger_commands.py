@@ -222,8 +222,8 @@ class LedgerCommandService:
         return sorted(
             result,
             key=lambda item: (
-                not bool(item.get("pinned", False)),
-                int(item.get("focus_rank", 0) or 0),
+                not (bool(item.get("pinned", False)) or int(item.get("focus_rank", 0) or 0) > 0),
+                int(item.get("focus_rank", 0) or 0) if int(item.get("focus_rank", 0) or 0) > 0 else 1_000_000,
                 -int(item.get("history_count", 0) or 0),
                 str(item.get("display_name", "")).casefold(),
             ),
@@ -390,7 +390,7 @@ class LedgerCommandService:
                 "equipment": str(values.get("equipment", "")).strip(),
                 "notes": str(values.get("notes", "")).strip(),
                 "active": bool(values.get("active", True)),
-                "pinned": bool(values.get("pinned", False)),
+                "pinned": bool(values.get("pinned", False)) or max(0, int(values.get("focus_rank", 0) or 0)) > 0,
                 "focus_rank": max(0, int(values.get("focus_rank", 0) or 0)),
             })
             reconciliation = self._reconcile_definition(database, dictionary, definition)
@@ -415,7 +415,7 @@ class LedgerCommandService:
                 "category": str(values.get("category", definition.get("category", ""))).strip(),
                 "equipment": str(values.get("equipment", definition.get("equipment", ""))).strip(),
                 "notes": str(values.get("notes", definition.get("notes", ""))).strip(),
-                "pinned": bool(values.get("pinned", definition.get("pinned", False))),
+                "pinned": bool(values.get("pinned", definition.get("pinned", False))) or max(0, int(values.get("focus_rank", definition.get("focus_rank", 0)) or 0)) > 0,
                 "focus_rank": max(0, int(values.get("focus_rank", definition.get("focus_rank", 0)) or 0)),
             })
             for movement in database.get("movements", {}).values():
