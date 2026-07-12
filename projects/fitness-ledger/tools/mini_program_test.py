@@ -32,7 +32,7 @@ def main() -> None:
     reference = (ROOT / "miniprogram" / "pages" / "reference" / "index.wxml").read_text(encoding="utf-8")
     assert "动作与最近表现" in reference
     assert "Standardized Summary" not in reference
-    assert "训练频率" in reference and "最近训练" in reference and "动作名称" in reference
+    assert "训练频率" in reference and "最近训练" in reference and "按训练日" in reference
     training = (ROOT / "miniprogram" / "pages" / "training" / "index.wxml").read_text(encoding="utf-8")
     assert "搜索日期" in training and "查看当日训练" in training
     assert not (ROOT / "miniprogram" / "pages" / "home").exists()
