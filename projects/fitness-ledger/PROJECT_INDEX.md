@@ -69,5 +69,5 @@
 
 | Path | Purpose |
 | --- | --- |
-| `C:\Users\26087\Desktop\Fitness Ledger.lnk` | Desktop launcher |
-| `C:\Users\26087\Desktop\fitness_tracker_clean_en.xlsx` | Original historical workbook; do not modify |
+| `<USER_DESKTOP>\Fitness Ledger.lnk` | Desktop launcher |
+| `<USER_DESKTOP>\fitness_tracker_clean_en.xlsx` | Original historical workbook; do not modify |

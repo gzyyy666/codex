@@ -4,16 +4,16 @@ Use this file to restore project context with low token cost.
 
 ## Current Files
 
-- Project: `C:\Users\26087\Documents\Codex\2026-06-16\vs-code-ai\work\fitness_tracker_app`
+- Project: `<PROJECT_ROOT>`
 - Main program: `stable_app.pyw`
 - Core database: `data/tracker.json`
 - Movement dictionary: `data/movement_dictionary.json`
 - Historical import: `data/history_import.json`
-- Desktop launcher: `C:\Users\26087\Desktop\Fitness Ledger.lnk`
-- Web preview launcher: `C:\Users\26087\Desktop\Fitness Ledger Web Preview.lnk`
+- Desktop launcher: `<USER_DESKTOP>\Fitness Ledger.lnk`
+- Web preview launcher: `<USER_DESKTOP>\Fitness Ledger Web Preview.lnk`
 - Web desktop foundation: `web_desktop/`
 - Web architecture: `web_desktop/ARCHITECTURE.md`
-- Original workbook: `C:\Users\26087\Desktop\fitness_tracker_clean_en.xlsx`
+- Original workbook: `<USER_DESKTOP>\fitness_tracker_clean_en.xlsx`
 - Maintenance rules: `FITNESS_LEDGER_MAINTENANCE.md`
 - Function map: `FUNCTION_INDEX.md`
 - Regression guide: `REGRESSION_CHECKLIST.md`

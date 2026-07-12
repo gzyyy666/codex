@@ -1,24 +1,10 @@
-<view class="page today-page">
-  <view class="eyebrow">LATEST DAILY ARCHIVE</view><view class="title">最近一日。</view>
-  <view wx:if="{{loading}}" class="state">读取中…</view><view wx:elif="{{error}}" class="state error">{{error}}</view>
-  <block wx:elif="{{item}}">
-    <view class="today-hero">
-      <view class="eyebrow">{{item.date}}</view>
-      <view class="today-weight">{{item.body['Weight (kg)'] || '-'}}<text>kg</text></view>
-      <view class="today-split">{{item.body.Training || '休息日'}}</view>
-      <view class="today-cardio clamp-2">{{item.body.Cardio || '无有氧记录'}}</view>
-    </view>
-    <view class="signal-grid nutrition-grid">
-      <view class="signal"><view class="signal-label">CALORIES</view><view class="signal-value">{{item.diet['Calories (kcal)'] || '-'}}</view></view>
-      <view class="signal"><view class="signal-label">PROTEIN</view><view class="signal-value">{{item.diet['Protein (g)'] || '-'}}g</view></view>
-      <view class="signal"><view class="signal-label">CARBS</view><view class="signal-value">{{item.diet['Carbs (g)'] || '-'}}g</view></view>
-      <view class="signal"><view class="signal-label">FAT</view><view class="signal-value">{{item.diet['Fat (g)'] || '-'}}g</view></view>
-    </view>
-    <view class="archive-slip food-slip">
-      <view class="slip-head"><view><view class="eyebrow">FOOD NOTE</view><view class="section-title">饮食摘要</view></view><view class="expand" bindtap="toggleFood">{{showFood ? '收起' : '展开'}}</view></view>
-      <view class="food-text {{showFood ? '' : 'clamp-3'}}">{{item.diet['Food Summary'] || '没有饮食摘要'}}</view>
-    </view>
-    <view class="button" bindtap="openRecord">查看完整记录</view>
-  </block>
-  <view wx:else class="state">云端尚无记录。</view>
+<view class="page today-page" wx:if="{{draft}}">
+  <view class="eyebrow">LOCAL TRAINING DRAFT</view><view class="title">临时训练记录</view>
+  <view class="draft-status"><text>{{draft.date}}</text><text>仅本机 · 未同步 · 未进入正式档案</text></view>
+  <view class="draft-note">训练时快速记录。关闭小程序后当天草稿会保留；它不会写入 CloudBase 或 Fitness Ledger 正式数据。</view>
+  <view class="draft-paper"><view class="field-label">训练主题</view><input class="theme-input" value="{{draft.theme}}" bindinput="onTheme" placeholder="例如：肩部训练 / 胸肩" />
+    <view class="exercise-heading"><view><view class="field-label">动作顺序</view><view class="section-title">当天草稿</view></view><view class="exercise-count">{{draft.exercises.length}} 项</view></view>
+    <view wx:for="{{draft.exercises}}" wx:key="id" class="exercise-slip"><view class="exercise-top"><text class="exercise-order">{{item.order < 10 ? '0' + item.order : item.order}}</text><input class="exercise-name" value="{{item.name}}" data-id="{{item.id}}" data-field="name" bindinput="onExerciseInput" placeholder="动作名称" /><view class="delete" data-id="{{item.id}}" bindtap="removeExercise">删除</view></view><view class="metric-row"><input value="{{item.weight}}" data-id="{{item.id}}" data-field="weight" bindinput="onExerciseInput" placeholder="重量 kg" /><input value="{{item.reps}}" data-id="{{item.id}}" data-field="reps" bindinput="onExerciseInput" placeholder="次数" /><input value="{{item.sets}}" data-id="{{item.id}}" data-field="sets" bindinput="onExerciseInput" placeholder="组数" /></view><input class="notes-input" value="{{item.notes}}" data-id="{{item.id}}" data-field="notes" bindinput="onExerciseInput" placeholder="简单备注（可选）" /><view class="order-tools"><text data-id="{{item.id}}" data-direction="-1" bindtap="moveExercise">上移</text><text data-id="{{item.id}}" data-direction="1" bindtap="moveExercise">下移</text></view></view>
+    <view class="add-exercise" bindtap="addExercise">+ 新增动作</view></view>
+  <view class="clear-draft" bindtap="clearDraft">清空当天草稿</view>
 </view>

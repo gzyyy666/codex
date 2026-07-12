@@ -1,14 +1,14 @@
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const esc=(v='')=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const short=(v='',n=72)=>{const s=String(v||'').replace(/\s+/g,' ').trim();return s.length>n?`${s.slice(0,n)}…`:s};
+const short=(v='',n=72)=>{const s=String(v||'').replace(/\s+/g,' ').trim();return s.length>n?s.slice(0,n)+'...':s};
 const api=async p=>{const r=await fetch(p,{cache:'no-store'});if(!r.ok)throw Error(`${r.status}`);return r.json()};
 const state={view:'home',today:{},recent:[],body:[],diet:[],training:[],movements:[],dictionary:[],movementSelection:'',movementHistory:null,movementUsage:{},usageLoaded:false,selectedBodyPart:null,page:1};
 const main=$('#main'),root=$('#overlay-root'),toast=$('#toast');
 const showToast=t=>{toast.textContent=t;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2600)};
-const dateOf=r=>String(r.Date||r.date||'').slice(0,10), value=(o,...keys)=>keys.map(k=>o?.[k]).find(v=>v!==undefined&&v!==null&&v!=='')??'—';
+const dateOf=r=>String(r.Date||r.date||'').slice(0,10), value=(o,...keys)=>keys.map(k=>o?.[k]).find(v=>v!==undefined&&v!==null&&v!=='')??'-';
 
 function statusPanel(){const t=state.today,b=t.body||{},d=t.diet||{},tr=t.training||{};return `<section class="status-panel"><span class="eyebrow">TODAY / STATUS</span><h2>${esc(t.date||'No record')}</h2><div class="status-row"><span>Weight 体重</span><strong>${esc(value(b,'Weight (kg)'))} kg</strong></div><div class="status-row"><span>Bowel 排便</span><strong>${esc(value(b,'Bowel Movement'))}</strong></div><div class="status-row"><span>Calories 热量</span><strong>${esc(value(d,'Calories (kcal)'))} kcal</strong></div><div class="status-row"><span>Training 分部</span><strong>${esc(value(tr,'split','Split'))}</strong></div><div class="status-row"><span>Cardio 有氧</span><strong>${esc(value(t,'cardio'))}</strong></div></section>`}
-function recentPanel(title='RECENT SAVED'){return `<section class="rail-section"><div class="rail-head"><span class="eyebrow">${title}</span><button data-go="body">View all →</button></div>${state.recent.slice(0,4).map(r=>`<article class="record"><h3>${esc(r.date)}</h3><p>${esc(r.weight||'—')} kg · ${esc(r.bowel||'—')} · ${esc(r.calories||'—')} kcal</p><p>${esc(r.split||'Rest')} · ${esc(r.cardio||'No cardio')}</p><div class="record-actions"><button data-record="${esc(r.date)}">Open detail</button><button data-go="training">Training</button><button data-go="diet">Diet</button></div></article>`).join('')}</section>`}
+function recentPanel(title='RECENT SAVED'){return `<section class="rail-section"><div class="rail-head"><span class="eyebrow">${title}</span><button data-go="body">View all -></button></div>${state.recent.slice(0,4).map(r=>`<article class="record"><h3>${esc(r.date)}</h3><p>${esc(r.weight||'-')} kg / ${esc(r.bowel||'-')} / ${esc(r.calories||'-')} kcal</p><p>${esc(r.split||'Rest')} / ${esc(r.cardio||'No cardio')}</p><div class="record-actions"><button data-record="${esc(r.date)}">Open detail</button><button data-go="training">Training</button><button data-go="diet">Diet</button></div></article>`).join('')}</section>`}
 const pageHeader=(title,sub)=>`<header><h1 class="page-title">${title}</h1><p class="page-subtitle">${sub}</p><span class="accent-line"></span></header>`;
 const pager=()=>`<div class="pagination records-status"><span>Showing local records</span></div>`;
 
@@ -304,21 +304,167 @@ function analysisExportPage(){
   requestAnimationFrame(()=>$('.export-page')?.classList.add('is-entered'));
 }
 
-async function cloudSyncPage(){
+async function legacyCloudSyncPage(){
   main.innerHTML='<div class="loading-page"><i></i><p>正在检查只读云副本…</p></div>';
   try{state.cloudSync=await api('/api/cloud-sync/status')}catch(error){state.cloudSync={error:error.message}}
-  const manifest=state.cloudSync?.manifest,validation=state.cloudSync?.validation;
-  const logs=state.cloudSync?.logs||[];
-  main.innerHTML=`<section class="page cloud-sync-page"><button class="movement-back" data-view="export">← 返回分析导出</button><header class="cloud-sync-head"><span class="eyebrow">MINI PROGRAM / READ-ONLY REPLICA</span><h1>小程序<br>同步</h1><p>本地 JSON 是唯一正式数据源。这里负责准备只读副本，不会自动覆盖云端。</p></header><section class="cloud-sync-mode material-paper"><span class="eyebrow">当前同步模式</span><div><strong>手动导入模式</strong><p>本地生成 Payload → 在 CloudBase 手动导入 → 返回此处核验。生成文件不代表云端已经更新。</p></div><button class="btn" disabled>当前版本不支持一键自动上传</button></section><section class="cloud-sync-status-board material-slab"><div class="cloud-sync-board-head"><span class="eyebrow">同步状态</span><h2>${manifest?'Payload 已生成':'尚未生成 Payload'}</h2></div><dl class="cloud-sync-status"><div><dt>本地最新记录日期</dt><dd>${esc(state.cloudSync?.local_latest_record_date||'—')}</dd></div><div><dt>云端最新记录日期</dt><dd>${esc(state.cloudSync?.cloud_latest_record_date||'尚未核验')}</dd></div><div><dt>Payload 生成时间</dt><dd>${esc(manifest?.generated_at||'—')}</dd></div><div><dt>当前同步模式</dt><dd>手动导入</dd></div><div><dt>环境 ID</dt><dd>${esc(state.cloudSync?.environment_id||'未读取')}</dd></div><div><dt>原始文本策略</dt><dd>${esc(state.cloudSync?.raw_text_policy||'不包含原始全文')}</dd></div><div><dt>ledgerRead 状态</dt><dd>${esc(state.cloudSync?.ledger_read_status==='unknown'?'需在小程序端验证':state.cloudSync?.ledger_read_status)}</dd></div><div><dt>OpenID 访问名单</dt><dd>${esc(state.cloudSync?.allowlist_status==='unknown'?'需在云函数环境变量验证':state.cloudSync?.allowlist_status)}</dd></div><div><dt>自动同步状态</dt><dd>关闭</dd></div></dl></section><section class="cloud-sync-tools"><article class="cloud-tool-group material-paper"><span class="eyebrow">A / 本地准备</span><button class="btn btn-primary" data-cloud-sync-build>生成 Payload</button><button class="btn" data-cloud-sync-directory>打开导入目录</button><button class="btn" data-cloud-sync-preview ${manifest?'':'disabled'}>查看导入文件</button></article><article class="cloud-tool-group material-paper"><span class="eyebrow">B / 云端检查</span><button class="btn" data-cloud-sync-refresh>刷新状态</button><button class="btn" data-cloud-sync-check="cloud">检查云端状态</button><button class="btn" data-cloud-sync-check="ledger">检查 ledgerRead</button><button class="btn" data-cloud-sync-check="allowlist">检查访问名单</button></article><article class="cloud-tool-group material-paper"><span class="eyebrow">C / 帮助说明</span><button class="btn" data-cloud-sync-guide>打开 setup guide</button><button class="btn" data-cloud-sync-steps>查看 CloudBase 步骤</button><button class="btn" data-cloud-sync-env>复制环境信息</button></article></section><section class="cloud-sync-verify material-paper"><div><span class="eyebrow">同步后校验</span><h2>核对云端副本</h2><p>人工导入后粘贴 CloudBase 的 fl_meta 单条 JSON，核对 schema、生成时间、最新日期和逐集合数量。</p></div><textarea id="cloud-meta-input" rows="7" placeholder='{"schema":"fitness-ledger-read-replica-v2", ...}'></textarea><button class="btn" data-cloud-sync-verify>校验云端副本</button><div id="cloud-sync-verification" class="cloud-sync-verification"></div></section><section class="cloud-sync-logs material-paper"><span class="eyebrow">最近操作</span>${logs.map(log=>`<div class="cloud-log"><time>${esc(log.time||'')}</time><strong>${esc(log.mode||'')}</strong><span>${esc(log.result||'')}</span><small>${esc(log.error||log.latest_record_date||'')}</small></div>`).join('')||'<p class="quiet-note">尚无本地同步操作日志。</p>'}</section></section>`;
+  const status=state.cloudSync||{},manifest=status.manifest,logs=status.logs||[];
+  const configured=Boolean(status.network_upload_configured);
+  const syncLabel=status.sync_status||'NOT_CONFIGURED';
+  const modeLabel=configured?'可执行自动上传':'手动导入模式';
+  const syncHint=configured?'本地会生成 Payload，再调用已配置的上传器写入 CloudBase，上传后校验版本与哈希。':'当前版本未配置上传器。流程为：本地生成 Payload → 手动导入 CloudBase → 粘贴 fl_meta 校验。';
+  const counts=manifest?.collection_counts||manifest?.collections||{};
+  const collectionRows=Object.entries(counts).filter(([name])=>name!=='fl_meta').map(([name,count])=>`<div><code>${esc(name)}</code><strong>${esc(count)}</strong><small>${esc((status.collection_hashes||{})[name]||'')}</small></div>`).join('');
+  main.innerHTML=`<section class="page cloud-sync-page cloud-sync-workbench"><button class="movement-back" data-view="export">← 返回分析导出</button>
+    <header class="cloud-sync-head">
+      <span class="eyebrow">MINI PROGRAM / READ-ONLY REPLICA</span>
+      <h1>小程序同步</h1>
+      <p>本地 JSON 是唯一正式数据源。云端只保存给小程序读取的只读副本；任何同步失败都不会覆盖或阻塞本地记录。</p>
+    </header>
+    <section class="cloud-sync-overview material-slab">
+      <div><span class="eyebrow">当前同步模式</span><h2>${esc(modeLabel)}</h2><p>${esc(syncHint)}</p></div>
+      <dl>
+        <div><dt>同步状态</dt><dd>${esc(syncLabel)}</dd></div>
+        <div><dt>本地最新记录</dt><dd>${esc(status.local_latest_record_date||'—')}</dd></div>
+        <div><dt>云端最新记录</dt><dd>${esc(status.cloud_latest_record_date||'尚未核验')}</dd></div>
+        <div><dt>Payload 生成时间</dt><dd>${esc(manifest?.generated_at||'—')}</dd></div>
+      </dl>
+    </section>
+    <section class="cloud-sync-grid">
+      <article class="cloud-sync-card material-paper">
+        <span class="eyebrow">数据一致性</span>
+        <div class="cloud-sync-kv"><label>Sync Version</label><strong>${esc(status.sync_version||'—')}</strong></div>
+        <div class="cloud-sync-kv"><label>Payload Hash</label><code>${esc((status.payload_hash||'').slice(0,24)||'—')}</code></div>
+        <div class="cloud-collection-list">${collectionRows||'<p class="quiet-note">尚无集合清单。</p>'}</div>
+      </article>
+      <article class="cloud-sync-card material-paper">
+        <span class="eyebrow">配置与安全</span>
+        <div class="cloud-sync-kv"><label>Provider</label><strong>${esc(status.provider||'disabled')}</strong></div>
+        <div class="cloud-sync-kv"><label>环境 ID</label><strong>${esc(status.environment_id||'未读取')}</strong></div>
+        <div class="cloud-sync-kv"><label>原始文本策略</label><strong>${esc(status.raw_text_policy||'preview-disabled')}</strong></div>
+        <div class="cloud-sync-kv"><label>ledgerRead</label><strong>${esc(status.ledger_read_status==='unknown'?'小程序端验证':status.ledger_read_status||'unknown')}</strong></div>
+        <div class="cloud-sync-kv"><label>OpenID 访问名单</label><strong>${esc(status.allowlist_status==='unknown'?'云函数环境变量验证':status.allowlist_status||'unknown')}</strong></div>
+        <div class="cloud-sync-kv"><label>自动同步</label><strong>${status.auto_sync_enabled?'已开启':'关闭'}</strong></div>
+      </article>
+    </section>
+    <section class="cloud-sync-tools">
+      <article class="cloud-tool-group material-paper"><span class="eyebrow">A / 本地准备</span><button class="btn btn-primary" data-cloud-sync-build>生成 Payload</button><button class="btn" data-cloud-sync-run>执行自动同步</button><button class="btn" data-cloud-sync-directory>打开导入目录</button><button class="btn" data-cloud-sync-preview ${manifest?'':'disabled'}>查看导入文件</button></article>
+      <article class="cloud-tool-group material-paper"><span class="eyebrow">B / 云端检查</span><button class="btn" data-cloud-sync-refresh>刷新状态</button><button class="btn" data-cloud-sync-check="cloud">检查云端状态</button><button class="btn" data-cloud-sync-check="ledger">检查 ledgerRead</button><button class="btn" data-cloud-sync-check="allowlist">检查访问名单</button></article>
+      <article class="cloud-tool-group material-paper"><span class="eyebrow">C / 帮助说明</span><button class="btn" data-cloud-sync-guide>打开 setup guide</button><button class="btn" data-cloud-sync-steps>查看 CloudBase 步骤</button><button class="btn" data-cloud-sync-env>复制环境信息</button></article>
+    </section>
+    <section class="cloud-sync-verify material-paper"><div><span class="eyebrow">同步后校验</span><h2>核对云端副本</h2><p>人工导入后粘贴 CloudBase 的 fl_meta 单条 JSON，核对 sync version、payload hash、集合数量和集合 hash。生成文件不等于云端已更新。</p></div><textarea id="cloud-meta-input" rows="7" placeholder='{"schema":"fitness-ledger-read-replica-v2", "payload_hash":"..."}'></textarea><button class="btn" data-cloud-sync-verify>校验云端副本</button><div id="cloud-sync-verification" class="cloud-sync-verification"></div></section>
+    <section class="cloud-sync-logs material-paper"><span class="eyebrow">最近操作</span>${logs.map(log=>`<div class="cloud-log"><time>${esc(log.time||'')}</time><strong>${esc(log.mode||'')}</strong><span>${esc(log.result||'')}</span><small>${esc(log.error||log.latest_record_date||'')}</small></div>`).join('')||'<p class="quiet-note">尚无本地同步操作日志。</p>'}</section>
+  </section>`;
 }
 
 async function buildCloudSync(){const button=$('[data-cloud-sync-build]');if(button){button.disabled=true;button.textContent='正在生成…'}try{state.cloudSync=await postApi('/api/cloud-sync/build',{});showToast('云端导入包已生成并通过本地校验。');cloudSyncPage()}catch(error){showToast(error.message||'生成失败。');if(button)button.disabled=false}}
-function previewCloudSync(){const manifest=state.cloudSync?.manifest;if(!manifest)return;modal('导入文件摘要',`<div class="detail-list"><div class="detail-row"><label>数据规范</label><div>${esc(manifest.schema||'')}</div></div><div class="detail-row"><label>生成时间</label><div>${esc(manifest.generated_at||'')}</div></div><div class="detail-row"><label>最新记录</label><div>${esc(manifest.latest_record_date||'')}</div></div><div class="detail-row"><label>原始文本策略</label><div>${esc(state.cloudSync?.raw_text_policy||'')}</div></div></div><pre class="cloud-preview">${esc(JSON.stringify(manifest.collections||{},null,2))}</pre>`)}
-async function openCloudSyncTarget(target){try{await postApi('/api/cloud-sync/open',{target});showToast(target==='guide'?'已打开同步说明。':'已打开 CloudBase 导入目录。')}catch(error){showToast(error.message||'无法打开目标。')}}
-function cloudSyncCheck(kind){const messages={cloud:'本地服务不会直接连接 CloudBase。请导出 fl_meta 后使用下方“校验云端副本”。',ledger:'ledgerRead 需在微信小程序中调用验证；当前工作台不会绕过 OpenID 访问名单。',allowlist:'访问名单来自 ledgerRead 云函数环境变量 ALLOWED_OPENIDS，请在 CloudBase 控制台核对。'};modal('检查说明',`<p>${esc(messages[kind]||'')}</p><p class="quiet-note">该操作只提供核验路径，不读取或改写私人云端数据。</p>`)}
-function copyCloudEnvironment(){const status=state.cloudSync||{};navigator.clipboard.writeText(`环境 ID: ${status.environment_id||'未读取'}\n模式: 手动导入\n导入目录: ${status.import_directory||''}\nledgerRead: ${status.ledger_read_status||'unknown'}\nOpenID allowlist: ${status.allowlist_status||'unknown'}`).then(()=>showToast('环境信息已复制。'))}
+async function legacyRunCloudSync(){const button=$('[data-cloud-sync-run]');if(button){button.disabled=true;button.textContent='正在同步…'}try{state.cloudSync=await postApi('/api/cloud-sync/sync',{});const result=state.cloudSync?.sync_result||{};showToast(result.status==='SYNCED'?'云端同步已完成。':`同步结果：${result.status||'未知'}`);cloudSyncPage()}catch(error){showToast(error.message||'同步失败。');if(button)button.disabled=false}}
+function legacyPreviewCloudSync(){const manifest=state.cloudSync?.manifest;if(!manifest)return;modal('导入文件摘要',`<div class="detail-list"><div class="detail-row"><label>数据规范</label><div>${esc(manifest.schema||'')}</div></div><div class="detail-row"><label>生成时间</label><div>${esc(manifest.generated_at||'')}</div></div><div class="detail-row"><label>最新记录</label><div>${esc(manifest.latest_record_date||'')}</div></div><div class="detail-row"><label>Sync Version</label><div>${esc(manifest.sync_version||'')}</div></div><div class="detail-row"><label>Payload Hash</label><div>${esc(manifest.payload_hash||'')}</div></div><div class="detail-row"><label>原始文本策略</label><div>${esc(state.cloudSync?.raw_text_policy||'')}</div></div></div><pre class="cloud-preview">${esc(JSON.stringify(manifest.collection_counts||manifest.collections||{},null,2))}</pre>`)}
+async function legacyOpenCloudSyncTarget(target){try{await postApi('/api/cloud-sync/open',{target});showToast(target==='guide'?'已打开同步说明。':'已打开 CloudBase 导入目录。')}catch(error){showToast(error.message||'无法打开目标。')}}
+function legacyCloudSyncCheck(kind){const messages={cloud:'本地服务不会直接连接 CloudBase。请导出 fl_meta 后使用下方“校验云端副本”。',ledger:'ledgerRead 需在微信小程序中调用验证；当前工作台不会绕过 OpenID 访问名单。',allowlist:'访问名单来自 ledgerRead 云函数环境变量 ALLOWED_OPENIDS，请在 CloudBase 控制台核对。'};modal('检查说明',`<p>${esc(messages[kind]||'')}</p><p class="quiet-note">该操作只提供核验路径，不读取或改写私人云端数据。</p>`)}
+function legacyCopyCloudEnvironment(){const status=state.cloudSync||{};navigator.clipboard.writeText(`环境 ID: ${status.environment_id||'未读取'}\n模式: 手动导入\n导入目录: ${status.import_directory||''}\nledgerRead: ${status.ledger_read_status||'unknown'}\nOpenID allowlist: ${status.allowlist_status||'unknown'}`).then(()=>showToast('环境信息已复制。'))}
 function copyCloudSyncReport(){navigator.clipboard.writeText(JSON.stringify({manifest:state.cloudSync?.manifest||null,validation:state.cloudSync?.validation||null,logs:state.cloudSync?.logs||[]},null,2)).then(()=>showToast('同步报告已复制。'))}
-async function verifyCloudSync(){const value=$('#cloud-meta-input')?.value.trim();if(!value){showToast('请先粘贴 fl_meta JSON。');return}try{const result=await postApi('/api/cloud-sync/verify',{cloud_meta:JSON.parse(value)}),target=$('#cloud-sync-verification');if(target){const rows=Object.entries(result.collections||{}).map(([name,item])=>`<div><code>${esc(name)}</code><span>${item.expected} / ${item.actual}</span><b>${item.ok?'OK':'Mismatch'}</b></div>`).join('');target.className=`cloud-sync-verification ${result.verified?'is-success':'is-warning'}`;target.innerHTML=`<p>${result.verified?'校验通过：云端副本与本地生成包一致。':'校验未通过：不要将本次导入视为同步完成。'}</p>${rows}`}}catch(error){showToast(error.message||'校验失败。')}}
+async function verifyCloudSync(){const value=$('#cloud-meta-input')?.value.trim();if(!value){showToast('请先粘贴 fl_meta JSON。');return}try{const result=await postApi('/api/cloud-sync/verify',{cloud_meta:JSON.parse(value)}),target=$('#cloud-sync-verification');if(target){const rows=Object.entries(result.collections||{}).map(([name,item])=>`<div><code>${esc(name)}</code><span>${item.expected} / ${item.actual}</span><b>${item.ok?'OK':'Mismatch'}</b><small>${esc((item.actual_hash||'').slice(0,12))}</small></div>`).join('');target.className=`cloud-sync-verification ${result.verified?'is-success':'is-warning'}`;target.innerHTML=`<p>${result.verified?'校验通过：云端副本与本地生成包一致。':'校验未通过：不要将本次导入视为同步完成。'}</p>${rows}`}}catch(error){showToast(error.message||'校验失败。')}}
+
+function cloudSyncModeText(status){
+  if(status?.network_upload_configured)return '手动触发 · 自动上传与校验';
+  if(status?.upload_provider_ready&&status?.provider==='mock')return '手动触发 · 本地模拟校验';
+  return '手动触发 · 同步服务待就绪';
+}
+function cloudSyncModeHint(status){
+  if(status?.network_upload_configured)return '点击同步后，系统会自动生成 Payload、上传 CloudBase，并读取 fl_meta 校验结果。本地保存不会自动上传。';
+  if(status?.upload_provider_ready&&status?.provider==='mock')return '当前使用 mock provider，只验证本机闭环，不写入真实 CloudBase。';
+  return '同步服务当前未就绪，无法执行一键上传。本地记录保持安全，保存记录不会自动上传。';
+}
+function cloudStatusPresentation(status){
+  const code=String(status?.sync_status||'NOT_CONFIGURED').toUpperCase();
+  const map={
+    SYNCED:['本地与云端一致','最近一次同步已通过云端校验。','synced','重新校验'],
+    NO_CHANGES:['无需同步','当前 Payload 与云端版本一致。','synced','重新校验'],
+    LOCAL_NEWER:['本地有新的数据','点击同步，将最新数据更新至 CloudBase。','newer','同步到 CloudBase'],
+    NOT_CONFIGURED:['尚未完成上传配置','本地数据不受影响；完成配置后即可启用真实同步。','neutral','查看配置说明'],
+    UPLOAD_FAILED:['同步未完成','本地正式数据仍然安全，请检查详情后重试。','failed','重新同步'],
+    CLOUD_MISMATCH:['云端校验未通过','上传结果与本地 Payload 不一致，本次未标记为成功。','failed','重新同步'],
+    DRY_RUN:['检查完成','本次只执行本地校验，没有写入 CloudBase。','neutral','刷新状态'],
+    READY:['已准备好同步','本地导入包已准备好，等待手动触发同步。','newer','同步到 CloudBase'],
+  };
+  return {code, ...(map[code]||['正在同步','正在生成 Payload、上传集合并验证云端数据。','working','正在同步…'])};
+}
+const cloudTruth=v=>v===true||['ok','ready','configured','connected','available','synced','verified'].includes(String(v||'').toLowerCase());
+const cloudVerdict=(v,yes='已确认',no='需验证')=>cloudTruth(v)?yes:no;
+async function cloudSyncPage(){
+  main.innerHTML='<div class="loading-page"><i></i><p>正在检查只读云副本...</p></div>';
+  try{state.cloudSync=await api('/api/cloud-sync/status')}catch(error){state.cloudSync={error:error.message}}
+  const status=state.cloudSync||{};
+  const manifest=status.manifest||{};
+  const logs=status.logs||[];
+  const ready=Boolean(status.upload_provider_ready),real=Boolean(status.network_upload_configured);
+  const missing=status.missing_config||status.config_status?.missing||[];
+  const presentation=cloudStatusPresentation(status);
+  const modeLabel=cloudSyncModeText(status);
+  const syncHint=cloudSyncModeHint(status);
+  const runLabel=real?'同步 CloudBase':(ready?'执行本地模拟校验':'查看配置说明');
+  const counts=manifest.collection_counts||manifest.collections||{};
+  const collectionTotal=Object.keys(manifest.collections||counts).length;
+  const isVerified=['SYNCED','NO_CHANGES'].includes(presentation.code);
+  const latestLog=logs[0]||{};
+  const verificationChecks=status.last_sync_result?.cloud_verification?.checks||{};
+  const checkRows=[['Schema','schema'],['Sync Version','sync_version'],['Payload Hash','payload_hash'],['Latest Record Date','latest_record_date'],['Collection Counts','collection_counts'],['Collection Hashes','collection_hashes']].map(([label,key])=>`<li class="${verificationChecks[key]||(!Object.keys(verificationChecks).length&&isVerified)?'is-ok':'is-pending'}"><span>${label}</span><b>${verificationChecks[key]||(!Object.keys(verificationChecks).length&&isVerified)?'✓ 已通过':'待验证'}</b></li>`).join('');
+  const shortHash=status.payload_hash?`${String(status.payload_hash).slice(0,8)}…${String(status.payload_hash).slice(-4)}`:'待生成';
+  const shortEnvironment=status.environment_id?`${String(status.environment_id).slice(0,10)}…`:'未配置';
+  main.innerHTML=`<section class="page cloud-sync-page cloud-sync-console" data-cloud-state="${esc(presentation[2])}">
+    <header class="cloud-sync-head">
+      <div><span class="eyebrow">LOCAL-FIRST DATA SYNC CONSOLE</span><h1>Cloud Sync</h1><p>Keep the CloudBase read-only replica aligned with your local Fitness Ledger data.</p><small>将本地正式数据同步至 CloudBase，供微信小程序读取。</small></div>
+      <span class="cloud-head-status"><i></i>${esc(presentation[0])}</span>
+    </header>
+    <section class="cloud-hero material-dark">
+      <div class="cloud-hero-copy"><span class="cloud-code">${esc(presentation.code)}</span><h2>${esc(presentation[0])}</h2><p id="cloud-sync-stage">${esc(presentation[1])}</p><button class="btn btn-primary cloud-primary-action" data-cloud-sync-run>${esc(runLabel)} <span>→</span></button><small>${real?'手动触发后自动完成上传与校验。':'当前不能直接上传 CloudBase；本地记录不会被云端覆盖。'}</small></div>
+      <dl class="cloud-hero-facts"><div><dt>最近成功同步</dt><dd>${esc(latestLog.time||status.last_sync_at||'尚无记录')}</dd></div><div><dt>本地最新记录</dt><dd>${esc(status.local_latest_record_date||'--')}</dd></div><div><dt>云端最新记录</dt><dd>${esc(status.cloud_latest_record_date||'尚未校验')}</dd></div></dl>
+    </section>
+    <section class="cloud-flow" aria-label="数据流"><div><small>LOCAL SOURCE</small><strong>Fitness Ledger</strong><span>本地正式数据</span></div><b>→</b><div><small>PAYLOAD</small><strong>${manifest.generated_at?'已生成':'待生成'}</strong><span>同步前自动准备</span></div><b>→</b><div><small>CLOUDBASE</small><strong>只读副本</strong><span>不会覆盖本地</span></div><b>→</b><div><small>MINI PROGRAM</small><strong>重新进入后读取</strong><span>读取云端副本</span></div></section>
+    <p class="cloud-mode-note"><b>当前模式：${esc(modeLabel)}</b><span>${esc(syncHint)}</span></p>
+    <section class="cloud-status-grid">
+      <article class="cloud-status-card material-paper"><span class="eyebrow">数据状态</span><h3>本地与云端</h3><dl><div><dt>本地最新记录</dt><dd>${esc(status.local_latest_record_date||'--')}</dd></div><div><dt>云端最新记录</dt><dd>${esc(status.cloud_latest_record_date||'待校验')}</dd></div><div><dt>Payload 生成</dt><dd>${esc(manifest.generated_at||'待生成')}</dd></div><div><dt>同步版本</dt><dd>${esc(status.sync_version?'已准备':'待生成')}</dd></div></dl></article>
+      <article class="cloud-status-card material-paper"><span class="eyebrow">数据一致性</span><h3>完整性摘要</h3><dl><div><dt>Payload</dt><dd>${manifest.payload_hash?(isVerified?'已验证':'待同步'):'待生成'}</dd></div><div><dt>集合</dt><dd>${collectionTotal?`${collectionTotal} / ${collectionTotal}`:'待生成'}</dd></div><div><dt>最新记录</dt><dd>${esc(status.local_latest_record_date||'--')}</dd></div><div><dt>Payload Hash</dt><dd><code>${esc(shortHash)}</code></dd></div></dl></article>
+      <article class="cloud-status-card material-paper"><span class="eyebrow">环境与安全</span><h3>同步环境</h3><dl><div><dt>Provider</dt><dd>${status.provider==='tencentcloud'?'TencentCloud SDK':esc(status.provider||'未配置')}</dd></div><div><dt>Environment</dt><dd><code title="${esc(status.environment_id||'')}">${esc(shortEnvironment)}</code></dd></div><div><dt>上传状态</dt><dd>${real?'Ready':'待就绪'}</dd></div><div><dt>Auto Sync</dt><dd>${status.auto_sync_enabled?'Enabled':'Disabled'}</dd></div></dl></article>
+    </section>
+    <section class="cloud-verification-summary material-paper"><div><span class="eyebrow">CLOUD VERIFICATION</span><h2>云端副本校验</h2><p>同步后自动比较六项关键数据；本地记录始终是正式数据源。</p></div><ul>${checkRows}</ul></section>
+    <section class="cloud-actions"><article><span class="eyebrow">日常操作</span><h2>准备或确认同步</h2><p>手动触发同步后会自动生成、上传并校验；本地保存不会自动上传。</p><div><button class="btn" data-cloud-sync-build>生成 Payload</button><button class="btn cloud-quiet-button" data-cloud-sync-refresh>刷新状态</button></div></article><details class="cloud-advanced"><summary><span><b>高级与恢复</b><small>诊断、日志、备用校验与环境检查</small></span><i>+</i></summary><div class="cloud-advanced-body"><button class="link" data-cloud-sync-directory>打开导入目录</button><button class="link" data-cloud-sync-preview ${manifest.generated_at?'':'disabled'}>查看导入文件</button><button class="link" data-cloud-sync-copy>查看同步报告</button><button class="link" data-cloud-sync-guide>查看 setup guide</button><button class="link" data-cloud-sync-env>复制环境信息</button><button class="link" data-cloud-sync-check="cloud">检查云端状态</button><button class="link" data-cloud-sync-check="ledger">检查 ledgerRead</button><button class="link" data-cloud-sync-check="allowlist">检查访问名单</button></div><div class="cloud-diagnostic"><span>完整 hash、集合 hash、SDK 字段和报告 JSON 仅在诊断操作中显示，不作为主页面内容。</span></div><details class="cloud-manual-verify"><summary>备用 fl_meta 校验 <small>仅用于故障排查</small></summary><div><textarea id="cloud-meta-input" rows="5" placeholder='{"schema":"fitness-ledger-read-replica-v2", "payload_hash":"..."}'></textarea><button class="btn" data-cloud-sync-verify>校验云端副本</button></div><div id="cloud-sync-verification" class="cloud-sync-verification"></div></details></details></section>
+  </section>`;
+}
+async function runCloudSync(){
+  const status=state.cloudSync||{};
+  if(!status.upload_provider_ready){showToast('尚未配置上传器。请按说明完成 CloudBase 上传配置。');openCloudSyncTarget('guide');return}
+  const button=$('[data-cloud-sync-run]');
+  const stage=$('#cloud-sync-stage');
+  if(button){button.disabled=true;button.textContent='正在生成 Payload…'}
+  if(stage)stage.textContent='正在生成 Payload…';
+  try{
+    if(stage)stage.textContent=status.network_upload_configured?'正在上传集合并校验云端版本…':'正在执行本地模拟校验…';
+    state.cloudSync=await postApi('/api/cloud-sync/sync',{});
+    const result=state.cloudSync?.sync_result||{};
+    if(result.status==='SYNCED')showToast(state.cloudSync.network_upload_configured?'CloudBase 同步并校验完成。':'本地模拟同步完成。');
+    else if(result.status==='NOT_CONFIGURED')showToast('上传器配置不完整：'+((result.config_status?.missing||[]).join(', ')||'unknown'));
+    else showToast(`同步结果：${result.status||'未知'}`);
+    cloudSyncPage();
+  }catch(error){showToast(error.message||'同步失败。');if(button)button.disabled=false}
+}
+async function openCloudSyncTarget(target){try{await postApi('/api/cloud-sync/open',{target});showToast(target==='guide'?'已打开手动导入说明。':'已打开 CloudBase 导入目录。')}catch(error){showToast(error.message||'无法打开目标。')}}
+function previewCloudSync(){const manifest=state.cloudSync?.manifest;if(!manifest)return;modal('导入文件摘要',`<div class="detail-list"><div class="detail-row"><label>生成时间</label><div>${esc(manifest.generated_at||'--')}</div></div><div class="detail-row"><label>最新记录</label><div>${esc(manifest.latest_record_date||'--')}</div></div><div class="detail-row"><label>集合</label><div>${esc(Object.keys(manifest.collection_counts||manifest.collections||{}).filter(name=>name!=='fl_meta').length)} 个</div></div></div><p class="quiet-note">完整 hash 与集合明细仅用于诊断，不代表云端已更新。</p>`) }
+function cloudSyncCheck(kind){
+  const status=state.cloudSync||{};
+  const messages={
+    cloud: status.network_upload_configured?'已配置真实 CloudBase 上传器。同步时会上传 JSON，并读取 fl_meta 校验云端版本。':(status.upload_provider_ready?'当前为本地模拟同步，只验证本机闭环，不写入真实 CloudBase。':'当前为手动导入模式。生成 Payload 后需要人工导入 CloudBase，再粘贴 fl_meta 校验。'),
+    ledger:'ledgerRead 是微信小程序只读云函数，负责按 OpenID allowlist 读取 CloudBase 只读集合，不负责写入正式数据。',
+    allowlist:'访问名单来自 ledgerRead 云函数环境变量 ALLOWED_OPENIDS。拿到 OpenID 后，请在 CloudBase 控制台的 ledgerRead 环境变量中加入。'
+  };
+  modal('检查说明',`<p>${esc(messages[kind]||'')}</p><p class="quiet-note">该操作只提供核验路径，不读取或改写私人云端数据。</p>`);
+}
+function copyCloudEnvironment(){
+  const status=state.cloudSync||{};
+  const mode=cloudSyncModeText(status);
+  const missing=status.missing_config||status.config_status?.missing||[];
+  navigator.clipboard.writeText(`环境 ID: ${status.environment_id||'未读取'}\n模式: ${mode}\nProvider: ${status.provider||'disabled'}\n缺少配置: ${missing.join(', ')||'无'}\n导入目录: ${status.import_directory||''}\nledgerRead: ${status.ledger_read_status||'unknown'}\nOpenID allowlist: ${status.allowlist_status||'unknown'}`).then(()=>showToast('环境信息已复制。'));
+}
 
 async function buildAnalysisExport(){
   const form=$('#export-form');if(!form)return;const values=Object.fromEntries(new FormData(form).entries());values.days=Number(values.days||14);values.include_raw_preview=Boolean(values.include_raw_preview);const button=$('[data-build-export]'),result=$('#export-result');button.disabled=true;button.innerHTML='Preparing export…';result.dataset.status='loading';result.innerHTML='<span class="eyebrow">PREPARING / LOCAL DATA</span><h2>Building<br>your archive.</h2><p>正在整理结构化训练上下文…</p><div class="export-shimmer" aria-hidden="true"></div>';
@@ -344,6 +490,7 @@ document.addEventListener('click',event=>{
   else if(target.dataset.downloadExport)downloadExport(target.dataset.downloadExport);
 },true);
 document.addEventListener('click',event=>{const target=event.target.closest('[data-cloud-sync-open],[data-cloud-sync-build],[data-cloud-sync-verify],[data-cloud-sync-preview],[data-cloud-sync-copy],[data-cloud-sync-guide],[data-cloud-sync-directory],[data-cloud-sync-refresh],[data-cloud-sync-check],[data-cloud-sync-steps],[data-cloud-sync-env]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();if(target.dataset.cloudSyncOpen!==undefined)navigate('cloud-sync');else if(target.dataset.cloudSyncBuild!==undefined)buildCloudSync();else if(target.dataset.cloudSyncVerify!==undefined)verifyCloudSync();else if(target.dataset.cloudSyncPreview!==undefined)previewCloudSync();else if(target.dataset.cloudSyncCopy!==undefined)copyCloudSyncReport();else if(target.dataset.cloudSyncDirectory!==undefined)openCloudSyncTarget('directory');else if(target.dataset.cloudSyncGuide!==undefined)openCloudSyncTarget('guide');else if(target.dataset.cloudSyncRefresh!==undefined)cloudSyncPage();else if(target.dataset.cloudSyncCheck!==undefined)cloudSyncCheck(target.dataset.cloudSyncCheck);else if(target.dataset.cloudSyncEnv!==undefined)copyCloudEnvironment();else modal('CloudBase 手动导入步骤','<ol class="cloud-steps"><li>点击“生成 Payload”。</li><li>点击“打开导入目录”。</li><li>在 CloudBase 对应集合中分别导入 JSON 文件。</li><li>导出或复制 fl_meta 单条记录。</li><li>回到“同步后校验”核对云端副本。</li></ol><p class="quiet-note">生成文件不等于云端已更新。</p>')},true);
+document.addEventListener('click',event=>{const target=event.target.closest('[data-cloud-sync-run]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();runCloudSync()},true);
 document.addEventListener('click',event=>{const target=event.target.closest('button[data-training-theme]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();const next=target.dataset.trainingTheme;state.selectedBodyPart=next==='overview'?null:next;trainingPage()},true);
 
 // Returning through the primary Training route always opens the archive overview.

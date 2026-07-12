@@ -1,0 +1,20 @@
+{
+  "provider": "tencentcloud",
+  "environment_id": "cloud1-d9g35v5s1a904a8aad",
+  "region": "ap-shanghai",
+  "secret_id_env": "TENCENTCLOUD_SECRET_ID",
+  "secret_key_env": "TENCENTCLOUD_SECRET_KEY",
+  "auto_sync_enabled": false,
+  "batch_size": 20,
+  "notes": [
+    "Do not put SecretId or SecretKey in this file.",
+    "Create cloud_sync/cloud_sync_config.json from this example; it is gitignored.",
+    "Set TENCENTCLOUD_SECRET_ID and TENCENTCLOUD_SECRET_KEY as user environment variables.",
+    "Provider values: disabled, mock, tencentcloud. The old command provider is kept only for legacy experiments."
+  ],
+  "legacy_command_provider_example": {
+    "provider": "command",
+    "import_command": "not recommended: CloudBase CLI 3.6.1 does not provide the required simple JSON collection import flow",
+    "meta_command": "not recommended"
+  }
+}

@@ -1,14 +1,36 @@
+# Formal data, local recovery state, and runtime artifacts
 data/
 backups/
 logs/
-cloud_sync/out/*.json
-cloud_sync/out/cloudbase_import/
+work/
+
+# Cloud Sync is source-only: never mirror local configuration or generated output.
+cloud_sync/out/
+cloud_sync/cloud_sync_config.json
 cloud_sync/cloud_config.local.json
+
+# Mini Program local environment and WeChat private project metadata
 mini_program/project.private.config.json
 mini_program/miniprogram/config/env.local.js
+
+# Local environment, caches, browser profiles, and generated files
+.env
+.env.*
+*.local.*
+**/__pycache__/
 __pycache__/
 *.pyc
+*.pyo
 *.log
 *.tmp
 *.xlsx
 web_desktop/.edge-profile/
+web_desktop/.qa-edge*/
+
+# Never commit credential material, reports, payloads, or local state.
+*secret*
+*token*
+*credential*
+*payload*
+*sync_report*
+*sync_state*

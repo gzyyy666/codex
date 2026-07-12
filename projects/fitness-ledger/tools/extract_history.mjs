@@ -1,8 +1,15 @@
 import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { FileBlob, SpreadsheetFile } from "@oai/artifact-tool";
 
-const inputPath = String.raw`C:\Users\26087\Desktop\fitness_tracker_clean_en.xlsx`;
-const outputPath = String.raw`C:\Users\26087\Documents\Codex\2026-06-16\vs-code-ai\work\fitness_tracker_app\data\history_import.json`;
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const projectRoot = path.resolve(scriptDir, "..");
+const [inputPath, outputPath = path.join(projectRoot, "data", "history_import.json")] = process.argv.slice(2);
+
+if (!inputPath) {
+  throw new Error("Usage: node tools/extract_history.mjs <source-workbook.xlsx> [output-history.json]");
+}
 
 const input = await FileBlob.load(inputPath);
 const workbook = await SpreadsheetFile.importXlsx(input);

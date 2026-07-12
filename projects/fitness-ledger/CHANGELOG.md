@@ -1,5 +1,15 @@
 # Fitness Ledger Changelog
 
+## 2026-07-11 - Cloud Sync local-first console
+
+- Rebuilt the Web Cloud Sync presentation around a single natural-language sync conclusion, a single primary action, and a compact local-to-cloud data flow.
+- Made the mode explicit: users manually trigger sync; when configured, the click automatically prepares the payload, uploads it, and verifies the CloudBase replica. Local saves do not imply background upload.
+- Moved hashes, provider metadata, import tools, report access, and environment checks out of the default visual hierarchy into compact status summaries or the closed Advanced & Recovery section.
+- Added Chinese status mapping, staged sync feedback, safe failure messaging, and an explicit local-source / read-only-cloud boundary without changing backend endpoints or sync behavior.
+- Updated the Style Bible with the durable Cloud Sync hierarchy and interaction rules.
+- Modified files: `web_desktop/frontend/app.js`, `web_desktop/frontend/styles.css`, `docs/design/STYLE_BIBLE.md`, `CHANGELOG.md`.
+- Data structure and API impact: none.
+
 ## 2026-07-07 - Visible Data Check repair actions and intuitive focus ranks
 
 - Rebuilt the Data Check table as a five-column layout so the repair column remains visible without horizontal scrolling.

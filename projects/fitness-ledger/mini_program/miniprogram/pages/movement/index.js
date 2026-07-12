@@ -6,7 +6,8 @@ function compact(item) {
     ...item,
     maxWeight: Number(metrics.max_weight || 0),
     totalReps: Number(metrics.total_reps || 0),
-    volume: Number(metrics.volume || 0)
+    volume: Number(metrics.volume || 0),
+    sessionOrder: Number(item.order || item.exerciseIndex || item.sequence || item.position || 0)
   };
 }
 
@@ -27,5 +28,6 @@ Page({
       error: !movement.ok ? movement.message : (!history.ok ? history.message : "")
     });
   },
-  toggleAliases() { this.setData({ showAliases: !this.data.showAliases }); }
+  toggleAliases() { this.setData({ showAliases: !this.data.showAliases }); },
+  openTrainingSession(event) { wx.navigateTo({ url: `/pages/record/index?mode=training&date=${event.currentTarget.dataset.date}` }); }
 });

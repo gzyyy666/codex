@@ -1,29 +1,39 @@
 # Fitness Ledger Project Context
 
-Fitness Ledger is a single-user, local-first fitness journal. It records free-form daily notes, preserves raw text, and produces structured Body, Diet, Training, Cardio, Movement, and Data Check views.
+## Current App
 
-## Current Surfaces
+- Main program: `stable_app.pyw`
+- Desktop shortcut: `<USER_DESKTOP>\Fitness Ledger.lnk`
+- Main database: `data/tracker.json`
+- Automatic backups: `data/backups/`
+- Historical workbook extraction: `data/history_import.json`
+- Original workbook remains external and is not modified.
 
-- Tkinter desktop application for the complete local workflow.
-- Browser-grade local Web application with shared Parse/Review/Save, editing, dictionary management, export, and data-quality actions.
-- Read-only mobile viewer for phone access on the local network.
+## Current Features
 
-## Current Architecture
+- Natural-language daily input with a review-before-save step.
+- Body data extraction: date, weight, body fat, waist, sleep, steps, and measurement context.
+- Diet extraction: food summary, calories, protein, carbohydrates, and fat.
+- Training extraction: split, movement order, weight, repetitions, sets, and cardio parameters.
+- Historical movement-name matching through English and Chinese aliases.
+- New movement creation when no existing movement matches.
+- Simplified Body page focused on weight, context, training, cardio, and notes.
+- Wide Diet and Training tables with horizontal scrolling and double-click details.
+- Movement Matrix with movements as rows and ascending dates as columns.
+- Movement search filters rows without changing matrix date columns.
+- Original raw text retention for audit and later correction.
 
-- `stable_app.pyw`: maintained parser and desktop presentation.
-- `ledger_commands.py`: safe shared command boundary.
-- `fitness_ledger_core/`: shared projections and analysis/export helpers.
-- `web_desktop/`: local Web service and frontend.
-- `mobile_viewer/`: read-only mobile surface.
-- local `data/`: sole personal-data authority.
+## Data Safety
 
-## Core Guarantees
+- Never clear or replace `data/tracker.json` without a backup.
+- Saving a confirmed daily record creates a timestamped backup first.
+- Parser tests must use temporary data paths.
+- Preserve the original raw text even when parser rules improve.
 
-- Raw daily text is preserved.
-- Tracker and movement dictionary writes are atomic and checkpointed.
-- Movement identity uses permanent IDs and aliases.
-- Duplicate dates require an explicit overwrite/append/cancel decision.
-- Disabled movements remain recordable but are hidden from active growth views.
-- Repository source contains no personal database.
+## Known First-Version Limits
 
-For task routing use `START_HERE.md` and `docs/INDEX.md` rather than this summary.
+- The confirmation page is read-only; correction currently requires cancelling and editing the original text.
+- Movement matching uses aliases and exact normalized names, not semantic AI matching.
+- Movement Matrix cells do not yet open a dedicated history detail window.
+- The app does not yet write changes back into the Excel workbook.
+- Nutrient values are recorded from user-provided calculated totals; the app does not calculate meals automatically.

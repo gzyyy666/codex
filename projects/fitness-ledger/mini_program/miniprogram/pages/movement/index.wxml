@@ -20,15 +20,15 @@
     <view wx:if="{{!history.length}}" class="state">该动作暂无历史。</view>
     <view wx:else class="trajectory">
       <view class="trajectory-head"><view><view class="eyebrow">RECENT THREE</view><view class="section-title">最近三次</view></view><view class="history-count">{{history.length}}</view></view>
-      <view wx:for="{{history}}" wx:key="_id" wx:if="{{index < 3}}" class="history-slip recent-slip">
-        <view class="history-head"><view class="history-date">{{item.date}}</view><view class="history-order">#{{index + 1}}</view></view>
+      <view wx:for="{{history}}" wx:key="_id" wx:if="{{index < 3}}" class="history-slip recent-slip" data-date="{{item.date}}" bindtap="openTrainingSession">
+        <view class="history-head"><view class="history-date">{{item.date}}</view><view class="history-order">{{item.sessionOrder ? '当日第 ' + item.sessionOrder + ' 个动作' : '#' + (index + 1)}}</view></view>
         <view wx:for="{{item.sets}}" wx:key="index" class="set-row"><text>{{item.weight_text || (item.weight ? item.weight + ' kg' : '自重')}}</text><text>{{item.reps}} 次 × {{item.sets}} 组</text></view>
         <view class="history-metrics"><text>{{item.totalReps || '-'}} reps</text><text>{{item.volume || '-'}} volume</text></view>
         <view wx:if="{{item.notes}}" class="history-note">{{item.notes}}</view>
       </view>
       <view wx:if="{{history.length > 3}}" class="older-head"><view class="eyebrow">FULL HISTORY</view><view class="section-title">更早记录</view></view>
-      <view wx:for="{{history}}" wx:key="_id" wx:if="{{index >= 3}}" class="history-slip older-slip">
-        <view class="history-head"><view class="history-date">{{item.date}}</view><view class="history-order">#{{index + 1}}</view></view>
+      <view wx:for="{{history}}" wx:key="_id" wx:if="{{index >= 3}}" class="history-slip older-slip" data-date="{{item.date}}" bindtap="openTrainingSession">
+        <view class="history-head"><view class="history-date">{{item.date}}</view><view class="history-order">{{item.sessionOrder ? '当日第 ' + item.sessionOrder + ' 个动作' : '#' + (index + 1)}}</view></view>
         <view wx:for="{{item.sets}}" wx:key="index" class="set-row"><text>{{item.weight_text || (item.weight ? item.weight + ' kg' : '自重')}}</text><text>{{item.reps}} 次 × {{item.sets}} 组</text></view>
         <view wx:if="{{item.notes}}" class="history-note clamp-2">{{item.notes}}</view>
       </view>

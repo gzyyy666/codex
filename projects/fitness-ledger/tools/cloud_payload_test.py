@@ -7,6 +7,10 @@ from pathlib import Path
 
 
 PROJECT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT))
+
+from fitness_ledger_core.cloud_payload import stable_json_hash
+
 PAYLOAD = PROJECT / "cloud_sync" / "out" / "fitness_ledger_cloud_payload.json"
 EXPECTED = {
     "fl_meta", "fl_latest_summary", "fl_daily_records", "fl_diet_records",
@@ -21,9 +25,13 @@ def main() -> None:
     assert set(payload) == EXPECTED
     meta = payload["fl_meta"][0]
     assert meta["schema"] == "fitness-ledger-read-replica-v2"
-    assert meta["sync_state"] == "local_payload_only"
+    assert meta["sync_state"] == "local_payload_ready"
     assert meta["raw_text_policy"] == "preview-disabled"
-    assert meta["collection_counts"] == {name: len(rows) for name, rows in payload.items() if name != "fl_meta"}
+    business = {name: rows for name, rows in payload.items() if name != "fl_meta"}
+    assert meta["collection_counts"] == {name: len(rows) for name, rows in business.items()}
+    assert meta["collection_hashes"] == {name: stable_json_hash(rows) for name, rows in business.items()}
+    assert meta["payload_hash"] == stable_json_hash(business)
+    assert meta["sync_version"] == f"{meta['schema']}:{meta['payload_hash'][:16]}"
     assert all(not str(row.get("preview", "")) for row in payload["fl_raw_entries"])
     serialized = json.dumps(payload, ensure_ascii=False).lower()
     assert '"raw record"' not in serialized
@@ -39,6 +47,10 @@ def main() -> None:
         assert all(isinstance(json.loads(line), dict) for line in lines)
     manifest = json.loads((import_dir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["empty_collections"] == [name for name, rows in payload.items() if not rows]
+    assert manifest["sync_version"] == meta["sync_version"]
+    assert manifest["payload_hash"] == meta["payload_hash"]
+    assert manifest["collection_counts"] == meta["collection_counts"]
+    assert manifest["collection_hashes"] == meta["collection_hashes"]
     subprocess.run([sys.executable, str(PROJECT / "cloud_sync" / "sync_to_cloud.py"), "--dry-run"], check=True)
     report = json.loads(PAYLOAD.with_name("fitness_ledger_cloud_sync_report.json").read_text(encoding="utf-8"))
     assert report["network_request_made"] is False

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import datetime
 
 
@@ -16,6 +18,12 @@ def _without_full_raw(row: dict) -> dict:
         for key, value in row.items()
         if str(key).lower().replace("_", " ") not in {"raw", "raw record", "text"}
     }
+
+
+def stable_json_hash(value) -> str:
+    """Hash business JSON independent of key order, indentation, and newlines."""
+    normalized = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
 def _latest_summary(data: dict) -> list[dict]:
@@ -99,13 +107,20 @@ def build_cloud_payload(view_models, data_quality: dict | None = None) -> dict:
         "fl_data_quality_issues": list((data_quality or {}).get("issues", [])),
     }
     generated_at = datetime.now().replace(microsecond=0).isoformat()
+    business_collections = {name: rows for name, rows in payload.items() if name != "fl_meta"}
+    collection_counts = {name: len(rows) for name, rows in business_collections.items()}
+    collection_hashes = {name: stable_json_hash(rows) for name, rows in business_collections.items()}
+    payload_hash = stable_json_hash(business_collections)
     payload["fl_meta"] = [{
         "schema": SCHEMA_VERSION,
         "generated_at": generated_at,
         "source": "local-json",
-        "sync_state": "local_payload_only",
+        "sync_state": "local_payload_ready",
+        "sync_version": f"{SCHEMA_VERSION}:{payload_hash[:16]}",
+        "payload_hash": payload_hash,
         "raw_text_policy": "preview-disabled",
         "latest_record_date": payload["fl_latest_summary"][0]["date"] if payload["fl_latest_summary"] else "",
-        "collection_counts": {name: len(rows) for name, rows in payload.items() if name != "fl_meta"},
+        "collection_counts": collection_counts,
+        "collection_hashes": collection_hashes,
     }]
     return payload

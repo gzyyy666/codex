@@ -28,7 +28,8 @@ from fitness_ledger_core.data_quality_view import acknowledge_issue, collect_iss
 from fitness_ledger_core.analysis_export import build_export  # noqa: E402
 from fitness_ledger_core.shared_view_models import LedgerViewModels  # noqa: E402
 from cloud_sync.build_cloud_payload import main as build_cloud_replica  # noqa: E402
-from cloud_sync.sync_to_cloud import validate_payload  # noqa: E402
+from cloud_sync.sync_to_cloud import sync_payload, validate_payload  # noqa: E402
+from cloud_sync.upload_to_cloudbase import config_status, is_upload_configured, load_sync_config  # noqa: E402
 
 
 def load_stable_module():
@@ -136,23 +137,60 @@ class LedgerWebService:
         out_dir = PROJECT_DIR / "cloud_sync" / "out"
         manifest_path = out_dir / "cloudbase_import" / "manifest.json"
         report_path = out_dir / "fitness_ledger_cloud_sync_report.json"
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else None
-        report = json.loads(report_path.read_text(encoding="utf-8")) if report_path.exists() else None
+        state_path = out_dir / "sync_state.json"
+
+        def read_json(path: Path):
+            try:
+                return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+            except (OSError, json.JSONDecodeError):
+                return None
+
+        manifest = read_json(manifest_path)
+        report = read_json(report_path)
+        sync_state = read_json(state_path)
+        config = load_sync_config()
+        upload_config = config_status(config)
+        upload_ready = bool(upload_config.get("ready"))
+        real_upload_ready = bool(upload_ready and upload_config.get("real_network_provider"))
+        if real_upload_ready:
+            sync_mode = "cloudbase_sdk_sync" if config.get("provider") in {"tencentcloud", "tcb", "sdk"} else "cloudbase_command_sync"
+        elif upload_ready and config.get("provider") == "mock":
+            sync_mode = "mock_sync"
+        else:
+            sync_mode = "manual_cloudbase_import"
         env_config = PROJECT_DIR / "mini_program" / "miniprogram" / "config" / "env.local.js"
-        env_id = ""
+        env_id = config.get("environment_id", "")
         if env_config.exists():
             match = re.search(r'envId\s*:\s*["\']([^"\']+)', env_config.read_text(encoding="utf-8"))
-            env_id = match.group(1) if match else ""
+            env_id = env_id or (match.group(1) if match else "")
+        latest_result = sync_state or report or {}
+        if report and report.get("status") not in {"DRY_RUN"}:
+            latest_result = report
         return {
-            "mode": "manual_cloudbase_import",
-            "network_upload_configured": False,
-            "environment_configured": env_config.exists(),
+            "mode": sync_mode,
+            "provider": config.get("provider", "disabled"),
+            "upload_provider_ready": upload_ready,
+            "network_upload_configured": real_upload_ready,
+            "config_status": upload_config,
+            "missing_config": upload_config.get("missing", []),
+            "upload_verification_required": bool(upload_config.get("real_network_provider")),
+            "auto_sync_enabled": bool(config.get("auto_sync_enabled")),
+            "environment_configured": bool(env_id),
             "environment_id": env_id,
             "ledger_read_status": "unknown",
             "allowlist_status": "unknown",
             "raw_text_policy": (manifest or {}).get("raw_text_policy", "preview-disabled / excluded"),
             "local_latest_record_date": (manifest or {}).get("latest_record_date", ""),
-            "cloud_latest_record_date": (report or {}).get("cloud_latest_record_date", ""),
+            "cloud_latest_record_date": (
+                (latest_result.get("cloud_verification") or {}).get("cloud_latest_record_date")
+                or latest_result.get("cloud_latest_record_date", "")
+            ),
+            "sync_status": latest_result.get("status", "NOT_CONFIGURED" if not upload_ready else "READY"),
+            "sync_version": (manifest or {}).get("sync_version", latest_result.get("sync_version", "")),
+            "payload_hash": (manifest or {}).get("payload_hash", latest_result.get("payload_hash", "")),
+            "collection_hashes": (manifest or {}).get("collection_hashes", latest_result.get("collection_hashes", {})),
+            "collection_status": latest_result.get("collection_results", {}),
+            "last_sync_result": latest_result,
             "manifest": manifest,
             "validation": report,
             "logs": LedgerWebService._cloud_sync_log(),
@@ -197,6 +235,27 @@ class LedgerWebService:
         return {**LedgerWebService.cloud_sync_status(), "validation": report}
 
     @staticmethod
+    def run_cloud_sync(request: dict) -> dict:
+        try:
+            build_cloud_replica()
+            result = sync_payload(force=bool(request.get("force")))
+            LedgerWebService._cloud_sync_log({
+                "trigger": "manual",
+                "mode": "sync_payload",
+                "result": result.get("status", ""),
+                "latest_record_date": result.get("latest_record_date", ""),
+                "sync_version": result.get("sync_version", ""),
+                "error": result.get("error", ""),
+            })
+        except Exception as exc:
+            LedgerWebService._cloud_sync_log({
+                "trigger": "manual", "mode": "sync_payload", "result": "error",
+                "latest_record_date": "", "error": str(exc),
+            })
+            raise
+        return {**LedgerWebService.cloud_sync_status(), "sync_result": result}
+
+    @staticmethod
     def verify_cloud_sync(request: dict) -> dict:
         """Compare an exported CloudBase fl_meta row with the local manifest."""
         cloud_meta = request.get("cloud_meta") or {}
@@ -207,13 +266,22 @@ class LedgerWebService:
         status = LedgerWebService.cloud_sync_status()
         manifest = status.get("manifest") or {}
         expected_counts = manifest.get("collections") or {}
+        expected_hashes = manifest.get("collection_hashes") or {}
         actual_counts = cloud_meta.get("collection_counts") or {}
+        actual_hashes = cloud_meta.get("collection_hashes") or {}
         checks = {
             "schema": cloud_meta.get("schema") == manifest.get("schema"),
             "generated_at": cloud_meta.get("generated_at") == manifest.get("generated_at"),
+            "sync_version": cloud_meta.get("sync_version") == manifest.get("sync_version"),
+            "payload_hash": cloud_meta.get("payload_hash") == manifest.get("payload_hash"),
             "collection_counts": all(
                 int(actual_counts.get(name, -1)) == int(count)
                 for name, count in expected_counts.items()
+                if name != "fl_meta"
+            ),
+            "collection_hashes": all(
+                str(actual_hashes.get(name, "")) == str(expected_hash)
+                for name, expected_hash in expected_hashes.items()
                 if name != "fl_meta"
             ),
         }
@@ -221,7 +289,12 @@ class LedgerWebService:
             name: {
                 "expected": int(count),
                 "actual": int(actual_counts.get(name, -1)),
-                "ok": int(actual_counts.get(name, -1)) == int(count),
+                "expected_hash": str(expected_hashes.get(name, "")),
+                "actual_hash": str(actual_hashes.get(name, "")),
+                "ok": (
+                    int(actual_counts.get(name, -1)) == int(count)
+                    and str(actual_hashes.get(name, "")) == str(expected_hashes.get(name, ""))
+                ),
             }
             for name, count in expected_counts.items()
             if name != "fl_meta"
@@ -522,6 +595,8 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.acknowledge_data_issue(request))
             elif parsed.path == "/api/cloud-sync/build":
                 self.send_json(self.service.build_cloud_sync_package())
+            elif parsed.path == "/api/cloud-sync/sync":
+                self.send_json(self.service.run_cloud_sync(request))
             elif parsed.path == "/api/cloud-sync/verify":
                 self.send_json(self.service.verify_cloud_sync(request))
             elif parsed.path == "/api/cloud-sync/open":

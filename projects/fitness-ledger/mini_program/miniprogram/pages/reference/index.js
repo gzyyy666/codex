@@ -17,8 +17,17 @@ function sortedArea(area, sortBy) {
   return { ...area, movements };
 }
 
+function enrichSessions(area, records) {
+  const byDate = (records || []).reduce((map, record) => { map[String(record.Date || "").slice(0, 10)] = record; return map; }, {});
+  return { ...area, sessions: (area.sessions || []).map(session => {
+    const record = byDate[session.date] || {};
+    const title = String(session.split || "").trim() || `${area.label}训练`;
+    return { ...session, title, full_summary: record["Standardized Summary"] || record.Summary || session.movement_summary || "暂无完整动作摘要" };
+  }) };
+}
+
 Page({
-  data: { loading: true, error: "", selected: "", sortBy: "frequency", viewMode: "movements", freshness: null, areas: BODY_PARTS, area: null },
+  data: { loading: true, error: "", selected: "", sortBy: "frequency", freshness: null, areas: BODY_PARTS, area: null },
   async onShow() {
     const pending = getApp().globalData.selectedBodyPart || "";
     getApp().globalData.selectedBodyPart = "";
@@ -44,17 +53,16 @@ Page({
   async loadArea(part) {
     const theme = byId(part);
     if (!theme) return;
-    this.setData({ loading: true, error: "", selected: part, viewMode: "movements", area: { label: theme.cn, labelEn: theme.en, tone: theme.tone, session_count: 0, movement_count: 0, latest_date: "", movements: [], sessions: [] } });
-    const response = await ledger.call("bodyArea", { part });
-    const area = response.ok ? sortedArea({ ...response.data, tone: theme.tone }, this.data.sortBy) : null;
+    this.setData({ loading: true, error: "", selected: part, area: { label: theme.cn, labelEn: theme.en, tone: theme.tone, session_count: 0, movement_count: 0, latest_date: "", movements: [], sessions: [] } });
+    const [response, records] = await Promise.all([ledger.call("bodyArea", { part }), ledger.call("trainingRecords")]);
+    const area = response.ok ? sortedArea(enrichSessions({ ...response.data, tone: theme.tone }, records.ok ? records.data : []), this.data.sortBy) : null;
     this.setData({ loading: false, area, error: response.ok ? "" : response.message });
   },
   setSort(event) {
     const sortBy = event.currentTarget.dataset.sort;
     this.setData({ sortBy, area: this.data.area ? sortedArea(this.data.area, sortBy) : null });
   },
-  setViewMode(event) { this.setData({ viewMode: event.currentTarget.dataset.mode }); },
   overview() { this.setData({ selected: "", area: null, error: "" }); },
   openMovement(event) { wx.navigateTo({ url: `/pages/movement/index?id=${event.currentTarget.dataset.id}` }); },
-  openSession(event) { wx.navigateTo({ url: `/pages/record/index?date=${event.currentTarget.dataset.date}` }); }
+  openSession(event) { wx.navigateTo({ url: `/pages/record/index?mode=training&date=${event.currentTarget.dataset.date}` }); }
 });

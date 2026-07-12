@@ -53,8 +53,13 @@ def main() -> Path:
         json.dumps({
             "schema": payload["fl_meta"][0]["schema"],
             "generated_at": payload["fl_meta"][0]["generated_at"],
+            "sync_version": payload["fl_meta"][0].get("sync_version", ""),
+            "payload_hash": payload["fl_meta"][0].get("payload_hash", ""),
             "latest_record_date": payload["fl_meta"][0]["latest_record_date"],
             "collections": {name: len(rows) for name, rows in payload.items()},
+            "collection_counts": payload["fl_meta"][0].get("collection_counts", {}),
+            "collection_hashes": payload["fl_meta"][0].get("collection_hashes", {}),
+            "raw_text_policy": payload["fl_meta"][0].get("raw_text_policy", ""),
             "empty_collections": [name for name, rows in payload.items() if not rows],
             "import_files": [f"{name}.json" for name, rows in payload.items() if rows],
             "upload_order": [name for name in payload if name != "fl_meta"] + ["fl_meta"],

@@ -1,5 +1,21 @@
-<view class="page record-page"><view class="eyebrow">DAILY ARCHIVE / READ ONLY</view><view class="title">{{detail.date || '记录详情'}}</view>
+<view class="page record-page"><view class="eyebrow">{{mode === 'training' ? 'TRAINING DAY / READ ONLY' : 'DAILY ARCHIVE / READ ONLY'}}</view><view class="title">{{mode === 'training' ? (date || '训练日详情') : (detail.date || '记录详情')}}</view>
   <view wx:if="{{loading}}" class="state">读取中…</view><view wx:elif="{{error}}" class="state error">{{error}}</view>
+  <block wx:elif="{{mode === 'training'}}">
+    <view wx:if="{{!session}}" class="state">该日期暂无训练明细。</view>
+    <view wx:else class="record-section training-session-only">
+      <view class="eyebrow">TRAINING SESSION</view><view class="session-title">{{session.split || '训练记录'}}</view>
+      <view wx:if="{{session.summary}}" class="session-summary clamp-3">{{session.summary}}</view>
+      <view wx:if="{{!movements.length}}" class="state session-empty">该训练日暂无动作明细。</view>
+      <view wx:for="{{movements}}" wx:key="movement_id" class="training-action-card is-link" data-id="{{item.movement_id}}" bindtap="openMovement">
+        <view class="action-head"><view class="action-order">第 {{item.displayOrder}} 个动作</view><view class="action-name">{{item.movement_name}}</view><view class="action-link">轨迹 →</view></view>
+        <view wx:if="{{item.english_name || item.muscle_group}}" class="action-meta">{{item.english_name}}{{item.english_name && item.muscle_group ? ' · ' : ''}}{{item.muscle_group}}</view>
+        <view wx:if="{{!item.sets.length}}" class="action-empty">没有组数记录</view>
+        <view wx:for="{{item.sets}}" wx:for-item="set" wx:key="id" class="action-set"><text wx:if="{{set.weightLabel}}">{{set.weightLabel}}</text><text wx:if="{{set.weightLabel && (set.repsLabel || set.setLabel)}}"> × </text><text wx:if="{{set.repsLabel}}">{{set.repsLabel}}</text><text wx:if="{{set.repsLabel && set.setLabel}}"> × </text><text wx:if="{{set.setLabel}}">{{set.setLabel}}</text></view>
+        <view wx:if="{{item.notes}}" class="action-notes"><view>动作备注</view><text>{{item.notes}}</text></view>
+      </view>
+      <view wx:if="{{session.notes}}" class="session-notes"><view class="note-label">训练总备注</view><view>{{session.notes}}</view></view>
+    </view>
+  </block>
   <block wx:elif="{{detail}}">
     <view wx:for="{{detail.body}}" wx:key="_id" class="record-section body-section">
       <view class="record-head"><view><view class="eyebrow">BODY</view><view class="section-title">身体与当天状态</view></view><view data-key="showBody" bindtap="toggle" class="expand">{{showBody ? '收起' : '展开'}}</view></view>

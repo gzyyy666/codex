@@ -7,7 +7,8 @@ Create durable GitHub source checkpoints while keeping personal fitness records 
 ## Create A Source Checkpoint
 
 1. Run syntax, regression, smoke, and Web tests in the working application folder.
-2. Refresh `projects/fitness-ledger/` from the working folder.
+2. Set `FITNESS_LEDGER_SOURCE_ROOT` to the formal project root, then run `tools/preview-fitness-ledger-mirror.ps1` from this repository before any refresh. It is a default-deny allowlist preview and must report no sensitive-content matches.
+3. Only after reviewing the preview, rerun it with `-Apply` to refresh `projects/fitness-ledger/`. The tool never deletes mirror-only recovery documents or design evidence.
 3. Exclude `data/`, `backups/`, logs, caches, browser profiles, spreadsheets, and temporary files.
    Also exclude generated `cloud_sync/out/*.json`, because the read-replica payload contains personal fitness data.
 4. Update `memory/fitness-ledger-state.md` when architecture or durable behavior changes.

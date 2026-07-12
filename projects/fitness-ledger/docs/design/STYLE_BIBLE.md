@@ -170,6 +170,19 @@ The progression chart and recent records are primary. The title/illustration ban
 
 Only the Open control opens issue details. The row itself is not clickable. Problem descriptions are in Chinese and the final column must remain fully visible.
 
+### Cloud Sync
+
+Cloud Sync is a local-first maintenance console, not an Export attachment, settings sheet, or generic dashboard. Its first visual read is the natural-language sync conclusion and its single high-weight action; diagnostic fields must never displace that conclusion.
+
+- The header may carry one quiet status badge only. It must not become an action toolbar.
+- The primary status card answers status, latest successful sync, local/cloud record dates, and the next safe action. Internal codes such as `SYNCED` remain small supporting labels.
+- State copy must say `手动触发` and distinguish it from what happens after the click: configured sync runs automatically through payload generation, upload, and verification. Never imply that a local save uploads in the background.
+- Use a compact Local Source → Payload → CloudBase replica → Mini Program flow. It must state that local data is authoritative, CloudBase is read-only replica data, and the cloud cannot overwrite the local ledger.
+- The default information layer is three compact groups: data state, data consistency, and environment/safety. Prefer readable dates and verdicts such as `已验证`, `10 / 10`, and `需验证` over hashes, providers, or internal version strings.
+- `同步到 CloudBase` is the only high-emphasis action. `生成 Payload` and `刷新状态` are secondary. Import, report, log, environment, and cloud-function checks live under a closed Advanced & Recovery disclosure.
+- Complete payload hashes, collection hashes, SDK/request data, error stacks, commands, and raw report JSON are diagnostic-only and must be disclosed on demand in compact copyable monospace treatment.
+- Sync loading must disable the primary action and immediately name the current stage. Completion or failure updates the primary card, not just a toast. Failure copy must reaffirm that local source data remains safe.
+
 ## 10. Interaction Semantics
 
 - A visual action must be genuinely interactive.

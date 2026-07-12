@@ -145,6 +145,65 @@ async function bodyAreaPayload(partId) {
   ]);
   return buildBodyArea(partId, datasets[0], datasets[1], datasets[2]);
 }
+function validIsoDate(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
+}
+function chunks(values, size) {
+  const result = [];
+  for (let index = 0; index < values.length; index += size) result.push(values.slice(index, index + size));
+  return result;
+}
+async function allOnDate(name, field, date, maxItems = 500) {
+  const rows = [];
+  const pageSize = 100;
+  for (let skip = 0; skip < maxItems; skip += pageSize) {
+    const page = (await db.collection(name).where({ [field]: date }).skip(skip).limit(pageSize).get()).data;
+    rows.push(...page);
+    if (page.length < pageSize) break;
+  }
+  return rows.slice(0, maxItems);
+}
+async function getTrainingDayDetail(date) {
+  const [sessionResult, history] = await Promise.all([
+    db.collection(COLLECTIONS.training).where({ Date: date }).limit(10).get(),
+    allOnDate(COLLECTIONS.history, "date", date)
+  ]);
+  const movementIds = [...new Set(history.map(item => String(item.movement_id || "")).filter(Boolean))];
+  const movementRows = movementIds.length ? (await Promise.all(chunks(movementIds, 20).map(ids => (
+    db.collection(COLLECTIONS.movements).where({ movement_id: db.command.in(ids) }).get()
+  )))).flatMap(item => item.data || []) : [];
+  const movementById = Object.fromEntries(movementRows.map(item => [String(item.movement_id || ""), item]));
+  const movements = history.map((item, index) => {
+    const movementId = String(item.movement_id || "");
+    const movement = movementById[movementId] || {};
+    return {
+      movement_id: movementId,
+      movement_name: movement.display_name || movementId,
+      english_name: movement.english_name || "",
+      muscle_group: movement.muscle_group || "",
+      order: item.order === undefined || item.order === null ? null : item.order,
+      sets: Array.isArray(item.sets) ? item.sets : [],
+      notes: item.notes || "",
+      _source_index: index
+    };
+  }).sort((a, b) => {
+    const aOrder = a.order === null ? Number.MAX_SAFE_INTEGER : Number(a.order);
+    const bOrder = b.order === null ? Number.MAX_SAFE_INTEGER : Number(b.order);
+    return aOrder - bOrder || a._source_index - b._source_index;
+  }).map(({ _source_index, ...item }) => item);
+  const session = (sessionResult.data || [])[0] || null;
+  return {
+    date,
+    session: session ? {
+      id: session.id || session._id || "",
+      date: String(session.Date || "").slice(0, 10),
+      split: session.Split || "",
+      summary: session["Standardized Summary"] || "",
+      notes: session.Notes || ""
+    } : null,
+    movements
+  };
+}
 
 exports.main = async (event) => {
   const wxContext = cloud.getWXContext();
@@ -223,6 +282,11 @@ exports.main = async (event) => {
       }
       case "movementHistory": return result((await db.collection(COLLECTIONS.history).where({ movement_id: String(event.movementId || "") }).orderBy("date", "desc").limit(Math.min(Number(event.limit || 5), 20)).get()).data);
       case "movement": return result((await db.collection(COLLECTIONS.movements).where({ movement_id: String(event.movementId || "") }).limit(1).get()).data[0] || null);
+      case "trainingDayDetail": {
+        const date = String(event.date || "").slice(0, 10);
+        if (!validIsoDate(date)) return failure("INVALID_DATE", "日期格式应为 YYYY-MM-DD。");
+        return result(await getTrainingDayDetail(date));
+      }
       case "recordDetail": {
         const date = String(event.date || "").slice(0, 10);
         const fetch = name => db.collection(name).where({ Date: date }).get();
