@@ -27,7 +27,7 @@ from ledger_commands import DuplicateDateError, LedgerCommandError, LedgerComman
 from fitness_ledger_core.data_quality_view import acknowledge_issue, collect_issues  # noqa: E402
 from fitness_ledger_core.analysis_export import build_export  # noqa: E402
 from fitness_ledger_core.shared_view_models import LedgerViewModels  # noqa: E402
-from cloud_sync.build_cloud_payload import main as build_cloud_replica  # noqa: E402
+from cloud_sync.build_cloud_payload import main as build_cloud_replica, source_metadata  # noqa: E402
 from cloud_sync.sync_to_cloud import sync_payload, validate_payload  # noqa: E402
 from cloud_sync.upload_to_cloudbase import config_status, is_upload_configured, load_sync_config  # noqa: E402
 
@@ -132,8 +132,7 @@ class LedgerWebService:
             temp.replace(log_path)
         return rows
 
-    @staticmethod
-    def cloud_sync_status() -> dict:
+    def cloud_sync_status(self) -> dict:
         out_dir = PROJECT_DIR / "cloud_sync" / "out"
         manifest_path = out_dir / "cloudbase_import" / "manifest.json"
         report_path = out_dir / "fitness_ledger_cloud_sync_report.json"
@@ -148,6 +147,11 @@ class LedgerWebService:
         manifest = read_json(manifest_path)
         report = read_json(report_path)
         sync_state = read_json(state_path)
+        try:
+            tracker, dictionary = self.views.snapshot()
+            current_source = source_metadata(tracker, dictionary)
+        except (OSError, json.JSONDecodeError):
+            current_source = {"source_fingerprint": "", "latest_record_date": ""}
         config = load_sync_config()
         upload_config = config_status(config)
         upload_ready = bool(upload_config.get("ready"))
@@ -173,8 +177,19 @@ class LedgerWebService:
         last_verification = last_success.get("cloud_verification") or {}
         current_payload_hash = (manifest or {}).get("payload_hash", "")
         last_success_hash = last_success.get("payload_hash", "")
+        current_source_fingerprint = current_source["source_fingerprint"]
+        payload_source_fingerprint = (manifest or {}).get("source_fingerprint", "")
+        payload_stale = bool(
+            manifest
+            and (
+                not payload_source_fingerprint
+                or payload_source_fingerprint != current_source_fingerprint
+            )
+        )
 
-        if manifest and last_success:
+        if manifest and payload_stale:
+            current_sync_status = "LOCAL_NEWER"
+        elif manifest and last_success:
             if current_payload_hash and last_success_hash and current_payload_hash != last_success_hash:
                 current_sync_status = "LOCAL_NEWER"
             elif last_verification.get("verified"):
@@ -203,7 +218,7 @@ class LedgerWebService:
             "ledger_read_status": "unknown",
             "allowlist_status": "unknown",
             "raw_text_policy": (manifest or {}).get("raw_text_policy", "preview-disabled / excluded"),
-            "local_latest_record_date": (manifest or {}).get("latest_record_date", ""),
+            "local_latest_record_date": current_source["latest_record_date"],
             "cloud_latest_record_date": (
                 last_verification.get("cloud_latest_record_date")
                 or latest_result.get("cloud_latest_record_date", "")
@@ -211,6 +226,7 @@ class LedgerWebService:
             "sync_status": current_sync_status,
             "sync_version": (manifest or {}).get("sync_version", latest_result.get("sync_version", "")),
             "payload_hash": (manifest or {}).get("payload_hash", latest_result.get("payload_hash", "")),
+            "payload_stale": payload_stale,
             "collection_hashes": (manifest or {}).get("collection_hashes", latest_result.get("collection_hashes", {})),
             "collection_status": latest_result.get("collection_results", {}),
             "last_sync_result": latest_result,
@@ -240,8 +256,7 @@ class LedgerWebService:
         os.startfile(str(path))
         return {"opened": True, "target": target, "path": str(path)}
 
-    @staticmethod
-    def build_cloud_sync_package() -> dict:
+    def build_cloud_sync_package(self) -> dict:
         try:
             build_cloud_replica()
             report = validate_payload()
@@ -258,10 +273,9 @@ class LedgerWebService:
                 "latest_record_date": "", "error": str(exc),
             })
             raise
-        return {**LedgerWebService.cloud_sync_status(), "validation": report}
+        return {**self.cloud_sync_status(), "validation": report}
 
-    @staticmethod
-    def run_cloud_sync(request: dict) -> dict:
+    def run_cloud_sync(self, request: dict) -> dict:
         try:
             build_cloud_replica()
             result = sync_payload(force=bool(request.get("force")))
@@ -279,17 +293,16 @@ class LedgerWebService:
                 "latest_record_date": "", "error": str(exc),
             })
             raise
-        return {**LedgerWebService.cloud_sync_status(), "sync_result": result}
+        return {**self.cloud_sync_status(), "sync_result": result}
 
-    @staticmethod
-    def verify_cloud_sync(request: dict) -> dict:
+    def verify_cloud_sync(self, request: dict) -> dict:
         """Compare an exported CloudBase fl_meta row with the local manifest."""
         cloud_meta = request.get("cloud_meta") or {}
         if isinstance(cloud_meta, list):
             cloud_meta = cloud_meta[0] if cloud_meta else {}
         if not isinstance(cloud_meta, dict):
             raise LedgerCommandError("fl_meta 必须是 JSON 对象或单元素数组。")
-        status = LedgerWebService.cloud_sync_status()
+        status = self.cloud_sync_status()
         manifest = status.get("manifest") or {}
         expected_counts = manifest.get("collections") or {}
         expected_hashes = manifest.get("collection_hashes") or {}

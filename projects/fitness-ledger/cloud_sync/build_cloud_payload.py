@@ -8,7 +8,7 @@ from pathlib import Path
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
-from fitness_ledger_core.cloud_payload import build_cloud_payload
+from fitness_ledger_core.cloud_payload import build_cloud_payload, stable_json_hash
 from fitness_ledger_core.data_quality_view import collect_issues
 from fitness_ledger_core.shared_view_models import LedgerViewModels
 
@@ -24,9 +24,27 @@ def load_stable_module():
     loader.exec_module(module)
     return module
 
+
+def source_metadata(tracker: dict, dictionary: dict) -> dict:
+    """Return the canonical version and latest date of the formal local sources."""
+    dates = {
+        str(row.get("Date") or row.get("date") or "")[:10]
+        for collection in ("daily_records", "diet_records", "training_sessions")
+        for row in tracker.get(collection, []) or []
+        if str(row.get("Date") or row.get("date") or "")[:10]
+    }
+    return {
+        "source_fingerprint": stable_json_hash({
+            "tracker": tracker,
+            "movement_dictionary": dictionary,
+        }),
+        "latest_record_date": max(dates, default=""),
+    }
+
 def main() -> Path:
     views = LedgerViewModels(PROJECT_DIR / "data" / "tracker.json", PROJECT_DIR / "data" / "movement_dictionary.json")
     tracker, dictionary = views.snapshot()
+    source = source_metadata(tracker, dictionary)
     quality = collect_issues(
         tracker,
         dictionary,
@@ -56,6 +74,7 @@ def main() -> Path:
             "sync_version": payload["fl_meta"][0].get("sync_version", ""),
             "payload_hash": payload["fl_meta"][0].get("payload_hash", ""),
             "latest_record_date": payload["fl_meta"][0]["latest_record_date"],
+            "source_fingerprint": source["source_fingerprint"],
             "collections": {name: len(rows) for name, rows in payload.items()},
             "collection_counts": payload["fl_meta"][0].get("collection_counts", {}),
             "collection_hashes": payload["fl_meta"][0].get("collection_hashes", {}),
