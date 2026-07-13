@@ -163,9 +163,32 @@ class LedgerWebService:
         if env_config.exists():
             match = re.search(r'envId\s*:\s*["\']([^"\']+)', env_config.read_text(encoding="utf-8"))
             env_id = env_id or (match.group(1) if match else "")
-        latest_result = sync_state or report or {}
-        if report and report.get("status") not in {"DRY_RUN"}:
-            latest_result = report
+        # ``manifest`` describes the payload currently on disk; ``sync_state``
+        # is written only after a verified SYNCED upload.  They must not be
+        # collapsed into one status: a new local payload can exist after the
+        # last verified upload.
+        last_success = sync_state if (sync_state or {}).get("status") == "SYNCED" else {}
+        last_attempt = report if report and report.get("status") != "DRY_RUN" else {}
+        latest_result = last_attempt or last_success
+        last_verification = last_success.get("cloud_verification") or {}
+        current_payload_hash = (manifest or {}).get("payload_hash", "")
+        last_success_hash = last_success.get("payload_hash", "")
+
+        if manifest and last_success:
+            if current_payload_hash and last_success_hash and current_payload_hash != last_success_hash:
+                current_sync_status = "LOCAL_NEWER"
+            elif last_verification.get("verified"):
+                current_sync_status = "SYNCED"
+            else:
+                current_sync_status = "CLOUD_MISMATCH"
+        elif manifest and last_attempt:
+            # A report from an attempted upload is a current outcome, except
+            # DRY_RUN (excluded above), which only validates local files.
+            current_sync_status = last_attempt.get("status", "READY")
+        elif manifest:
+            current_sync_status = "NOT_CONFIGURED" if not upload_ready else "READY"
+        else:
+            current_sync_status = latest_result.get("status", "NOT_CONFIGURED" if not upload_ready else "READY")
         return {
             "mode": sync_mode,
             "provider": config.get("provider", "disabled"),
@@ -182,15 +205,18 @@ class LedgerWebService:
             "raw_text_policy": (manifest or {}).get("raw_text_policy", "preview-disabled / excluded"),
             "local_latest_record_date": (manifest or {}).get("latest_record_date", ""),
             "cloud_latest_record_date": (
-                (latest_result.get("cloud_verification") or {}).get("cloud_latest_record_date")
+                last_verification.get("cloud_latest_record_date")
                 or latest_result.get("cloud_latest_record_date", "")
             ),
-            "sync_status": latest_result.get("status", "NOT_CONFIGURED" if not upload_ready else "READY"),
+            "sync_status": current_sync_status,
             "sync_version": (manifest or {}).get("sync_version", latest_result.get("sync_version", "")),
             "payload_hash": (manifest or {}).get("payload_hash", latest_result.get("payload_hash", "")),
             "collection_hashes": (manifest or {}).get("collection_hashes", latest_result.get("collection_hashes", {})),
             "collection_status": latest_result.get("collection_results", {}),
             "last_sync_result": latest_result,
+            "last_sync_status": last_success.get("status", ""),
+            "last_sync_at": last_success.get("finished_at") or last_success.get("validated_at", ""),
+            "last_cloud_verification": last_verification,
             "manifest": manifest,
             "validation": report,
             "logs": LedgerWebService._cloud_sync_log(),
