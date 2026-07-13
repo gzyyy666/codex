@@ -28,7 +28,7 @@ function enrichSessions(area, records) {
 }
 
 Page({
-  data: { loading: true, error: "", selected: "", sortBy: "frequency", freshness: null, areas: BODY_PARTS, area: null, notepadOpen: false, notepadTurning: false, noteText: "" },
+  data: { loading: true, error: "", selected: "", sortBy: "frequency", freshness: null, areas: BODY_PARTS, area: null, notepadOpen: false, notepadTurning: false, notepadFlipBack: false, notepadExpanded: false, noteText: "" },
   async onShow() {
     if (getApp().globalData.resetReferenceNotepad) {
       getApp().globalData.resetReferenceNotepad = false;
@@ -60,7 +60,7 @@ Page({
     if (!theme) return;
     const noteText = notepad.migrateLegacy(part, notepad.load(part));
     this.noteText = noteText;
-    this.setData({ loading: true, error: "", selected: part, notepadOpen: false, noteText, area: { label: theme.cn, labelEn: theme.en, tone: theme.tone, session_count: 0, movement_count: 0, latest_date: "", movements: [], sessions: [] } });
+    this.setData({ loading: true, error: "", selected: part, notepadOpen: false, notepadExpanded: false, noteText, area: { label: theme.cn, labelEn: theme.en, tone: theme.tone, session_count: 0, movement_count: 0, latest_date: "", movements: [], sessions: [] } });
     const [response, records] = await Promise.all([ledger.call("bodyArea", { part }), ledger.call("trainingRecords")]);
     const area = response.ok ? sortedArea(enrichSessions({ ...response.data, label: theme.cn, labelEn: theme.en, tone: theme.tone }, records.ok ? records.data : []), this.data.sortBy) : this.data.area;
     this.setData({ loading: false, area, error: response.ok ? "" : response.message });
@@ -69,12 +69,18 @@ Page({
     const sortBy = event.currentTarget.dataset.sort;
     this.setData({ sortBy, area: this.data.area ? sortedArea(this.data.area, sortBy) : null });
   },
-  overview() { this.setData({ selected: "", area: null, error: "", notepadOpen: false, noteText: "" }); },
+  overview() { this.setData({ selected: "", area: null, error: "", notepadOpen: false, notepadExpanded: false, noteText: "" }); },
   toggleNotepad() {
-    if (this.data.notepadOpen) { this.setData({ notepadOpen: false }); return; }
+    if (this.data.notepadOpen) {
+      this.setData({ notepadFlipBack: true });
+      setTimeout(() => this.setData({ notepadOpen: false, notepadExpanded: false, notepadFlipBack: false }), 150);
+      return;
+    }
     this.setData({ notepadTurning: true });
     setTimeout(() => this.setData({ notepadOpen: true, notepadTurning: false }), 150);
   },
+  expandNotepad() { this.setData({ notepadExpanded: true }); },
+  collapseNotepad() { this.setData({ notepadExpanded: false }); },
   noop() {},
   onNoteInput(event) { this.noteText = event.detail.value; notepad.save(this.data.selected, this.noteText); },
   copyNote() {

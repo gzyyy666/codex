@@ -2,8 +2,8 @@ const notepad = require("../../utils/freeformNotepad");
 const { byId } = require("../../utils/bodyParts");
 Component({
   properties: { part: { type: String, value: "" } },
-  data: { open: false, text: "", label: "" },
-  observers: { part(part) { if (!part) return; this.noteText = notepad.load(part); const theme = byId(part); this.setData({ open: false, text: this.noteText, label: theme ? theme.cn : "" }); } },
+  data: { open: false, text: "", label: "", tone: "amber" },
+  observers: { part(part) { if (!part) return; this.noteText = notepad.load(part); const theme = byId(part); this.setData({ open: false, text: this.noteText, label: theme ? theme.cn : "", tone: theme ? theme.tone : "amber" }); } },
   methods: {
     toggle() { this.setData({ open: !this.data.open }); },
     onInput(event) { this.noteText = event.detail.value; notepad.save(this.data.part, this.noteText); },
