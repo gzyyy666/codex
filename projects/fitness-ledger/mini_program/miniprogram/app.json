@@ -2,7 +2,6 @@
   "pages": [
     "pages/reference/index",
     "pages/training/index",
-    "pages/today/index",
     "pages/movement/index",
     "pages/record/index",
     "pages/body/index",

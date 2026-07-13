@@ -36,7 +36,7 @@ Page({
     const order = this.data.order === "newest" ? "oldest" : "newest";
     this.setData({ order, records: filterRecords(this.data.sourceRecords, this.data.query, order) });
   },
-  openDraft() { wx.navigateTo({ url: "/pages/today/index" }); },
+  onShow() { getApp().globalData.resetReferenceNotepad = true; },
   open(event) {
     wx.navigateTo({ url: `/pages/record/index?mode=training&date=${String(event.currentTarget.dataset.date || "").slice(0, 10)}` });
   }

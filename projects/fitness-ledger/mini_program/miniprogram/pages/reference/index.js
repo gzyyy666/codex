@@ -1,6 +1,7 @@
 const ledger = require("../../services/ledger");
 const { BODY_PARTS, byId } = require("../../utils/bodyParts");
 const freshness = require("../../utils/freshness");
+const notepad = require("../../utils/freeformNotepad");
 
 function sortedArea(area, sortBy) {
   const movements = (area.movements || []).slice();
@@ -27,8 +28,12 @@ function enrichSessions(area, records) {
 }
 
 Page({
-  data: { loading: true, error: "", selected: "", sortBy: "frequency", freshness: null, areas: BODY_PARTS, area: null },
+  data: { loading: true, error: "", selected: "", sortBy: "frequency", freshness: null, areas: BODY_PARTS, area: null, notepadOpen: false, noteText: "" },
   async onShow() {
+    if (getApp().globalData.resetReferenceNotepad) {
+      getApp().globalData.resetReferenceNotepad = false;
+      this.overview();
+    }
     const pending = getApp().globalData.selectedBodyPart || "";
     getApp().globalData.selectedBodyPart = "";
     if (!this.data.areas.some(item => item.session_count !== undefined)) await this.loadOverview();
@@ -53,7 +58,9 @@ Page({
   async loadArea(part) {
     const theme = byId(part);
     if (!theme) return;
-    this.setData({ loading: true, error: "", selected: part, area: { label: theme.cn, labelEn: theme.en, tone: theme.tone, session_count: 0, movement_count: 0, latest_date: "", movements: [], sessions: [] } });
+    const noteText = notepad.migrateLegacy(part, notepad.load(part));
+    this.noteText = noteText;
+    this.setData({ loading: true, error: "", selected: part, notepadOpen: false, noteText, area: { label: theme.cn, labelEn: theme.en, tone: theme.tone, session_count: 0, movement_count: 0, latest_date: "", movements: [], sessions: [] } });
     const [response, records] = await Promise.all([ledger.call("bodyArea", { part }), ledger.call("trainingRecords")]);
     const area = response.ok ? sortedArea(enrichSessions({ ...response.data, tone: theme.tone }, records.ok ? records.data : []), this.data.sortBy) : null;
     this.setData({ loading: false, area, error: response.ok ? "" : response.message });
@@ -62,7 +69,22 @@ Page({
     const sortBy = event.currentTarget.dataset.sort;
     this.setData({ sortBy, area: this.data.area ? sortedArea(this.data.area, sortBy) : null });
   },
-  overview() { this.setData({ selected: "", area: null, error: "" }); },
+  overview() { this.setData({ selected: "", area: null, error: "", notepadOpen: false, noteText: "" }); },
+  toggleNotepad() { this.setData({ notepadOpen: !this.data.notepadOpen }); },
+  noop() {},
+  onNoteInput(event) { this.noteText = event.detail.value; notepad.save(this.data.selected, this.noteText); },
+  copyNote() {
+    if (!this.noteText) { wx.showToast({ title: "暂无可复制内容", icon: "none" }); return; }
+    wx.setClipboardData({ data: this.noteText, success: () => wx.showToast({ title: "已复制全部", icon: "success" }) });
+  },
+  clearNote() {
+    wx.showModal({ title: "清空临时记录？", content: `只清空${this.data.area.label}的临时记录，不会影响正式训练记录。`, confirmText: "清空", confirmColor: "#a33d31", success: result => {
+      if (!result.confirm) return;
+      notepad.clear(this.data.selected);
+      this.noteText = "";
+      this.setData({ noteText: "" });
+    } });
+  },
   openMovement(event) { wx.navigateTo({ url: `/pages/movement/index?id=${event.currentTarget.dataset.id}` }); },
   openSession(event) { wx.navigateTo({ url: `/pages/record/index?mode=training&date=${event.currentTarget.dataset.date}` }); }
 });
