@@ -35,10 +35,23 @@ def main() -> None:
     assert "notepad-card" in reference and "textarea" in reference
     assert "copyNote" in reference and "clearNote" in reference
     reference_js = (ROOT / "miniprogram" / "pages" / "reference" / "index.js").read_text(encoding="utf-8")
+    assert "part-title" in reference and "label: theme.cn" in reference_js
     assert "wx.setClipboardData" in reference_js and "notepad.migrateLegacy" in reference_js
     notepad = (ROOT / "miniprogram" / "utils" / "freeformNotepad.js").read_text(encoding="utf-8")
     assert "fitness-ledger:freeform-notepad:v1:" in notepad
     assert "fitness-ledger:training-draft:" in notepad
+    dock = ROOT / "miniprogram" / "components" / "freeformNotepad"
+    for suffix in (".js", ".json", ".wxml", ".wxss"):
+        assert (dock / f"index{suffix}").exists()
+    dock_js = (dock / "index.js").read_text(encoding="utf-8")
+    assert "notepad.load(part)" in dock_js and "notepad.save(this.data.part" in dock_js
+    movement = (ROOT / "miniprogram" / "pages" / "movement" / "index.wxml").read_text(encoding="utf-8")
+    record = (ROOT / "miniprogram" / "pages" / "record" / "index.wxml").read_text(encoding="utf-8")
+    assert "freeform-notepad" in movement and "freeform-notepad" in record
+    movement_js = (ROOT / "miniprogram" / "pages" / "movement" / "index.js").read_text(encoding="utf-8")
+    record_js = (ROOT / "miniprogram" / "pages" / "record" / "index.js").read_text(encoding="utf-8")
+    assert "&part=${this.data.selected}" in reference_js
+    assert "part = options.part" in movement_js and "part = options.part" in record_js
     assert "训练频率" in reference and "最近训练" in reference and "按训练日" in reference
     training = (ROOT / "miniprogram" / "pages" / "training" / "index.wxml").read_text(encoding="utf-8")
     assert "搜索日期" in training and "查看当日训练" in training

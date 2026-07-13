@@ -1,4 +1,4 @@
-<view class="page movement-page">
+<view class="page movement-page"><freeform-notepad part="{{part}}" />
   <view wx:if="{{loading}}" class="state">读取中…</view><view wx:elif="{{error}}" class="state error">{{error}}</view>
   <block wx:elif="{{movement}}">
     <view class="movement-hero">

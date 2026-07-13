@@ -19,14 +19,15 @@ function displaySets(movements) {
 }
 
 Page({
-  data: { loading: true, error: "", date: "", detail: null, session: null, movements: [], mode: "archive", showBody: false, showDiet: false, showTraining: false },
+  data: { loading: true, error: "", date: "", detail: null, session: null, movements: [], mode: "archive", showBody: false, showDiet: false, showTraining: false, part: "" },
   async onLoad(options) {
     const date = String(options.date || "").slice(0, 10);
+    const part = options.part || "";
     const mode = options.mode === "training" ? "training" : "archive";
     if (mode === "training") {
       const response = await ledger.call("trainingDayDetail", { date });
       const data = response.ok ? response.data : null;
-      this.setData({ loading: false, mode, date, detail: null, session: data ? data.session : null, movements: data ? displaySets(data.movements) : [], error: response.ok ? "" : response.message });
+      this.setData({ loading: false, mode, date, part, detail: null, session: data ? data.session : null, movements: data ? displaySets(data.movements) : [], error: response.ok ? "" : response.message });
       return;
     }
     const response = await ledger.call("recordDetail", { date });
@@ -38,6 +39,6 @@ Page({
   },
   openMovement(event) {
     const id = event.currentTarget.dataset.id;
-    if (id) wx.navigateTo({ url: `/pages/movement/index?id=${encodeURIComponent(id)}` });
+    if (id) wx.navigateTo({ url: `/pages/movement/index?id=${encodeURIComponent(id)}&part=${this.data.part}` });
   }
 });

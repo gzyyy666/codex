@@ -12,9 +12,10 @@ function compact(item) {
 }
 
 Page({
-  data: { loading: true, error: "", movement: null, history: [], latest: null, previous: null, best: null, showAliases: false },
+  data: { loading: true, error: "", movement: null, history: [], latest: null, previous: null, best: null, showAliases: false, part: "" },
   async onLoad(options) {
     const id = options.id || "";
+    const part = options.part || "";
     const [movement, history] = await Promise.all([ledger.call("movement", { movementId: id }), ledger.call("movementHistory", { movementId: id, limit: 10 })]);
     const records = history.ok ? history.data.map(compact) : [];
     const best = records.reduce((current, item) => !current || item.maxWeight > current.maxWeight || (item.maxWeight === current.maxWeight && item.volume > current.volume) ? item : current, null);
@@ -25,9 +26,9 @@ Page({
       latest: records[0] || null,
       previous: records[1] || null,
       best,
-      error: !movement.ok ? movement.message : (!history.ok ? history.message : "")
+      error: !movement.ok ? movement.message : (!history.ok ? history.message : ""), part
     });
   },
   toggleAliases() { this.setData({ showAliases: !this.data.showAliases }); },
-  openTrainingSession(event) { wx.navigateTo({ url: `/pages/record/index?mode=training&date=${event.currentTarget.dataset.date}` }); }
+  openTrainingSession(event) { wx.navigateTo({ url: `/pages/record/index?mode=training&date=${event.currentTarget.dataset.date}&part=${this.data.part}` }); }
 });

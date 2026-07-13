@@ -28,7 +28,7 @@ function enrichSessions(area, records) {
 }
 
 Page({
-  data: { loading: true, error: "", selected: "", sortBy: "frequency", freshness: null, areas: BODY_PARTS, area: null, notepadOpen: false, noteText: "" },
+  data: { loading: true, error: "", selected: "", sortBy: "frequency", freshness: null, areas: BODY_PARTS, area: null, notepadOpen: false, notepadTurning: false, noteText: "" },
   async onShow() {
     if (getApp().globalData.resetReferenceNotepad) {
       getApp().globalData.resetReferenceNotepad = false;
@@ -62,7 +62,7 @@ Page({
     this.noteText = noteText;
     this.setData({ loading: true, error: "", selected: part, notepadOpen: false, noteText, area: { label: theme.cn, labelEn: theme.en, tone: theme.tone, session_count: 0, movement_count: 0, latest_date: "", movements: [], sessions: [] } });
     const [response, records] = await Promise.all([ledger.call("bodyArea", { part }), ledger.call("trainingRecords")]);
-    const area = response.ok ? sortedArea(enrichSessions({ ...response.data, tone: theme.tone }, records.ok ? records.data : []), this.data.sortBy) : null;
+    const area = response.ok ? sortedArea(enrichSessions({ ...response.data, label: theme.cn, labelEn: theme.en, tone: theme.tone }, records.ok ? records.data : []), this.data.sortBy) : this.data.area;
     this.setData({ loading: false, area, error: response.ok ? "" : response.message });
   },
   setSort(event) {
@@ -70,7 +70,11 @@ Page({
     this.setData({ sortBy, area: this.data.area ? sortedArea(this.data.area, sortBy) : null });
   },
   overview() { this.setData({ selected: "", area: null, error: "", notepadOpen: false, noteText: "" }); },
-  toggleNotepad() { this.setData({ notepadOpen: !this.data.notepadOpen }); },
+  toggleNotepad() {
+    if (this.data.notepadOpen) { this.setData({ notepadOpen: false }); return; }
+    this.setData({ notepadTurning: true });
+    setTimeout(() => this.setData({ notepadOpen: true, notepadTurning: false }), 150);
+  },
   noop() {},
   onNoteInput(event) { this.noteText = event.detail.value; notepad.save(this.data.selected, this.noteText); },
   copyNote() {
@@ -85,6 +89,6 @@ Page({
       this.setData({ noteText: "" });
     } });
   },
-  openMovement(event) { wx.navigateTo({ url: `/pages/movement/index?id=${event.currentTarget.dataset.id}` }); },
-  openSession(event) { wx.navigateTo({ url: `/pages/record/index?mode=training&date=${event.currentTarget.dataset.date}` }); }
+  openMovement(event) { wx.navigateTo({ url: `/pages/movement/index?id=${event.currentTarget.dataset.id}&part=${this.data.selected}` }); },
+  openSession(event) { wx.navigateTo({ url: `/pages/record/index?mode=training&date=${event.currentTarget.dataset.date}&part=${this.data.selected}` }); }
 });

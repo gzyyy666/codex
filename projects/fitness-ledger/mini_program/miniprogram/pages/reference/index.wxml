@@ -18,8 +18,8 @@
   </block>
 
   <block wx:else>
-    <view wx:if="{{!notepadOpen}}" class="part-hero tone-{{area.tone}}" bindtap="toggleNotepad">
-      <view class="hero-top"><view class="eyebrow">{{area.labelEn}} ARCHIVE</view><view class="overview-link" bindtap="overview">全部部位</view></view>
+    <view wx:if="{{!notepadOpen}}" class="part-hero tone-{{area.tone}} {{notepadTurning ? 'is-turning' : ''}}" bindtap="toggleNotepad">
+      <view class="hero-top"><view class="eyebrow">{{area.labelEn}} ARCHIVE</view><view class="overview-link" catchtap="overview">全部部位</view></view>
       <view class="part-title">{{area.label}}</view>
       <view class="part-meta">{{area.session_count || 0}} 次训练 · {{area.movement_count || 0}} 个动作</view>
       <view class="part-latest">最近训练 {{area.latest_date || '暂无'}}</view>
