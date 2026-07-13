@@ -32,13 +32,14 @@ def main() -> None:
     reference = (ROOT / "miniprogram" / "pages" / "reference" / "index.wxml").read_text(encoding="utf-8")
     assert "动作与最近表现" in reference
     assert "Standardized Summary" not in reference
-    assert "notepad-card" in reference and "textarea" in reference
+    assert "notepad-card" in reference and "compact-input" in reference
     assert "copyNote" in reference and "clearNote" in reference
     assert "overview-link" not in reference
-    assert "EXPAND EDIT" in reference and "COLLAPSE EDIT" in reference
+    assert "EXPAND" in reference and "COLLAPSE EDIT" in reference
     reference_js = (ROOT / "miniprogram" / "pages" / "reference" / "index.js").read_text(encoding="utf-8")
     assert "part-title" in reference and "label: theme.cn" in reference_js
     assert "notepadExpanded" in reference_js and "notepadFlipBack" in reference_js
+    assert "flushDraft" in reference_js and "refreshDraft" in reference_js
     assert "wx.setClipboardData" in reference_js and "notepad.migrateLegacy" in reference_js
     notepad = (ROOT / "miniprogram" / "utils" / "freeformNotepad.js").read_text(encoding="utf-8")
     assert "fitness-ledger:freeform-notepad:v1:" in notepad
@@ -48,6 +49,7 @@ def main() -> None:
         assert (dock / f"index{suffix}").exists()
     dock_js = (dock / "index.js").read_text(encoding="utf-8")
     assert "notepad.load(part)" in dock_js and "notepad.save(this.data.part" in dock_js
+    assert "this.setData({ text: this.noteText, open: true })" in dock_js
     assert "tone: theme ? theme.tone" in dock_js
     dock_wxss = (dock / "index.wxss").read_text(encoding="utf-8")
     assert "tone-coral" in dock_wxss and "tone-teal" in dock_wxss and "tone-violet" in dock_wxss and "tone-cyan" in dock_wxss

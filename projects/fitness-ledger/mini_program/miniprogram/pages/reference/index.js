@@ -39,6 +39,7 @@ Page({
     if (!this.data.areas.some(item => item.session_count !== undefined)) await this.loadOverview();
     if (pending) await this.loadArea(pending);
     else if (!this.data.selected) this.setData({ loading: false });
+    else this.refreshDraft();
   },
   onTabItemTap() {
     this.overview();
@@ -70,17 +71,30 @@ Page({
     this.setData({ sortBy, area: this.data.area ? sortedArea(this.data.area, sortBy) : null });
   },
   overview() { this.setData({ selected: "", area: null, error: "", notepadOpen: false, notepadExpanded: false, noteText: "" }); },
+  refreshDraft() {
+    if (!this.data.selected) return;
+    this.noteText = notepad.load(this.data.selected);
+    this.setData({ noteText: this.noteText });
+  },
+  flushDraft(callback) {
+    const noteText = String(this.noteText || "");
+    notepad.save(this.data.selected, noteText);
+    this.setData({ noteText }, callback);
+  },
   toggleNotepad() {
     if (this.data.notepadOpen) {
-      this.setData({ notepadFlipBack: true });
-      setTimeout(() => this.setData({ notepadOpen: false, notepadExpanded: false, notepadFlipBack: false }), 150);
+      this.flushDraft(() => {
+        this.setData({ notepadFlipBack: true });
+        setTimeout(() => this.setData({ notepadOpen: false, notepadExpanded: false, notepadFlipBack: false }), 150);
+      });
       return;
     }
+    this.refreshDraft();
     this.setData({ notepadTurning: true });
     setTimeout(() => this.setData({ notepadOpen: true, notepadTurning: false }), 150);
   },
-  expandNotepad() { this.setData({ notepadExpanded: true }); },
-  collapseNotepad() { this.setData({ notepadExpanded: false }); },
+  expandNotepad() { this.flushDraft(() => this.setData({ notepadExpanded: true })); },
+  collapseNotepad() { this.flushDraft(() => this.setData({ notepadExpanded: false })); },
   noop() {},
   onNoteInput(event) { this.noteText = event.detail.value; notepad.save(this.data.selected, this.noteText); },
   copyNote() {
@@ -95,6 +109,6 @@ Page({
       this.setData({ noteText: "" });
     } });
   },
-  openMovement(event) { wx.navigateTo({ url: `/pages/movement/index?id=${event.currentTarget.dataset.id}&part=${this.data.selected}` }); },
-  openSession(event) { wx.navigateTo({ url: `/pages/record/index?mode=training&date=${event.currentTarget.dataset.date}&part=${this.data.selected}` }); }
+  openMovement(event) { this.flushDraft(() => wx.navigateTo({ url: `/pages/movement/index?id=${event.currentTarget.dataset.id}&part=${this.data.selected}` })); },
+  openSession(event) { this.flushDraft(() => wx.navigateTo({ url: `/pages/record/index?mode=training&date=${event.currentTarget.dataset.date}&part=${this.data.selected}` })); }
 });
