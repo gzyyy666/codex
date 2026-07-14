@@ -116,15 +116,22 @@ Page({
   },
   buildNotepadObserver() {
     this.disconnectNotepadObserver();
-    if (!this.data.selected || !wx.createIntersectionObserver) return;
-    wx.nextTick(() => {
+    if (!this.data.selected || !this.createIntersectionObserver) return;
+    const bindObserver = () => {
       if (!this.data.selected || this.notepadObserver) return;
-      this.notepadObserver = this.createIntersectionObserver({ thresholds: [0] });
+      this.notepadObserver = this.createIntersectionObserver({ thresholds: [0, 1] });
       this.notepadObserver.relativeToViewport().observe("#notepad-observer-anchor", result => {
-        const dockVisible = !result.intersectionRatio;
+        const rect = result.boundingClientRect;
+        if (!rect) return;
+        // With the native navigation bar, the page viewport begins below it.
+        // The anchor follows the whole Archive card, so its bottom passing zero
+        // means the card has fully left the effective visible area above.
+        const dockVisible = rect.bottom <= 0;
         if (dockVisible !== this.data.dockVisible) this.setData({ dockVisible });
       });
-    });
+    };
+    if (wx.nextTick) wx.nextTick(bindObserver);
+    else setTimeout(bindObserver, 0);
   },
   disconnectNotepadObserver() {
     if (this.notepadObserver) this.notepadObserver.disconnect();

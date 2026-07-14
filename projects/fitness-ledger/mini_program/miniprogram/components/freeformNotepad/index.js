@@ -1,6 +1,7 @@
 const notepad = require("../../utils/freeformNotepad");
 
 Component({
+  properties: { visible: { type: Boolean, value: true } },
   data: { open: false, text: "" },
   lifetimes: {
     attached() { this.refresh(); },

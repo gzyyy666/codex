@@ -46,6 +46,10 @@ def main() -> None:
     assert "disconnectNotepadObserver" in reference_js
     assert "onHide() { this.flushDraft(); this.disconnectNotepadObserver(); }" in reference_js
     assert "dockVisible !== this.data.dockVisible" in reference_js
+    assert "wx.nextTick" in reference_js and "thresholds: [0, 1]" in reference_js
+    assert "result.boundingClientRect" in reference_js and "rect.bottom <= 0" in reference_js
+    assert "intersectionRatio" not in reference_js
+    assert "onPageScroll" not in reference_js
     notepad = (ROOT / "miniprogram" / "utils" / "freeformNotepad.js").read_text(encoding="utf-8")
     assert 'STORAGE_KEY = "fitness-ledger:freeform-notepad:v2:current-training"' in notepad
     assert "migrateLegacy" not in notepad and "training-draft" not in notepad and ":v1:" not in notepad
@@ -56,12 +60,17 @@ def main() -> None:
     dock_js = (dock / "index.js").read_text(encoding="utf-8")
     assert "notepad.load()" in dock_js and "notepad.save(this.noteText)" in dock_js
     assert "pageLifetimes" in dock_js and "show() { this.refresh(); }" in dock_js and "hide() { this.flush(); }" in dock_js
-    assert "part" not in dock_js
+    assert "this.data.part" not in dock_js and "properties: { part:" not in dock_js
+    assert "properties: { visible: { type: Boolean, value: true } }" in dock_js
     dock_wxss = (dock / "index.wxss").read_text(encoding="utf-8")
     assert "#fcf9f2" in dock_wxss
     assert "tone-coral" not in dock_wxss and "tone-teal" not in dock_wxss and "tone-violet" not in dock_wxss and "tone-cyan" not in dock_wxss
+    assert ":host { position:fixed" in dock_wxss
+    assert ".notepad-dock.is-hidden" in dock_wxss and "pointer-events:none" in dock_wxss
+    assert "transition:opacity .2s ease-out,transform .2s ease-out" in dock_wxss
     dock_wxml = (dock / "index.wxml").read_text(encoding="utf-8")
     assert "TRAINING NOTE" in dock_wxml and "已自动保存" in dock_wxml
+    assert "{{visible ? 'is-visible' : 'is-hidden'}}" in dock_wxml
     movement = (ROOT / "miniprogram" / "pages" / "movement" / "index.wxml").read_text(encoding="utf-8")
     record = (ROOT / "miniprogram" / "pages" / "record" / "index.wxml").read_text(encoding="utf-8")
     assert "<freeform-notepad />" in movement and "<freeform-notepad />" in record
@@ -74,7 +83,7 @@ def main() -> None:
     assert "notepad.clear(this.data.selected)" not in reference_js
     assert "migrateLegacy" not in reference_js
     assert "notepad-observer-anchor" in reference
-    assert "<freeform-notepad wx:if=\"{{dockVisible}}\" />" in reference
+    assert "<freeform-notepad visible=\"{{dockVisible}}\" />" in reference
     assert "TRAINING NOTE / 训练记录" in reference and "neutral-notepad" in reference
     assert "tone-{{area.tone}}" in reference  # Page and Archive front keep body-part visual identity.
     reference_wxss = (ROOT / "miniprogram" / "pages" / "reference" / "index.wxss").read_text(encoding="utf-8")
