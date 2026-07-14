@@ -62,6 +62,66 @@ def main() -> None:
         assert "- 未归类：2天" in unknown_bowel
         unordered = render_markdown({"range": {"start": "2026-06-01", "end": "2026-06-14"}, "body": [], "diet": [], "training": [], "movements": [{"movement_id": "x", "display_name": "测试", "history": [{"date": "2026-06-01", "sets": [{"weight_text": "辅助", "reps": 8, "sets": 1}]}, {"date": "2026-06-14", "sets": [{"weight_text": "辅助", "reps": 8, "sets": 1}]}]}], "raw_entries": []})
         assert "当日动作顺序：未记录" in unordered and "最大重量：不适合统一比较" in unordered
+
+        coverage_specs = [
+            ("chest", "胸部代表", "Chest", 2), ("back", "背部代表", "Back", 7),
+            ("shoulder", "肩部代表", "Shoulder", 8), ("arms", "手臂代表", "Arms", 3),
+            ("legs", "腿部代表", "Legs", 2), ("core", "核心代表", "Core", 2),
+            *[(f"extra-{index}", f"补充{index:02d}", "Shoulder", 2) for index in range(12)],
+        ]
+        coverage_movements = []
+        for movement_id, name, muscle_group, count in coverage_specs:
+            coverage_movements.append({
+                "movement_id": movement_id,
+                "display_name": name,
+                "muscle_group": muscle_group,
+                "history": [{"date": f"2026-06-{day:02d}", "order": 1, "sets": [{"weight": 10, "reps": 10, "sets": 1}]} for day in range(1, count + 1)],
+            })
+        coverage = render_markdown({"range": {"start": "2026-06-01", "end": "2026-06-30"}, "body": [], "diet": [], "training": [], "movements": coverage_movements, "raw_entries": []})
+        trend = coverage.split("# 高频动作趋势", 1)[1].split("# 导出说明", 1)[0]
+        trend_names = [line[3:] for line in trend.splitlines() if line.startswith("## ") and line != "## 统计规则"]
+        assert len(trend_names) == 16 and len(set(trend_names)) == 16
+        assert {"胸部代表", "背部代表", "肩部代表", "手臂代表", "腿部代表", "核心代表"}.issubset(trend_names)
+        assert trend_names[:3] == ["肩部代表", "背部代表", "手臂代表"]
+        assert "最多展示16个动作" in trend
+
+        notes_payload = {"range": {"start": "2026-06-01", "end": "2026-06-14"}, "body": [{"Date": "2026-06-01", "Notes": "晚间称重，与次日晨间数据不可直接比较。高碳导致糖原和水分变化。"}], "diet": [{"Date": "2026-06-01", "Notes": "聚餐，热量只能估算。明日建议回归高蛋白低油饮食。"}], "training": [{"Date": "2026-06-01", "Notes": "卧推：末组接近力竭；整体训练因接听电话质量下降。"}], "movements": [{"movement_id": "press", "display_name": "卧推", "muscle_group": "Chest", "history": [{"date": "2026-06-01", "order": 1, "sets": [{"weight": 60, "reps": 8, "sets": 1}], "notes": "末组接近力竭"}, {"date": "2026-06-14", "order": 1, "sets": [{"weight": 60, "reps": 8, "sets": 1}]}]}], "raw_entries": []}
+        notes_before = json.dumps(notes_payload, ensure_ascii=False, sort_keys=True)
+        notes_markdown = render_markdown(notes_payload)
+        assert "晚间称重，与次日晨间数据不可直接比较。" in notes_markdown
+        assert "聚餐，热量只能估算。" in notes_markdown
+        assert "整体训练因接听电话质量下降。" in notes_markdown
+        assert "高碳导致糖原和水分变化。" not in notes_markdown
+        assert "明日建议回归高蛋白低油饮食。" not in notes_markdown
+        assert notes_markdown.count("末组接近力竭") == 2
+        assert notes_before == json.dumps(notes_payload, ensure_ascii=False, sort_keys=True)
+
+        preserve_parts = [
+            "晚间称重，非晨起空腹。", "测量条件不同，存在测量误差。", "身体不适，左肘关节不适。",
+            "聚餐后高油高盐，热量估算存在误差。", "临时调整饮食计划。", "天气导致暂停训练。",
+            "户外步行约15000步。", "接听电话导致训练质量下降。", "体力异常，持续输出不足。",
+            "动作首次尝试，行程缩短。", "目标肌肉感觉更好，后束明显乏力。",
+            "核心稳定性波动，本次不作为力量退步判断。", "末组接近力竭，控制完成，个人最佳。",
+            "后续安排下次调整训练顺序。",
+        ]
+        generic_parts = [
+            "高碳导致糖原和水分变化。", "高钠导致水分潴留。", "未排便影响次日体重波动。",
+            "胃肠内容物导致体重波动。", "单日体重不宜直接解读为脂肪增加。", "蛋白质有利于恢复。",
+            "训练日碳水有利于训练输出。", "符合当前减脂目标。", "适合作为高碳训练日。",
+            "整体恢复供能充足。", "建议补充蛋白。", "不需要极端断食补偿。",
+        ]
+        template_notes = render_markdown({"range": {"start": "2026-06-01", "end": "2026-06-02"}, "body": [{"Date": "2026-06-01", "Notes": "".join(preserve_parts + generic_parts)}], "diet": [], "training": [], "movements": [], "raw_entries": []})
+        for part in preserve_parts:
+            assert part in template_notes
+        for part in generic_parts:
+            assert part not in template_notes
+
+        fragment_notes = render_markdown({"range": {"start": "2026-06-01", "end": "2026-06-02"}, "body": [{"Date": "2026-06-01", "Notes": "今日为背部高碳日，整体训练容量较高，动作首次尝试，轨迹需要继续观察。饮食结构呈现中高脂特征，脂肪主要来源于聚餐叠加。当前体重较前日下降，更多受水分波动影响，而非真实脂肪变化。"}], "diet": [], "training": [], "movements": [], "raw_entries": []})
+        assert "背部高碳日" not in fragment_notes and "整体训练容量较高" not in fragment_notes
+        assert "饮食结构呈现" not in fragment_notes and "脂肪主要来源于" not in fragment_notes
+        assert "当前体重较前日下降" not in fragment_notes
+        assert "动作首次尝试，轨迹需要继续观察。" in fragment_notes
+        assert "notes:\n。" not in fragment_notes and "影响，而非真实脂肪变化" not in fragment_notes
         (directory / "fixture.md").write_text(markdown, encoding="utf-8")
     assert before == [digest(path) for path in formal]
     print("ANALYSIS_EXPORT_TEST_OK")

@@ -7,6 +7,18 @@ from collections import defaultdict
 from datetime import date
 
 
+MIN_TREND_OCCURRENCES = 2
+MAX_TREND_MOVEMENTS = 16
+TREND_AREA_BY_MUSCLE_GROUP = {
+    "Chest": "胸部",
+    "Back": "背部",
+    "Shoulder": "肩部",
+    "Arms": "手臂",
+    "Legs": "腿部",
+    "Core": "核心 / 腹部",
+}
+
+
 def _text(value) -> str:
     return str(value or "").strip()
 
@@ -77,8 +89,105 @@ def _is_non_strength_activity(value) -> bool:
     return normalized in {"休息", "无力量训练", "步行/无力量训练", "无力量训练/步行"}
 
 
-def _daily_notes(body: dict | None, diet: dict | None, training: dict | None) -> list[str]:
-    values = [("身体", _text((body or {}).get("Notes"))), ("饮食", _text((diet or {}).get("Notes"))), ("训练", _text((training or {}).get("Notes")))]
+def _normalized_note(value: str) -> str:
+    return re.sub(r"[\s，,。；;：:！!？?]+", "", _text(value)).lower()
+
+
+def _note_parts(value: str) -> list[str]:
+    return [part.strip() for part in re.split(r"(?<=[。！？!?；;])\s*|\n+", _text(value)) if part.strip()]
+
+
+def _is_generic_note_part(value: str) -> bool:
+    """Remove only bounded, repeatable analysis explanations and generic advice."""
+    normalized = _normalized_note(value)
+    patterns = (
+        r".*(?:高碳|碳水).*(?:糖原|水分).*(?:变化|波动).*",
+        r".*高钠.*(?:水分潴留|水分变化).*",
+        r".*未排便.*(?:次日)?体重.*(?:影响|波动).*",
+        r".*(?:胃肠内容物|肠胃内容物).*(?:体重|波动).*",
+        r".*(?:单日|次日).*体重.*(?:不宜|不应|不能).*?(?:脂肪增加|真实脂肪变化).*",
+        r".*蛋白质.*(?:有利于|满足).*(?:恢复|恢复需求).*",
+        r".*(?:训练日)?碳水.*(?:有利于|适合|支持).*(?:训练输出|供能).*",
+        r".*(?:符合|处于).*(?:减脂目标|减脂期).*",
+        r".*适合作为.*高碳训练日.*",
+        r".*(?:整体)?恢复供能充足.*",
+        r".*(?:明日建议|建议|后续建议).*(?:高蛋白.*低油|中低碳|回归正常饮食|补充蛋白).*",
+        r".*(?:不需要|无需).*(?:极端断食|断食补偿).*",
+    )
+    return any(re.fullmatch(pattern, normalized) for pattern in patterns)
+
+
+def _strip_low_value_fragments(value: str) -> str:
+    """Remove bounded, exporter-only commentary already represented by structured fields."""
+    patterns = (
+        r"(?:今日|当天)为[^。；;，]*?(?:高碳日|低碳日|训练日)[，、。；;]?\s*",
+        r"整体训练容量较高[，、]?\s*",
+        r"今日胸肩训练整体表现为[^。；;]*?(?:未达完全力竭状态)[。；;]?\s*",
+        r"饮食结构呈现[^。；;]*?特征[，、]?\s*",
+        r"脂肪主要来源于[^。；;]*?(?:叠加|构成)[。；;]?\s*",
+        r"当前体重较前日下降[^。；;]*?而非真实脂肪变化[。；;]?\s*",
+        r"当前体重较前日下降[^。；;]*?水分波动[。；;]?\s*",
+        r"(?:全天)?蛋白(?:质)?(?:摄入)?(?:达到|预期达到)[^。；;]*?(?:恢复需求|以上)[。；;]?\s*",
+        r"蛋白粉[^。；;]*?(?:恢复需求|以上)[。；;]?\s*",
+        r"整体热量控制较克制[，、]?\s*",
+        r"低碳日脂肪相对较高[^。；;]*?(?:记录)[。；;]?\s*",
+        r"饮食方面[，、]?\s*",
+        r"早餐和练前[^。；;]*?继续补充蛋白与碳水[。；;]?\s*",
+        r"今日总碳水约[^。；;]*?(?:高碳背部训练日安排)[。；;]?\s*",
+        r"蛋白质主要来自[^。；;]*?(?:蛋白粉)[。；;]?\s*",
+        r"但由于[^。；;]*?烹调用油[^。；;]*?脂肪[^。；;]*?上修[。；;]?\s*",
+        r"由于前一日为高碳背部训练日[^。；;]*?练前摄入[^，。；;]*，[ ]*",
+        r"考虑与[^。；;]*?有关，因此[ ]*",
+        r"今日未进行跑步机爬坡[^。；;]*?散步[。；;]?\s*",
+    )
+    result = _text(value)
+    for pattern in patterns:
+        result = re.sub(pattern, "", result)
+    result = re.sub(r"\s+", " ", result)
+    result = re.sub(r"^[，、；;：:\s]+|[，、；;：:\s]+$", "", result)
+    result = re.sub(r"([。！？!?])\s*[，、；;]+", r"\1", result)
+    result = re.sub(r"^[。！？!?]+\s*", "", result)
+    return result.strip()
+
+
+def _split_action_note(value: str) -> tuple[str, str] | None:
+    match = re.fullmatch(r"\s*([^：:；;。！？!?]+)\s*[：:]\s*(.+?)\s*[。！？!?]?\s*", value, re.S)
+    return (match.group(1), match.group(2)) if match else None
+
+
+def _clean_note(value: str, action_notes: dict[str, set[str]]) -> str:
+    kept = []
+    for part in _note_parts(value):
+        part = _strip_low_value_fragments(part)
+        if not part:
+            continue
+        action_item = _split_action_note(part)
+        if action_item:
+            name, note = action_item
+            if _normalized_note(note) in action_notes.get(_normalized_note(name), set()):
+                continue
+        if not _is_generic_note_part(part):
+            kept.append(part)
+    return " ".join(kept)
+
+
+def _daily_notes(
+    body: dict | None,
+    diet: dict | None,
+    training: dict | None,
+    histories: list[dict],
+) -> list[str]:
+    action_notes: dict[str, set[str]] = defaultdict(set)
+    for history in histories:
+        note = _normalized_note(history.get("notes"))
+        name = _normalized_note(history.get("_display_name"))
+        if note and name:
+            action_notes[name].add(note)
+    values = [
+        ("身体", _clean_note(_text((body or {}).get("Notes")), action_notes)),
+        ("饮食", _clean_note(_text((diet or {}).get("Notes")), action_notes)),
+        ("训练", _clean_note(_text((training or {}).get("Notes")), action_notes)),
+    ]
     nonempty = [(label, value) for label, value in values if value]
     if not nonempty:
         return []
@@ -86,6 +195,40 @@ def _daily_notes(body: dict | None, diet: dict | None, training: dict | None) ->
     if len(unique) == 1:
         return [nonempty[0][1]]
     return [f"- {label}：{value}" for label, value in nonempty]
+
+
+def _trend_sort_key(candidate: dict) -> tuple[int, int, str]:
+    return (-len(candidate["rows"]), -date.fromisoformat(candidate["recent_date"]).toordinal(), candidate["name"])
+
+
+def _select_trend_movements(movement_rows: list[dict]) -> list[dict]:
+    grouped: dict[str, list[dict]] = defaultdict(list)
+    for row in movement_rows:
+        if row["_movement_id"]:
+            grouped[row["_movement_id"]].append(row)
+    candidates = []
+    for movement_id, rows in grouped.items():
+        if len(rows) < MIN_TREND_OCCURRENCES:
+            continue
+        rows.sort(key=lambda row: (_date(row.get("date")), _order_value(row, row["_index"])))
+        candidates.append({
+            "movement_id": movement_id,
+            "name": rows[0]["_display_name"],
+            "area": TREND_AREA_BY_MUSCLE_GROUP.get(rows[0].get("_muscle_group", ""), ""),
+            "recent_date": _date(rows[-1].get("date")),
+            "rows": rows,
+        })
+    candidates.sort(key=_trend_sort_key)
+    selected_ids = set()
+    for area in TREND_AREA_BY_MUSCLE_GROUP.values():
+        representative = next((item for item in candidates if item["area"] == area), None)
+        if representative:
+            selected_ids.add(representative["movement_id"])
+    for candidate in candidates:
+        if len(selected_ids) >= MAX_TREND_MOVEMENTS:
+            break
+        selected_ids.add(candidate["movement_id"])
+    return [candidate for candidate in candidates if candidate["movement_id"] in selected_ids]
 
 
 def _max_weight(histories: list[dict]) -> str:
@@ -123,7 +266,11 @@ def render_markdown(payload: dict) -> str:
         for index, history in enumerate(movement.get("history", [])):
             occurrence = {**history, "_display_name": _text(movement.get("display_name")) or _text(history.get("display_name")) or "未命名动作", "_index": index}
             histories_by_date[_date(history.get("date"))].append(occurrence)
-            movement_rows.append({**occurrence, "_movement_id": _text(movement.get("movement_id"))})
+            movement_rows.append({
+                **occurrence,
+                "_movement_id": _text(movement.get("movement_id")),
+                "_muscle_group": _text(movement.get("muscle_group")),
+            })
 
     record_dates = sorted(set(body_by_date) | set(diet_by_date) | set(training_by_date))
     training_dates = set()
@@ -186,22 +333,22 @@ def render_markdown(payload: dict) -> str:
                 lines.append(f" notes: {_text(history.get('notes'))}")
         if body and _text(body.get("Cardio")):
             lines.extend(["cardio:", _text(body.get("Cardio"))])
-        notes = _daily_notes(body, diet, session)
+        notes = _daily_notes(body, diet, session, histories)
         if notes:
             lines.extend(["notes:", *notes])
 
-    grouped = defaultdict(list)
-    for row in movement_rows:
-        if row["_movement_id"]:
-            grouped[row["_movement_id"]].append(row)
-    frequent = []
-    for movement_id, rows in grouped.items():
-        if len(rows) >= 2:
-            rows.sort(key=lambda row: (_date(row.get("date")), _order_value(row, row["_index"])))
-            frequent.append((rows[0]["_display_name"], rows))
-    frequent.sort(key=lambda item: (-len(item[1]), -date.fromisoformat(_date(item[1][-1].get("date"))).toordinal(), item[0]))
-    lines.extend(["", "# 高频动作趋势", "", "## 统计规则", "", "- 纳入训练次数不少于2次的动作。", "- 最多展示训练频率最高的12个动作。", "- 按训练次数从高到低排列。", "- 同频时，最近训练日期较新的动作优先。", "- 保留每次训练日期、动作顺序、训练数据和原始备注。", "- 当前没有额外训练的结构化标记，因此动作顺序按正式 order 输出，额外补充情况通过原始 notes 保留。"])
-    for name, rows in frequent[:12]:
+    frequent = _select_trend_movements(movement_rows)
+    lines.extend([
+        "", "# 高频动作趋势", "", "## 统计规则", "",
+        "- 纳入训练次数不少于2次的动作。",
+        "- 优先保证有有效候选动作的正式训练部位获得代表趋势，再按训练频率和最近日期补充。",
+        "- 最多展示16个动作。",
+        "- 最终按训练次数、最近训练日期和正式名称稳定排序。",
+        "- 保留每次训练日期、动作顺序、训练数据和原始备注。",
+        "- 当前没有额外训练的结构化标记，因此动作顺序按正式 order 输出，额外补充情况通过原始 notes 保留。",
+    ])
+    for candidate in frequent:
+        name, rows = candidate["name"], candidate["rows"]
         first_row, last_row = rows[0], rows[-1]
         lines.extend(["", f"## {name}", "", f"- 训练次数：{len(rows)}", f"- 最大重量：{_max_weight(rows)}", f"- 首次记录：{_sets_text(first_row)}", f"- 最近记录：{_sets_text(last_row)}", "", "### 历史"])
         for row in rows:
@@ -210,7 +357,7 @@ def render_markdown(payload: dict) -> str:
             lines.extend(["", f"#### {_date(row.get('date'))}", "", f"- 当日动作顺序：{order_text}", f"- {_sets_text(row)}"])
             if _text(row.get("notes")):
                 lines.append(f"- notes: {_text(row.get('notes'))}")
-    lines.extend(["", "# 导出说明", "", "- 每日饮食默认仅保留热量、蛋白质、碳水和脂肪汇总。", "- 不导出早餐、练前、练后、晚餐和加餐的逐项食物明细。", "- 特殊饮食情况通过每日 notes 保留。", "- 默认不包含原始输入文本。", "- 高频动作仅包含日期范围内重复出现的动作，并保留完整训练历史。"])
+    lines.extend(["", "# 导出说明", "", "- 每日饮食默认仅保留热量、蛋白质、碳水和脂肪汇总。", "- 不导出早餐、练前、练后、晚餐和加餐的逐项食物明细。", "- 特殊饮食情况通过每日 notes 保留。", "- 默认不包含原始输入文本。", "- 高频动作仅包含日期范围内重复出现的动作，优先覆盖正式训练部位，最多展示16个，并保留完整训练历史。"])
     return "\n".join(lines).strip() + "\n"
 
 
