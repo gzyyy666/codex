@@ -40,26 +40,43 @@ def main() -> None:
     assert "part-title" in reference and "label: theme.cn" in reference_js
     assert "notepadExpanded" in reference_js and "notepadFlipBack" in reference_js
     assert "flushDraft" in reference_js and "refreshDraft" in reference_js
-    assert "wx.setClipboardData" in reference_js and "notepad.migrateLegacy" in reference_js
+    assert "wx.setClipboardData" in reference_js
+    assert "createIntersectionObserver" in reference_js
+    assert "#notepad-observer-anchor" in reference_js
+    assert "disconnectNotepadObserver" in reference_js
+    assert "onHide() { this.flushDraft(); this.disconnectNotepadObserver(); }" in reference_js
+    assert "dockVisible !== this.data.dockVisible" in reference_js
     notepad = (ROOT / "miniprogram" / "utils" / "freeformNotepad.js").read_text(encoding="utf-8")
-    assert "fitness-ledger:freeform-notepad:v1:" in notepad
-    assert "fitness-ledger:training-draft:" in notepad
+    assert 'STORAGE_KEY = "fitness-ledger:freeform-notepad:v2:current-training"' in notepad
+    assert "migrateLegacy" not in notepad and "training-draft" not in notepad and ":v1:" not in notepad
+    assert "function load()" in notepad and "function save(text)" in notepad and "function clear()" in notepad
     dock = ROOT / "miniprogram" / "components" / "freeformNotepad"
     for suffix in (".js", ".json", ".wxml", ".wxss"):
         assert (dock / f"index{suffix}").exists()
     dock_js = (dock / "index.js").read_text(encoding="utf-8")
-    assert "notepad.load(part)" in dock_js and "notepad.save(this.data.part" in dock_js
-    assert "this.setData({ text: this.noteText, open: true })" in dock_js
-    assert "tone: theme ? theme.tone" in dock_js
+    assert "notepad.load()" in dock_js and "notepad.save(this.noteText)" in dock_js
+    assert "pageLifetimes" in dock_js and "show() { this.refresh(); }" in dock_js and "hide() { this.flush(); }" in dock_js
+    assert "part" not in dock_js
     dock_wxss = (dock / "index.wxss").read_text(encoding="utf-8")
-    assert "tone-coral" in dock_wxss and "tone-teal" in dock_wxss and "tone-violet" in dock_wxss and "tone-cyan" in dock_wxss
+    assert "#fcf9f2" in dock_wxss
+    assert "tone-coral" not in dock_wxss and "tone-teal" not in dock_wxss and "tone-violet" not in dock_wxss and "tone-cyan" not in dock_wxss
+    dock_wxml = (dock / "index.wxml").read_text(encoding="utf-8")
+    assert "TRAINING NOTE" in dock_wxml and "已自动保存" in dock_wxml
     movement = (ROOT / "miniprogram" / "pages" / "movement" / "index.wxml").read_text(encoding="utf-8")
     record = (ROOT / "miniprogram" / "pages" / "record" / "index.wxml").read_text(encoding="utf-8")
-    assert "freeform-notepad" in movement and "freeform-notepad" in record
+    assert "<freeform-notepad />" in movement and "<freeform-notepad />" in record
     movement_js = (ROOT / "miniprogram" / "pages" / "movement" / "index.js").read_text(encoding="utf-8")
     record_js = (ROOT / "miniprogram" / "pages" / "record" / "index.js").read_text(encoding="utf-8")
     assert "&part=${this.data.selected}" in reference_js
     assert "part = options.part" in movement_js and "part = options.part" in record_js
+    assert "notepad.load(this.data.selected)" not in reference_js
+    assert "notepad.save(this.data.selected" not in reference_js
+    assert "notepad.clear(this.data.selected)" not in reference_js
+    assert "migrateLegacy" not in reference_js
+    assert "notepad-observer-anchor" in reference
+    assert "<freeform-notepad wx:if=\"{{dockVisible}}\" />" in reference
+    assert "TRAINING NOTE / 训练记录" in reference and "neutral-notepad" in reference
+    assert "tone-{{area.tone}}" in reference  # Page and Archive front keep body-part visual identity.
     assert "训练频率" in reference and "最近训练" in reference and "按训练日" in reference
     training = (ROOT / "miniprogram" / "pages" / "training" / "index.wxml").read_text(encoding="utf-8")
     assert "搜索日期" in training and "查看当日训练" in training

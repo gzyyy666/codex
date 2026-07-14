@@ -28,7 +28,7 @@ function enrichSessions(area, records) {
 }
 
 Page({
-  data: { loading: true, error: "", selected: "", sortBy: "frequency", freshness: null, areas: BODY_PARTS, area: null, notepadOpen: false, notepadTurning: false, notepadFlipBack: false, notepadExpanded: false, noteText: "" },
+  data: { loading: true, error: "", selected: "", sortBy: "frequency", freshness: null, areas: BODY_PARTS, area: null, notepadOpen: false, notepadTurning: false, notepadFlipBack: false, notepadExpanded: false, noteText: "", dockVisible: false },
   async onShow() {
     if (getApp().globalData.resetReferenceNotepad) {
       getApp().globalData.resetReferenceNotepad = false;
@@ -39,8 +39,13 @@ Page({
     if (!this.data.areas.some(item => item.session_count !== undefined)) await this.loadOverview();
     if (pending) await this.loadArea(pending);
     else if (!this.data.selected) this.setData({ loading: false });
-    else this.refreshDraft();
+    else {
+      this.refreshDraft();
+      this.buildNotepadObserver();
+    }
   },
+  onHide() { this.flushDraft(); this.disconnectNotepadObserver(); },
+  onUnload() { this.flushDraft(); this.disconnectNotepadObserver(); },
   onTabItemTap() {
     this.overview();
   },
@@ -59,26 +64,26 @@ Page({
   async loadArea(part) {
     const theme = byId(part);
     if (!theme) return;
-    const noteText = notepad.migrateLegacy(part, notepad.load(part));
+    this.disconnectNotepadObserver();
+    const noteText = notepad.load();
     this.noteText = noteText;
-    this.setData({ loading: true, error: "", selected: part, notepadOpen: false, notepadExpanded: false, noteText, area: { label: theme.cn, labelEn: theme.en, tone: theme.tone, session_count: 0, movement_count: 0, latest_date: "", movements: [], sessions: [] } });
+    this.setData({ loading: true, error: "", selected: part, notepadOpen: false, notepadExpanded: false, noteText, dockVisible: false, area: { label: theme.cn, labelEn: theme.en, tone: theme.tone, session_count: 0, movement_count: 0, latest_date: "", movements: [], sessions: [] } });
     const [response, records] = await Promise.all([ledger.call("bodyArea", { part }), ledger.call("trainingRecords")]);
     const area = response.ok ? sortedArea(enrichSessions({ ...response.data, label: theme.cn, labelEn: theme.en, tone: theme.tone }, records.ok ? records.data : []), this.data.sortBy) : this.data.area;
-    this.setData({ loading: false, area, error: response.ok ? "" : response.message });
+    this.setData({ loading: false, area, error: response.ok ? "" : response.message }, () => this.buildNotepadObserver());
   },
   setSort(event) {
     const sortBy = event.currentTarget.dataset.sort;
     this.setData({ sortBy, area: this.data.area ? sortedArea(this.data.area, sortBy) : null });
   },
-  overview() { this.setData({ selected: "", area: null, error: "", notepadOpen: false, notepadExpanded: false, noteText: "" }); },
+  overview() { this.disconnectNotepadObserver(); this.setData({ selected: "", area: null, error: "", notepadOpen: false, notepadExpanded: false, noteText: "", dockVisible: false }); },
   refreshDraft() {
-    if (!this.data.selected) return;
-    this.noteText = notepad.load(this.data.selected);
+    this.noteText = notepad.load();
     this.setData({ noteText: this.noteText });
   },
   flushDraft(callback) {
     const noteText = String(this.noteText || "");
-    notepad.save(this.data.selected, noteText);
+    notepad.save(noteText);
     this.setData({ noteText }, callback);
   },
   toggleNotepad() {
@@ -96,18 +101,34 @@ Page({
   expandNotepad() { this.flushDraft(() => this.setData({ notepadExpanded: true })); },
   collapseNotepad() { this.flushDraft(() => this.setData({ notepadExpanded: false })); },
   noop() {},
-  onNoteInput(event) { this.noteText = event.detail.value; notepad.save(this.data.selected, this.noteText); },
+  onNoteInput(event) { this.noteText = event.detail.value; notepad.save(this.noteText); },
   copyNote() {
     if (!this.noteText) { wx.showToast({ title: "暂无可复制内容", icon: "none" }); return; }
     wx.setClipboardData({ data: this.noteText, success: () => wx.showToast({ title: "已复制全部", icon: "success" }) });
   },
   clearNote() {
-    wx.showModal({ title: "清空临时记录？", content: `只清空${this.data.area.label}的临时记录，不会影响正式训练记录。`, confirmText: "清空", confirmColor: "#a33d31", success: result => {
+    wx.showModal({ title: "清空训练记录？", content: "只清空当前 TRAINING NOTE，不会影响正式训练记录。", confirmText: "清空", confirmColor: "#a33d31", success: result => {
       if (!result.confirm) return;
-      notepad.clear(this.data.selected);
+      notepad.clear();
       this.noteText = "";
       this.setData({ noteText: "" });
     } });
+  },
+  buildNotepadObserver() {
+    this.disconnectNotepadObserver();
+    if (!this.data.selected || !wx.createIntersectionObserver) return;
+    wx.nextTick(() => {
+      if (!this.data.selected || this.notepadObserver) return;
+      this.notepadObserver = this.createIntersectionObserver({ thresholds: [0] });
+      this.notepadObserver.relativeToViewport().observe("#notepad-observer-anchor", result => {
+        const dockVisible = !result.intersectionRatio;
+        if (dockVisible !== this.data.dockVisible) this.setData({ dockVisible });
+      });
+    });
+  },
+  disconnectNotepadObserver() {
+    if (this.notepadObserver) this.notepadObserver.disconnect();
+    this.notepadObserver = null;
   },
   openMovement(event) { this.flushDraft(() => wx.navigateTo({ url: `/pages/movement/index?id=${event.currentTarget.dataset.id}&part=${this.data.selected}` })); },
   openSession(event) { this.flushDraft(() => wx.navigateTo({ url: `/pages/record/index?mode=training&date=${event.currentTarget.dataset.date}&part=${this.data.selected}` })); }
