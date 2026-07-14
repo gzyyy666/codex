@@ -44,8 +44,9 @@ Page({
       this.buildNotepadObserver();
     }
   },
-  onHide() { this.flushDraft(); this.disconnectNotepadObserver(); },
-  onUnload() { this.flushDraft(); this.disconnectNotepadObserver(); },
+  onHide() { this.flushDraft(); this.clearNotepadScrollMeasure(); this.disconnectNotepadObserver(); },
+  onUnload() { this.flushDraft(); this.clearNotepadScrollMeasure(); this.disconnectNotepadObserver(); },
+  onPageScroll() { this.queueNotepadScrollMeasure(); },
   onTabItemTap() {
     this.overview();
   },
@@ -124,14 +125,9 @@ Page({
       if (!this.data.selected || this.notepadObserver) return;
       this.notepadObserver = createObserver({ thresholds: [0, 1] });
       this.notepadObserver.relativeToViewport().observe("#notepad-observer-anchor", result => {
-        const rect = result.boundingClientRect;
-        if (!rect) return;
-        // With the native navigation bar, the page viewport begins below it.
-        // The anchor follows the whole Archive card, so its bottom passing zero
-        // means the card has fully left the effective visible area above.
-        const dockVisible = rect.bottom <= 0;
-        if (dockVisible !== this.data.dockVisible) this.setData({ dockVisible });
+        this.updateNotepadDockVisibility(result.boundingClientRect);
       });
+      this.measureNotepadDock();
     };
     if (wx.nextTick) wx.nextTick(bindObserver);
     else setTimeout(bindObserver, 0);
@@ -139,6 +135,31 @@ Page({
   disconnectNotepadObserver() {
     if (this.notepadObserver) this.notepadObserver.disconnect();
     this.notepadObserver = null;
+  },
+  updateNotepadDockVisibility(rect) {
+    if (!rect) return;
+    // With the native navigation bar, the page viewport begins below it.
+    // The anchor follows the whole Archive card, so its bottom passing zero
+    // means the card has fully left the effective visible area above.
+    const dockVisible = rect.bottom <= 0;
+    if (dockVisible !== this.data.dockVisible) this.setData({ dockVisible });
+  },
+  measureNotepadDock() {
+    if (!this.data.selected) return;
+    const query = this.createSelectorQuery ? this.createSelectorQuery() : wx.createSelectorQuery().in(this);
+    query.select("#notepad-observer-anchor").boundingClientRect();
+    query.exec(result => this.updateNotepadDockVisibility(result && result[0]));
+  },
+  queueNotepadScrollMeasure() {
+    if (!this.data.selected || this.notepadScrollTimer) return;
+    this.notepadScrollTimer = setTimeout(() => {
+      this.notepadScrollTimer = null;
+      this.measureNotepadDock();
+    }, 120);
+  },
+  clearNotepadScrollMeasure() {
+    if (this.notepadScrollTimer) clearTimeout(this.notepadScrollTimer);
+    this.notepadScrollTimer = null;
   },
   openMovement(event) { this.flushDraft(() => wx.navigateTo({ url: `/pages/movement/index?id=${event.currentTarget.dataset.id}&part=${this.data.selected}` })); },
   openSession(event) { this.flushDraft(() => wx.navigateTo({ url: `/pages/record/index?mode=training&date=${event.currentTarget.dataset.date}&part=${this.data.selected}` })); }
