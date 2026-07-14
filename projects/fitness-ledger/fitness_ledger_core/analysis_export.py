@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from collections import defaultdict
 from datetime import date
 
@@ -59,14 +60,21 @@ def _order_value(history: dict, index: int) -> tuple[int, int]:
 
 
 def _bowel(value) -> str:
-    normalized = _text(value).lower()
+    normalized = re.sub(r"[\s,，。.]+", "", _text(value).lower())
     if not normalized:
         return "unrecorded"
-    if normalized in {"有", "是", "正常", "少量", "yes", "y"}:
+    if normalized in {"有", "是", "正常", "少量", "称重后有", "是称重后少量", "称重后少量", "yes", "y"}:
         return "yes"
     if normalized in {"无", "否", "no", "n"}:
         return "no"
     return "unknown"
+
+
+def _is_non_strength_activity(value) -> bool:
+    """Recognize only explicit formal labels for a day without strength work."""
+    normalized = re.sub(r"\s+", "", _text(value).lower())
+    normalized = normalized.translate(str.maketrans({"／": "/", "、": "/", "，": "/", "。": "/", "；": "/", "：": "/", ":": "/"})).strip("/")
+    return normalized in {"休息", "无力量训练", "步行/无力量训练", "无力量训练/步行"}
 
 
 def _daily_notes(body: dict | None, diet: dict | None, training: dict | None) -> list[str]:
@@ -121,7 +129,8 @@ def render_markdown(payload: dict) -> str:
     training_dates = set()
     for day in record_dates:
         body, session = body_by_date.get(day, {}), training_by_date.get(day, {})
-        if histories_by_date.get(day) or _text(body.get("Training")) or any(_text(session.get(key)) for key in ("Split", "Standardized Summary", "Raw Record", "Notes")):
+        training_text = _text(body.get("Training")) or next((_text(session.get(key)) for key in ("Split", "Standardized Summary", "Raw Record", "Notes") if _text(session.get(key))), "")
+        if histories_by_date.get(day) or (training_text and not _is_non_strength_activity(training_text)):
             training_dates.add(day)
     weights = [(day, _number(row.get("Weight (kg)"))) for day, row in body_by_date.items()]
     weights = [(day, value) for day, value in weights if value is not None]

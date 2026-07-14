@@ -54,6 +54,12 @@ def main() -> None:
         assert "#### 2026-06-22" in markdown and "当日动作顺序：第1个动作" in markdown
         short = render_markdown({"range": {"start": "2026-06-01", "end": "2026-06-03"}, "body": [{"Date": "2026-06-01", "Bowel Movement": ""}], "diet": [], "training": [], "movements": [], "raw_entries": []})
         assert "- 休息日：3" in short and "窗口重叠，不作阶段比较" in short and "暂无有效记录" in short
+        activity = render_markdown({"range": {"start": "2026-06-01", "end": "2026-06-08"}, "body": [{"Date": "2026-06-01", "Training": "休息"}, {"Date": "2026-06-02", "Training": "肩胸背综合"}, {"Date": "2026-06-03", "Training": "步行 / 无力量训练"}, {"Date": "2026-06-04", "Training": "无力量训练"}, {"Date": "2026-06-05", "Training": ""}, {"Date": "2026-06-06", "Cardio": "步行"}, {"Date": "2026-06-07", "Training": "步行 / 无力量训练"}], "diet": [], "training": [], "movements": [{"movement_id": "x", "display_name": "测试", "history": [{"date": "2026-06-01", "sets": []}, {"date": "2026-06-07", "sets": []}]}], "raw_entries": []})
+        assert "- 力量训练次数：3" in activity and "- 休息日：5" in activity
+        bowel = render_markdown({"range": {"start": "2026-06-01", "end": "2026-06-10"}, "body": [{"Date": f"2026-06-{day:02d}", "Bowel Movement": value} for day, value in enumerate(["有", "是", "正常", "少量", "称重后有", "是。称重后，少量", "称重后少量", "无", "否", ""], 1)], "diet": [], "training": [], "movements": [], "raw_entries": []})
+        assert "- 排便天数：7" in bowel and "- 未排便天数：2" in bowel and "- 未记录天数：1" in bowel and "未归类" not in bowel
+        unknown_bowel = render_markdown({"range": {"start": "2026-06-01", "end": "2026-06-02"}, "body": [{"Date": "2026-06-01", "Bowel Movement": "没有"}, {"Date": "2026-06-02", "Bowel Movement": "未知"}], "diet": [], "training": [], "movements": [], "raw_entries": []})
+        assert "- 未归类：2天" in unknown_bowel
         unordered = render_markdown({"range": {"start": "2026-06-01", "end": "2026-06-14"}, "body": [], "diet": [], "training": [], "movements": [{"movement_id": "x", "display_name": "测试", "history": [{"date": "2026-06-01", "sets": [{"weight_text": "辅助", "reps": 8, "sets": 1}]}, {"date": "2026-06-14", "sets": [{"weight_text": "辅助", "reps": 8, "sets": 1}]}]}], "raw_entries": []})
         assert "当日动作顺序：未记录" in unordered and "最大重量：不适合统一比较" in unordered
         (directory / "fixture.md").write_text(markdown, encoding="utf-8")
