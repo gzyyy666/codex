@@ -47,6 +47,7 @@ def main() -> None:
     assert "onHide() { this.flushDraft(); this.disconnectNotepadObserver(); }" in reference_js
     assert "dockVisible !== this.data.dockVisible" in reference_js
     assert "wx.nextTick" in reference_js and "thresholds: [0, 1]" in reference_js
+    assert "wx.createIntersectionObserver(this, options)" in reference_js
     assert "result.boundingClientRect" in reference_js and "rect.bottom <= 0" in reference_js
     assert "intersectionRatio" not in reference_js
     assert "onPageScroll" not in reference_js
@@ -83,10 +84,11 @@ def main() -> None:
     assert "notepad.clear(this.data.selected)" not in reference_js
     assert "migrateLegacy" not in reference_js
     assert "notepad-observer-anchor" in reference
-    assert "<freeform-notepad visible=\"{{dockVisible}}\" />" in reference
+    assert "reference-notepad-dock" in reference and "<freeform-notepad visible=\"{{dockVisible}}\" />" in reference
     assert "TRAINING NOTE / 训练记录" in reference and "neutral-notepad" in reference
     assert "tone-{{area.tone}}" in reference  # Page and Archive front keep body-part visual identity.
     reference_wxss = (ROOT / "miniprogram" / "pages" / "reference" / "index.wxss").read_text(encoding="utf-8")
+    assert ".reference-notepad-dock { position:fixed" in reference_wxss
     assert ".notepad-input" in reference_wxss and "font-size:25rpx; line-height:1.55" in reference_wxss
     assert ".compact-input" in reference_wxss and "padding:8rpx 0; font-size:25rpx;" in reference_wxss
     assert "训练频率" in reference and "最近训练" in reference and "按训练日" in reference

@@ -116,10 +116,13 @@ Page({
   },
   buildNotepadObserver() {
     this.disconnectNotepadObserver();
-    if (!this.data.selected || !this.createIntersectionObserver) return;
+    const createObserver = this.createIntersectionObserver
+      ? options => this.createIntersectionObserver(options)
+      : (wx.createIntersectionObserver ? options => wx.createIntersectionObserver(this, options) : null);
+    if (!this.data.selected || !createObserver) return;
     const bindObserver = () => {
       if (!this.data.selected || this.notepadObserver) return;
-      this.notepadObserver = this.createIntersectionObserver({ thresholds: [0, 1] });
+      this.notepadObserver = createObserver({ thresholds: [0, 1] });
       this.notepadObserver.relativeToViewport().observe("#notepad-observer-anchor", result => {
         const rect = result.boundingClientRect;
         if (!rect) return;
