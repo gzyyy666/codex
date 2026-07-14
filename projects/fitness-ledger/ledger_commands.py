@@ -42,6 +42,38 @@ def _write_json_atomic(path: Path, value) -> None:
     os.replace(temp, path)
 
 
+_NON_SEMANTIC_FIELDS = {"id", "created_at", "updated_at", "superseded_at", "superseded_by", "save_mode", "source"}
+
+
+def _normalise_business_value(value):
+    """Compare ledger content, not JSON layout or write-time bookkeeping."""
+    if isinstance(value, str):
+        lines = [line.rstrip() for line in value.splitlines()]
+        while lines and not lines[0].strip():
+            lines.pop(0)
+        while lines and not lines[-1].strip():
+            lines.pop()
+        compact = []
+        for line in lines:
+            if not line.strip() and compact and not compact[-1].strip():
+                continue
+            compact.append(line)
+        return "\n".join(compact).strip() if len(compact) == 1 else "\n".join(compact)
+    if isinstance(value, list):
+        return [_normalise_business_value(item) for item in value if not (isinstance(item, dict) and item.get("superseded"))]
+    if isinstance(value, dict):
+        return {
+            key: _normalise_business_value(item)
+            for key, item in sorted(value.items())
+            if key not in _NON_SEMANTIC_FIELDS and key != "superseded"
+        }
+    return value
+
+
+def _same_business_content(before, after) -> bool:
+    return _normalise_business_value(before) == _normalise_business_value(after)
+
+
 def _normalize_name(value: str) -> str:
     value = str(value or "").lower().strip()
     value = re.sub(r"[\s_\-/（）()]+", "", value)
@@ -513,11 +545,14 @@ class LedgerCommandService:
                     date.fromisoformat(updates["Date"])
                 except ValueError as exc:
                     raise LedgerCommandError("Date must use YYYY-MM-DD format.") from exc
-            tracker_backup, dictionary_backup = self._checkpoint()
+            before = copy.deepcopy(record)
             record.update(updates)
+            if _same_business_content(before, record):
+                return {"status": "NO_CHANGES", "changed": False, "record_type": record_type, "record": copy.deepcopy(before)}
             record["updated_at"] = datetime.now().replace(microsecond=0).isoformat()
+            tracker_backup, dictionary_backup = self._checkpoint()
             self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
-            return {"record_type": record_type, "record": copy.deepcopy(record)}
+            return {"status": "UPDATED", "changed": True, "record_type": record_type, "record": copy.deepcopy(record)}
 
     @staticmethod
     def _parse_sets_text(text: str) -> list[dict]:
@@ -573,10 +608,13 @@ class LedgerCommandService:
                 "notes": str(values.get("notes", "")).strip(),
                 "updated_at": datetime.now().replace(microsecond=0).isoformat(),
             }
-            tracker_backup, dictionary_backup = self._checkpoint()
+            before = copy.deepcopy(history)
             history.update(updates)
+            if _same_business_content(before, history):
+                return {"status": "NO_CHANGES", "changed": False, "movement_id": movement_id, "history": copy.deepcopy(before)}
+            tracker_backup, dictionary_backup = self._checkpoint()
             self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
-            return {"movement_id": movement_id, "history": copy.deepcopy(history)}
+            return {"status": "UPDATED", "changed": True, "movement_id": movement_id, "history": copy.deepcopy(history)}
 
     @contextmanager
     def write_lock(self, timeout: float = 8.0):
@@ -803,9 +841,19 @@ class LedgerCommandService:
             if any(duplicates.values()) and save_mode not in {"overwrite", "append_training"}:
                 raise DuplicateDateError({key: len(rows) for key, rows in duplicates.items()})
             save_mode = save_mode or "normal"
-            tracker_backup, dictionary_backup = self._checkpoint()
+            before_database, before_dictionary = copy.deepcopy(database), copy.deepcopy(dictionary)
+            tracker_backup = None
+            dictionary_backup = None
             try:
                 result = self._apply_save(database, dictionary, parsed, save_mode)
+                if _same_business_content(before_database, database) and _same_business_content(before_dictionary, dictionary):
+                    return {
+                        "ok": True, "status": "NO_CHANGES", "changed": False, "date": parsed["date"],
+                        "save_mode": save_mode, "saved_movements": 0, "working_sets": 0,
+                        "body_updated": False, "diet_updated": False, "training_updated": False, "notes_updated": False,
+                        "movements_added": 0, "movements_removed": 0,
+                    }
+                tracker_backup, dictionary_backup = self._checkpoint()
                 _write_json_atomic(self.dictionary_file, dictionary)
                 try:
                     _write_json_atomic(self.data_file, database)
@@ -813,9 +861,17 @@ class LedgerCommandService:
                     shutil.copy2(dictionary_backup, self.dictionary_file)
                     raise
             except Exception:
-                if not self.data_file.exists():
+                if tracker_backup and not self.data_file.exists():
                     shutil.copy2(tracker_backup, self.data_file)
                 raise
+            result.update({
+                "status": "UPDATED" if any(duplicates.values()) else "CREATED", "changed": True,
+                "working_sets": sum(int(block.get("sets") or 0) for movement in parsed.get("training", {}).get("movements", []) for block in movement.get("sets", [])),
+                "body_updated": bool(parsed.get("body")), "diet_updated": bool(parsed.get("diet")),
+                "training_updated": bool(parsed.get("training", {}).get("split") or parsed.get("training", {}).get("movements")),
+                "notes_updated": bool(parsed.get("body", {}).get("notes") or parsed.get("diet", {}).get("notes") or parsed.get("training", {}).get("notes")),
+                "movements_added": result.get("saved_movements", 0), "movements_removed": 0,
+            })
             return result
 
     def _apply_save(self, database: dict, dictionary: dict, parsed: dict, save_mode: str) -> dict:

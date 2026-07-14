@@ -2579,6 +2579,10 @@ table{border-collapse:collapse}thead{background:rgba(18,17,15,.035)}th{font-size
 }
 @media(prefers-reduced-motion:reduce){.entry-save-float{animation:none}.entry-workbench .compact-record{transition:none!important}}
 
+/* Phase 1 save and sync signals: quiet paper receipts, never a notification centre. */
+.sync-nav-dot{display:none;width:7px;height:7px;margin-left:auto;border-radius:50%;background:#c79a35;box-shadow:0 0 0 3px rgba(199,154,53,.13)}.nav-sync.has-local-changes .sync-nav-dot{display:block}.nav-sync.has-sync-error .sync-nav-dot{display:block;background:#a66f55;box-shadow:0 0 0 3px rgba(166,111,85,.12)}
+.save-receipt{position:fixed;z-index:30;right:30px;bottom:28px;display:grid;gap:5px;max-width:280px;padding:16px 19px;border:1px solid rgba(76,59,33,.16);border-radius:5px 18px 5px 18px;background:rgba(255,252,244,.92);box-shadow:0 3px 9px rgba(46,34,16,.1),0 20px 42px rgba(46,34,16,.13),inset 0 1px rgba(255,255,255,.85);color:var(--graphite);opacity:0;transform:translateY(14px);pointer-events:none;transition:opacity .24s ease,transform .24s ease}.save-receipt.is-visible{opacity:1;transform:translateY(0)}.save-receipt span{font-size:10px;font-weight:800;letter-spacing:.14em}.save-receipt strong{font:400 17px var(--font-editorial)}.save-receipt small{font-size:11px;color:#8b6725}@media(max-width:760px){.save-receipt{right:16px;bottom:16px;left:16px;max-width:none}}
+
 /* Material depth reconciliation: precise enhancements for existing Web surfaces. */
 .entry-workbench-page:before,
 .training-theme-page:before{
