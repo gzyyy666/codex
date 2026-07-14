@@ -77,6 +77,9 @@ def main() -> None:
     assert "<freeform-notepad wx:if=\"{{dockVisible}}\" />" in reference
     assert "TRAINING NOTE / 训练记录" in reference and "neutral-notepad" in reference
     assert "tone-{{area.tone}}" in reference  # Page and Archive front keep body-part visual identity.
+    reference_wxss = (ROOT / "miniprogram" / "pages" / "reference" / "index.wxss").read_text(encoding="utf-8")
+    assert ".notepad-input" in reference_wxss and "font-size:25rpx; line-height:1.55" in reference_wxss
+    assert ".compact-input" in reference_wxss and "padding:8rpx 0; font-size:25rpx;" in reference_wxss
     assert "训练频率" in reference and "最近训练" in reference and "按训练日" in reference
     training = (ROOT / "miniprogram" / "pages" / "training" / "index.wxml").read_text(encoding="utf-8")
     assert "搜索日期" in training and "查看当日训练" in training
