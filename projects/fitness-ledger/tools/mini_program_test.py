@@ -44,17 +44,14 @@ def main() -> None:
     assert "createIntersectionObserver" in reference_js
     assert "#notepad-observer-anchor" in reference_js
     assert "disconnectNotepadObserver" in reference_js
-    assert "onHide() { this.flushDraft(); this.clearNotepadScrollMeasure(); this.disconnectNotepadObserver(); }" in reference_js
-    assert "onUnload() { this.flushDraft(); this.clearNotepadScrollMeasure(); this.disconnectNotepadObserver(); }" in reference_js
+    assert "onHide() { this.flushDraft(); this.disconnectNotepadObserver(); }" in reference_js
+    assert "onUnload() { this.flushDraft(); this.disconnectNotepadObserver(); }" in reference_js
     assert "dockVisible !== this.data.dockVisible" in reference_js
     assert "wx.nextTick" in reference_js and "thresholds: [0, 1]" in reference_js
     assert "wx.createIntersectionObserver(this, options)" in reference_js
     assert "result.boundingClientRect" in reference_js and "rect.bottom <= 0" in reference_js
     assert "intersectionRatio" not in reference_js
-    assert "onPageScroll() { this.queueNotepadScrollMeasure(); }" in reference_js
-    assert "notepadScrollTimer" in reference_js and "}, 120);" in reference_js
-    assert "measureNotepadDock" in reference_js and "updateNotepadDockVisibility" in reference_js
-    assert "clearNotepadScrollMeasure" in reference_js
+    assert "onPageScroll" not in reference_js
     notepad = (ROOT / "miniprogram" / "utils" / "freeformNotepad.js").read_text(encoding="utf-8")
     assert 'STORAGE_KEY = "fitness-ledger:freeform-notepad:v2:current-training"' in notepad
     assert "migrateLegacy" not in notepad and "training-draft" not in notepad and ":v1:" not in notepad
@@ -89,6 +86,8 @@ def main() -> None:
     assert "migrateLegacy" not in reference_js
     assert "notepad-observer-anchor" in reference
     assert "reference-notepad-dock" in reference and "<freeform-notepad visible=\"{{dockVisible}}\" />" in reference
+    reference_json = json.loads((ROOT / "miniprogram" / "pages" / "reference" / "index.json").read_text(encoding="utf-8"))
+    assert reference_json["usingComponents"]["freeform-notepad"] == "/components/freeformNotepad/index"
     assert "TRAINING NOTE / 训练记录" in reference and "neutral-notepad" in reference
     assert "tone-{{area.tone}}" in reference  # Page and Archive front keep body-part visual identity.
     reference_wxss = (ROOT / "miniprogram" / "pages" / "reference" / "index.wxss").read_text(encoding="utf-8")
