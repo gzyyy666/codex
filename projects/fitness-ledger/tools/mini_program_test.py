@@ -89,6 +89,7 @@ def main() -> None:
     assert "tone-{{area.tone}}" in reference  # Page and Archive front keep body-part visual identity.
     reference_wxss = (ROOT / "miniprogram" / "pages" / "reference" / "index.wxss").read_text(encoding="utf-8")
     assert ".reference-notepad-dock { position:fixed" in reference_wxss
+    assert ".notepad-observer-anchor" in reference_wxss and "width:100%; height:2px" in reference_wxss
     assert ".notepad-input" in reference_wxss and "font-size:25rpx; line-height:1.55" in reference_wxss
     assert ".compact-input" in reference_wxss and "padding:8rpx 0; font-size:25rpx;" in reference_wxss
     assert "训练频率" in reference and "最近训练" in reference and "按训练日" in reference
