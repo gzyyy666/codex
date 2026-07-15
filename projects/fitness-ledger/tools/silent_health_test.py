@@ -3,11 +3,13 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import sys
 import subprocess
 import tempfile
 import threading
 import time
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -56,42 +58,7 @@ def post_json(url: str, payload: dict) -> dict:
         return json.loads(response.read().decode("utf-8"))
 
 
-class FixtureData:
-    @staticmethod
-    def get_today_summary() -> dict:
-        return {"date": "2026-07-15", "body": {}, "diet": {}, "training": {}}
-
-
-class FixtureWebService:
-    def __init__(self, health: dict) -> None:
-        self.health = health
-        self.data = FixtureData()
-
-    def archive_health(self) -> dict:
-        return self.health
-
-    @staticmethod
-    def recent(_limit: int) -> list:
-        return []
-
-    @staticmethod
-    def collection(_name: str, _limit: int) -> list:
-        return []
-
-    @staticmethod
-    def movement_index(_query: str, _limit: int) -> list:
-        return []
-
-    @staticmethod
-    def dictionary_entries() -> list:
-        return []
-
-    @staticmethod
-    def cloud_sync_status() -> dict:
-        return {"sync_status": "NOT_CONFIGURED", "payload_stale": False}
-
-
-def browser_dom(health: dict) -> str | None:
+def browser_state_sequence(states: list[dict]) -> list[dict] | None:
     candidates = (
         Path(os.environ.get("PROGRAMFILES(X86)", "")) / "Microsoft/Edge/Application/msedge.exe",
         Path(os.environ.get("PROGRAMFILES", "")) / "Microsoft/Edge/Application/msedge.exe",
@@ -99,23 +66,58 @@ def browser_dom(health: dict) -> str | None:
     edge = next((path for path in candidates if path.is_file()), None)
     if edge is None:
         return None
-    server = create_server(port=0, service=FixtureWebService(health))
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
+    index_path = PROJECT_DIR / "web_desktop" / "frontend" / "index.html"
+    app_path = PROJECT_DIR / "web_desktop" / "frontend" / "app.js"
+    index_html = index_path.read_text(encoding="utf-8")
+    app_js = app_path.read_text(encoding="utf-8")
+    assert index_html.count("data-health-nav-entry") == 1
+    assert index_html.count("data-data-check-open") == 1
+    harness = f"""
+const healthStates={json.dumps(states, ensure_ascii=False)};
+const healthSnapshots=[];
+const captureHealthState=()=>{{
+  const host=document.querySelector('[data-health-nav-entry]');
+  const marker=host?.querySelector('.health-nav-status');
+  return {{
+    hostHidden:host?.hidden,
+    markerHidden:marker?.hidden,
+    markerText:marker?.textContent,
+    markerClass:marker?.className,
+    title:host?.getAttribute('title'),
+    ariaLabel:host?.getAttribute('aria-label'),
+    dataCheckOpen:host?.hasAttribute('data-data-check-open'),
+    dataView:host?.getAttribute('data-view'),
+    healthHookCount:document.querySelectorAll('[data-health-nav-entry]').length
+  }};
+}};
+healthSnapshots.push(captureHealthState());
+for(const health of healthStates){{
+  state.archiveHealth=health;
+  renderArchiveHealth();
+  healthSnapshots.push(captureHealthState());
+}}
+const healthReport=document.createElement('div');
+healthReport.id='health-sequence-report';
+healthReport.dataset.snapshots=encodeURIComponent(JSON.stringify(healthSnapshots));
+document.body.appendChild(healthReport);
+"""
+    script_tag = '<script type="module" src="app.js"></script>'
+    assert index_html.count(script_tag) == 1
+    test_html = index_html.replace(script_tag, f'<script type="module">\n{app_js}\n{harness}\n</script>')
+    with tempfile.TemporaryDirectory(prefix="fitness-ledger-health-dom-") as temp:
+        page = Path(temp) / "index.html"
+        page.write_text(test_html, encoding="utf-8")
         result = subprocess.run(
-            [str(edge), "--headless=new", "--disable-gpu", "--virtual-time-budget=3000", "--dump-dom", f"http://127.0.0.1:{server.server_port}/"],
+            [str(edge), "--headless=new", "--disable-gpu", "--virtual-time-budget=3000", "--dump-dom", page.as_uri()],
             check=True,
             capture_output=True,
             text=True,
             encoding="utf-8",
             timeout=20,
         )
-        return result.stdout
-    finally:
-        server.shutdown()
-        server.server_close()
-        thread.join(timeout=3)
+    match = re.search(r'id="health-sequence-report" data-snapshots="([^"]+)"', result.stdout)
+    assert match, "Real page health-state report was not rendered."
+    return json.loads(urllib.parse.unquote(match.group(1)))
 
 
 def main() -> None:
@@ -194,7 +196,9 @@ def main() -> None:
         assert "localStorage" not in app_js
         assert 'data-issue-ack="${index}"' in app_js
         assert "await checksPage();await loadArchiveHealth()" in app_js
-        assert '.nav-item[data-view="checks"]{position:relative;padding-right:44px}' in styles_css
+        assert index_html.count("data-health-nav-entry") == 1
+        assert index_html.count("data-data-check-open") == 1
+        assert '[data-health-nav-entry]{position:relative;padding-right:44px}' in styles_css
         assert "grid-template-columns:repeat(2,minmax(0,1fr))" in styles_css
         assert "width:104px;white-space:nowrap" in styles_css
 
@@ -244,24 +248,36 @@ def main() -> None:
             server.server_close()
             thread.join(timeout=3)
 
-        healthy_dom = browser_dom(healthy)
-        if healthy_dom is not None:
-            assert 'class="health-nav-status" hidden=""' in healthy_dom
-            assert 'aria-label="Data Check"' in healthy_dom
-            review_dom = browser_dom(changed)
-            assert 'health-nav-status needs-review' in review_dom
-            assert f'>{len(issues)}</i>' in review_dom
-            assert "Archive needs review" in review_dom
-            zero_review_dom = browser_dom({**changed, "issue_count": 0})
-            assert 'class="health-nav-status" hidden=""' in zero_review_dom
-            assert 'Archive needs review' not in zero_review_dom
-            assert 'aria-label="Data Check"' in zero_review_dom
-            two_digit_dom = browser_dom({**changed, "issue_count": 12})
-            assert 'health-nav-status needs-review' in two_digit_dom
-            assert '>12</i>' in two_digit_dom
-            unavailable_dom = browser_dom(unavailable)
-            assert 'health-nav-status unavailable' in unavailable_dom
-            assert "Health check unavailable" in unavailable_dom
+        snapshots = browser_state_sequence([
+            {**changed, "issue_count": 5},
+            healthy,
+            unavailable,
+            {**changed, "issue_count": 0},
+            {**changed, "issue_count": 12},
+            {**changed, "issue_count": 12},
+        ])
+        if snapshots is not None:
+            initial, review, ok, unavailable_state, zero_review, two_digit, repeated = snapshots
+            assert initial["hostHidden"] is True and initial["markerHidden"] is True
+            assert initial["markerText"] == "" and initial["ariaLabel"] == "Data Check"
+            assert review["hostHidden"] is False and review["markerHidden"] is False
+            assert review["markerText"] == "5" and review["markerClass"] == "health-nav-status needs-review"
+            assert review["title"] == "Archive needs review: 5 issues"
+            assert review["ariaLabel"] == "Data Check. Archive needs review: 5 issues"
+            assert ok["hostHidden"] is True and ok["markerHidden"] is True
+            assert ok["markerText"] == "" and ok["title"] is None and ok["ariaLabel"] == "Data Check"
+            assert unavailable_state["hostHidden"] is False and unavailable_state["markerHidden"] is False
+            assert unavailable_state["markerText"] == "!" and unavailable_state["markerClass"] == "health-nav-status unavailable"
+            assert unavailable_state["title"] == "Health check unavailable"
+            assert unavailable_state["ariaLabel"] == "Data Check. Health check unavailable"
+            assert zero_review["hostHidden"] is True and zero_review["markerHidden"] is True
+            assert zero_review["markerText"] == "" and zero_review["title"] is None
+            assert zero_review["ariaLabel"] == "Data Check"
+            assert two_digit["hostHidden"] is False and two_digit["markerHidden"] is False
+            assert two_digit["markerText"] == "12" and two_digit["title"] == "Archive needs review: 12 issues"
+            assert repeated == two_digit
+            assert all(item["healthHookCount"] == 1 for item in snapshots)
+            assert all(item["dataCheckOpen"] is True and item["dataView"] == "checks" for item in snapshots)
 
     print(
         "FITNESS_LEDGER_SILENT_HEALTH_OK "
