@@ -87,6 +87,7 @@ class LedgerWebService:
             "save": True,
             "edit": True,
             "dictionary_admin": True,
+            "custom_movement_canonicalization": True,
             "undo": True,
             "data_check_repair": True,
             "phase": "shared-platform-services",
@@ -368,7 +369,68 @@ class LedgerWebService:
         }
 
     def dictionary_entries(self) -> list[dict]:
-        return self.commands.movement_definitions()
+        return [
+            {**item, "is_custom": self._is_custom_movement_id(item.get("movement_id", ""))}
+            for item in self.commands.movement_definitions()
+        ]
+
+    @staticmethod
+    def _is_custom_movement_id(movement_id: str) -> bool:
+        """Mirror the Core identity gate without inferring from display text."""
+        return bool(re.fullmatch(r"CUSTOM_\d+", str(movement_id or "").strip()))
+
+    def canonical_movement_candidates(self, source_id: str = "", query: str = "") -> list[dict]:
+        source_id = str(source_id or "").strip()
+        rows = self.commands.movement_definitions()
+        source = next((item for item in rows if str(item.get("movement_id", "")) == source_id), None)
+        if not source or not self._is_custom_movement_id(source_id):
+            raise LedgerCommandError("Source must be an existing CUSTOM movement.", "SOURCE_NOT_CUSTOM")
+        needle = str(query or "").strip().casefold()
+        candidates = []
+        for item in rows:
+            movement_id = str(item.get("movement_id", "")).strip()
+            if (
+                not movement_id
+                or movement_id == source_id
+                or self._is_custom_movement_id(movement_id)
+                or item.get("active", True) is False
+                or bool(item.get("deleted") or item.get("invalid") or item.get("temporary"))
+                or not str(item.get("display_name", "")).strip()
+            ):
+                continue
+            aliases = [str(value) for value in item.get("aliases", []) if str(value).strip()]
+            searchable = " ".join([
+                movement_id,
+                str(item.get("display_name", "")),
+                str(item.get("english_name", "")),
+                *aliases,
+            ]).casefold()
+            if needle and needle not in searchable:
+                continue
+            candidates.append({
+                "movement_id": movement_id,
+                "display_name": str(item.get("display_name", "")),
+                "english_name": str(item.get("english_name", "")),
+                "aliases": aliases,
+                "muscle_group": str(item.get("muscle_group", "Unclassified")),
+                "history_count": int(item.get("history_count", 0) or 0),
+            })
+        return sorted(candidates, key=lambda item: (item["display_name"].casefold(), item["movement_id"]))
+
+    def preview_custom_movement_merge(self, request: dict) -> dict:
+        return self.commands.preview_merge_custom_movement(
+            str(request.get("source_id", "")),
+            str(request.get("target_id", "")),
+        )
+
+    def execute_custom_movement_merge(self, request: dict) -> dict:
+        result = self.commands.merge_custom_movement(
+            str(request.get("source_id", "")),
+            str(request.get("target_id", "")),
+            str(request.get("plan_identity", "")),
+        )
+        self.data._cache = None
+        return result
 
     def create_dictionary_entry(self, request: dict) -> dict:
         result = self.commands.create_movement_definition(request)
@@ -611,6 +673,11 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.movement_index(query.get("q", [""])[0], int(query.get("limit", ["80"])[0])))
             elif parsed.path == "/api/dictionary":
                 self.send_json(self.service.dictionary_entries())
+            elif parsed.path == "/api/movements/canonical-candidates":
+                self.send_json(self.service.canonical_movement_candidates(
+                    query.get("source_id", [""])[0],
+                    query.get("q", [""])[0],
+                ))
             elif parsed.path == "/api/movement-history":
                 movement = self.service.movement_history(
                     query.get("movement_id", [""])[0],
@@ -670,6 +737,10 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.set_dictionary_entry_active(request))
             elif parsed.path == "/api/dictionary/delete":
                 self.send_json(self.service.delete_dictionary_entry(request))
+            elif parsed.path == "/api/movements/custom-merge/preview":
+                self.send_json(self.service.preview_custom_movement_merge(request))
+            elif parsed.path == "/api/movements/custom-merge/execute":
+                self.send_json(self.service.execute_custom_movement_merge(request))
             elif parsed.path == "/api/record/update":
                 self.send_json(self.service.update_record(request))
             elif parsed.path == "/api/movement-history/update":
@@ -686,7 +757,19 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 },
                 HTTPStatus.CONFLICT,
             )
-        except (LedgerCommandError, ValueError, TypeError, json.JSONDecodeError) as exc:
+        except LedgerCommandError as exc:
+            status = (
+                HTTPStatus.INTERNAL_SERVER_ERROR
+                if exc.code == "MIGRATION_FAILED"
+                else HTTPStatus.CONFLICT
+                if exc.code in {"PREVIEW_STALE", "MIGRATION_BLOCKED"}
+                else HTTPStatus.BAD_REQUEST
+            )
+            self.send_json(
+                {"error": str(exc), "code": exc.code, "details": exc.details},
+                status,
+            )
+        except (ValueError, TypeError, json.JSONDecodeError) as exc:
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
         except Exception as exc:
             self.send_json(
