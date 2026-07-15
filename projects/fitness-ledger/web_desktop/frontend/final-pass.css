@@ -97,7 +97,8 @@
 .movement-group.group-chest .movement-group-art,
 .movement-group.group-back .movement-group-art,
 .movement-group.group-legs .movement-group-art,
-.movement-group.group-arms .movement-group-art{
+.movement-group.group-arms .movement-group-art,
+.movement-group.group-core .movement-group-art{
   z-index:2;
   top:-2.5%;
   right:auto;
@@ -211,4 +212,6 @@
 
 @media(prefers-reduced-motion:reduce){
   .body-theme-control img,.training-atmosphere{transition:none}
+  .movement-group-art{transition:none}
+  .movement-group[class*="group-"]:hover .movement-group-art{transform:translateX(-50%) scale(1.18)}
 }

@@ -170,7 +170,9 @@ def main() -> None:
     assert "setTimeout(()=>renderMovementPreviousPreview(entry),750)" in js
     assert "movement-previous-preview" in css and "movement-preview-sets" in css
     assert "trainingPageWithOptionalFocusPanel" in js and "$('.training-index')?.remove()" in js
-    assert "translate3d(-5px,3px,0) scale(1.015)" in css
+    final_css = (app / "final-pass.css").read_text(encoding="utf-8")
+    assert ".movement-group.group-core .movement-group-art" in final_css
+    assert 'transform:translateX(-50%) scale(1.2)' in final_css
     print("FITNESS_LEDGER_ARCHIVE_NAVIGATION_OK")
 
 
