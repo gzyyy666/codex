@@ -220,11 +220,11 @@ quickPage=function(){
 
 function issueCounts(rows){return rows.reduce((counts,item)=>{const key=String(item.severity||'').toLowerCase();counts[key]=(counts[key]||0)+1;return counts},{})}
 function issueCanRepair(item){return ['body','diet','training','movement','dictionary','raw'].includes(String(item.target_type||''))}
+function issueIsCustomIdentity(item){return /CUSTOM|未标准化动作|尚未确认正式身份|转为独立正式动作/i.test(`${item.issue||''} ${item.action||''}`)}
 function issueActionButtons(item,index){
   const type=String(item.target_type||'');
-  const issueText=`${item.issue||''} ${item.action||''}`;
   const buttons=[`<button class="link issue-open" data-real-issue="${index}">详情</button>`];
-  if(/CUSTOM|未标准化动作/i.test(issueText))buttons.push(`<button class="link issue-repair issue-primary-action" data-issue-repair="${index}" data-repair-action="dictionary-custom">去整理 CUSTOM 动作 →</button>`);
+  if(issueIsCustomIdentity(item))buttons.push(`<button class="link issue-repair issue-primary-action" data-issue-repair="${index}" data-repair-action="dictionary-custom">查看待转正动作 →</button>`);
   else if(['body','diet','training'].includes(type))buttons.push(`<button class="link issue-repair issue-primary-action" data-issue-repair="${index}" data-repair-action="editor">去修复 →</button>`,`<button class="link issue-repair" data-issue-repair="${index}" data-repair-action="record">查看记录</button>`);
   else if(type==='movement')buttons.push(`<button class="link issue-repair" data-issue-repair="${index}" data-repair-action="movement">动作轨迹</button>`,`<button class="link issue-repair" data-issue-repair="${index}" data-repair-action="dictionary">动作词典</button>`);
   else if(type==='dictionary')buttons.push(`<button class="link issue-repair issue-primary-action" data-issue-repair="${index}" data-repair-action="dictionary">打开动作词典 →</button>`);
@@ -258,7 +258,7 @@ checksPage=async function(){
 
 function openRealIssue(index){
   const issue=state.dataCheck?.issues?.[index];if(!issue)return;
-  const custom=/CUSTOM|未标准化动作/i.test(`${issue.issue||''} ${issue.action||''}`);
+  const custom=issueIsCustomIdentity(issue);
   const detail=$('[data-data-check-detail]');
   if(state.dataCheckOverlayOpen&&detail){detail.hidden=false;detail.innerHTML=`<button class="data-check-detail-close" data-data-check-detail-close aria-label="关闭问题详情">×</button><span class="severity ${esc(String(issue.severity).toLowerCase())}">${esc(issue.severity)}</span><h3>问题详情</h3><div class="detail-list"><div class="detail-row"><label>日期</label><div>${esc(issue.date)}</div></div><div class="detail-row"><label>区域</label><div>${esc(issue.area)}</div></div><div class="detail-row"><label>具体问题</label><div>${esc(issue.issue)}</div></div><div class="detail-row"><label>建议处理</label><div>${esc(issue.action)}</div></div></div><div class="modal-actions"><button class="btn" data-issue-ack="${index}">确认并隐藏</button><button class="btn btn-primary" data-issue-repair="${index}" data-repair-action="${custom?'dictionary-custom':'editor'}">${custom?'去整理 CUSTOM 动作':'前往处理'} →</button></div>`;return}
   modal('问题详情',`<span class="severity ${esc(String(issue.severity).toLowerCase())}">${esc(issue.severity)}</span><div class="detail-list"><div class="detail-row"><label>日期</label><div>${esc(issue.date)}</div></div><div class="detail-row"><label>区域</label><div>${esc(issue.area)}</div></div><div class="detail-row"><label>具体问题</label><div>${esc(issue.issue)}</div></div><div class="detail-row"><label>建议处理</label><div>${esc(issue.action)}</div></div></div>`,{actions:`<button class="btn" data-issue-ack="${index}">确认并隐藏</button><button class="btn btn-primary" data-issue-repair="${index}" data-repair-action="${custom?'dictionary-custom':'editor'}">${custom?'去整理 CUSTOM 动作':'前往处理'} →</button>`});

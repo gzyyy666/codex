@@ -223,6 +223,9 @@ def main() -> None:
         assert "openDataCheckOverlay()" in app_js
         assert "data-data-check-overlay" in app_js
         assert "state.dataCheck=await api('/api/data-check')" in app_js
+        assert "issueIsCustomIdentity" in app_js
+        assert "尚未确认正式身份" in app_js
+        assert "state.dictionaryQuery='CUSTOM_'" in app_js
         assert "await loadArchiveHealth()" in app_js
         assert "navigate('checks')" not in app_js
         assert index_html.count("data-health-nav-entry") == 1
