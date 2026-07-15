@@ -151,9 +151,6 @@ class LedgerViewModels:
                     "display_name": row.get("display_name", ""),
                     "english_name": row.get("english_name", ""),
                     "order": row.get("order", ""),
-                    "sets": row.get("sets", []) or [],
-                    "sets_lines": row.get("sets_lines", []) or [],
-                    "notes": row.get("notes", "") or "",
                 }
                 for row in movement_refs
             ]
