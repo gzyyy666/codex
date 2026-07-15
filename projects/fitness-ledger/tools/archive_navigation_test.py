@@ -161,6 +161,11 @@ def main() -> None:
     assert ".movement-group.group-0 .movement-group-art" not in css
     assert re.search(r"\.movement-group\.group-core \.movement-group-art", css)
     assert ".training-movement-row.is-linkable" in css and ".training-movement-link" not in css
+    assert "grid-template-columns:repeat(3,minmax(0,1fr))" in css
+    assert "layoutTrainingGrid" in js and "grid-auto-flow:row dense" in css
+    assert "openSaveModeDialog" in js and 'data-save-mode-choice="append_training"' in js
+    assert 'data-save-mode-choice="overwrite"' in js and "save-mode-dialog" in css
+    assert "renderPreviousPreview(link,payload.history||[])" in js
     print("FITNESS_LEDGER_ARCHIVE_NAVIGATION_OK")
 
 
