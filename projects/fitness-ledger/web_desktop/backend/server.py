@@ -374,6 +374,9 @@ class LedgerWebService:
             for item in self.commands.movement_definitions()
         ]
 
+    def movement_groups(self) -> list[str]:
+        return self.commands.movement_groups()
+
     @staticmethod
     def _is_custom_movement_id(movement_id: str) -> bool:
         """Mirror the Core identity gate without inferring from display text."""
@@ -428,6 +431,14 @@ class LedgerWebService:
             str(request.get("source_id", "")),
             str(request.get("target_id", "")),
             str(request.get("plan_identity", "")),
+        )
+        self.data._cache = None
+        return result
+
+    def promote_custom_movement(self, request: dict) -> dict:
+        result = self.commands.promote_custom_movement(
+            str(request.get("source_id", "")),
+            request.get("definition") or {},
         )
         self.data._cache = None
         return result
@@ -673,6 +684,8 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.movement_index(query.get("q", [""])[0], int(query.get("limit", ["80"])[0])))
             elif parsed.path == "/api/dictionary":
                 self.send_json(self.service.dictionary_entries())
+            elif parsed.path == "/api/movement-groups":
+                self.send_json(self.service.movement_groups())
             elif parsed.path == "/api/movements/canonical-candidates":
                 self.send_json(self.service.canonical_movement_candidates(
                     query.get("source_id", [""])[0],
@@ -741,6 +754,8 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.preview_custom_movement_merge(request))
             elif parsed.path == "/api/movements/custom-merge/execute":
                 self.send_json(self.service.execute_custom_movement_merge(request))
+            elif parsed.path == "/api/movements/custom-promote":
+                self.send_json(self.service.promote_custom_movement(request))
             elif parsed.path == "/api/record/update":
                 self.send_json(self.service.update_record(request))
             elif parsed.path == "/api/movement-history/update":

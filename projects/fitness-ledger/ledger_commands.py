@@ -133,6 +133,44 @@ def _next_custom_id(dictionary: dict) -> str:
     return f"CUSTOM_{number:03d}"
 
 
+_CANONICAL_GROUP_PREFIXES = {
+    "Shoulder": "SHOULDER",
+    "Chest": "CHEST",
+    "Back": "BACK",
+    "Legs": "LEG",
+    "Arms": "ARM",
+    "Core": "CORE",
+    "Cardio": "CARDIO",
+}
+
+
+def _existing_muscle_groups(dictionary: dict) -> list[str]:
+    """Return the established body-part taxonomy, excluding temporary definitions."""
+    groups = {
+        str(item.get("muscle_group", "")).strip()
+        for item in dictionary.get("movements", []) or []
+        if isinstance(item, dict)
+        and not re.fullmatch(r"CUSTOM_\d+", str(item.get("movement_id", "")).strip())
+        and str(item.get("muscle_group", "")).strip()
+        and str(item.get("muscle_group", "")).strip() != "Unclassified"
+    }
+    order = {name: index for index, name in enumerate(_CANONICAL_GROUP_PREFIXES)}
+    return sorted(groups, key=lambda name: (order.get(name, len(order)), name.casefold()))
+
+
+def _next_canonical_id(dictionary: dict, muscle_group: str) -> str:
+    prefix = _CANONICAL_GROUP_PREFIXES.get(str(muscle_group or "").strip())
+    if not prefix:
+        raise LedgerCommandError("请选择已有的训练部位。", "INVALID_MUSCLE_GROUP")
+    used = []
+    pattern = re.compile(rf"{re.escape(prefix)}_(\d+)")
+    for definition in dictionary.get("movements", []) or []:
+        match = pattern.fullmatch(str(definition.get("movement_id", "")).strip())
+        if match:
+            used.append(int(match.group(1)))
+    return f"{prefix}_{max(used, default=0) + 1:03d}"
+
+
 def _new_definition(
     candidate: str,
     display_name: str,
@@ -140,8 +178,14 @@ def _new_definition(
     muscle_group: str = "Unclassified",
 ) -> dict:
     name = str(display_name or candidate).strip()
+    established_groups = _existing_muscle_groups(dictionary)
+    movement_id = (
+        _next_canonical_id(dictionary, muscle_group)
+        if muscle_group in established_groups
+        else _next_custom_id(dictionary)
+    )
     definition = {
-        "movement_id": _next_custom_id(dictionary),
+        "movement_id": movement_id,
         "display_name": name,
         "english_name": name if not re.search(r"[\u4e00-\u9fff]", name) else "",
         "aliases": [candidate] if candidate else [],
@@ -1070,6 +1114,176 @@ class LedgerCommandService:
                 "data_fingerprint": after_fingerprint,
             }
 
+    def movement_groups(self) -> list[str]:
+        """Return the body-part values already established by formal movements."""
+        _database, dictionary = self.load_state()
+        return _existing_muscle_groups(dictionary)
+
+    def promote_custom_movement(self, source_id: str, values: dict) -> dict:
+        """Turn one CUSTOM definition into a new independent canonical movement."""
+        source_id = str(source_id or "").strip()
+        if not re.fullmatch(r"CUSTOM_\d+", source_id):
+            raise LedgerCommandError("只有 CUSTOM 动作可以独立转正。", "SOURCE_NOT_CUSTOM")
+        with self.write_lock():
+            database, dictionary, fingerprint = self._strict_state_snapshot()
+            definitions = [
+                item for item in dictionary.get("movements", []) or []
+                if isinstance(item, dict) and str(item.get("movement_id", "")) == source_id
+            ]
+            if len(definitions) != 1:
+                raise LedgerCommandError("CUSTOM 动作不存在或身份不唯一。", "SOURCE_NOT_UNIQUE")
+            source = definitions[0]
+            muscle_group = str(values.get("muscle_group", source.get("muscle_group", ""))).strip()
+            if muscle_group not in _existing_muscle_groups(dictionary):
+                raise LedgerCommandError("训练部位必须从现有部位中选择。", "INVALID_MUSCLE_GROUP")
+            display_name = str(values.get("display_name", source.get("display_name", ""))).strip()
+            if not display_name:
+                raise LedgerCommandError("中文标准名不能为空。")
+            aliases = self._clean_aliases(
+                values.get("aliases", source.get("aliases", [])),
+                display_name,
+                str(source.get("display_name", "")).strip(),
+            )
+            self._validate_definition_conflicts(dictionary, source_id, aliases)
+            references = self._source_reference_paths(database, dictionary, source_id)
+            if references["unknown"]:
+                raise LedgerCommandError(
+                    "发现无法安全迁移的 CUSTOM 引用；未修改数据。",
+                    "PROMOTION_BLOCKED",
+                    {"references": references["unknown"]},
+                )
+            target_id = _next_canonical_id(dictionary, muscle_group)
+            occupied_tracker_ids = {
+                str(row.get("movement_id", ""))
+                for row in database.get("movements", {}).values()
+                if isinstance(row, dict)
+            } | {str(key) for key in database.get("movements", {})}
+            prefix, number = target_id.rsplit("_", 1)
+            while target_id in occupied_tracker_ids:
+                target_id = f"{prefix}_{int(number) + 1:03d}"
+                number = target_id.rsplit("_", 1)[1]
+            before_raw = _stable_json_hash(database.get("raw_entries", []) or [])
+            before_history = [
+                copy.deepcopy(history)
+                for movement in database.get("movements", {}).values()
+                if isinstance(movement, dict)
+                for history in (movement.get("history", []) or [])
+                if isinstance(history, dict) and str(history.get("movement_id", "")) == source_id
+            ]
+            tracker_backup, dictionary_backup = self._checkpoint()
+            checkpoint = self._checkpoint_identity(tracker_backup)
+            checkpoint_hashes = {
+                "tracker": hashlib.sha256(tracker_backup.read_bytes()).hexdigest(),
+                "dictionary": hashlib.sha256(dictionary_backup.read_bytes()).hexdigest(),
+            }
+            if any(checkpoint_hashes[label] != fingerprint[label]["sha256"] for label in ("tracker", "dictionary")):
+                self._discard_checkpoint(tracker_backup, dictionary_backup)
+                raise LedgerCommandError("数据在转正前发生变化，请重试。", "PROMOTION_STALE")
+            try:
+                working_database = copy.deepcopy(database)
+                working_dictionary = copy.deepcopy(dictionary)
+                definition = next(
+                    item for item in working_dictionary["movements"]
+                    if str(item.get("movement_id", "")) == source_id
+                )
+                definition.update({
+                    "movement_id": target_id,
+                    "display_name": display_name,
+                    "english_name": str(values.get("english_name", definition.get("english_name", ""))).strip(),
+                    "aliases": aliases,
+                    "muscle_group": muscle_group,
+                    "category": str(values.get("category", definition.get("category", "Strength"))).strip() or "Strength",
+                    "equipment": str(values.get("equipment", definition.get("equipment", ""))).strip(),
+                    "notes": str(values.get("notes", definition.get("notes", ""))).strip(),
+                    "pinned": bool(values.get("pinned", definition.get("pinned", False))) or max(0, int(values.get("focus_rank", definition.get("focus_rank", 0)) or 0)) > 0,
+                    "focus_rank": max(0, int(values.get("focus_rank", definition.get("focus_rank", 0)) or 0)),
+                })
+                movements = working_database.get("movements", {})
+                source_rows = [
+                    (key, row) for key, row in movements.items()
+                    if isinstance(row, dict) and str(row.get("movement_id", "")) == source_id
+                ]
+                if len(source_rows) > 1:
+                    raise LedgerCommandError("CUSTOM 成长记录身份不唯一；未修改数据。", "PROMOTION_BLOCKED")
+                for row in movements.values():
+                    if not isinstance(row, dict):
+                        continue
+                    if str(row.get("movement_id", "")) == source_id:
+                        row["movement_id"] = target_id
+                        row["name"] = display_name
+                    for history in row.get("history", []) or []:
+                        if isinstance(history, dict) and str(history.get("movement_id", "")) == source_id:
+                            history["movement_id"] = target_id
+                if source_rows:
+                    source_key = source_rows[0][0]
+                    movements[target_id] = movements.pop(source_key)
+
+                remaining = self._source_reference_paths(working_database, working_dictionary, source_id)
+                promoted_history = [
+                    history
+                    for movement in working_database.get("movements", {}).values()
+                    if isinstance(movement, dict)
+                    for history in (movement.get("history", []) or [])
+                    if isinstance(history, dict) and str(history.get("movement_id", "")) == target_id
+                ]
+                if remaining["migratable"] or remaining["unknown"]:
+                    raise LedgerCommandError("CUSTOM 引用迁移不完整。", "PROMOTION_VALIDATION_FAILED")
+                if [self._history_business_fingerprint(item) for item in promoted_history] != [
+                    self._history_business_fingerprint(item) for item in before_history
+                ]:
+                    raise LedgerCommandError("动作历史在转正时发生了非身份变化。", "PROMOTION_VALIDATION_FAILED")
+                if _stable_json_hash(working_database.get("raw_entries", []) or []) != before_raw:
+                    raise LedgerCommandError("原始录入在转正时发生变化。", "PROMOTION_VALIDATION_FAILED")
+                _write_json_atomic(self.dictionary_file, working_dictionary)
+                _write_json_atomic(self.data_file, working_database)
+                after_database, after_dictionary, after_fingerprint = self._strict_state_snapshot()
+                after_remaining = self._source_reference_paths(after_database, after_dictionary, source_id)
+                if after_remaining["migratable"] or after_remaining["unknown"]:
+                    raise LedgerCommandError("写入后的 CUSTOM 引用验证失败。", "PROMOTION_VALIDATION_FAILED")
+                if _stable_json_hash(after_database.get("raw_entries", []) or []) != before_raw:
+                    raise LedgerCommandError("写入后的原始录入验证失败。", "PROMOTION_VALIDATION_FAILED")
+                after_history = [
+                    history
+                    for movement in after_database.get("movements", {}).values()
+                    if isinstance(movement, dict)
+                    for history in (movement.get("history", []) or [])
+                    if isinstance(history, dict) and str(history.get("movement_id", "")) == target_id
+                ]
+                if [self._history_business_fingerprint(item) for item in after_history] != [
+                    self._history_business_fingerprint(item) for item in before_history
+                ]:
+                    raise LedgerCommandError("写入后的成长记录验证失败。", "PROMOTION_VALIDATION_FAILED")
+            except Exception as exc:
+                rollback_errors = []
+                for backup, destination, label in (
+                    (tracker_backup, self.data_file, "tracker"),
+                    (dictionary_backup, self.dictionary_file, "dictionary"),
+                ):
+                    try:
+                        shutil.copy2(backup, destination)
+                    except Exception as rollback_exc:
+                        rollback_errors.append(f"{label}: {rollback_exc}")
+                if not rollback_errors:
+                    self._discard_checkpoint(tracker_backup, dictionary_backup)
+                raise LedgerCommandError(
+                    "动作转正失败，数据已恢复。" if not rollback_errors else "动作转正失败，回滚需要人工检查。",
+                    "PROMOTION_FAILED",
+                    {"rollback_errors": rollback_errors, "cause": str(exc), "data_fingerprint": fingerprint},
+                ) from exc
+            return {
+                "ok": True,
+                "source_id": source_id,
+                "target_id": target_id,
+                "display_name": display_name,
+                "muscle_group": muscle_group,
+                "migrated_history_count": len(before_history),
+                "migrated_reference_count": len(references["migratable"]),
+                "raw_entries_unchanged": True,
+                "checkpoint": checkpoint,
+                "undo": {"available": True, "checkpoint": checkpoint},
+                "data_fingerprint": after_fingerprint,
+            }
+
     @staticmethod
     def _history_fingerprint(history: dict) -> tuple[str, int, str]:
         try:
@@ -1189,7 +1403,12 @@ class LedgerCommandService:
             aliases = self._clean_aliases(values.get("aliases", []), display_name)
             self._validate_definition_conflicts(dictionary, "", aliases)
             tracker_backup, dictionary_backup = self._checkpoint()
-            definition = _new_definition(display_name, display_name, dictionary)
+            definition = _new_definition(
+                display_name,
+                display_name,
+                dictionary,
+                str(values.get("muscle_group", "Unclassified")).strip() or "Unclassified",
+            )
             definition.update({
                 "english_name": str(values.get("english_name", "")).strip(),
                 "aliases": aliases,

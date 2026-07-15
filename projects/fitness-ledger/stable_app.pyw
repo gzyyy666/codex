@@ -2386,15 +2386,35 @@ class FitnessTrackerApp(tk.Tk):
                 day = str(history.get("date", ""))[:10]
                 by_date[day] = by_date.get(day, 0) + 1
                 if not is_pull_up and not history.get("sets") and not history.get("cardio"):
-                    add("Medium", day, "Movement", f"“{display_name}”没有 sets。", "打开 Movement 单元格编辑", "movement", movement_id=movement.get("movement_id", ""))
+                    add("Medium", day, "Movement", f"“{display_name}”这次记录没有可用于成长曲线的组数或有氧数据。", "查看记录；如当天确有训练，请补充组数", "movement", movement_id=movement.get("movement_id", ""))
             for day, count in by_date.items():
                 if day and count > 1:
                     add("Medium", day, "Movement", f"“{display_name}”同一天出现 {count} 条记录。", "打开 Movement 单元格编辑", "movement", movement_id=movement.get("movement_id", ""))
 
         for raw_record in self.database.get("raw_entries", []):
+            if raw_record.get("superseded"):
+                continue
             skipped = raw_record.get("skipped_movements") or []
-            if skipped:
-                add("Low", str(raw_record.get("date", ""))[:10], "Raw Entry", f"有新动作未加入成长表：{'、'.join(skipped)}。", "打开原始输入", "raw", str(raw_record.get("id", "")))
+            day = str(raw_record.get("date", ""))[:10]
+            unresolved = []
+            for name in skipped:
+                definition = self.movement_definitions_by_alias.get(normalize_name(name))
+                movement_id = str((definition or {}).get("movement_id", ""))
+                movement = next(
+                    (
+                        item for item in self.database.get("movements", {}).values()
+                        if str(item.get("movement_id", "")) == movement_id
+                    ),
+                    None,
+                )
+                restored = movement and any(
+                    str(history.get("date", ""))[:10] == day
+                    for history in movement.get("history", [])
+                )
+                if not restored:
+                    unresolved.append(name)
+            if unresolved:
+                add("Low", day, "Raw Entry", f"以下动作当时选择了“仅保留原始记录”，因此没有建立独立成长记录：{'、'.join(unresolved)}。", "从原始输入重新解析，并在 Review 中选择已有训练部位", "raw", str(raw_record.get("id", "")))
 
         for area, records in (("Body", self.database.get("daily_records", [])), ("Diet", self.database.get("diet_records", [])), ("Training", self.database.get("training_sessions", []))):
             for day, count in self.date_counts(records).items():
@@ -2409,7 +2429,7 @@ class FitnessTrackerApp(tk.Tk):
             if str(definition.get("movement_id", "")).startswith("CUSTOM_")
         )
         if custom_count >= 6:
-            add("Low", "-", "Movement Dictionary", f"当前有 {custom_count} 个 CUSTOM 动作，建议定期整理。", "打开动作词典管理", "dictionary")
+            add("Low", "-", "Movement Dictionary", f"当前有 {custom_count} 个尚未确认正式身份的动作。", "为每个动作选择训练部位并转为独立正式动作", "dictionary")
         severity_order = {"High": 0, "Medium": 1, "Low": 2}
         return sorted(issues, key=lambda item: (severity_order[item["severity"]], item["date"], item["area"]))
 
