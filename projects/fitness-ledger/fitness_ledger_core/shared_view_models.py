@@ -48,12 +48,28 @@ class LedgerViewModels:
         return by_id, by_alias
 
     @staticmethod
+    def history_set_lines(history: dict) -> list[str]:
+        lines = []
+        for item in history.get("sets", []) or []:
+            weight = item.get("weight_text") or item.get("weight")
+            if weight in (None, "", 0, 0.0):
+                weight = "自重"
+            lines.append(f"{weight} × {item.get('reps', '-')} × {item.get('sets', '-')}")
+        return lines
+
+    @staticmethod
     def history_metrics(history: dict) -> dict:
         max_weight, total_reps, volume = 0.0, 0, 0.0
+        has_structured_sets = False
         for item in history.get("sets", []) or []:
+            reps_value = _number(item.get("reps"))
+            sets_value = _number(item.get("sets"))
+            if reps_value is None or sets_value is None or reps_value <= 0 or sets_value <= 0:
+                continue
             weight = _number(item.get("weight")) or 0.0
-            reps = int(_number(item.get("reps")) or 0)
-            sets = int(_number(item.get("sets")) or 0)
+            reps = int(reps_value)
+            sets = int(sets_value)
+            has_structured_sets = True
             max_weight = max(max_weight, weight)
             total_reps += reps * sets
             volume += weight * reps * sets
@@ -61,6 +77,7 @@ class LedgerViewModels:
             "max_weight": max_weight,
             "total_reps": total_reps,
             "volume": round(volume, 2),
+            "has_structured_sets": has_structured_sets,
         }
 
     def movement_history_by_id(self, movement_id: str, limit: int = 8, before_date: str = "") -> dict:
@@ -80,9 +97,10 @@ class LedgerViewModels:
         projected = []
         for row in history[: max(1, limit)]:
             item = copy.deepcopy(row)
+            item["sets_lines"] = self.history_set_lines(item)
             item["metrics"] = self.history_metrics(item)
             projected.append(item)
-        recent = projected[:3]
+        recent = [item for item in projected if item["metrics"]["has_structured_sets"]][:3]
         for index, item in enumerate(recent):
             previous = recent[index + 1]["metrics"] if index + 1 < len(recent) else None
             item["change"] = {
@@ -109,30 +127,42 @@ class LedgerViewModels:
     def training_archive(self, limit: int = 50) -> list[dict]:
         """Add only read-only movement_id projections to Training sessions."""
         tracker, dictionary = self.snapshot()
-        by_id, _ = self.dictionary_indexes(dictionary)
+        by_id, by_alias = self.dictionary_indexes(dictionary)
         history_by_day: dict[tuple[str, str], list[dict]] = {}
         for movement in tracker.get("movements", {}).values():
             fallback_id = str(movement.get("movement_id", ""))
+            fallback_name = str(
+                movement.get("display_name")
+                or movement.get("name")
+                or movement.get("movement_name")
+                or ""
+            )
             for history in movement.get("history", []) or []:
-                movement_id = str(history.get("movement_id") or fallback_id)
-                if not movement_id:
-                    continue
+                declared_id = str(history.get("movement_id") or fallback_id)
+                declared_name = str(
+                    history.get("display_name")
+                    or history.get("name")
+                    or history.get("movement_name")
+                    or fallback_name
+                    or ""
+                )
+                definition = by_id.get(declared_id)
+                if not definition:
+                    for candidate in (declared_name, fallback_name):
+                        definition = by_alias.get(_normalize(candidate)) if candidate else None
+                        if definition:
+                            break
+                movement_id = str(definition.get("movement_id", "")) if definition else ""
                 key = (_date(history.get("date")), str(history.get("training_day", "")))
-                definition = by_id.get(movement_id, {})
                 row = copy.deepcopy(history)
-                set_lines = []
-                for item in row.get("sets", []) or []:
-                    weight = item.get("weight_text")
-                    if not weight:
-                        weight = item.get("weight")
-                    if weight in (None, "", 0, 0.0):
-                        weight = "自重"
-                    set_lines.append(f"{weight} × {item.get('reps', '-')} × {item.get('sets', '-')}")
                 row.update({
                     "movement_id": movement_id,
-                    "display_name": definition.get("display_name") or movement.get("name", ""),
-                    "english_name": definition.get("english_name", ""),
-                    "sets_lines": set_lines,
+                    "display_name": (definition or {}).get("display_name") or declared_name or declared_id or "Unmapped movement",
+                    "english_name": (definition or {}).get("english_name", ""),
+                    "muscle_group": (definition or {}).get("muscle_group", ""),
+                    "is_linkable": bool(movement_id),
+                    "sets_lines": self.history_set_lines(row),
+                    "has_structured_sets": self.history_metrics(row)["has_structured_sets"],
                 })
                 history_by_day.setdefault(key, []).append(row)
 
@@ -150,7 +180,12 @@ class LedgerViewModels:
                     "movement_id": row["movement_id"],
                     "display_name": row.get("display_name", ""),
                     "english_name": row.get("english_name", ""),
+                    "muscle_group": row.get("muscle_group", ""),
+                    "is_linkable": bool(row.get("is_linkable")),
                     "order": row.get("order", ""),
+                    "sets_lines": row.get("sets_lines", []),
+                    "notes": row.get("notes", ""),
+                    "has_structured_sets": bool(row.get("has_structured_sets")),
                 }
                 for row in movement_refs
             ]
