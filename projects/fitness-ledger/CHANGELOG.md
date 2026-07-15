@@ -1,5 +1,13 @@
 # Fitness Ledger Changelog
 
+## 2026-07-15 - Silent archive health check
+
+- Added a read-only Data Check summary endpoint that reuses the maintained desktop checker and caches results in memory by tracker/dictionary fingerprint.
+- Kept healthy archives visually silent; review-worthy issues add only a restrained amber count to the existing Data Check navigation entry.
+- Distinguished checker failure with a neutral `Health check unavailable` state while leaving the main Web experience usable.
+- Added anonymous tests for healthy, warning/error, cache invalidation, unavailable, large-fixture, and file-integrity behavior.
+- Data structure, save semantics, Cloud Sync, Analysis Export, CloudBase, and Mini Program impact: none.
+
 ## 2026-07-11 - Cloud Sync local-first console
 
 - Rebuilt the Web Cloud Sync presentation around a single natural-language sync conclusion, a single primary action, and a compact local-to-cloud data flow.

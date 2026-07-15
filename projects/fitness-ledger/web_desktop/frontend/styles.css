@@ -3043,3 +3043,7 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
 @keyframes movement-index-preview-in{from{opacity:0;transform:translateY(-4px) scale(.985)}to{opacity:1;transform:none}}
 @media(max-width:760px){.training-theme-page[data-training-theme="overview"] .training-stage{padding-top:20px}.movement-index-previous-preview,.movement-index-preview-cue{display:none!important}}
 @media(prefers-reduced-motion:reduce){.movement-index-previous-preview{animation:none}.movement-index-preview-cue{transition:none}}
+.nav-item[data-view="checks"]{position:relative}
+.health-nav-status{position:absolute;right:14px;top:50%;min-width:16px;height:16px;padding:0 4px;transform:translateY(-50%);border-radius:8px;font:700 10px/16px var(--sans);text-align:center;font-style:normal}
+.health-nav-status.needs-review{background:#d6ae55;color:#2d2618}
+.health-nav-status.unavailable{background:#77736c;color:#fff}

@@ -24,7 +24,7 @@ if str(PROJECT_DIR) not in sys.path:
 
 from mobile_viewer.data_access import LedgerDataAccess  # noqa: E402
 from ledger_commands import DuplicateDateError, LedgerCommandError, LedgerCommandService  # noqa: E402
-from fitness_ledger_core.data_quality_view import acknowledge_issue, collect_issues  # noqa: E402
+from fitness_ledger_core.data_quality_view import SilentHealthCheck, acknowledge_issue, collect_issues  # noqa: E402
 from fitness_ledger_core.analysis_export import build_export  # noqa: E402
 from fitness_ledger_core.shared_view_models import LedgerViewModels  # noqa: E402
 from cloud_sync.build_cloud_payload import main as build_cloud_replica, source_metadata  # noqa: E402
@@ -65,6 +65,7 @@ class LedgerWebService:
         self.stable = load_stable_module()
         self.commands = LedgerCommandService(data_file, dictionary_file, backup_dir, self._parse_with_stable_app)
         self.data_check_state_file = Path(data_file).parent / "data_check_state.json"
+        self.silent_health = SilentHealthCheck(Path(data_file), Path(dictionary_file), self.stable)
         self.pending_reviews: dict[str, dict] = {}
         self.pending_lock = threading.RLock()
 
@@ -100,6 +101,9 @@ class LedgerWebService:
     def data_check(self) -> dict:
         database, dictionary = self.commands.load_state()
         return collect_issues(database, dictionary, self.stable, self.data_check_state_file)
+
+    def archive_health(self) -> dict:
+        return self.silent_health.summary()
 
     def workout_reference(self, split: str) -> dict:
         return self.views.workout_reference(split)
@@ -583,6 +587,8 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.undo_status())
             elif parsed.path == "/api/data-check":
                 self.send_json(self.service.data_check())
+            elif parsed.path == "/api/archive-health":
+                self.send_json(self.service.archive_health())
             elif parsed.path == "/api/cloud-sync/status":
                 self.send_json(self.service.cloud_sync_status())
             elif parsed.path == "/api/workout-reference":
