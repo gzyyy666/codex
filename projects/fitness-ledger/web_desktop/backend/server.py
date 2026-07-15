@@ -104,7 +104,12 @@ class LedgerWebService:
     def workout_reference(self, split: str) -> dict:
         return self.views.workout_reference(split)
 
-    def movement_insight(self, name: str, limit: int = 8) -> dict:
+    def movement_insight(self, name: str = "", movement_id: str = "", limit: int = 8) -> dict:
+        return self.views.movement_history_by_id(movement_id, limit) if movement_id else self.views.movement_history(name, limit)
+
+    def movement_history(self, movement_id: str = "", name: str = "", limit: int = 8, before_date: str = "") -> dict:
+        if movement_id:
+            return self.views.movement_history_by_id(movement_id, limit, before_date)
         return self.views.movement_history(name, limit)
 
     def analysis_export(self, request: dict) -> dict:
@@ -483,6 +488,8 @@ class LedgerWebService:
         return results
 
     def collection(self, name: str, limit: int = 50) -> list[dict]:
+        if name == "training":
+            return self.views.training_archive(limit)
         tracker = self.data._tracker()
         mapping = {
             "body": "daily_records",
@@ -581,7 +588,7 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/workout-reference":
                 self.send_json(self.service.workout_reference(query.get("split", [""])[0]))
             elif parsed.path == "/api/movement-insight":
-                self.send_json(self.service.movement_insight(query.get("name", [""])[0], int(query.get("limit", ["8"])[0])))
+                self.send_json(self.service.movement_insight(query.get("name", [""])[0], query.get("movement_id", [""])[0], int(query.get("limit", ["8"])[0])))
             elif parsed.path == "/api/today":
                 self.send_json(self.service.data.get_today_summary())
             elif parsed.path == "/api/recent":
@@ -597,8 +604,11 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/dictionary":
                 self.send_json(self.service.dictionary_entries())
             elif parsed.path == "/api/movement-history":
-                movement = self.service.data.get_movement_history(
-                    query.get("name", [""])[0], int(query.get("limit", ["8"])[0])
+                movement = self.service.movement_history(
+                    query.get("movement_id", [""])[0],
+                    query.get("name", [""])[0],
+                    int(query.get("limit", ["8"])[0]),
+                    query.get("before_date", [""])[0],
                 )
                 if movement.get("movement") and not movement["movement"].get("active", True):
                     movement = {"query": query.get("name", [""])[0], "movement": None, "history": []}

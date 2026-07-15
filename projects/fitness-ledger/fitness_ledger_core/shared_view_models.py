@@ -63,18 +63,20 @@ class LedgerViewModels:
             "volume": round(volume, 2),
         }
 
-    def movement_history(self, movement_name: str, limit: int = 8) -> dict:
+    def movement_history_by_id(self, movement_id: str, limit: int = 8, before_date: str = "") -> dict:
         tracker, dictionary = self.snapshot()
-        by_id, by_alias = self.dictionary_indexes(dictionary)
-        definition = by_id.get(movement_name) or by_alias.get(_normalize(movement_name))
+        by_id, _ = self.dictionary_indexes(dictionary)
+        movement_id = str(movement_id or "").strip()
+        definition = by_id.get(movement_id)
         if not definition:
             return {"movement": None, "history": [], "recent_performance": []}
-        movement_id = str(definition.get("movement_id", ""))
         movement = next(
             (item for item in tracker.get("movements", {}).values() if str(item.get("movement_id", "")) == movement_id),
             {"movement_id": movement_id, "history": []},
         )
         history = sorted(movement.get("history", []) or [], key=lambda row: _date(row.get("date")), reverse=True)
+        if before_date:
+            history = [row for row in history if _date(row.get("date")) < _date(before_date)]
         projected = []
         for row in history[: max(1, limit)]:
             item = copy.deepcopy(row)
@@ -95,6 +97,68 @@ class LedgerViewModels:
             "history": projected,
             "recent_performance": recent,
         }
+
+    def movement_history(self, movement_name: str, limit: int = 8) -> dict:
+        tracker, dictionary = self.snapshot()
+        by_id, by_alias = self.dictionary_indexes(dictionary)
+        definition = by_id.get(str(movement_name or "").strip()) or by_alias.get(_normalize(movement_name))
+        if not definition:
+            return {"movement": None, "history": [], "recent_performance": []}
+        return self.movement_history_by_id(str(definition.get("movement_id", "")), limit)
+
+    def training_archive(self, limit: int = 50) -> list[dict]:
+        """Add only read-only movement_id projections to Training sessions."""
+        tracker, dictionary = self.snapshot()
+        by_id, _ = self.dictionary_indexes(dictionary)
+        history_by_day: dict[tuple[str, str], list[dict]] = {}
+        for movement in tracker.get("movements", {}).values():
+            fallback_id = str(movement.get("movement_id", ""))
+            for history in movement.get("history", []) or []:
+                movement_id = str(history.get("movement_id") or fallback_id)
+                if not movement_id:
+                    continue
+                key = (_date(history.get("date")), str(history.get("training_day", "")))
+                definition = by_id.get(movement_id, {})
+                row = copy.deepcopy(history)
+                set_lines = []
+                for item in row.get("sets", []) or []:
+                    weight = item.get("weight_text")
+                    if not weight:
+                        weight = item.get("weight")
+                    if weight in (None, "", 0, 0.0):
+                        weight = "自重"
+                    set_lines.append(f"{weight} × {item.get('reps', '-')} × {item.get('sets', '-')}")
+                row.update({
+                    "movement_id": movement_id,
+                    "display_name": definition.get("display_name") or movement.get("name", ""),
+                    "english_name": definition.get("english_name", ""),
+                    "sets_lines": set_lines,
+                })
+                history_by_day.setdefault(key, []).append(row)
+
+        rows = []
+        for session in sorted(tracker.get("training_sessions", []) or [], key=lambda row: _date(row.get("Date")), reverse=True):
+            projected = copy.deepcopy(session)
+            date_key = _date(session.get("Date"))
+            day_key = str(session.get("No.", ""))
+            movement_refs = sorted(
+                history_by_day.get((date_key, day_key), []),
+                key=lambda row: (int(row.get("order", 9999) or 9999), row.get("movement_id", "")),
+            )
+            projected["movement_refs"] = [
+                {
+                    "movement_id": row["movement_id"],
+                    "display_name": row.get("display_name", ""),
+                    "english_name": row.get("english_name", ""),
+                    "order": row.get("order", ""),
+                    "sets": row.get("sets", []) or [],
+                    "sets_lines": row.get("sets_lines", []) or [],
+                    "notes": row.get("notes", "") or "",
+                }
+                for row in movement_refs
+            ]
+            rows.append(projected)
+        return rows[: max(1, min(limit, 200))]
 
     def workout_reference(self, split: str = "") -> dict:
         tracker, dictionary = self.snapshot()
