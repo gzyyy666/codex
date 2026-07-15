@@ -92,6 +92,7 @@ def main() -> None:
     js = (app / "app.js").read_text(encoding="utf-8")
     css = (app / "styles.css").read_text(encoding="utf-8")
     assert "data-select-movement-id" in js and "movement_id=${encodeURIComponent" in js
+    assert 'data-select-movement="${' not in js and "dataset.selectMovement)" not in js
     assert "before_date" in js and "setTimeout" in js and "400" in js
     assert "history.pushState" in js and "history.replaceState" in js and "popstate" in js
     assert "openTrainingFromMovement" in js and "data-training-movement-id" in js
