@@ -1,5 +1,14 @@
 # Fitness Ledger Changelog
 
+## 2026-07-15 - CUSTOM movement canonicalization commands
+
+- Added Core-only `preview_merge_custom_movement` and `merge_custom_movement` commands for explicit CUSTOM-to-existing-canonical migration; no Desktop, Web, Mini Program, or backend route was added.
+- Preview now reports supported/unknown references, history counts and IDs, duplicate/same-day warnings, alias additions/conflicts, immutable raw audit state, source/target metadata, data fingerprint, blockers, and a stable plan identity without writing files or checkpoints.
+- Execute re-reads and revalidates the current pair under the shared write lock, rejects stale previews, preserves every history business field and ID, removes the source only after all supported references migrate, and keeps canonical target metadata unchanged.
+- Paired checkpoint, atomic writes, post-write validation, paired rollback, and existing Undo cover the complete migration; failed transactions discard their unused migration checkpoint after successful rollback.
+- Added anonymous temporary-fixture coverage for migration invariants, conflict blockers, stale preview, tracker/dictionary/post-validation failures, Undo, Cloud payload target-only projection, existing Data Check, and dry-run SHA/size/mtime preservation.
+- Formal data, schema, raw text, Cloud uploader, CloudBase, UI, and real CUSTOM records were not modified.
+
 ## 2026-07-15 - Silent archive health check
 
 - Added a read-only Data Check summary endpoint that reuses the maintained desktop checker and caches results in memory by tracker/dictionary fingerprint.

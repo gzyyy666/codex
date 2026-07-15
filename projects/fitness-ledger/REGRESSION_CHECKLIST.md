@@ -66,6 +66,20 @@ Web write commands must be explicitly routed through `LedgerCommandService`. Tes
 - Delete requires the exact display name, removes structured history, and preserves every raw entry.
 - Desktop shutdown must not overwrite newer Web changes with stale in-memory state.
 
+## CUSTOM Movement Canonicalization Core
+
+- Run `python tools/custom_movement_merge_test.py`; expect `FITNESS_LEDGER_CUSTOM_MOVEMENT_MERGE_OK`.
+- Preview is strictly read-only: tracker/dictionary SHA-256, size, mtime, checkpoints, Undo availability, and raw text remain unchanged.
+- Only one structurally valid `CUSTOM_\d+` dictionary source may migrate to one active, valid, non-CUSTOM canonical target.
+- Preview inventories tracker movement indexes/identities and every movement-history `movement_id`; unknown source-ID paths, history-ID collisions, and third-party alias ownership conflicts block execution.
+- Potential duplicate content and same-date/same-training-day histories are warnings; execution preserves all histories and never auto-deduplicates, merges sets, reparses raw input, or changes history IDs.
+- Execution requires the exact current `plan_identity`; any tracker/dictionary fingerprint change returns `PREVIEW_STALE` before checkpoint or write.
+- Source display/English/alias/tracker names are normalized, deduplicated, and added only as target aliases; canonical target ID, names, muscle group, and metadata remain unchanged.
+- Tracker and dictionary write failures plus post-write validation failures restore both files and leave no successful migration or misleading Undo checkpoint.
+- Successful Undo restores the source definition/identity/history, target aliases/history, record order, and both formal files together.
+- Temporary-fixture Cloud payload contains only the canonical target ID, and the existing Data Check no longer sees the source as a remaining formal structured reference.
+- `raw_entries[*].text` and name-based `skipped_movements` audit metadata remain byte-for-value unchanged; skipped source names become recognizable through the target aliases without raw reparsing.
+
 ## Shared Existing Record Editing
 
 - Body editing supports Date, Weight, Bowel Movement, Training, Cardio, and Notes.

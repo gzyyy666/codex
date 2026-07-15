@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import os
 import re
@@ -17,7 +18,10 @@ ParserCallback = Callable[[str, dict, dict], dict]
 
 
 class LedgerCommandError(RuntimeError):
-    pass
+    def __init__(self, message: str, code: str = "COMMAND_FAILED", details: dict | None = None):
+        super().__init__(message)
+        self.code = code
+        self.details = details or {}
 
 
 class DuplicateDateError(LedgerCommandError):
@@ -36,10 +40,13 @@ def _read_json(path: Path, fallback):
 def _write_json_atomic(path: Path, value) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
-    payload = json.dumps(value, ensure_ascii=False, indent=2)
-    temp.write_text(payload, encoding="utf-8")
-    json.loads(temp.read_text(encoding="utf-8"))
-    os.replace(temp, path)
+    try:
+        payload = json.dumps(value, ensure_ascii=False, indent=2)
+        temp.write_text(payload, encoding="utf-8")
+        json.loads(temp.read_text(encoding="utf-8"))
+        os.replace(temp, path)
+    finally:
+        temp.unlink(missing_ok=True)
 
 
 _NON_SEMANTIC_FIELDS = {"id", "created_at", "updated_at", "superseded_at", "superseded_by", "save_mode", "source"}
@@ -78,6 +85,11 @@ def _normalize_name(value: str) -> str:
     value = str(value or "").lower().strip()
     value = re.sub(r"[\s_\-/（）()]+", "", value)
     return re.sub(r"[^\w\u4e00-\u9fff]", "", value)
+
+
+def _stable_json_hash(value) -> str:
+    payload = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def _format_number(value) -> str:
@@ -293,6 +305,770 @@ class LedgerCommandService:
                 raise LedgerCommandError(
                     f"Alias '{alias}' already belongs to {conflict.get('display_name') or conflict.get('movement_id')}."
                 )
+
+    @staticmethod
+    def _definition_summary(definition: dict | None, movement_id: str) -> dict:
+        definition = definition or {}
+        return {
+            "movement_id": movement_id,
+            "display_name": str(definition.get("display_name", "")),
+            "english_name": str(definition.get("english_name", "")),
+            "muscle_group": str(definition.get("muscle_group", "")),
+            "aliases": copy.deepcopy(definition.get("aliases", []) or []),
+            "active": bool(definition.get("active", True)) if definition else None,
+        }
+
+    @staticmethod
+    def _checkpoint_identity(tracker_backup: Path) -> str:
+        return tracker_backup.name.removeprefix("undo_tracker_").removesuffix(".json")
+
+    @staticmethod
+    def _discard_checkpoint(tracker_backup: Path, dictionary_backup: Path) -> None:
+        tracker_backup.unlink(missing_ok=True)
+        dictionary_backup.unlink(missing_ok=True)
+
+    def _strict_state_snapshot(self) -> tuple[dict, dict, dict]:
+        files = (("tracker", self.data_file), ("dictionary", self.dictionary_file))
+        decoded: dict[str, dict] = {}
+        fingerprint: dict[str, dict | str] = {}
+        for label, path in files:
+            try:
+                before = path.stat()
+                payload = path.read_bytes()
+                after = path.stat()
+                if (before.st_size, before.st_mtime_ns) != (after.st_size, after.st_mtime_ns):
+                    raise LedgerCommandError(
+                        "Formal data changed while it was being read; retry the preview.",
+                        "STATE_CHANGED_DURING_READ",
+                    )
+                value = json.loads(payload.decode("utf-8"))
+                if not isinstance(value, dict):
+                    raise ValueError("top-level JSON value is not an object")
+            except LedgerCommandError:
+                raise
+            except Exception as exc:
+                raise LedgerCommandError(
+                    f"Current {label} data is unavailable or invalid; no migration was attempted.",
+                    "FORMAL_DATA_INVALID",
+                    {"file": label, "path": str(path.resolve())},
+                ) from exc
+            decoded[label] = value
+            fingerprint[label] = {
+                "path": str(path.resolve()),
+                "sha256": hashlib.sha256(payload).hexdigest(),
+                "size": len(payload),
+                "mtime_ns": after.st_mtime_ns,
+            }
+        fingerprint["identity"] = _stable_json_hash(fingerprint)
+        return decoded["tracker"], decoded["dictionary"], fingerprint
+
+    @staticmethod
+    def _history_business_fingerprint(history: dict) -> str:
+        value = {key: item for key, item in history.items() if key not in {"id", "movement_id"}}
+        return _stable_json_hash(value)
+
+    @staticmethod
+    def _source_reference_paths(database: dict, dictionary: dict, source_id: str) -> dict:
+        migratable: list[dict] = []
+        unknown: list[dict] = []
+        raw_occurrences: list[dict] = []
+        movements = database.get("movements", {})
+        if not isinstance(movements, dict):
+            return {
+                "migratable": [],
+                "unknown": [{"path": "tracker.movements", "value": type(movements).__name__}],
+                "raw_occurrences": [],
+            }
+
+        if source_id in movements:
+            migratable.append({"kind": "tracker_movement_index", "path": f"tracker.movements.{source_id}"})
+        for key, movement in movements.items():
+            if not isinstance(movement, dict):
+                continue
+            if str(movement.get("movement_id", "")) == source_id:
+                migratable.append({
+                    "kind": "tracker_movement_identity",
+                    "path": f"tracker.movements.{key}.movement_id",
+                })
+            for index, history in enumerate(movement.get("history", []) or []):
+                if isinstance(history, dict) and str(history.get("movement_id", "")) == source_id:
+                    migratable.append({
+                        "kind": "movement_history",
+                        "path": f"tracker.movements.{key}.history[{index}].movement_id",
+                        "history_id": str(history.get("id", "")),
+                        "date": str(history.get("date", ""))[:10],
+                        "training_day": history.get("training_day"),
+                    })
+
+        for index, definition in enumerate(dictionary.get("movements", []) or []):
+            if isinstance(definition, dict) and str(definition.get("movement_id", "")) == source_id:
+                migratable.append({
+                    "kind": "dictionary_definition",
+                    "path": f"dictionary.movements[{index}].movement_id",
+                })
+
+        def walk(value, path: tuple, root: str) -> None:
+            if isinstance(value, dict):
+                for key, item in value.items():
+                    walk(item, (*path, key), root)
+            elif isinstance(value, list):
+                for index, item in enumerate(value):
+                    walk(item, (*path, index), root)
+            elif isinstance(value, str) and value == source_id:
+                rendered = root + "".join(f"[{item}]" if isinstance(item, int) else f".{item}" for item in path)
+                if not path or path[-1] != "movement_id":
+                    raw_occurrences.append({"path": rendered, "value": source_id})
+                    return
+                known_tracker_path = (
+                    root == "tracker"
+                    and path[0:1] == ("movements",)
+                    and (
+                        (len(path) == 3 and path[-1] == "movement_id")
+                        or (
+                            len(path) == 5
+                            and path[2] == "history"
+                            and isinstance(path[3], int)
+                            and path[4] == "movement_id"
+                        )
+                    )
+                )
+                known = known_tracker_path or (
+                    root == "dictionary"
+                    and len(path) == 3
+                    and path[0] == "movements"
+                    and path[-1] == "movement_id"
+                )
+                if not known:
+                    unknown.append({"path": rendered, "value": source_id})
+
+        walk(database, (), "tracker")
+        walk(dictionary, (), "dictionary")
+        return {"migratable": migratable, "unknown": unknown, "raw_occurrences": raw_occurrences}
+
+    def _build_custom_movement_merge_plan(
+        self,
+        database: dict,
+        dictionary: dict,
+        source_id: str,
+        target_id: str,
+        data_fingerprint: dict,
+    ) -> dict:
+        source_id = str(source_id or "").strip()
+        target_id = str(target_id or "").strip()
+        blockers: list[dict] = []
+        warnings: list[dict] = []
+
+        def block(code: str, message: str, **details) -> None:
+            item = {"code": code, "message": message}
+            item.update(details)
+            blockers.append(item)
+
+        def warn(code: str, message: str, **details) -> None:
+            item = {"code": code, "message": message}
+            item.update(details)
+            warnings.append(item)
+
+        definitions = dictionary.get("movements", [])
+        if not isinstance(definitions, list):
+            definitions = []
+            block("INVALID_DICTIONARY_SHAPE", "movement_dictionary.movements must be a list.")
+        elif any(not isinstance(item, dict) for item in definitions):
+            block("INVALID_DICTIONARY_DEFINITION", "Every movement dictionary definition must be an object.")
+        source_defs = [item for item in definitions if isinstance(item, dict) and str(item.get("movement_id", "")) == source_id]
+        target_defs = [item for item in definitions if isinstance(item, dict) and str(item.get("movement_id", "")) == target_id]
+        source = source_defs[0] if len(source_defs) == 1 else None
+        target = target_defs[0] if len(target_defs) == 1 else None
+
+        if not source_id:
+            block("SOURCE_ID_REQUIRED", "source_id cannot be blank.")
+        if not target_id:
+            block("TARGET_ID_REQUIRED", "target_id cannot be blank.")
+        if source_id and source_id == target_id:
+            block("SOURCE_EQUALS_TARGET", "source_id and target_id must be different.")
+        if len(source_defs) != 1:
+            block("SOURCE_NOT_UNIQUE", "Source must exist exactly once in the movement dictionary.", count=len(source_defs))
+        if len(target_defs) != 1:
+            block("TARGET_NOT_UNIQUE", "Target must exist exactly once in the movement dictionary.", count=len(target_defs))
+        invalid_alias_definitions = [
+            str(item.get("movement_id", "")) for item in definitions
+            if isinstance(item, dict) and not isinstance(item.get("aliases", []), list)
+        ]
+        if invalid_alias_definitions:
+            block(
+                "INVALID_DICTIONARY_ALIAS_SHAPE",
+                "Every dictionary aliases field must be a list before ownership can be validated.",
+                movement_ids=invalid_alias_definitions,
+            )
+        if source and not re.fullmatch(r"CUSTOM_\d+", source_id):
+            block("SOURCE_NOT_CUSTOM", "Source is not a structurally valid CUSTOM dictionary identity.")
+        if target and re.fullmatch(r"CUSTOM_\d+", target_id):
+            block("TARGET_IS_CUSTOM", "Target must be an existing non-CUSTOM canonical movement.")
+        if target and (
+            not str(target.get("display_name", "")).strip()
+            or target.get("active", True) is False
+            or bool(target.get("deleted") or target.get("invalid") or target.get("temporary"))
+        ):
+            block("TARGET_UNAVAILABLE", "Target is inactive, invalid, temporary, deleted, or missing its display name.")
+
+        movements = database.get("movements", {})
+        if not isinstance(movements, dict):
+            movements = {}
+            block("INVALID_TRACKER_SHAPE", "tracker.movements must be an object.")
+        elif any(not isinstance(row, dict) for row in movements.values()):
+            block("INVALID_TRACKER_MOVEMENT", "Every tracker movement row must be an object.")
+        raw_entries_value = database.get("raw_entries", [])
+        if not isinstance(raw_entries_value, list) or any(not isinstance(row, dict) for row in raw_entries_value):
+            block("INVALID_RAW_ENTRIES_SHAPE", "tracker.raw_entries must be a list of objects.")
+        if source_id in movements and str((movements[source_id] or {}).get("movement_id", "")) != source_id:
+            block("SOURCE_INDEX_MISMATCH", "The source tracker index points to a different movement identity.")
+        if target_id in movements and str((movements[target_id] or {}).get("movement_id", "")) != target_id:
+            block("TARGET_INDEX_MISMATCH", "The target tracker index points to a different movement identity.")
+        source_rows = [(key, row) for key, row in movements.items() if isinstance(row, dict) and str(row.get("movement_id", "")) == source_id]
+        target_rows = [(key, row) for key, row in movements.items() if isinstance(row, dict) and str(row.get("movement_id", "")) == target_id]
+        if len(target_rows) > 1:
+            block("TARGET_TRACKER_NOT_UNIQUE", "Target has multiple tracker movement rows.", count=len(target_rows))
+        for key, row in source_rows:
+            unknown_fields = sorted(set(row) - {"movement_id", "name", "aliases", "history", "created_at"})
+            if unknown_fields:
+                block(
+                    "SOURCE_ROW_UNKNOWN_FIELDS",
+                    "The source tracker identity contains fields with no approved migration policy.",
+                    path=f"tracker.movements.{key}",
+                    fields=unknown_fields,
+                )
+            if not isinstance(row.get("history", []), list):
+                block(
+                    "SOURCE_HISTORY_INVALID_SHAPE",
+                    "The source tracker history must be a list.",
+                    path=f"tracker.movements.{key}.history",
+                )
+            if not isinstance(row.get("aliases", []), list):
+                block(
+                    "SOURCE_ALIAS_INVALID_SHAPE",
+                    "The source tracker aliases field must be a list.",
+                    path=f"tracker.movements.{key}.aliases",
+                )
+            incompatible = [
+                index for index, history in enumerate(row.get("history", []) or [])
+                if not isinstance(history, dict) or str(history.get("movement_id", "")) != source_id
+            ]
+            if incompatible:
+                block(
+                    "SOURCE_ROW_HAS_FOREIGN_HISTORY",
+                    "A source tracker row contains history that does not belong to the source identity.",
+                    path=f"tracker.movements.{key}.history",
+                    indexes=incompatible,
+                )
+        for key, row in target_rows:
+            if not isinstance(row.get("history", []), list):
+                block(
+                    "TARGET_HISTORY_INVALID_SHAPE",
+                    "The target tracker history must be a list.",
+                    path=f"tracker.movements.{key}.history",
+                )
+            if not isinstance(row.get("aliases", []), list):
+                block(
+                    "TARGET_ALIAS_INVALID_SHAPE",
+                    "The target tracker aliases field must be a list.",
+                    path=f"tracker.movements.{key}.aliases",
+                )
+            incompatible = [
+                index for index, history in enumerate(row.get("history", []) or [])
+                if not isinstance(history, dict) or str(history.get("movement_id", "")) != target_id
+            ]
+            if incompatible:
+                block(
+                    "TARGET_ROW_HAS_FOREIGN_HISTORY",
+                    "The canonical target row contains history owned by another movement identity.",
+                    path=f"tracker.movements.{key}.history",
+                    indexes=incompatible,
+                )
+
+        references = self._source_reference_paths(database, dictionary, source_id) if source_id else {
+            "migratable": [], "unknown": [], "raw_occurrences": [],
+        }
+        for item in references["unknown"]:
+            block("UNKNOWN_SOURCE_REFERENCE", "An unsupported source_id reference path was found.", **item)
+
+        source_history_records: list[dict] = []
+        all_histories: list[tuple[str, int, dict]] = []
+        for key, row in movements.items():
+            if not isinstance(row, dict):
+                continue
+            for index, history in enumerate(row.get("history", []) or []):
+                if not isinstance(history, dict):
+                    continue
+                all_histories.append((str(key), index, history))
+                if str(history.get("movement_id", "")) == source_id:
+                    source_history_records.append(history)
+        target_history_records = [
+            history for history in (target_rows[0][1].get("history", []) or [])
+            if isinstance(history, dict) and str(history.get("movement_id", "")) == target_id
+        ] if len(target_rows) == 1 else []
+
+        id_locations: dict[str, list[str]] = {}
+        for key, index, history in all_histories:
+            history_id = str(history.get("id", "")).strip()
+            if history_id:
+                id_locations.setdefault(history_id, []).append(f"tracker.movements.{key}.history[{index}]")
+        history_id_conflicts = []
+        for history in source_history_records:
+            history_id = str(history.get("id", "")).strip()
+            if not history_id:
+                history_id_conflicts.append({"history_id": "", "reason": "missing_id"})
+            elif len(id_locations.get(history_id, [])) > 1:
+                history_id_conflicts.append({
+                    "history_id": history_id,
+                    "reason": "duplicate_id",
+                    "paths": id_locations[history_id],
+                })
+        if history_id_conflicts:
+            block(
+                "HISTORY_ID_CONFLICT",
+                "Source history IDs are missing or already occupied by another record.",
+                conflicts=history_id_conflicts,
+            )
+
+        exact_duplicates = []
+        combined_histories = [
+            *(('target', row) for row in target_history_records),
+            *(('source', row) for row in source_history_records),
+        ]
+        combined_signatures = [
+            (origin, row, self._history_business_fingerprint(row))
+            for origin, row in combined_histories
+        ]
+        for left_index, (left_origin, left_row, signature) in enumerate(combined_signatures):
+            for right_origin, right_row, right_signature in combined_signatures[left_index + 1:]:
+                if "source" not in {left_origin, right_origin} or signature != right_signature:
+                    continue
+                exact_duplicates.append({
+                    "left_history_id": str(left_row.get("id", "")),
+                    "right_history_id": str(right_row.get("id", "")),
+                    "origins": [left_origin, right_origin],
+                    "date": str(left_row.get("date", ""))[:10],
+                })
+        source_dates = {str(row.get("date", ""))[:10] for row in source_history_records if str(row.get("date", ""))[:10]}
+        target_dates = {str(row.get("date", ""))[:10] for row in target_history_records if isinstance(row, dict) and str(row.get("date", ""))[:10]}
+        combined_date_counts: dict[str, int] = {}
+        for _origin, row in combined_histories:
+            day = str(row.get("date", ""))[:10]
+            if day:
+                combined_date_counts[day] = combined_date_counts.get(day, 0) + 1
+        same_dates = sorted(day for day in source_dates if combined_date_counts.get(day, 0) > 1)
+        source_days = {(str(row.get("date", ""))[:10], str(row.get("training_day", ""))) for row in source_history_records}
+        combined_day_counts: dict[tuple[str, str], int] = {}
+        for _origin, row in combined_histories:
+            key = (str(row.get("date", ""))[:10], str(row.get("training_day", "")))
+            combined_day_counts[key] = combined_day_counts.get(key, 0) + 1
+        same_training_days = [
+            {"date": day, "training_day": training_day}
+            for day, training_day in sorted(source_days)
+            if combined_day_counts.get((day, training_day), 0) > 1
+        ]
+        if exact_duplicates:
+            warn("POTENTIAL_EXACT_DUPLICATES", "Potential duplicate histories will be preserved, not deduplicated.", count=len(exact_duplicates))
+        if same_dates:
+            warn("SAME_DATE_HISTORY", "Source and target both have history on one or more dates; all rows will be preserved.", dates=same_dates)
+        if same_training_days:
+            warn("SAME_TRAINING_DAY_HISTORY", "Source and target both appear in the same training-day identity.", days=same_training_days)
+
+        source_names = []
+        if source:
+            source_aliases = source.get("aliases", []) if isinstance(source.get("aliases", []), list) else []
+            source_names.extend([source.get("display_name", ""), source.get("english_name", ""), *source_aliases])
+        for _key, row in source_rows:
+            row_aliases = row.get("aliases", []) if isinstance(row.get("aliases", []), list) else []
+            source_names.extend([row.get("name", ""), *row_aliases])
+        target_names = []
+        if target:
+            target_aliases = target.get("aliases", []) if isinstance(target.get("aliases", []), list) else []
+            target_names.extend([target.get("display_name", ""), target.get("english_name", ""), *target_aliases])
+        target_keys = {_normalize_name(value) for value in target_names if _normalize_name(value)}
+        candidate_keys: set[str] = set()
+        aliases_to_add: list[str] = []
+        aliases_existing: list[str] = []
+        normalized_duplicates: list[str] = []
+        alias_conflicts: list[dict] = []
+        ownership: dict[str, list[dict]] = {}
+        for definition in definitions:
+            if not isinstance(definition, dict):
+                continue
+            definition_aliases = definition.get("aliases", []) if isinstance(definition.get("aliases", []), list) else []
+            for candidate in (definition.get("display_name", ""), definition.get("english_name", ""), *definition_aliases):
+                normalized = _normalize_name(candidate)
+                if normalized:
+                    ownership.setdefault(normalized, []).append(definition)
+        for value in source_names:
+            alias = str(value or "").strip()
+            normalized = _normalize_name(alias)
+            if not alias or not normalized:
+                continue
+            if normalized in target_keys:
+                if alias not in aliases_existing:
+                    aliases_existing.append(alias)
+                continue
+            if normalized in candidate_keys:
+                normalized_duplicates.append(alias)
+                continue
+            candidate_keys.add(normalized)
+            conflicts = [
+                item for item in ownership.get(normalized, [])
+                if str(item.get("movement_id", "")) not in {source_id, target_id}
+            ]
+            if conflicts:
+                alias_conflicts.append({
+                    "alias": alias,
+                    "normalized": normalized,
+                    "owners": [
+                        {"movement_id": item.get("movement_id", ""), "display_name": item.get("display_name", "")}
+                        for item in conflicts
+                    ],
+                })
+            else:
+                aliases_to_add.append(alias)
+        if alias_conflicts:
+            block("ALIAS_OWNERSHIP_CONFLICT", "One or more source names belong to another formal movement.", conflicts=alias_conflicts)
+
+        raw_entries = database.get("raw_entries", []) or []
+        raw_texts = [str(item.get("text", "")) for item in raw_entries if isinstance(item, dict)]
+        source_name_keys = {_normalize_name(value) for value in source_names if _normalize_name(value)}
+        skipped_matches = []
+        for index, raw_entry in enumerate(raw_entries):
+            if not isinstance(raw_entry, dict):
+                continue
+            matches = [
+                str(name) for name in (raw_entry.get("skipped_movements") or [])
+                if _normalize_name(name) in source_name_keys
+            ]
+            if matches:
+                skipped_matches.append({
+                    "raw_entry_id": str(raw_entry.get("id", "")),
+                    "index": index,
+                    "date": str(raw_entry.get("date", ""))[:10],
+                    "names": matches,
+                })
+        if skipped_matches:
+            warn(
+                "SKIPPED_SOURCE_NAMES_PRESERVED",
+                "Skipped movement names are name-based audit metadata; they will remain unchanged and become target-recognizable through aliases.",
+                count=len(skipped_matches),
+            )
+
+        target_summary = self._definition_summary(target, target_id)
+        target_summary["canonical_metadata_sha256"] = _stable_json_hash({
+            key: value for key, value in (target or {}).items() if key != "aliases"
+        })
+        expected_target_history = [copy.deepcopy(row) for row in target_history_records]
+        expected_target_history.extend(
+            [{**copy.deepcopy(row), "movement_id": target_id} for row in source_history_records]
+        )
+        plan = {
+            "operation": "CUSTOM_TO_CANONICAL_MOVEMENT_MERGE",
+            "source": self._definition_summary(source, source_id),
+            "target": target_summary,
+            "references": {
+                "migratable": references["migratable"],
+                "migratable_count": len(references["migratable"]),
+                "unknown": references["unknown"],
+                "unknown_count": len(references["unknown"]),
+                "non_structured_occurrences": references["raw_occurrences"],
+            },
+            "history": {
+                "source_history_count": len(source_history_records),
+                "target_history_count": len(target_history_records),
+                "target_history_after": len(source_history_records) + len(target_history_records),
+                "source_history_ids": [str(row.get("id", "")) for row in source_history_records],
+                "dates": sorted(source_dates),
+                "training_days": sorted({str(row.get("training_day", "")) for row in source_history_records}),
+                "target_history_after_sha256": _stable_json_hash(expected_target_history),
+            },
+            "duplicates": {
+                "exact_content": exact_duplicates,
+                "same_dates": same_dates,
+                "same_training_days": same_training_days,
+                "history_id_conflicts": history_id_conflicts,
+                "policy": "preserve_all_no_automatic_deduplication",
+            },
+            "aliases": {
+                "to_add": aliases_to_add,
+                "already_recognized": aliases_existing,
+                "normalized_duplicates": normalized_duplicates,
+                "ownership_conflicts": alias_conflicts,
+                "source_name_candidates": [str(value).strip() for value in source_names if str(value).strip()],
+            },
+            "raw": {
+                "entry_count": len(raw_entries),
+                "entries_sha256": _stable_json_hash(raw_entries),
+                "text_sha256": _stable_json_hash(raw_texts),
+                "text_unchanged": True,
+                "skipped_source_matches": skipped_matches,
+                "migration_plan": "Preserve raw text and skipped name audit metadata; add source names as target aliases; do not reparse raw input.",
+                "preserved_non_structured_occurrences": references["raw_occurrences"],
+            },
+            "warnings": warnings,
+            "blockers": blockers,
+            "can_execute": not blockers,
+            "data_fingerprint": copy.deepcopy(data_fingerprint),
+        }
+        plan["plan_identity"] = _stable_json_hash(plan)
+        return plan
+
+    def preview_merge_custom_movement(self, source_id: str, target_id: str) -> dict:
+        """Build a UI-ready, strictly read-only CUSTOM-to-canonical migration plan."""
+        database, dictionary, fingerprint = self._strict_state_snapshot()
+        return self._build_custom_movement_merge_plan(database, dictionary, source_id, target_id, fingerprint)
+
+    @staticmethod
+    def _append_normalized_aliases(existing, additions) -> list[str]:
+        result = [str(value).strip() for value in (existing or []) if str(value).strip()]
+        seen = {_normalize_name(value) for value in result if _normalize_name(value)}
+        for value in additions or []:
+            alias = str(value or "").strip()
+            normalized = _normalize_name(alias)
+            if alias and normalized and normalized not in seen:
+                result.append(alias)
+                seen.add(normalized)
+        return result
+
+    def _apply_custom_movement_merge(self, database: dict, dictionary: dict, plan: dict) -> None:
+        source_id = plan["source"]["movement_id"]
+        target_id = plan["target"]["movement_id"]
+        target_definition = next(
+            item for item in dictionary["movements"] if str(item.get("movement_id", "")) == target_id
+        )
+        target_definition["aliases"] = self._append_normalized_aliases(
+            target_definition.get("aliases", []), plan["aliases"]["to_add"]
+        )
+
+        movements = database["movements"]
+        target_matches = [row for row in movements.values() if str(row.get("movement_id", "")) == target_id]
+        if target_matches:
+            target_row = target_matches[0]
+        else:
+            target_row = {
+                "movement_id": target_id,
+                "name": target_definition.get("display_name", ""),
+                "aliases": [],
+                "history": [],
+                "created_at": datetime.now().replace(microsecond=0).isoformat(),
+            }
+            movements[target_id] = target_row
+
+        migrated_histories = []
+        source_keys = []
+        tracker_aliases = list(plan["aliases"]["source_name_candidates"])
+        for key, row in list(movements.items()):
+            if not isinstance(row, dict):
+                continue
+            if str(row.get("movement_id", "")) == source_id:
+                source_keys.append(key)
+                tracker_aliases.extend([row.get("name", ""), *(row.get("aliases") or [])])
+            retained = []
+            history_changed = False
+            for history in row.get("history", []) or []:
+                if isinstance(history, dict) and str(history.get("movement_id", "")) == source_id:
+                    migrated = copy.deepcopy(history)
+                    migrated["movement_id"] = target_id
+                    migrated_histories.append(migrated)
+                    history_changed = True
+                else:
+                    retained.append(history)
+            if history_changed:
+                row["history"] = retained
+        for key in source_keys:
+            movements.pop(key, None)
+        target_row.setdefault("history", []).extend(migrated_histories)
+        target_row["aliases"] = self._append_normalized_aliases(target_row.get("aliases", []), tracker_aliases)
+        dictionary["movements"] = [
+            item for item in dictionary["movements"] if str(item.get("movement_id", "")) != source_id
+        ]
+
+    def _validate_custom_movement_merge_state(self, database: dict, dictionary: dict, plan: dict) -> dict:
+        source_id = plan["source"]["movement_id"]
+        target_id = plan["target"]["movement_id"]
+        errors = []
+        source_definitions = [item for item in dictionary.get("movements", []) if str(item.get("movement_id", "")) == source_id]
+        target_definitions = [item for item in dictionary.get("movements", []) if str(item.get("movement_id", "")) == target_id]
+        references = self._source_reference_paths(database, dictionary, source_id)
+        remaining = [*references["migratable"], *references["unknown"]]
+        target_rows = [
+            row for row in database.get("movements", {}).values()
+            if isinstance(row, dict) and str(row.get("movement_id", "")) == target_id
+        ]
+        target_history_count = sum(len(row.get("history", []) or []) for row in target_rows)
+        target_history = target_rows[0].get("history", []) if len(target_rows) == 1 else []
+        raw_entries = database.get("raw_entries", []) or []
+        raw_texts = [str(item.get("text", "")) for item in raw_entries if isinstance(item, dict)]
+        if source_definitions:
+            errors.append("source_dictionary_definition_remains")
+        if len(target_definitions) != 1:
+            errors.append("target_dictionary_definition_not_unique")
+        if remaining:
+            errors.append("source_structured_references_remain")
+        if len(target_rows) != 1:
+            errors.append("target_tracker_row_not_unique")
+        if target_history_count != plan["history"]["target_history_after"]:
+            errors.append("target_history_count_mismatch")
+        if _stable_json_hash(target_history) != plan["history"]["target_history_after_sha256"]:
+            errors.append("target_history_integrity_mismatch")
+        if _stable_json_hash(raw_entries) != plan["raw"]["entries_sha256"]:
+            errors.append("raw_entries_changed")
+        if _stable_json_hash(raw_texts) != plan["raw"]["text_sha256"]:
+            errors.append("raw_text_changed")
+        if len(target_definitions) == 1 and _stable_json_hash({
+            key: value for key, value in target_definitions[0].items() if key != "aliases"
+        }) != plan["target"]["canonical_metadata_sha256"]:
+            errors.append("target_canonical_metadata_changed")
+        by_id, by_alias = _dictionary_indexes(dictionary)
+        for alias in plan["aliases"]["to_add"]:
+            owner = by_alias.get(_normalize_name(alias))
+            if not owner or str(owner.get("movement_id", "")) != target_id:
+                errors.append(f"alias_not_owned_by_target:{alias}")
+        validation = {
+            "ok": not errors,
+            "errors": errors,
+            "source_definition_absent": not source_definitions,
+            "target_definition_present": len(target_definitions) == 1,
+            "remaining_source_references": remaining,
+            "target_history_count": target_history_count,
+            "history_business_data_preserved": "target_history_integrity_mismatch" not in errors,
+            "target_canonical_metadata_preserved": "target_canonical_metadata_changed" not in errors,
+            "raw_entries_unchanged": _stable_json_hash(raw_entries) == plan["raw"]["entries_sha256"],
+            "raw_text_unchanged": _stable_json_hash(raw_texts) == plan["raw"]["text_sha256"],
+            "aliases_resolve_to_target": not any(item.startswith("alias_not_owned_by_target:") for item in errors),
+        }
+        return validation
+
+    def _post_write_custom_movement_validation(self, plan: dict) -> tuple[dict, dict]:
+        database, dictionary, fingerprint = self._strict_state_snapshot()
+        validation = self._validate_custom_movement_merge_state(database, dictionary, plan)
+        validation["data_fingerprint"] = fingerprint
+        return validation, fingerprint
+
+    def merge_custom_movement(self, source_id: str, target_id: str, plan_identity: str) -> dict:
+        """Execute one confirmed, fresh CUSTOM-to-canonical migration as a paired transaction."""
+        if not str(plan_identity or "").strip():
+            raise LedgerCommandError(
+                "A confirmed preview plan identity is required.",
+                "PREVIEW_REQUIRED",
+            )
+        with self.write_lock():
+            database, dictionary, fingerprint = self._strict_state_snapshot()
+            plan = self._build_custom_movement_merge_plan(database, dictionary, source_id, target_id, fingerprint)
+            if plan["plan_identity"] != str(plan_identity):
+                raise LedgerCommandError(
+                    "The preview is stale; run dry-run again before migrating.",
+                    "PREVIEW_STALE",
+                    {
+                        "expected_plan_identity": str(plan_identity),
+                        "current_plan_identity": plan["plan_identity"],
+                        "data_fingerprint": fingerprint,
+                    },
+                )
+            if not plan["can_execute"]:
+                raise LedgerCommandError(
+                    "The migration plan contains blocking issues; no data was changed.",
+                    "MIGRATION_BLOCKED",
+                    {"blockers": plan["blockers"], "plan_identity": plan["plan_identity"]},
+                )
+
+            tracker_backup, dictionary_backup = self._checkpoint()
+            checkpoint = self._checkpoint_identity(tracker_backup)
+            checkpoint_hashes = {
+                "tracker": hashlib.sha256(tracker_backup.read_bytes()).hexdigest(),
+                "dictionary": hashlib.sha256(dictionary_backup.read_bytes()).hexdigest(),
+            }
+            if any(
+                checkpoint_hashes[label] != fingerprint[label]["sha256"]
+                for label in ("tracker", "dictionary")
+            ):
+                self._discard_checkpoint(tracker_backup, dictionary_backup)
+                raise LedgerCommandError(
+                    "Formal data changed before the checkpoint completed; run dry-run again.",
+                    "PREVIEW_STALE",
+                    {"data_fingerprint": fingerprint},
+                )
+            stage = "checkpoint_created"
+            rolled_back = False
+            try:
+                working_database = copy.deepcopy(database)
+                working_dictionary = copy.deepcopy(dictionary)
+                self._apply_custom_movement_merge(working_database, working_dictionary, plan)
+                stage = "in_memory_validation"
+                validation = self._validate_custom_movement_merge_state(
+                    working_database, working_dictionary, plan
+                )
+                if not validation["ok"]:
+                    raise LedgerCommandError(
+                        "In-memory migration validation failed.",
+                        "MIGRATION_VALIDATION_FAILED",
+                        validation,
+                    )
+                stage = "dictionary_write"
+                _write_json_atomic(self.dictionary_file, working_dictionary)
+                stage = "tracker_write"
+                _write_json_atomic(self.data_file, working_database)
+                stage = "post_write_validation"
+                validation, after_fingerprint = self._post_write_custom_movement_validation(plan)
+                if not validation["ok"]:
+                    raise LedgerCommandError(
+                        "Post-write migration validation failed.",
+                        "MIGRATION_VALIDATION_FAILED",
+                        validation,
+                    )
+            except Exception as exc:
+                rollback_errors = []
+                for backup, destination, label in (
+                    (tracker_backup, self.data_file, "tracker"),
+                    (dictionary_backup, self.dictionary_file, "dictionary"),
+                ):
+                    try:
+                        shutil.copy2(backup, destination)
+                    except Exception as rollback_exc:
+                        rollback_errors.append(f"{label}: {rollback_exc}")
+                rolled_back = not rollback_errors
+                if rolled_back:
+                    self._discard_checkpoint(tracker_backup, dictionary_backup)
+                details = {
+                    "failed_stage": stage,
+                    "rolled_back": rolled_back,
+                    "checkpoint": checkpoint,
+                    "rollback_errors": rollback_errors,
+                    "cause_code": getattr(exc, "code", exc.__class__.__name__),
+                    "cause": str(exc),
+                }
+                if isinstance(exc, LedgerCommandError):
+                    details["cause_details"] = exc.details
+                raise LedgerCommandError(
+                    "Movement migration failed; both formal files were restored."
+                    if rolled_back else
+                    "Movement migration failed and paired rollback needs manual review.",
+                    "MIGRATION_FAILED",
+                    details,
+                ) from exc
+
+            return {
+                "ok": True,
+                "status": "UPDATED",
+                "changed": True,
+                "source_id": plan["source"]["movement_id"],
+                "target_id": plan["target"]["movement_id"],
+                "plan_identity": plan["plan_identity"],
+                "migrated_reference_count": plan["references"]["migratable_count"],
+                "migrated_history_count": plan["history"]["source_history_count"],
+                "source_history_before": plan["history"]["source_history_count"],
+                "target_history_before": plan["history"]["target_history_count"],
+                "target_history_after": plan["history"]["target_history_after"],
+                "aliases_added": plan["aliases"]["to_add"],
+                "warnings": plan["warnings"],
+                "checkpoint": checkpoint,
+                "undo": {"available": True, "checkpoint": checkpoint},
+                "validation": validation,
+                "remaining_source_references": validation["remaining_source_references"],
+                "raw_entries_unchanged": validation["raw_entries_unchanged"],
+                "data_fingerprint": after_fingerprint,
+            }
 
     @staticmethod
     def _history_fingerprint(history: dict) -> tuple[str, int, str]:
@@ -795,8 +1571,16 @@ class LedgerCommandService:
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         tracker_backup = self.backup_dir / f"undo_tracker_{stamp}.json"
         dictionary_backup = self.backup_dir / f"undo_dictionary_{stamp}.json"
-        shutil.copy2(self.data_file, tracker_backup)
-        shutil.copy2(self.dictionary_file, dictionary_backup)
+        try:
+            shutil.copy2(self.data_file, tracker_backup)
+            shutil.copy2(self.dictionary_file, dictionary_backup)
+        except Exception as exc:
+            tracker_backup.unlink(missing_ok=True)
+            dictionary_backup.unlink(missing_ok=True)
+            raise LedgerCommandError(
+                "Paired checkpoint creation failed; no data was changed.",
+                "CHECKPOINT_FAILED",
+            ) from exc
         return tracker_backup, dictionary_backup
 
     @staticmethod

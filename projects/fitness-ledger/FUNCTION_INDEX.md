@@ -10,6 +10,8 @@
 - `LedgerCommandService.update_movement_definition`: Updates names, aliases, metadata, tracker display names, and matching historical records.
 - `LedgerCommandService.set_movement_active`: Changes visibility without deleting aliases or history.
 - `LedgerCommandService.delete_movement_definition`: Requires exact-name confirmation and deletes structured movement history while preserving raw input.
+- `LedgerCommandService.preview_merge_custom_movement`: Builds a strictly read-only, UI-ready CUSTOM-to-canonical reference, history, alias, duplicate, raw-audit, blocker, and fingerprint plan.
+- `LedgerCommandService.merge_custom_movement`: Revalidates a confirmed plan identity under the shared write lock, migrates all supported structured references, and uses paired checkpoint, rollback, post-write validation, and Undo semantics.
 - `LedgerCommandService.update_record`: Validates and edits the desktop-compatible Body, Diet, or Training field set.
 - `LedgerCommandService.update_movement_history`: Locates one history row by permanent IDs and validates order, sets, cardio, notes, and raw movement detail.
 - `LedgerWebService.capabilities`: Reports the active shared Review/Save boundary.
