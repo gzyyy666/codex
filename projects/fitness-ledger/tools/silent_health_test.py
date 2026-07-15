@@ -252,6 +252,10 @@ def main() -> None:
             assert 'health-nav-status needs-review' in review_dom
             assert f'>{len(issues)}</i>' in review_dom
             assert "Archive needs review" in review_dom
+            zero_review_dom = browser_dom({**changed, "issue_count": 0})
+            assert 'class="health-nav-status" hidden=""' in zero_review_dom
+            assert 'Archive needs review' not in zero_review_dom
+            assert 'aria-label="Data Check"' in zero_review_dom
             two_digit_dom = browser_dom({**changed, "issue_count": 12})
             assert 'health-nav-status needs-review' in two_digit_dom
             assert '>12</i>' in two_digit_dom
