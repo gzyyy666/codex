@@ -39,6 +39,8 @@ def main() -> None:
         stored = json.loads(tracker.read_text(encoding="utf-8")); body = stored["daily_records"][0]
         no_change = service.update_record("body", body["id"], {"Notes": " body   "})
         assert no_change["status"] == "NO_CHANGES"
+        blank_line_no_change = service.update_record("body", body["id"], {"Notes": "\n\nbody\n\n"})
+        assert blank_line_no_change["status"] == "NO_CHANGES"
         changed = service.update_record("body", body["id"], {"Notes": "changed"})
         assert changed["status"] == "UPDATED"
     print("FITNESS_LEDGER_SAVE_SEMANTICS_OK")
