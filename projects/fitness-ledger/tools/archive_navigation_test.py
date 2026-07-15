@@ -166,6 +166,11 @@ def main() -> None:
     assert "openSaveModeDialog" in js and 'data-save-mode-choice="append_training"' in js
     assert 'data-save-mode-choice="overwrite"' in js and "save-mode-dialog" in css
     assert "renderPreviousPreview(link,payload.history||[])" in js
+    assert "clearMovementPreviousPreview" in js and "has-previous-record" in js
+    assert "setTimeout(()=>renderMovementPreviousPreview(entry),750)" in js
+    assert "movement-previous-preview" in css and "movement-preview-sets" in css
+    assert "trainingPageWithOptionalFocusPanel" in js and "$('.training-index')?.remove()" in js
+    assert "translate3d(-5px,3px,0) scale(1.015)" in css
     print("FITNESS_LEDGER_ARCHIVE_NAVIGATION_OK")
 
 

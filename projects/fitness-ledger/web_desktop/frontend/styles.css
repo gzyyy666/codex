@@ -3022,3 +3022,24 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
 .save-mode-sheet>footer{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:18px;padding-top:16px;border-top:1px solid rgba(24,21,16,.14)}.save-mode-sheet>footer small{max-width:300px;color:var(--graphite);font-size:9px;line-height:1.5;text-align:right}
 @media(max-width:1120px){.training-theme-page .session-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.training-theme-page[data-training-theme="overview"] .training-index{grid-template-columns:auto auto 1fr}.training-theme-page[data-training-theme="overview"] .training-index-note{display:none}}
 @media(max-width:760px){.training-theme-page .session-grid{grid-template-columns:1fr}.training-theme-page[data-training-theme="overview"] .training-index{display:block}.training-theme-page[data-training-theme="overview"] .training-index>*{margin-bottom:10px}.training-theme-page[data-training-theme="overview"] .split-index{grid-template-columns:1fr 1fr}.training-theme-page[data-training-theme="overview"] .split-index button{border-right:0}.duplicate-status-card{grid-template-columns:34px 1fr}.duplicate-status-card>small{grid-column:2;white-space:normal}.save-mode-sheet{padding:19px}.save-mode-heading{grid-template-columns:38px 1fr}.save-mode-heading>span{width:36px;height:36px}.save-mode-heading h2{font-size:29px}.save-mode-sheet>footer{display:grid}.save-mode-sheet>footer small{text-align:left}}
+
+/* Phase 2 archive refinement: visual opening, uninterrupted records, restrained comparison previews. */
+.training-theme-page[data-training-theme="overview"] .training-stage{position:relative;display:block;width:min(1240px,100%);padding-top:28px;border-top:1px solid rgba(24,21,16,.14)}
+.training-theme-page[data-training-theme="overview"] .training-stage:before{content:"";position:absolute;top:-1px;left:0;width:clamp(92px,12vw,168px);height:2px;background:linear-gradient(90deg,var(--training-accent),transparent)}
+.training-theme-page[data-training-theme="overview"] .training-stage:after{content:"";position:absolute;z-index:-1;inset:-80px -5vw auto;height:420px;background:radial-gradient(circle at 12% 24%,color-mix(in srgb,var(--training-accent) 9%,transparent),transparent 36%),linear-gradient(180deg,rgba(255,255,255,.22),transparent 70%);pointer-events:none}
+.training-theme-page[data-training-theme="overview"] .training-main{position:relative;width:100%}
+
+.movement-group-art{transform-origin:right center;transition:transform .48s cubic-bezier(.22,.61,.36,1),opacity .3s ease}
+.movement-group:hover .movement-group-art{transform:translate3d(-5px,3px,0) scale(1.015);opacity:.35}
+
+.trajectory-entry.has-previous-record{position:relative;isolation:isolate;transition:background .2s ease,box-shadow .2s ease}
+.trajectory-entry.has-previous-record:hover{z-index:3;background:linear-gradient(90deg,rgba(255,216,73,.09),rgba(255,252,244,.76) 70%,transparent);box-shadow:inset 2px 0 rgba(176,126,22,.4)}
+.movement-previous-preview{position:absolute;z-index:15;top:calc(100% - 4px);right:132px;width:min(320px,calc(100% - 210px));display:grid;gap:10px;padding:15px 16px 14px;border:1px solid rgba(24,21,16,.18);border-radius:15px 5px 15px 5px;background:linear-gradient(145deg,rgba(255,253,247,.98),rgba(243,237,224,.97));color:var(--ink);box-shadow:0 20px 45px rgba(35,28,17,.16),inset 0 1px rgba(255,255,255,.9);pointer-events:none;animation:movement-preview-in .18s ease-out both}
+.movement-previous-preview>.eyebrow{color:rgba(24,21,16,.5);font-size:8px;letter-spacing:.16em}
+.movement-preview-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding-bottom:8px;border-bottom:1px solid rgba(24,21,16,.12)}
+.movement-preview-head strong{font:400 20px/1 var(--font-editorial);font-variant-numeric:tabular-nums}.movement-preview-head small{color:var(--graphite);font-size:8px;letter-spacing:.08em;text-transform:uppercase}
+.movement-preview-sets{display:grid;gap:5px}.movement-preview-sets span{padding-left:10px;border-left:2px solid rgba(185,132,24,.38);font-size:11px;line-height:1.45}
+.movement-previous-preview p{margin:0;color:var(--graphite);font-size:9px;line-height:1.55}
+@keyframes movement-preview-in{from{opacity:0;transform:translateY(-4px) scale(.985)}to{opacity:1;transform:none}}
+@media(max-width:760px){.training-theme-page[data-training-theme="overview"] .training-stage{padding-top:20px}.movement-previous-preview{display:none}}
+@media(prefers-reduced-motion:reduce){.movement-group:hover .movement-group-art{transform:none}.movement-previous-preview{animation:none}}
