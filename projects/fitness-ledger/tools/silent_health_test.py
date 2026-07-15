@@ -87,6 +87,9 @@ const captureHealthState=()=>{{
     ariaLabel:host?.getAttribute('aria-label'),
     dataCheckOpen:host?.hasAttribute('data-data-check-open'),
     dataView:host?.getAttribute('data-view'),
+    hostClass:host?.className,
+    reviewText:host?.querySelector('span')?.textContent,
+    markerAriaHidden:marker?.getAttribute('aria-hidden'),
     healthHookCount:document.querySelectorAll('[data-health-nav-entry]').length
   }};
 }};
@@ -96,9 +99,12 @@ for(const health of healthStates){{
   renderArchiveHealth();
   healthSnapshots.push(captureHealthState());
 }}
+document.querySelector('[data-data-check-open]')?.click();
+const clickRoute=location.hash;
 const healthReport=document.createElement('div');
 healthReport.id='health-sequence-report';
 healthReport.dataset.snapshots=encodeURIComponent(JSON.stringify(healthSnapshots));
+healthReport.dataset.clickRoute=clickRoute;
 document.body.appendChild(healthReport);
 """
     script_tag = '<script type="module" src="app.js"></script>'
@@ -115,9 +121,9 @@ document.body.appendChild(healthReport);
             encoding="utf-8",
             timeout=20,
         )
-    match = re.search(r'id="health-sequence-report" data-snapshots="([^"]+)"', result.stdout)
+    match = re.search(r'id="health-sequence-report" data-snapshots="([^"]+)" data-click-route="([^"]*)"', result.stdout)
     assert match, "Real page health-state report was not rendered."
-    return json.loads(urllib.parse.unquote(match.group(1)))
+    return json.loads(urllib.parse.unquote(match.group(1))), match.group(2)
 
 
 def main() -> None:
@@ -189,8 +195,6 @@ def main() -> None:
         app_js = (PROJECT_DIR / "web_desktop" / "frontend" / "app.js").read_text(encoding="utf-8")
         index_html = (PROJECT_DIR / "web_desktop" / "frontend" / "index.html").read_text(encoding="utf-8")
         styles_css = (PROJECT_DIR / "web_desktop" / "frontend" / "styles.css").read_text(encoding="utf-8")
-        assert "Archive needs review" in app_js
-        assert "Health check unavailable" in app_js
         assert "All healthy" not in app_js and "Data verified" not in app_js
         assert "health-nav-status" in index_html
         assert "localStorage" not in app_js
@@ -198,7 +202,8 @@ def main() -> None:
         assert "await checksPage();await loadArchiveHealth()" in app_js
         assert index_html.count("data-health-nav-entry") == 1
         assert index_html.count("data-data-check-open") == 1
-        assert '[data-health-nav-entry]{position:relative;padding-right:44px}' in styles_css
+        assert '.health-nav-entry{position:relative' in styles_css
+        assert '[data-health-nav-entry]{' not in styles_css
         assert "grid-template-columns:repeat(2,minmax(0,1fr))" in styles_css
         assert "width:104px;white-space:nowrap" in styles_css
 
@@ -248,7 +253,7 @@ def main() -> None:
             server.server_close()
             thread.join(timeout=3)
 
-        snapshots = browser_state_sequence([
+        browser_result = browser_state_sequence([
             {**changed, "issue_count": 5},
             healthy,
             unavailable,
@@ -256,28 +261,32 @@ def main() -> None:
             {**changed, "issue_count": 12},
             {**changed, "issue_count": 12},
         ])
-        if snapshots is not None:
+        if browser_result is not None:
+            snapshots, click_route = browser_result
             initial, review, ok, unavailable_state, zero_review, two_digit, repeated = snapshots
-            assert initial["hostHidden"] is True and initial["markerHidden"] is True
-            assert initial["markerText"] == "" and initial["ariaLabel"] == "Data Check"
+            assert initial["hostHidden"] is True and initial["markerText"] == ""
+            assert initial["markerClass"] == "health-nav-status" and initial["ariaLabel"] == "查看待处理的数据问题"
+            assert initial["dataView"] is None and initial["hostClass"] == "health-nav-entry"
+            assert initial["reviewText"] == "Review" and initial["markerAriaHidden"] == "true"
             assert review["hostHidden"] is False and review["markerHidden"] is False
             assert review["markerText"] == "5" and review["markerClass"] == "health-nav-status needs-review"
-            assert review["title"] == "Archive needs review: 5 issues"
-            assert review["ariaLabel"] == "Data Check. Archive needs review: 5 issues"
+            assert review["title"] == "待处理数据问题：5 个"
+            assert review["ariaLabel"] == "待处理数据问题：5 个"
             assert ok["hostHidden"] is True and ok["markerHidden"] is True
-            assert ok["markerText"] == "" and ok["title"] is None and ok["ariaLabel"] == "Data Check"
+            assert ok["markerText"] == "" and ok["title"] is None and ok["ariaLabel"] == "查看待处理的数据问题"
             assert unavailable_state["hostHidden"] is False and unavailable_state["markerHidden"] is False
             assert unavailable_state["markerText"] == "!" and unavailable_state["markerClass"] == "health-nav-status unavailable"
-            assert unavailable_state["title"] == "Health check unavailable"
-            assert unavailable_state["ariaLabel"] == "Data Check. Health check unavailable"
+            assert unavailable_state["title"] == "数据检查暂不可用"
+            assert unavailable_state["ariaLabel"] == "数据检查暂不可用"
             assert zero_review["hostHidden"] is True and zero_review["markerHidden"] is True
             assert zero_review["markerText"] == "" and zero_review["title"] is None
-            assert zero_review["ariaLabel"] == "Data Check"
+            assert zero_review["ariaLabel"] == "查看待处理的数据问题"
             assert two_digit["hostHidden"] is False and two_digit["markerHidden"] is False
-            assert two_digit["markerText"] == "12" and two_digit["title"] == "Archive needs review: 12 issues"
+            assert two_digit["markerText"] == "12" and two_digit["title"] == "待处理数据问题：12 个"
             assert repeated == two_digit
             assert all(item["healthHookCount"] == 1 for item in snapshots)
-            assert all(item["dataCheckOpen"] is True and item["dataView"] == "checks" for item in snapshots)
+            assert all(item["dataCheckOpen"] is True and item["dataView"] is None for item in snapshots)
+            assert click_route == "#checks"
 
     print(
         "FITNESS_LEDGER_SILENT_HEALTH_OK "
