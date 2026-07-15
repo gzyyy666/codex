@@ -166,9 +166,10 @@ def main() -> None:
     assert "openSaveModeDialog" in js and 'data-save-mode-choice="append_training"' in js
     assert 'data-save-mode-choice="overwrite"' in js and "save-mode-dialog" in css
     assert "renderPreviousPreview(link,payload.history||[])" in js
-    assert "clearMovementPreviousPreview" in js and "has-previous-record" in js
-    assert "setTimeout(()=>renderMovementPreviousPreview(entry),750)" in js
-    assert "movement-previous-preview" in css and "movement-preview-sets" in css
+    assert "clearMovementIndexPreviousPreview" in js and "has-index-previous-record" in js
+    assert "setTimeout(()=>renderMovementIndexPreviousPreview(tile),750)" in js
+    assert "movement-index-previous-preview" in css and "movement-index-preview-sets" in css
+    assert "movement-previous-preview" not in css and "has-previous-record" not in js
     assert "trainingPageWithOptionalFocusPanel" in js and "$('.training-index')?.remove()" in js
     final_css = (app / "final-pass.css").read_text(encoding="utf-8")
     assert ".movement-group.group-core .movement-group-art" in final_css
