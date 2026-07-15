@@ -60,11 +60,14 @@ _SEVERITY_RANK = {"low": 1, "medium": 2, "high": 3}
 LOGGER = logging.getLogger(__name__)
 
 
-def _source_fingerprint(paths: tuple[Path, ...]) -> str:
+def _source_fingerprint(paths: tuple[Path, ...], optional_paths: tuple[Path, ...] = ()) -> str:
     digest = hashlib.sha256()
-    for path in paths:
-        stat = path.stat()
+    for path in (*paths, *optional_paths):
         digest.update(str(path.resolve()).encode("utf-8"))
+        if path in optional_paths and not path.exists():
+            digest.update(b"MISSING")
+            continue
+        stat = path.stat()
         digest.update(str(stat.st_size).encode("ascii"))
         digest.update(str(stat.st_mtime_ns).encode("ascii"))
         with path.open("rb") as source:
@@ -76,8 +79,9 @@ def _source_fingerprint(paths: tuple[Path, ...]) -> str:
 class SilentHealthCheck:
     """Read-only Data Check summary cached by the two formal source files."""
 
-    def __init__(self, data_file: Path, dictionary_file: Path, stable_module) -> None:
+    def __init__(self, data_file: Path, dictionary_file: Path, stable_module, state_file: Path | None = None) -> None:
         self.paths = (Path(data_file), Path(dictionary_file))
+        self.state_file = Path(state_file) if state_file else None
         self.stable_module = stable_module
         self._lock = threading.RLock()
         self._cached_fingerprint = ""
@@ -93,6 +97,9 @@ class SilentHealthCheck:
             dictionary
         )
         issues = checker.collect_data_issues()
+        if self.state_file is not None:
+            acknowledged = _read_state(self.state_file)["acknowledged"]
+            issues = [item for item in issues if issue_key(item) not in acknowledged]
         severities = [str(item.get("severity", "")).lower() for item in issues]
         highest = max(severities, key=lambda value: _SEVERITY_RANK.get(value, 0), default="")
         return {
@@ -107,14 +114,15 @@ class SilentHealthCheck:
     def summary(self) -> dict:
         started = time.perf_counter()
         try:
-            fingerprint = _source_fingerprint(self.paths)
+            optional_paths = (self.state_file,) if self.state_file is not None else ()
+            fingerprint = _source_fingerprint(self.paths, optional_paths)
             with self._lock:
                 if fingerprint == self._cached_fingerprint and self._cached_result is not None:
                     return {**self._cached_result, "cached": True, "elapsed_ms": round((time.perf_counter() - started) * 1000, 3)}
                 result = self._check(fingerprint)
                 # Do not cache a result across a concurrent formal save.
-                if _source_fingerprint(self.paths) != fingerprint:
-                    fingerprint = _source_fingerprint(self.paths)
+                if _source_fingerprint(self.paths, optional_paths) != fingerprint:
+                    fingerprint = _source_fingerprint(self.paths, optional_paths)
                     result = self._check(fingerprint)
                 self._cached_fingerprint = fingerprint
                 self._cached_result = result

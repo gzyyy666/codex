@@ -65,7 +65,9 @@ class LedgerWebService:
         self.stable = load_stable_module()
         self.commands = LedgerCommandService(data_file, dictionary_file, backup_dir, self._parse_with_stable_app)
         self.data_check_state_file = Path(data_file).parent / "data_check_state.json"
-        self.silent_health = SilentHealthCheck(Path(data_file), Path(dictionary_file), self.stable)
+        self.silent_health = SilentHealthCheck(
+            Path(data_file), Path(dictionary_file), self.stable, self.data_check_state_file
+        )
         self.pending_reviews: dict[str, dict] = {}
         self.pending_lock = threading.RLock()
 

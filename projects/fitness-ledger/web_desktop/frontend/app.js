@@ -214,6 +214,7 @@ function issueActionButtons(item,index){
   else if(type==='dictionary')buttons.push(`<button class="link issue-repair issue-primary-action" data-issue-repair="${index}" data-repair-action="dictionary">打开动作词典 →</button>`);
   else if(type==='raw')buttons.push(`<button class="link issue-repair" data-issue-repair="${index}" data-repair-action="raw">原始输入</button>`);
   if(/cloud|payload|sync/i.test(`${item.issue||''} ${item.area||''}`))buttons.push(`<button class="link issue-repair" data-issue-repair="${index}" data-repair-action="cloud">云同步</button>`);
+  buttons.push(`<button class="link issue-ack" data-issue-ack="${index}">确认问题</button>`);
   return buttons.join('');
 }
 checksPage=async function(){
@@ -258,7 +259,7 @@ function repairIssue(index,action='editor'){
 
 async function acknowledgeRealIssue(index){
   const issue=state.dataCheck?.issues?.[index];if(!issue)return;
-  try{await postApi('/api/data-check/acknowledge',{issue_key:issue.issue_key});root.innerHTML='';await checksPage();showToast('该提示已确认并隐藏。')}catch(error){showToast(error.message||'确认失败。')}
+  try{await postApi('/api/data-check/acknowledge',{issue_key:issue.issue_key});root.innerHTML='';await checksPage();await loadArchiveHealth();showToast('该提示已确认并隐藏。')}catch(error){showToast(error.message||'确认失败。')}
 }
 
 async function undoLastWebWrite(){

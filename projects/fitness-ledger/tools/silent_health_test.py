@@ -15,8 +15,8 @@ PROJECT_DIR = Path(__file__).resolve().parents[1]
 if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
-from fitness_ledger_core.data_quality_view import LOGGER, SilentHealthCheck
-from web_desktop.backend.server import create_server
+from fitness_ledger_core.data_quality_view import LOGGER, SilentHealthCheck, issue_key
+from web_desktop.backend.server import LedgerWebService, create_server
 
 
 class FakeApp:
@@ -42,6 +42,18 @@ def file_state(path: Path) -> tuple[str, int, int]:
 
 def write_json(path: Path, value: dict) -> None:
     path.write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
+
+
+def post_json(url: str, payload: dict) -> dict:
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=3) as response:
+        assert response.status == 200
+        return json.loads(response.read().decode("utf-8"))
 
 
 class FixtureData:
@@ -111,9 +123,10 @@ def main() -> None:
         root = Path(temp)
         tracker = root / "tracker.json"
         dictionary = root / "movement_dictionary.json"
+        state_file = root / "data_check_state.json"
         write_json(tracker, {"fixture_issues": []})
         write_json(dictionary, {"movements": []})
-        checker = SilentHealthCheck(tracker, dictionary, FakeStable)
+        checker = SilentHealthCheck(tracker, dictionary, FakeStable, state_file)
 
         before = (file_state(tracker), file_state(dictionary), set(root.iterdir()))
         healthy = checker.summary()
@@ -141,6 +154,15 @@ def main() -> None:
         assert changed["highest_severity"] == "HIGH"
         assert changed["data_fingerprint"] != healthy["data_fingerprint"]
 
+        write_json(state_file, {"acknowledged": {issue_key(issues[0]): "2026-07-15T00:00:00"}})
+        acknowledged = checker.summary()
+        assert acknowledged["status"] == "NEEDS_REVIEW"
+        assert acknowledged["issue_count"] == len(issues) - 1
+        assert acknowledged["cached"] is False
+        state_file.unlink()
+        restored = checker.summary()
+        assert restored["issue_count"] == len(issues) and restored["cached"] is False
+
         large = {"fixture_issues": issues, "records": [{"date": f"2026-01-{(index % 28) + 1:02d}"} for index in range(20_000)]}
         write_json(tracker, large)
         started = time.perf_counter()
@@ -164,11 +186,44 @@ def main() -> None:
 
         app_js = (PROJECT_DIR / "web_desktop" / "frontend" / "app.js").read_text(encoding="utf-8")
         index_html = (PROJECT_DIR / "web_desktop" / "frontend" / "index.html").read_text(encoding="utf-8")
+        styles_css = (PROJECT_DIR / "web_desktop" / "frontend" / "styles.css").read_text(encoding="utf-8")
         assert "Archive needs review" in app_js
         assert "Health check unavailable" in app_js
         assert "All healthy" not in app_js and "Data verified" not in app_js
         assert "health-nav-status" in index_html
         assert "localStorage" not in app_js
+        assert 'data-issue-ack="${index}"' in app_js
+        assert "await checksPage();await loadArchiveHealth()" in app_js
+        assert '.nav-item[data-view="checks"]{position:relative;padding-right:44px}' in styles_css
+        assert "grid-template-columns:repeat(2,minmax(0,1fr))" in styles_css
+        assert "width:104px;white-space:nowrap" in styles_css
+
+        write_json(
+            tracker,
+            {"daily_records": [{"id": "body-1", "Date": "2099-01-01", "Weight (kg)": None}],
+             "diet_records": [], "training_sessions": [], "movements": {}, "raw_entries": []},
+        )
+        write_json(dictionary, {"version": "1", "movements": []})
+        real_service = LedgerWebService(tracker, dictionary, root / "backups")
+        real_server = create_server(port=0, service=real_service)
+        real_thread = threading.Thread(target=real_server.serve_forever, daemon=True)
+        real_thread.start()
+        try:
+            real_base = f"http://127.0.0.1:{real_server.server_port}"
+            with urllib.request.urlopen(real_base + "/api/data-check", timeout=3) as response:
+                before_ack = json.loads(response.read().decode("utf-8"))
+            assert len(before_ack["issues"]) == 1
+            post_json(real_base + "/api/data-check/acknowledge", {"issue_key": before_ack["issues"][0]["issue_key"]})
+            with urllib.request.urlopen(real_base + "/api/data-check", timeout=3) as response:
+                after_ack = json.loads(response.read().decode("utf-8"))
+            with urllib.request.urlopen(real_base + "/api/archive-health", timeout=3) as response:
+                health_after_ack = json.loads(response.read().decode("utf-8"))
+            assert len(after_ack["issues"]) == 0 and after_ack["acknowledged_count"] == 1
+            assert health_after_ack["status"] == "OK" and health_after_ack["issue_count"] == 0
+        finally:
+            real_server.shutdown()
+            real_server.server_close()
+            real_thread.join(timeout=3)
 
         class HealthOnlyService:
             @staticmethod
@@ -197,6 +252,9 @@ def main() -> None:
             assert 'health-nav-status needs-review' in review_dom
             assert f'>{len(issues)}</i>' in review_dom
             assert "Archive needs review" in review_dom
+            two_digit_dom = browser_dom({**changed, "issue_count": 12})
+            assert 'health-nav-status needs-review' in two_digit_dom
+            assert '>12</i>' in two_digit_dom
             unavailable_dom = browser_dom(unavailable)
             assert 'health-nav-status unavailable' in unavailable_dom
             assert "Health check unavailable" in unavailable_dom
