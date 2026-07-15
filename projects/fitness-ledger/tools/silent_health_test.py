@@ -99,12 +99,33 @@ for(const health of healthStates){{
   renderArchiveHealth();
   healthSnapshots.push(captureHealthState());
 }}
+let acknowledged=false;
+const fixtureIssues=[
+  {{severity:'High',date:'2099-01-01',area:'Body',issue:'缺少体重',action:'补充体重',target_type:'body',issue_key:'issue-1'}},
+  {{severity:'Low',date:'-',area:'Movement Dictionary',issue:'CUSTOM 待整理',action:'打开动作词典',target_type:'dictionary',issue_key:'issue-2'}}
+];
+window.fetch=async(path,options={{}})=>{{
+  const url=String(path);
+  if(url.includes('/api/data-check/acknowledge')){{acknowledged=true;return {{ok:true,status:200,json:async()=>({{ok:true}})}}}}
+  if(url.includes('/api/data-check')){{const issues=acknowledged?fixtureIssues.slice(1):fixtureIssues;return {{ok:true,status:200,json:async()=>({{issues,acknowledged_count:acknowledged?1:0}})}}}}
+  if(url.includes('/api/archive-health')){{return {{ok:true,status:200,json:async()=>({{status:'NEEDS_REVIEW',issue_count:acknowledged?1:2}})}}}}
+  return {{ok:true,status:200,json:async()=>({{}})}};
+}};
+const routeBefore=location.href;
 document.querySelector('[data-data-check-open]')?.click();
-const clickRoute=location.hash;
+await new Promise(resolve=>setTimeout(resolve,40));
+const opened={{overlayCount:document.querySelectorAll('[data-data-check-overlay]').length,rowCount:document.querySelectorAll('[data-data-check-overlay] tr[data-severity]').length,route:location.href}};
+document.querySelector('[data-data-check-overlay] [data-issue-ack="0"]')?.click();
+await new Promise(resolve=>setTimeout(resolve,60));
+const afterAckHost=document.querySelector('[data-health-nav-entry]');
+const afterAck={{overlayCount:document.querySelectorAll('[data-data-check-overlay]').length,rowCount:document.querySelectorAll('[data-data-check-overlay] tr[data-severity]').length,markerText:afterAckHost?.querySelector('.health-nav-status')?.textContent,hostHidden:afterAckHost?.hidden,route:location.href}};
+document.querySelector('[data-data-check-close]')?.click();
+const afterClose={{overlayCount:document.querySelectorAll('[data-data-check-overlay]').length,route:location.href}};
+const interaction={{routeBefore,opened,afterAck,afterClose}};
 const healthReport=document.createElement('div');
 healthReport.id='health-sequence-report';
 healthReport.dataset.snapshots=encodeURIComponent(JSON.stringify(healthSnapshots));
-healthReport.dataset.clickRoute=clickRoute;
+healthReport.dataset.interaction=encodeURIComponent(JSON.stringify(interaction));
 document.body.appendChild(healthReport);
 """
     script_tag = '<script type="module" src="app.js"></script>'
@@ -121,9 +142,9 @@ document.body.appendChild(healthReport);
             encoding="utf-8",
             timeout=20,
         )
-    match = re.search(r'id="health-sequence-report" data-snapshots="([^"]+)" data-click-route="([^"]*)"', result.stdout)
+    match = re.search(r'id="health-sequence-report" data-snapshots="([^"]+)" data-interaction="([^"]+)"', result.stdout)
     assert match, "Real page health-state report was not rendered."
-    return json.loads(urllib.parse.unquote(match.group(1))), match.group(2)
+    return json.loads(urllib.parse.unquote(match.group(1))), json.loads(urllib.parse.unquote(match.group(2)))
 
 
 def main() -> None:
@@ -199,13 +220,19 @@ def main() -> None:
         assert "health-nav-status" in index_html
         assert "localStorage" not in app_js
         assert 'data-issue-ack="${index}"' in app_js
-        assert "await checksPage();await loadArchiveHealth()" in app_js
+        assert "openDataCheckOverlay()" in app_js
+        assert "data-data-check-overlay" in app_js
+        assert "state.dataCheck=await api('/api/data-check')" in app_js
+        assert "await loadArchiveHealth()" in app_js
+        assert "navigate('checks')" not in app_js
         assert index_html.count("data-health-nav-entry") == 1
         assert index_html.count("data-data-check-open") == 1
         assert '.health-nav-entry{position:relative' in styles_css
         assert '[data-health-nav-entry]{' not in styles_css
         assert "grid-template-columns:repeat(2,minmax(0,1fr))" in styles_css
         assert "width:104px;white-space:nowrap" in styles_css
+        assert ".data-check-overlay{" in styles_css
+        assert ".data-check-surface.is-overlay" in styles_css
 
         write_json(
             tracker,
@@ -254,39 +281,48 @@ def main() -> None:
             thread.join(timeout=3)
 
         browser_result = browser_state_sequence([
-            {**changed, "issue_count": 5},
+            {**changed, "issue_count": 1},
             healthy,
-            unavailable,
             {**changed, "issue_count": 0},
             {**changed, "issue_count": 12},
+            unavailable,
             {**changed, "issue_count": 12},
         ])
         if browser_result is not None:
-            snapshots, click_route = browser_result
-            initial, review, ok, unavailable_state, zero_review, two_digit, repeated = snapshots
+            snapshots, interaction = browser_result
+            initial, review, ok, zero_review, two_digit, unavailable_state, repeated = snapshots
             assert initial["hostHidden"] is True and initial["markerText"] == ""
             assert initial["markerClass"] == "health-nav-status" and initial["ariaLabel"] == "查看待处理的数据问题"
             assert initial["dataView"] is None and initial["hostClass"] == "health-nav-entry"
             assert initial["reviewText"] == "Review" and initial["markerAriaHidden"] == "true"
             assert review["hostHidden"] is False and review["markerHidden"] is False
-            assert review["markerText"] == "5" and review["markerClass"] == "health-nav-status needs-review"
-            assert review["title"] == "待处理数据问题：5 个"
-            assert review["ariaLabel"] == "待处理数据问题：5 个"
+            assert review["markerText"] == "1" and review["markerClass"] == "health-nav-status needs-review"
+            assert review["title"] == "待处理数据问题：1 个"
+            assert review["ariaLabel"] == "待处理数据问题：1 个"
             assert ok["hostHidden"] is True and ok["markerHidden"] is True
             assert ok["markerText"] == "" and ok["title"] is None and ok["ariaLabel"] == "查看待处理的数据问题"
-            assert unavailable_state["hostHidden"] is False and unavailable_state["markerHidden"] is False
-            assert unavailable_state["markerText"] == "!" and unavailable_state["markerClass"] == "health-nav-status unavailable"
-            assert unavailable_state["title"] == "数据检查暂不可用"
-            assert unavailable_state["ariaLabel"] == "数据检查暂不可用"
             assert zero_review["hostHidden"] is True and zero_review["markerHidden"] is True
             assert zero_review["markerText"] == "" and zero_review["title"] is None
             assert zero_review["ariaLabel"] == "查看待处理的数据问题"
             assert two_digit["hostHidden"] is False and two_digit["markerHidden"] is False
             assert two_digit["markerText"] == "12" and two_digit["title"] == "待处理数据问题：12 个"
+            assert unavailable_state["hostHidden"] is False and unavailable_state["markerHidden"] is False
+            assert unavailable_state["markerText"] == "!" and unavailable_state["markerClass"] == "health-nav-status unavailable"
+            assert unavailable_state["title"] == "数据检查暂不可用"
+            assert unavailable_state["ariaLabel"] == "数据检查暂不可用"
             assert repeated == two_digit
             assert all(item["healthHookCount"] == 1 for item in snapshots)
             assert all(item["dataCheckOpen"] is True and item["dataView"] is None for item in snapshots)
-            assert click_route == "#checks"
+            assert interaction["opened"]["overlayCount"] == 1
+            assert interaction["opened"]["rowCount"] == 2
+            assert interaction["opened"]["route"] == interaction["routeBefore"]
+            assert interaction["afterAck"]["overlayCount"] == 1
+            assert interaction["afterAck"]["rowCount"] == 1
+            assert interaction["afterAck"]["markerText"] == "1"
+            assert interaction["afterAck"]["hostHidden"] is False
+            assert interaction["afterAck"]["route"] == interaction["routeBefore"]
+            assert interaction["afterClose"]["overlayCount"] == 0
+            assert interaction["afterClose"]["route"] == interaction["routeBefore"]
 
     print(
         "FITNESS_LEDGER_SILENT_HEALTH_OK "

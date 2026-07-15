@@ -3048,6 +3048,19 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
 .health-nav-status.needs-review{background:#d6ae55;color:#2d2618}
 .health-nav-status.unavailable{background:#77736c;color:#fff}
 
+/* Data Check is a transient review surface, not a primary archive route. */
+.data-check-overlay-shell{padding:24px;background:rgba(25,22,17,.36);backdrop-filter:blur(5px)}
+.data-check-overlay{position:relative;width:min(1080px,calc(100vw - 48px));max-height:calc(100vh - 48px);overflow:auto;box-sizing:border-box;padding:30px;border:1px solid rgba(31,27,20,.18);border-radius:30px 8px 30px 8px;background:linear-gradient(145deg,rgba(255,253,247,.99),rgba(244,238,227,.99));box-shadow:0 36px 90px rgba(35,28,18,.25),0 8px 24px rgba(35,28,18,.12)}
+.data-check-overlay>.close{position:sticky;top:0;float:right;z-index:12;width:38px;height:38px;margin:-10px -8px 0 14px;border:1px solid rgba(31,27,20,.18);border-radius:50%;background:rgba(255,253,247,.94);box-shadow:0 5px 16px rgba(31,27,20,.1);cursor:pointer}
+.data-check-overlay>header{max-width:720px;margin-bottom:22px;padding:0 48px 20px 0;border-bottom:1px solid rgba(31,27,20,.14)}
+.data-check-overlay>header h2{margin:7px 0 5px;font:400 clamp(40px,5vw,62px)/.92 var(--font-editorial);letter-spacing:-.045em}.data-check-overlay>header p{margin:0;color:var(--graphite);font-size:12px;line-height:1.65}
+.data-check-surface.is-overlay .check-filters{margin:0 0 15px}.data-check-surface.is-overlay .check-table-wrap{max-height:52vh;overflow:auto;border:1px solid rgba(31,27,20,.13);border-radius:16px;background:rgba(255,253,247,.62)}
+.data-check-surface.is-overlay .check-table{min-width:820px}.data-check-surface.is-overlay .records-status{margin-top:12px;color:var(--graphite);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.data-check-empty{padding:42px;text-align:center}.data-check-empty strong{display:block;font:400 24px var(--font-editorial)}.data-check-empty p{margin:7px 0 0;color:var(--graphite);font-size:12px}
+.data-check-overlay-detail{position:sticky;bottom:0;z-index:8;margin:18px 0 0;padding:22px;border:1px solid rgba(31,27,20,.2);border-radius:18px 5px 18px 5px;background:rgba(255,253,247,.98);box-shadow:0 -12px 32px rgba(35,28,18,.13)}
+.data-check-overlay-detail[hidden]{display:none}.data-check-overlay-detail h3{margin:8px 0 0;font:400 28px var(--font-editorial)}.data-check-overlay-detail .detail-list{margin:14px 0}.data-check-detail-close{position:absolute;top:14px;right:16px;border:0;background:transparent;font-size:24px;cursor:pointer}
+@media(max-width:720px){.data-check-overlay-shell{padding:8px}.data-check-overlay{width:calc(100vw - 16px);max-height:calc(100vh - 16px);padding:22px 14px;border-radius:22px 6px 22px 6px}.data-check-overlay>header{padding-right:36px}.data-check-overlay-detail .detail-row{grid-template-columns:1fr;gap:5px}}
+
 /* CUSTOM movement identity: Core-backed canonicalization inside the existing dictionary detail flow. */
 .dictionary-identity-action{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:24px;margin-top:22px;padding:20px 22px;border:1px solid rgba(112,78,36,.18);border-radius:18px 6px 18px 6px;background:linear-gradient(145deg,rgba(255,247,222,.72),rgba(246,239,225,.78));box-shadow:inset 0 1px rgba(255,255,255,.86)}
 .dictionary-identity-action h3{margin:6px 0 4px;font:400 25px/1 var(--font-editorial)}.dictionary-identity-action p{max-width:520px;margin:0;color:var(--graphite);font-size:11px;line-height:1.6}.dictionary-identity-action .btn{min-height:40px;padding:8px 17px;border-color:rgba(118,82,18,.34);background:rgba(239,199,103,.24)}
