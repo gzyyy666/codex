@@ -3060,6 +3060,18 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
 .training-theme-page[data-training-theme="overview"] .training-atmosphere{z-index:0;opacity:.98;background-image:url("assets/training-archive-collage-v2.png");background-size:86% auto;background-position:center top;background-repeat:repeat;filter:saturate(.9) contrast(1)}
 .training-theme-page[data-training-theme="overview"] .training-atmosphere:after{content:none}
 .training-theme-page[data-training-theme="overview"] .training-theme-header,.training-theme-page[data-training-theme="overview"] .body-theme-deck,.training-theme-page[data-training-theme="overview"] .training-stage{position:relative;z-index:1}
+@media(min-width:761px){
+  .training-theme-page[data-training-theme="overview"]{
+    --training-overview-measure:1600px;
+    padding-inline:clamp(20px,2.5vw,48px);
+  }
+  .training-theme-page[data-training-theme="overview"] .training-theme-header,
+  .training-theme-page[data-training-theme="overview"] .body-theme-deck,
+  .training-theme-page[data-training-theme="overview"] .training-stage{
+    width:min(var(--training-overview-measure),100%);
+    max-width:var(--training-overview-measure);
+  }
+}
 
 /* Tools reads as one editorial maintenance desk instead of three isolated cards. */
 .tools-workbench{display:grid;grid-template-columns:minmax(280px,.76fr) minmax(0,1.7fr);min-height:540px;overflow:hidden;border:1px solid rgba(31,27,20,.15);border-radius:34px 9px 34px 9px;background:rgba(255,253,247,.82);box-shadow:0 28px 62px rgba(45,35,20,.09),inset 0 1px rgba(255,255,255,.94)}
@@ -3085,6 +3097,43 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
 @media(max-width:860px){.tools-workbench{grid-template-columns:1fr}.tools-ledger{min-height:330px}.tools-ledger h2{margin-top:34px}.tools-actions{padding:8px 18px}.tool-row{grid-template-columns:40px minmax(0,1fr);gap:14px}.tool-row>b{grid-column:2;margin-top:2px}.tools-footnote{display:block}.tools-footnote p{margin-top:7px;text-align:left}.privacy .health-nav-entry{margin-left:3px}.training-theme-page[data-training-theme="overview"] .training-atmosphere{background-position:center top}}
 @media(max-width:560px){.tools-ledger{padding:30px 25px}.tools-actions{padding:6px 12px}.tool-row{padding:22px 4px}.tool-row-tags{display:none}}
 @media(prefers-reduced-motion:reduce){.tool-row,.tool-row>b span{transition:none}.tool-row:hover,.tool-row:focus-visible{transform:none}}
+
+/* Shared desktop archive measure: widen page content without stretching reading-width components. */
+:root{
+  --page-wide-measure:1600px;
+  --page-wide-gutter:clamp(20px,2.5vw,48px);
+  --page-wide-inset:max(var(--page-wide-gutter),calc((100vw - var(--page-wide-measure))/2));
+}
+@media(min-width:1121px){
+  .page{padding-left:var(--page-wide-inset);padding-right:var(--page-wide-inset)}
+
+  .home-page{width:100%;max-width:none;padding-left:var(--page-wide-inset);padding-right:var(--page-wide-inset)}
+
+  .entry-header,
+  .entry-spread{width:100%;max-width:var(--page-wide-measure)!important}
+
+  .archive-page{width:100%;max-width:none}
+  .body-ledger{width:100%;max-width:var(--page-wide-measure)}
+  .body-toolbar,
+  .diet-toolbar{width:100%;max-width:var(--page-wide-measure)}
+  .body-archive,
+  .diet-archive,
+  .movement-index-page{padding-left:var(--page-wide-inset);padding-right:var(--page-wide-inset)}
+
+  .movement-index-hero{width:100%;max-width:var(--page-wide-measure)}
+  .movement-detail-page,
+  .dictionary-page,
+  .checks-page{width:100%;max-width:none}
+
+  .tools-page,
+  .export-page{padding-left:var(--page-wide-inset);padding-right:var(--page-wide-inset)}
+  .tools-hero,
+  .export-hero,
+  .export-workbench{width:100%;max-width:var(--page-wide-measure)!important}
+
+  .cloud-sync-page,
+  .cloud-sync-console{width:100%;max-width:none!important}
+}
 .health-nav-entry[hidden]{display:none!important}
 
 /* Data Check is a transient review surface, not a primary archive route. */
