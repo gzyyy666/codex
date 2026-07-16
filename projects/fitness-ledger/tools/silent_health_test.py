@@ -309,10 +309,10 @@ def main() -> None:
             assert zero_review["ariaLabel"] == "查看待处理的数据问题"
             assert two_digit["hostHidden"] is False and two_digit["markerHidden"] is False
             assert two_digit["markerText"] == "12" and two_digit["title"] == "待处理数据问题：12 个"
-            assert unavailable_state["hostHidden"] is False and unavailable_state["markerHidden"] is False
-            assert unavailable_state["markerText"] == "!" and unavailable_state["markerClass"] == "health-nav-status unavailable"
-            assert unavailable_state["title"] == "数据检查暂不可用"
-            assert unavailable_state["ariaLabel"] == "数据检查暂不可用"
+            assert unavailable_state["hostHidden"] is True and unavailable_state["markerHidden"] is True
+            assert unavailable_state["markerText"] == "" and unavailable_state["markerClass"] == "health-nav-status"
+            assert unavailable_state["title"] is None
+            assert unavailable_state["ariaLabel"] == "查看待处理的数据问题"
             assert repeated == two_digit
             assert all(item["healthHookCount"] == 1 for item in snapshots)
             assert all(item["dataCheckOpen"] is True and item["dataView"] is None for item in snapshots)
