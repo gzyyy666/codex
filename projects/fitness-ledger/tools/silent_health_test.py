@@ -297,7 +297,7 @@ def main() -> None:
             assert initial["hostHidden"] is True and initial["markerText"] == ""
             assert initial["markerClass"] == "health-nav-status" and initial["ariaLabel"] == "查看待处理的数据问题"
             assert initial["dataView"] is None and initial["hostClass"] == "health-nav-entry"
-            assert initial["reviewText"] == "Review" and initial["markerAriaHidden"] == "true"
+            assert initial["reviewText"] == "Data" and initial["markerAriaHidden"] == "true"
             assert review["hostHidden"] is False and review["markerHidden"] is False
             assert review["markerText"] == "1" and review["markerClass"] == "health-nav-status needs-review"
             assert review["title"] == "待处理数据问题：1 个"

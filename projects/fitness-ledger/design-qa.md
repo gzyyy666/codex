@@ -51,3 +51,51 @@ Date: 2026-07-06
 - P3: Theme trace intensity can be tuned later per body area without changing the shared hierarchy.
 
 final result: passed
+
+---
+
+# Design QA — Training background, Tools, and Silent Health
+
+- Source visual truth: `web_desktop/frontend/assets/training-archive-collage-v2.png`
+- Full-view implementation: `C:\Users\26087\.codex\visualizations\2026\07\16\fitness-ledger-tools-training-qa\training-overview.png`
+- Tools implementation: `C:\Users\26087\.codex\visualizations\2026\07\16\fitness-ledger-tools-training-qa\tools-overview.png`
+- Needs-review state: `C:\Users\26087\.codex\visualizations\2026\07\16\fitness-ledger-tools-training-qa\training-needs-review.png`
+- Data Health overlay: `C:\Users\26087\.codex\visualizations\2026\07\16\fitness-ledger-tools-training-qa\data-health-overlay.png`
+- Combined comparison evidence: `C:\Users\26087\.codex\visualizations\2026\07\16\fitness-ledger-tools-training-qa\training-comparison.png`
+- Viewports: 1920 × 1080 and 1440 × 900
+- State: anonymous archive fixture; Training overview; Tools overview; separate `NEEDS_REVIEW` fixture with 3 issues
+
+## Findings
+
+- No actionable P0/P1/P2 findings remain.
+- Fonts and typography: the existing editorial serif and DM Sans hierarchy is preserved. The generated background contains no embedded text and does not interfere with display typography or small UI labels.
+- Spacing and layout rhythm: Training keeps its established archive measure. Tools now uses the full 1220px content measure with one continuous workbench, a stable dark ledger rail, and three horizontally readable action rows.
+- Colors and visual tokens: the generated warm-paper, graphite, muted blue, teal, and ochre palette remains within the existing archive language. The Data prompt uses the existing restrained warm-yellow semantic accent.
+- Image quality and asset fidelity: the selected 1536 × 1024 generated raster is used directly. Its equipment details remain visible at both desktop viewports while the center corridor stays quiet enough for the Training UI.
+- Copy and content: Tools explains Export, Sync, and Data Health without inventing new capabilities. The nav prompt is labelled `Data` and appears only with a real positive issue count.
+
+## Focused-region evidence
+
+- `training-needs-review.png` confirms the quiet `Data 3` prompt sits beside `LOCAL-FIRST / PRIVATE`, outside primary navigation.
+- `data-health-overlay.png` confirms the prompt's destination remains the contextual overlay rather than a full-page route.
+- `tools-export.png` and `tools-sync.png` confirm the existing Export and Cloud Sync surfaces still render through the consolidated Tools route.
+
+## Comparison history
+
+1. Initial browser pass found a P1 Tools width regression: `.tools-page` combined `max-width:1220px` with global page padding, leaving only about 500px for content. Evidence was the first `tools-overview.png` capture.
+2. Fixed by removing the outer max-width constraint and applying an explicit 1220px archive content measure through page padding. The revised 1920px and 1440px captures show the workbench spanning the intended width with readable action rows.
+3. Post-fix Training comparison confirms the selected background remains edge-weighted, visible, and subordinate to content. No further P0/P1/P2 issues were found.
+
+## Browser and interaction verification
+
+- Headless Microsoft Edge rendered Training, Tools, Export, Sync, and Data Health at the target desktop viewports.
+- The Silent Health browser harness verified issue prompt visibility, overlay opening, acknowledgement refresh, overlay closing, and URL preservation.
+- Clean, zero-issue, loading, and unavailable states keep the top navigation silent.
+- JavaScript syntax and the relevant regression suites completed without uncaught page-script failures.
+- No real CloudBase upload or formal-data write was executed.
+
+## Follow-up polish
+
+- P3 only: the exact background visibility can be tuned after subjective review without changing the asset or layout.
+
+final result: passed
