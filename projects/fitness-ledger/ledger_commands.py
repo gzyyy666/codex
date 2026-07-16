@@ -13,6 +13,8 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Callable
 
+from fitness_ledger_core.shared_view_models import movement_in_progress
+
 
 ParserCallback = Callable[[str, dict, dict], dict]
 
@@ -306,6 +308,7 @@ class LedgerCommandService:
         for definition in dictionary.get("movements", []) or []:
             item = copy.deepcopy(definition)
             item["history_count"] = counts.get(str(item.get("movement_id", "")), 0)
+            item["exclude_from_progress"] = bool(item.get("exclude_from_progress", False))
             result.append(item)
         return sorted(
             result,
@@ -316,6 +319,10 @@ class LedgerCommandService:
                 str(item.get("display_name", "")).casefold(),
             ),
         )
+
+    def movement_progress_definitions(self) -> list[dict]:
+        """Return the single formal Movement Progress projection."""
+        return [item for item in self.movement_definitions() if movement_in_progress(item)]
 
     @staticmethod
     def _definition_by_id(dictionary: dict, movement_id: str) -> dict:
@@ -489,13 +496,14 @@ class LedgerCommandService:
         walk(dictionary, (), "dictionary")
         return {"migratable": migratable, "unknown": unknown, "raw_occurrences": raw_occurrences}
 
-    def _build_custom_movement_merge_plan(
+    def _build_movement_merge_plan(
         self,
         database: dict,
         dictionary: dict,
         source_id: str,
         target_id: str,
         data_fingerprint: dict,
+        require_custom_source: bool = False,
     ) -> dict:
         source_id = str(source_id or "").strip()
         target_id = str(target_id or "").strip()
@@ -543,7 +551,7 @@ class LedgerCommandService:
                 "Every dictionary aliases field must be a list before ownership can be validated.",
                 movement_ids=invalid_alias_definitions,
             )
-        if source and not re.fullmatch(r"CUSTOM_\d+", source_id):
+        if require_custom_source and source and not re.fullmatch(r"CUSTOM_\d+", source_id):
             block("SOURCE_NOT_CUSTOM", "Source is not a structurally valid CUSTOM dictionary identity.")
         if target and re.fullmatch(r"CUSTOM_\d+", target_id):
             block("TARGET_IS_CUSTOM", "Target must be an existing non-CUSTOM canonical movement.")
@@ -808,7 +816,11 @@ class LedgerCommandService:
             [{**copy.deepcopy(row), "movement_id": target_id} for row in source_history_records]
         )
         plan = {
-            "operation": "CUSTOM_TO_CANONICAL_MOVEMENT_MERGE",
+            "operation": (
+                "CUSTOM_TO_CANONICAL_MOVEMENT_MERGE"
+                if require_custom_source else
+                "MOVEMENT_TO_CANONICAL_MOVEMENT_MERGE"
+            ),
             "source": self._definition_summary(source, source_id),
             "target": target_summary,
             "references": {
@@ -861,7 +873,19 @@ class LedgerCommandService:
     def preview_merge_custom_movement(self, source_id: str, target_id: str) -> dict:
         """Build a UI-ready, strictly read-only CUSTOM-to-canonical migration plan."""
         database, dictionary, fingerprint = self._strict_state_snapshot()
-        return self._build_custom_movement_merge_plan(database, dictionary, source_id, target_id, fingerprint)
+        return self._build_movement_merge_plan(
+            database,
+            dictionary,
+            source_id,
+            target_id,
+            fingerprint,
+            require_custom_source=True,
+        )
+
+    def preview_merge_movement(self, source_id: str, target_id: str) -> dict:
+        """Build a UI-ready plan for merging any existing source into a canonical target."""
+        database, dictionary, fingerprint = self._strict_state_snapshot()
+        return self._build_movement_merge_plan(database, dictionary, source_id, target_id, fingerprint)
 
     @staticmethod
     def _append_normalized_aliases(existing, additions) -> list[str]:
@@ -990,8 +1014,15 @@ class LedgerCommandService:
         validation["data_fingerprint"] = fingerprint
         return validation, fingerprint
 
-    def merge_custom_movement(self, source_id: str, target_id: str, plan_identity: str) -> dict:
-        """Execute one confirmed, fresh CUSTOM-to-canonical migration as a paired transaction."""
+    def _merge_movement(
+        self,
+        source_id: str,
+        target_id: str,
+        plan_identity: str,
+        require_custom_source: bool,
+        post_write_validation,
+    ) -> dict:
+        """Execute one confirmed, fresh movement merge as a paired transaction."""
         if not str(plan_identity or "").strip():
             raise LedgerCommandError(
                 "A confirmed preview plan identity is required.",
@@ -999,7 +1030,14 @@ class LedgerCommandService:
             )
         with self.write_lock():
             database, dictionary, fingerprint = self._strict_state_snapshot()
-            plan = self._build_custom_movement_merge_plan(database, dictionary, source_id, target_id, fingerprint)
+            plan = self._build_movement_merge_plan(
+                database,
+                dictionary,
+                source_id,
+                target_id,
+                fingerprint,
+                require_custom_source=require_custom_source,
+            )
             if plan["plan_identity"] != str(plan_identity):
                 raise LedgerCommandError(
                     "The preview is stale; run dry-run again before migrating.",
@@ -1054,7 +1092,7 @@ class LedgerCommandService:
                 stage = "tracker_write"
                 _write_json_atomic(self.data_file, working_database)
                 stage = "post_write_validation"
-                validation, after_fingerprint = self._post_write_custom_movement_validation(plan)
+                validation, after_fingerprint = post_write_validation(plan)
                 if not validation["ok"]:
                     raise LedgerCommandError(
                         "Post-write migration validation failed.",
@@ -1113,6 +1151,26 @@ class LedgerCommandService:
                 "raw_entries_unchanged": validation["raw_entries_unchanged"],
                 "data_fingerprint": after_fingerprint,
             }
+
+    def merge_custom_movement(self, source_id: str, target_id: str, plan_identity: str) -> dict:
+        """Compatibility wrapper for the original CUSTOM-to-canonical command."""
+        return self._merge_movement(
+            source_id,
+            target_id,
+            plan_identity,
+            require_custom_source=True,
+            post_write_validation=self._post_write_custom_movement_validation,
+        )
+
+    def merge_movement(self, source_id: str, target_id: str, plan_identity: str) -> dict:
+        """Merge any existing source movement into an existing canonical target."""
+        return self._merge_movement(
+            source_id,
+            target_id,
+            plan_identity,
+            require_custom_source=False,
+            post_write_validation=self._post_write_custom_movement_validation,
+        )
 
     def movement_groups(self) -> list[str]:
         """Return the body-part values already established by formal movements."""
@@ -1461,6 +1519,72 @@ class LedgerCommandService:
             definition["active"] = bool(active)
             self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
             return {"movement_id": movement_id, "active": bool(active)}
+
+    def set_movement_exclude_from_progress(self, movement_id: str, excluded: bool) -> dict:
+        """Hide or restore one movement only in the Movement Progress projection."""
+        movement_id = str(movement_id or "").strip()
+        if not movement_id:
+            raise LedgerCommandError("Movement ID cannot be blank.", "MOVEMENT_ID_REQUIRED")
+        excluded = bool(excluded)
+        with self.write_lock():
+            database, dictionary, _fingerprint = self._strict_state_snapshot()
+            definition = self._definition_by_id(dictionary, movement_id)
+            current = bool(definition.get("exclude_from_progress", False))
+            if current == excluded:
+                return {
+                    "status": "NO_CHANGES",
+                    "changed": False,
+                    "movement_id": movement_id,
+                    "exclude_from_progress": excluded,
+                }
+
+            tracker_backup, dictionary_backup = self._checkpoint()
+            checkpoint = self._checkpoint_identity(tracker_backup)
+            try:
+                definition["exclude_from_progress"] = excluded
+                self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
+                _stored_database, stored_dictionary, after_fingerprint = self._strict_state_snapshot()
+                stored = self._definition_by_id(stored_dictionary, movement_id)
+                if bool(stored.get("exclude_from_progress", False)) != excluded:
+                    raise LedgerCommandError(
+                        "Movement Progress visibility validation failed.",
+                        "PROGRESS_VISIBILITY_VALIDATION_FAILED",
+                    )
+            except Exception as exc:
+                rollback_errors = []
+                for backup, destination, label in (
+                    (tracker_backup, self.data_file, "tracker"),
+                    (dictionary_backup, self.dictionary_file, "dictionary"),
+                ):
+                    try:
+                        shutil.copy2(backup, destination)
+                    except Exception as rollback_exc:
+                        rollback_errors.append(f"{label}: {rollback_exc}")
+                rolled_back = not rollback_errors
+                if rolled_back:
+                    self._discard_checkpoint(tracker_backup, dictionary_backup)
+                raise LedgerCommandError(
+                    "Movement Progress visibility update failed; both files were restored."
+                    if rolled_back else
+                    "Movement Progress visibility update failed and rollback needs manual review.",
+                    "PROGRESS_VISIBILITY_UPDATE_FAILED",
+                    {
+                        "movement_id": movement_id,
+                        "rolled_back": rolled_back,
+                        "rollback_errors": rollback_errors,
+                        "cause_code": getattr(exc, "code", exc.__class__.__name__),
+                        "cause": str(exc),
+                    },
+                ) from exc
+            return {
+                "status": "UPDATED",
+                "changed": True,
+                "movement_id": movement_id,
+                "exclude_from_progress": excluded,
+                "checkpoint": checkpoint,
+                "undo": {"available": True, "checkpoint": checkpoint},
+                "data_fingerprint": after_fingerprint,
+            }
 
     def delete_movement_definition(self, movement_id: str, confirmation: str) -> dict:
         with self.write_lock():

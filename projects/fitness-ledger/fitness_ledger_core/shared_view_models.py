@@ -23,6 +23,13 @@ def _normalize(value) -> str:
     return re.sub(r"[^a-z0-9\u4e00-\u9fff]", "", str(value or "").lower())
 
 
+def movement_in_progress(definition: dict) -> bool:
+    """The single visibility rule for the Movement Progress product surface."""
+    return bool(definition.get("active", True)) and not bool(
+        definition.get("exclude_from_progress", False)
+    )
+
+
 class LedgerViewModels:
     """Read-only projection layer shared by Web, export, and cloud payloads."""
 
@@ -123,6 +130,32 @@ class LedgerViewModels:
         if not definition:
             return {"movement": None, "history": [], "recent_performance": []}
         return self.movement_history_by_id(str(definition.get("movement_id", "")), limit)
+
+    def movement_progress_index(self) -> list[dict]:
+        """Project only movements eligible for Movement Progress without affecting other archives."""
+        tracker, dictionary = self.snapshot()
+        counts = {
+            str(item.get("movement_id", "")): len(item.get("history", []) or [])
+            for item in tracker.get("movements", {}).values()
+            if isinstance(item, dict)
+        }
+        rows = []
+        for definition in dictionary.get("movements", []) or []:
+            if not isinstance(definition, dict) or not movement_in_progress(definition):
+                continue
+            item = copy.deepcopy(definition)
+            item["exclude_from_progress"] = bool(item.get("exclude_from_progress", False))
+            item["history_count"] = counts.get(str(item.get("movement_id", "")), 0)
+            rows.append(item)
+        return sorted(
+            rows,
+            key=lambda item: (
+                not (bool(item.get("pinned", False)) or int(item.get("focus_rank", 0) or 0) > 0),
+                int(item.get("focus_rank", 0) or 0) if int(item.get("focus_rank", 0) or 0) > 0 else 1_000_000,
+                -int(item.get("history_count", 0) or 0),
+                str(item.get("display_name", "")).casefold(),
+            ),
+        )
 
     def training_archive(self, limit: int = 50) -> list[dict]:
         """Add only read-only movement_id projections to Training sessions."""

@@ -1,5 +1,14 @@
 # Fitness Ledger Changelog
 
+## 2026-07-16 - General movement lifecycle Core
+
+- Generalized the existing safe merge engine through `preview_merge_movement` and `merge_movement`, allowing an existing non-CUSTOM source to merge into an existing canonical non-CUSTOM target without changing target metadata.
+- Preserved `preview_merge_custom_movement` and `merge_custom_movement` as compatibility wrappers with their original CUSTOM-only source validation and plan identity behavior.
+- Added optional dictionary state `exclude_from_progress` with default `false`, a paired-transaction Command Service setter, and a single Core Movement Progress visibility rule that also preserves existing inactive filtering.
+- Exclusion affects only the formal Movement Progress projection; movement identity, history, aliases, search/detail, training archives, Analysis Export, Cloud payloads, raw entries, Data Check, checkpoints, and Undo remain intact.
+- Added anonymous temporary-fixture coverage for general merge invariants, blockers, stale preview, rollback, Undo, exclusion/default/restore, projection isolation, Data Check, export, and Cloud preservation.
+- Formal data, Web frontend/backend, navigation, Cloud Sync semantics, CloudBase, and real movements were not modified.
+
 ## 2026-07-15 - CUSTOM movement canonicalization commands
 
 - Added Core-only `preview_merge_custom_movement` and `merge_custom_movement` commands for explicit CUSTOM-to-existing-canonical migration; no Desktop, Web, Mini Program, or backend route was added.

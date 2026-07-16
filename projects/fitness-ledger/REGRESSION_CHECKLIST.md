@@ -80,6 +80,17 @@ Web write commands must be explicitly routed through `LedgerCommandService`. Tes
 - Temporary-fixture Cloud payload contains only the canonical target ID, and the existing Data Check no longer sees the source as a remaining formal structured reference.
 - `raw_entries[*].text` and name-based `skipped_movements` audit metadata remain byte-for-value unchanged; skipped source names become recognizable through the target aliases without raw reparsing.
 
+## General Movement Lifecycle Core
+
+- Run `python tools/movement_lifecycle_core_test.py`; expect `FITNESS_LEDGER_MOVEMENT_LIFECYCLE_CORE_OK`.
+- `preview_merge_movement` and `merge_movement` accept an existing non-CUSTOM source while retaining all CUSTOM merge blockers, stale-preview protection, paired rollback, and Undo behavior.
+- The CUSTOM public wrappers continue rejecting non-CUSTOM sources with `SOURCE_NOT_CUSTOM`; CUSTOM independent promotion remains unchanged.
+- General merge preserves target canonical metadata, source history order and IDs, dates, training days, sets, notes, cardio, raw movement detail, and raw entries without automatic deduplication.
+- Missing `exclude_from_progress` reads as `false`; setting the same effective value returns `NO_CHANGES` without a checkpoint.
+- Setting and clearing exclusion use Command Service paired writes, validation, rollback, and Undo without deleting the definition or history.
+- Only `movement_progress_index` / `movement_progress_definitions` filter excluded movements. Search/detail, training archive, Analysis Export, Cloud payload, raw entries, and Data Check continue to retain them.
+- Inactive and progress exclusion remain separate states; the Movement Progress projection requires active and not excluded.
+
 ## Shared Existing Record Editing
 
 - Body editing supports Date, Weight, Bowel Movement, Training, Cardio, and Notes.

@@ -12,6 +12,9 @@
 - `LedgerCommandService.delete_movement_definition`: Requires exact-name confirmation and deletes structured movement history while preserving raw input.
 - `LedgerCommandService.preview_merge_custom_movement`: Builds a strictly read-only, UI-ready CUSTOM-to-canonical reference, history, alias, duplicate, raw-audit, blocker, and fingerprint plan.
 - `LedgerCommandService.merge_custom_movement`: Revalidates a confirmed plan identity under the shared write lock, migrates all supported structured references, and uses paired checkpoint, rollback, post-write validation, and Undo semantics.
+- `LedgerCommandService.preview_merge_movement` / `merge_movement`: Generalize the same safe plan and transaction to an existing CUSTOM or non-CUSTOM source while retaining a canonical non-CUSTOM target.
+- `LedgerCommandService.set_movement_exclude_from_progress`: Sets or clears the optional progress-only exclusion state through paired checkpoint, validation, rollback, and Undo.
+- `LedgerCommandService.movement_progress_definitions`: Returns only active, non-excluded definitions while leaving the complete dictionary projection unchanged.
 - `LedgerCommandService.update_record`: Validates and edits the desktop-compatible Body, Diet, or Training field set.
 - `LedgerCommandService.update_movement_history`: Locates one history row by permanent IDs and validates order, sets, cardio, notes, and raw movement detail.
 - `LedgerWebService.capabilities`: Reports the active shared Review/Save boundary.
@@ -200,6 +203,7 @@ Future desktop visual work must modify the final `_premium_*` presentation layer
 | `data_quality_view.acknowledge_issue` | Atomically persist a confirmed issue key. | Web Data Check |
 | `LedgerViewModels.movement_history` | Return normalized history, metrics, changes, and Recent 3 performance. | Movement detail, export |
 | `LedgerViewModels.workout_reference` | Build a read-only reference from the user's matching recent sessions. | Training Pre-Workout |
+| `LedgerViewModels.movement_progress_index` | Apply the single active-and-not-excluded Movement Progress visibility rule without hiding movements from other archives. | Movement Progress Core projection |
 | `LedgerViewModels.analysis` | Build one date-range projection for export and cloud payloads. | Analysis Export, cloud payload |
 | `analysis_export.build_export` | Render Markdown and JSON from the shared analysis view. | Web Export |
 | `cloud_payload.build_cloud_payload` | Build the disposable read-only replica collections without full raw text. | Cloud dry-run |
