@@ -3062,8 +3062,8 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
 .training-theme-page[data-training-theme="overview"] .training-theme-header,.training-theme-page[data-training-theme="overview"] .body-theme-deck,.training-theme-page[data-training-theme="overview"] .training-stage{position:relative;z-index:1}
 @media(min-width:761px){
   .training-theme-page[data-training-theme="overview"]{
-    --training-overview-measure:1600px;
-    padding-inline:clamp(20px,2.5vw,48px);
+    --training-overview-measure:1500px;
+    padding-inline:var(--page-wide-gutter);
   }
   .training-theme-page[data-training-theme="overview"] .training-theme-header,
   .training-theme-page[data-training-theme="overview"] .body-theme-deck,
@@ -3100,8 +3100,8 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
 
 /* Shared desktop archive measure: widen page content without stretching reading-width components. */
 :root{
-  --page-wide-measure:1600px;
-  --page-wide-gutter:clamp(20px,2.5vw,48px);
+  --page-wide-measure:1500px;
+  --page-wide-gutter:clamp(22px,3vw,56px);
   --page-wide-inset:max(var(--page-wide-gutter),calc((100vw - var(--page-wide-measure))/2));
 }
 @media(min-width:1121px){
