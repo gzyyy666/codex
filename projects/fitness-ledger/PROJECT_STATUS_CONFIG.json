@@ -27,6 +27,8 @@
     "mini_program/miniprogram/config/env.local.js",
     "web_desktop/.edge-profile/",
     "tools/capture_web_state.mjs",
-    "tools/extract_history.mjs"
+    "tools/extract_history.mjs",
+    "tools/project_status.py",
+    "tools/project_status_test.py"
   ]
 }
