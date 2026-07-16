@@ -52,6 +52,15 @@ Date: 2026-07-06
 
 final result: passed
 
+## Follow-up correction — 2026-07-16
+
+- Runtime diagnosis found two presentation issues: the preview service had exited, and the Training page still carried an older opaque parent background while the new atmosphere layer used an over-scaled `cover` crop.
+- The parent `training-archive-collage.png` layer is now removed for the overview. The selected `training-archive-collage-v2.png` is the sole overview artwork, positioned above the page background and below content.
+- The artwork now uses a smaller `86% auto` scale with vertical repetition so more equipment, calibration marks, and movement lines remain visible across the archive length.
+- Final evidence: `C:\Users\26087\.codex\visualizations\2026\07\16\fitness-ledger-tools-training-qa\training-scaled-repeat.png` and `needs-review-final.png`.
+
+final result: passed
+
 ---
 
 # Design QA — Training background, Tools, and Silent Health
