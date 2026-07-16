@@ -1,5 +1,13 @@
 # Fitness Ledger Changelog
 
+## 2026-07-16 - Live task context and silent Cloud freshness signal
+
+- Added a project-level startup contract and `tools/project_status.py` so every Worktree can inspect live main/origin, formal deployment drift, protected data hashes, Web-service availability, and Cloud Sync freshness without copying formal records into Git.
+- Added a shared local handoff file under the main project `.codex/` directory so completed task branches can leave their exact Commit and deployment state for final integration.
+- Added a quiet `Sync` signal beside the existing Data signal: it stays hidden when the cloud replica is current, shows a restrained dot for local changes, and shows `!` after a sync failure.
+- The Sync signal opens the existing Tools / Cloud Sync surface and refreshes immediately after a sync attempt; no new Cloud state or upload path was introduced.
+- Documented the mandatory Web-service restart after deploying Python backend or Cloud Sync source so long-running processes cannot keep stale imported code.
+
 ## 2026-07-16 - General movement lifecycle Core
 
 - Generalized the existing safe merge engine through `preview_merge_movement` and `merge_movement`, allowing an existing non-CUSTOM source to merge into an existing canonical non-CUSTOM target without changing target metadata.

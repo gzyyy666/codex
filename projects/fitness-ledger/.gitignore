@@ -26,6 +26,7 @@ __pycache__/
 *.xlsx
 web_desktop/.edge-profile/
 web_desktop/.qa-edge*/
+.codex/
 
 # Never commit credential material, reports, payloads, or local state.
 *secret*

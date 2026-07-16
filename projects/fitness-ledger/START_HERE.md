@@ -4,11 +4,12 @@ This is the authoritative source and context entry for Fitness Ledger. It is des
 
 ## Five-Minute Restore
 
-1. Read `FITNESS_LEDGER_MAINTENANCE.md` for safety boundaries.
-2. Read `PROJECT_BOOTSTRAP.md` for architecture and request routing.
-3. Read `docs/INDEX.md` and open only the task-specific references.
-4. Read `FUNCTION_INDEX.md` before opening large source files.
-5. Select the minimum tests from `REGRESSION_CHECKLIST.md`.
+1. Run `python tools/project_status.py --write --json` and use the live result instead of an old prompt SHA.
+2. Read `FITNESS_LEDGER_MAINTENANCE.md` for safety boundaries.
+3. Read `PROJECT_BOOTSTRAP.md` for architecture and request routing.
+4. Read `docs/INDEX.md` and open only the task-specific references.
+5. Read `FUNCTION_INDEX.md` before opening large source files.
+6. Select the minimum tests from `REGRESSION_CHECKLIST.md`.
 
 ## Current Authority
 
@@ -46,7 +47,8 @@ This is the authoritative source and context entry for Fitness Ledger. It is des
 
 ```text
 Restore Fitness Ledger context from this repository.
-Read projects/fitness-ledger/START_HERE.md and docs/INDEX.md first.
+Run python tools/project_status.py --write --json first.
+Then read projects/fitness-ledger/START_HERE.md and docs/INDEX.md.
 Then read only the files linked for the current task.
 Do not inspect live personal data or rebuild context from old chat transcripts.
 Summarize the current architecture, safety boundary, and requested change before editing.

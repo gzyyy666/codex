@@ -129,7 +129,22 @@ const reviewPageWithDuplicateStatus=reviewPage;
 reviewPage=function(payload){reviewPageWithDuplicateStatus(payload);const choice=$('.duplicate-choice'),duplicates=payload.duplicates||{},count=Object.values(duplicates).reduce((sum,value)=>sum+Number(value||0),0);if(choice&&count){choice.outerHTML=`<div class="duplicate-status-card" role="status"><span class="duplicate-status-mark" aria-hidden="true">!</span><div><strong>该日期已有记录</strong><p>检测到 ${count} 条同日记录。确认保存时请选择覆盖现有内容，或仅追加本次训练。</p></div><small>保存前不会修改原记录</small></div>`}};
 function collectReviewForm(){if(!state.reviewPayload)return null;$$('[data-review-field]').forEach(input=>setReviewValue(input.dataset.reviewField,input.type==='number'?(input.value===''?null:Number(input.value)):input.value));const movements=state.reviewPayload.review.training?.movements||[];movements.forEach((movement,index)=>{movement.display_name=$(`[data-movement-name="${index}"]`)?.value.trim()||movement.name;movement.notes=$(`[data-movement-note="${index}"]`)?.value.trim()||'';movement._review_action=$(`[data-movement-action="${index}"]`)?.value||'use';movement._mapped_movement_id=$(`[data-movement-map="${index}"]`)?.value||'';movement._muscle_group=$(`[data-movement-group="${index}"]`)?.value||''});return state.reviewPayload.review}
 async function parseWebEntry(){const raw=$('#raw-entry')?.value.trim();if(!raw){showToast('请先输入每日记录。');return}state.draftRaw=raw;showToast('正在解析…');try{reviewPage(await postApi('/api/parse',{raw}))}catch(error){showToast(error.message||'解析失败。')}}
-function updateSyncNav(){const code=String(state.syncStatus?.sync_status||'').toUpperCase(),nav=$('.nav-sync');if(!nav)return;nav.classList.toggle('has-local-changes',['LOCAL_NEWER','LOCAL_CHANGES','READY'].includes(code));nav.classList.toggle('has-sync-error',['UPLOAD_FAILED','CLOUD_MISMATCH','SYNC_ERROR'].includes(code));}
+function updateSyncNav(){
+  const nav=$('[data-sync-nav-entry]'),marker=nav?.querySelector('.sync-nav-status');
+  if(!nav||!marker)return;
+  const code=String(state.syncStatus?.sync_status||'').toUpperCase();
+  const pending=['LOCAL_NEWER','LOCAL_CHANGES','READY'].includes(code);
+  const failed=['UPLOAD_FAILED','CLOUD_MISMATCH','SYNC_ERROR'].includes(code);
+  const visible=pending||failed;
+  const copy=failed?'最近一次云同步未完成':'本地记录尚未同步到只读云副本';
+  nav.hidden=!visible;
+  marker.hidden=!visible;
+  marker.className=`health-nav-status sync-nav-status${pending?' sync-pending':failed?' sync-error':''}`;
+  if(!visible){marker.textContent='';nav.removeAttribute('title');nav.setAttribute('aria-label','查看云同步状态');return}
+  marker.textContent=failed?'!':'•';
+  nav.title=copy;
+  nav.setAttribute('aria-label',copy);
+}
 function showSaveReceipt(result,error){const receipt=$('#save-receipt');if(!receipt)return;clearTimeout(state.receiptTimer);if(error){receipt.innerHTML=`<span>SAVE NEEDS ATTENTION</span><strong>${esc(error)}</strong>`}else if(result.status==='NO_CHANGES'){receipt.innerHTML='<span>NO CHANGES TO SAVE</span>'}else{const verb=result.status==='UPDATED'?'UPDATED':'SAVED',facts=[],date=result.date||result.record?.Date||result.history?.date||'';if(result.saved_movements)facts.push(`${result.saved_movements} movements · ${result.working_sets||0} working sets`);if(result.body_updated&&result.diet_updated)facts.push('Body and diet updated');else if(result.training_updated)facts.push('Training updated');receipt.innerHTML=`<span>${esc(String(date||'RECORD').toUpperCase())} ${verb}</span>${facts.map(x=>`<strong>${esc(x)}</strong>`).join('')}${state.syncStatus?.sync_status==='LOCAL_NEWER'?'<small>Cloud copy pending</small>':''}`};receipt.classList.add('is-visible');state.receiptTimer=setTimeout(()=>receipt.classList.remove('is-visible'),4200)}
 async function refreshWebState(){[state.today,state.recent,state.body,state.diet,state.training,state.movements,state.dictionary,state.movementGroups,state.syncStatus]=await Promise.all([api('/api/today'),api('/api/recent?limit=5'),api('/api/body?limit=100'),api('/api/diet?limit=100'),api('/api/training?limit=100'),api('/api/movements?limit=100'),api('/api/dictionary'),api('/api/movement-groups'),api('/api/cloud-sync/status')]);updateSyncNav()}
 async function saveWebReview(){if(state.saving)return;const review=collectReviewForm();if(!review)return;state.saving=true;const mode=$('#review-save-mode')?.value||null;const button=$('[data-review-save]');button.disabled=true;button.textContent='正在保存…';try{const result=await postApi('/api/save',{review_id:state.reviewPayload.review_id,review,save_mode:mode});if(result.status!=='NO_CHANGES'){state.reviewPayload=null;state.draftRaw=''}await refreshWebState();navigate('quick');showSaveReceipt(result)}catch(error){showSaveReceipt(null,error.message||'保存失败，原文件保持不变。');button.disabled=false;button.textContent='确认并保存';if(error.status===409){showToast('该日期已有记录，请选择覆盖或追加训练。');$('#review-save-mode')?.focus()}}finally{state.saving=false}}
@@ -451,6 +466,8 @@ const cloudVerdict=(v,yes='已确认',no='需验证')=>cloudTruth(v)?yes:no;
 async function cloudSyncPage(){
   main.innerHTML='<div class="loading-page"><i></i><p>正在检查只读云副本...</p></div>';
   try{state.cloudSync=await api('/api/cloud-sync/status')}catch(error){state.cloudSync={error:error.message}}
+  state.syncStatus=state.cloudSync;
+  updateSyncNav();
   const status=state.cloudSync||{};
   const manifest=status.manifest||{};
   const logs=status.logs||[];
@@ -498,6 +515,8 @@ async function runCloudSync(){
   try{
     if(stage)stage.textContent=status.network_upload_configured?'正在上传集合并校验云端版本…':'正在执行本地模拟校验…';
     state.cloudSync=await postApi('/api/cloud-sync/sync',{});
+    state.syncStatus=state.cloudSync;
+    updateSyncNav();
     const result=state.cloudSync?.sync_result||{};
     if(result.status==='SYNCED')showToast(state.cloudSync.network_upload_configured?'CloudBase 同步并校验完成。':'本地模拟同步完成。');
     else if(result.status==='NOT_CONFIGURED')showToast('上传器配置不完整：'+((result.config_status?.missing||[]).join(', ')||'unknown'));
