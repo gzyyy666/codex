@@ -420,6 +420,45 @@ class LedgerWebService:
             })
         return sorted(candidates, key=lambda item: (item["display_name"].casefold(), item["movement_id"]))
 
+    def movement_merge_candidates(self, source_id: str = "", query: str = "") -> list[dict]:
+        """Return only valid canonical targets for a general movement merge."""
+        source_id = str(source_id or "").strip()
+        rows = self.commands.movement_definitions()
+        source = next((item for item in rows if str(item.get("movement_id", "")) == source_id), None)
+        if not source:
+            raise LedgerCommandError("Source movement was not found.", "SOURCE_NOT_FOUND")
+        needle = str(query or "").strip().casefold()
+        candidates = []
+        for item in rows:
+            movement_id = str(item.get("movement_id", "")).strip()
+            if (
+                not movement_id
+                or movement_id == source_id
+                or self._is_custom_movement_id(movement_id)
+                or item.get("active", True) is False
+                or bool(item.get("deleted") or item.get("invalid") or item.get("temporary"))
+                or not str(item.get("display_name", "")).strip()
+            ):
+                continue
+            aliases = [str(value) for value in item.get("aliases", []) if str(value).strip()]
+            searchable = " ".join([
+                movement_id,
+                str(item.get("display_name", "")),
+                str(item.get("english_name", "")),
+                *aliases,
+            ]).casefold()
+            if needle and needle not in searchable:
+                continue
+            candidates.append({
+                "movement_id": movement_id,
+                "display_name": str(item.get("display_name", "")),
+                "english_name": str(item.get("english_name", "")),
+                "aliases": aliases,
+                "muscle_group": str(item.get("muscle_group", "Unclassified")),
+                "history_count": int(item.get("history_count", 0) or 0),
+            })
+        return sorted(candidates, key=lambda item: (item["display_name"].casefold(), item["movement_id"]))
+
     def preview_custom_movement_merge(self, request: dict) -> dict:
         return self.commands.preview_merge_custom_movement(
             str(request.get("source_id", "")),
@@ -432,6 +471,30 @@ class LedgerWebService:
             str(request.get("target_id", "")),
             str(request.get("plan_identity", "")),
         )
+        self.data._cache = None
+        return result
+
+    def preview_movement_merge(self, request: dict) -> dict:
+        return self.commands.preview_merge_movement(
+            str(request.get("source_id", "")),
+            str(request.get("target_id", "")),
+        )
+
+    def execute_movement_merge(self, request: dict) -> dict:
+        result = self.commands.merge_movement(
+            str(request.get("source_id", "")),
+            str(request.get("target_id", "")),
+            str(request.get("plan_identity", "")),
+        )
+        self.data._cache = None
+        return result
+
+    def set_movement_progress_exclusion(self, request: dict) -> dict:
+        movement_id = str(request.get("movement_id", "")).strip()
+        excluded = request.get("excluded")
+        if not movement_id or not isinstance(excluded, bool):
+            raise LedgerCommandError("movement_id and a boolean excluded state are required.")
+        result = self.commands.set_movement_exclude_from_progress(movement_id, excluded)
         self.data._cache = None
         return result
 
@@ -691,6 +754,11 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                     query.get("source_id", [""])[0],
                     query.get("q", [""])[0],
                 ))
+            elif parsed.path == "/api/movements/merge-candidates":
+                self.send_json(self.service.movement_merge_candidates(
+                    query.get("source_id", [""])[0],
+                    query.get("q", [""])[0],
+                ))
             elif parsed.path == "/api/movement-history":
                 movement = self.service.movement_history(
                     query.get("movement_id", [""])[0],
@@ -754,6 +822,12 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.preview_custom_movement_merge(request))
             elif parsed.path == "/api/movements/custom-merge/execute":
                 self.send_json(self.service.execute_custom_movement_merge(request))
+            elif parsed.path == "/api/movements/merge/preview":
+                self.send_json(self.service.preview_movement_merge(request))
+            elif parsed.path == "/api/movements/merge/execute":
+                self.send_json(self.service.execute_movement_merge(request))
+            elif parsed.path == "/api/movements/progress-exclusion":
+                self.send_json(self.service.set_movement_progress_exclusion(request))
             elif parsed.path == "/api/movements/custom-promote":
                 self.send_json(self.service.promote_custom_movement(request))
             elif parsed.path == "/api/record/update":
