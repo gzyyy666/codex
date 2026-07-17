@@ -88,6 +88,7 @@ class LedgerWebService:
             "edit": True,
             "dictionary_admin": True,
             "custom_movement_canonicalization": True,
+            "custom_daily_metrics": True,
             "undo": True,
             "data_check_repair": True,
             "phase": "shared-platform-services",
@@ -121,6 +122,80 @@ class LedgerWebService:
 
     def analysis_export(self, request: dict) -> dict:
         return build_export(self.views, request)
+
+    # Custom Daily Metric Web boundary: keep this layer intentionally thin.
+    # Validation, normalization, status transitions, checkpoints, and
+    # projections remain owned by the Core command/view-model services.
+    def custom_metric_definitions(self) -> list[dict]:
+        return self.views.custom_metric_definitions()
+
+    def custom_metric_daily_entry(self, entry_date: str) -> list[dict]:
+        return self.views.custom_metric_daily_entry(str(entry_date or ""))
+
+    def custom_metric_daily_archive(self, entry_date: str) -> list[dict]:
+        return self.views.custom_metric_daily_archive(str(entry_date or ""))
+
+    def custom_metric_history(self, metric_id: str, end: str = "", days: int = 30) -> dict:
+        return self.views.custom_metric_history(str(metric_id or ""), str(end or ""), int(days or 30))
+
+    def custom_metric_placements(self, page: str = "", slot: str = "", entry_date: str = "", days: int = 30) -> list[dict]:
+        return self.views.custom_metric_placements(str(page or ""), str(slot or ""), str(entry_date or ""), int(days or 30))
+
+    def create_custom_metric(self, request: dict) -> dict:
+        result = self.commands.create_custom_metric(request)
+        self.data._cache = None
+        return result
+
+    def update_custom_metric(self, request: dict) -> dict:
+        result = self.commands.update_custom_metric(str(request.get("metric_id", "")), request)
+        self.data._cache = None
+        return result
+
+    def set_custom_metric_status(self, request: dict) -> dict:
+        result = self.commands.set_custom_metric_status(str(request.get("metric_id", "")), request.get("status", ""))
+        self.data._cache = None
+        return result
+
+    def set_custom_metric_value(self, request: dict) -> dict:
+        result = self.commands.set_daily_custom_metric_value(
+            str(request.get("metric_id", "")),
+            str(request.get("date", "")),
+            request.get("value"),
+        )
+        self.data._cache = None
+        return result
+
+    def remove_custom_metric_value(self, request: dict) -> dict:
+        result = self.commands.remove_daily_custom_metric_value(
+            str(request.get("metric_id", "")), str(request.get("date", ""))
+        )
+        self.data._cache = None
+        return result
+
+    def upsert_custom_metric_placement(self, request: dict) -> dict:
+        result = self.commands.upsert_custom_metric_placement(request)
+        self.data._cache = None
+        return result
+
+    def remove_custom_metric_placement(self, request: dict) -> dict:
+        result = self.commands.remove_custom_metric_placement(str(request.get("placement_id", "")))
+        self.data._cache = None
+        return result
+
+    def save_custom_metric_values(self, rows) -> dict:
+        """Apply Daily Entry metric edits through the existing Core commands."""
+        changed = 0
+        results = []
+        for row in rows if isinstance(rows, list) else []:
+            if not isinstance(row, dict):
+                continue
+            if row.get("remove") or row.get("value") in (None, ""):
+                result = self.remove_custom_metric_value(row)
+            else:
+                result = self.set_custom_metric_value(row)
+            results.append(result)
+            changed += int(bool(result.get("changed")))
+        return {"status": "UPDATED" if changed else "NO_CHANGES", "changed": bool(changed), "changed_count": changed, "results": results}
 
     def acknowledge_data_issue(self, request: dict) -> dict:
         key = str(request.get("issue_key", "")).strip()
@@ -574,6 +649,10 @@ class LedgerWebService:
             raise LedgerCommandError("The review identity or preserved raw input was changed.")
         reviewed = self._merge_allowed_review_edits(original, submitted)
         result = self.commands.save(reviewed, request.get("save_mode"))
+        custom_result = self.save_custom_metric_values(request.get("custom_metrics", []))
+        result["custom_metrics_changed"] = custom_result["changed_count"]
+        if custom_result["changed"] and result.get("status") == "NO_CHANGES":
+            result.update({"status": "UPDATED", "changed": True, "date": reviewed.get("date", "")})
         with self.pending_lock:
             self.pending_reviews.pop(review_id, None)
         self.data._cache = None
@@ -736,6 +815,21 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.data_check())
             elif parsed.path == "/api/archive-health":
                 self.send_json(self.service.archive_health())
+            elif parsed.path in {"/api/custom-metrics", "/api/custom-metrics/definitions"}:
+                self.send_json(self.service.custom_metric_definitions())
+            elif parsed.path == "/api/custom-metrics/daily-entry":
+                self.send_json(self.service.custom_metric_daily_entry(query.get("date", [""])[0]))
+            elif parsed.path == "/api/custom-metrics/archive":
+                self.send_json(self.service.custom_metric_daily_archive(query.get("date", [""])[0]))
+            elif parsed.path == "/api/custom-metrics/history":
+                self.send_json(self.service.custom_metric_history(
+                    query.get("metric_id", [""])[0], query.get("end", [""])[0], int(query.get("days", ["30"])[0])
+                ))
+            elif parsed.path == "/api/custom-metrics/placements":
+                self.send_json(self.service.custom_metric_placements(
+                    query.get("page", [""])[0], query.get("slot", [""])[0],
+                    query.get("date", [""])[0], int(query.get("days", ["30"])[0])
+                ))
             elif parsed.path == "/api/cloud-sync/status":
                 self.send_json(self.service.cloud_sync_status())
             elif parsed.path == "/api/workout-reference":
@@ -805,6 +899,20 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.parse_entry(request.get("raw", "")))
             elif parsed.path == "/api/undo":
                 self.send_json(self.service.undo_last_write())
+            elif parsed.path == "/api/custom-metrics/create":
+                self.send_json(self.service.create_custom_metric(request))
+            elif parsed.path == "/api/custom-metrics/update":
+                self.send_json(self.service.update_custom_metric(request))
+            elif parsed.path == "/api/custom-metrics/status":
+                self.send_json(self.service.set_custom_metric_status(request))
+            elif parsed.path == "/api/custom-metrics/value":
+                self.send_json(self.service.set_custom_metric_value(request))
+            elif parsed.path == "/api/custom-metrics/value/remove":
+                self.send_json(self.service.remove_custom_metric_value(request))
+            elif parsed.path == "/api/custom-metrics/placement":
+                self.send_json(self.service.upsert_custom_metric_placement(request))
+            elif parsed.path == "/api/custom-metrics/placement/remove":
+                self.send_json(self.service.remove_custom_metric_placement(request))
             elif parsed.path == "/api/data-check/acknowledge":
                 self.send_json(self.service.acknowledge_data_issue(request))
             elif parsed.path == "/api/cloud-sync/build":
