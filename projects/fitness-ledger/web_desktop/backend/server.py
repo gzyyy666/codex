@@ -156,22 +156,6 @@ class LedgerWebService:
         self.data._cache = None
         return result
 
-    def set_custom_metric_value(self, request: dict) -> dict:
-        result = self.commands.set_daily_custom_metric_value(
-            str(request.get("metric_id", "")),
-            str(request.get("date", "")),
-            request.get("value"),
-        )
-        self.data._cache = None
-        return result
-
-    def remove_custom_metric_value(self, request: dict) -> dict:
-        result = self.commands.remove_daily_custom_metric_value(
-            str(request.get("metric_id", "")), str(request.get("date", ""))
-        )
-        self.data._cache = None
-        return result
-
     def upsert_custom_metric_placement(self, request: dict) -> dict:
         result = self.commands.upsert_custom_metric_placement(request)
         self.data._cache = None
@@ -181,21 +165,6 @@ class LedgerWebService:
         result = self.commands.remove_custom_metric_placement(str(request.get("placement_id", "")))
         self.data._cache = None
         return result
-
-    def save_custom_metric_values(self, rows) -> dict:
-        """Apply Daily Entry metric edits through the existing Core commands."""
-        changed = 0
-        results = []
-        for row in rows if isinstance(rows, list) else []:
-            if not isinstance(row, dict):
-                continue
-            if row.get("remove") or row.get("value") in (None, ""):
-                result = self.remove_custom_metric_value(row)
-            else:
-                result = self.set_custom_metric_value(row)
-            results.append(result)
-            changed += int(bool(result.get("changed")))
-        return {"status": "UPDATED" if changed else "NO_CHANGES", "changed": bool(changed), "changed_count": changed, "results": results}
 
     def acknowledge_data_issue(self, request: dict) -> dict:
         key = str(request.get("issue_key", "")).strip()
@@ -648,11 +617,11 @@ class LedgerWebService:
         if str(submitted.get("id", "")) != review_id or submitted.get("raw") != original.get("raw"):
             raise LedgerCommandError("The review identity or preserved raw input was changed.")
         reviewed = self._merge_allowed_review_edits(original, submitted)
-        result = self.commands.save(reviewed, request.get("save_mode"))
-        custom_result = self.save_custom_metric_values(request.get("custom_metrics", []))
-        result["custom_metrics_changed"] = custom_result["changed_count"]
-        if custom_result["changed"] and result.get("status") == "NO_CHANGES":
-            result.update({"status": "UPDATED", "changed": True, "date": reviewed.get("date", "")})
+        result = self.commands.save_with_custom_metrics(
+            reviewed,
+            request.get("save_mode"),
+            request.get("custom_metrics", []),
+        )
         with self.pending_lock:
             self.pending_reviews.pop(review_id, None)
         self.data._cache = None
@@ -905,10 +874,6 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.update_custom_metric(request))
             elif parsed.path == "/api/custom-metrics/status":
                 self.send_json(self.service.set_custom_metric_status(request))
-            elif parsed.path == "/api/custom-metrics/value":
-                self.send_json(self.service.set_custom_metric_value(request))
-            elif parsed.path == "/api/custom-metrics/value/remove":
-                self.send_json(self.service.remove_custom_metric_value(request))
             elif parsed.path == "/api/custom-metrics/placement":
                 self.send_json(self.service.upsert_custom_metric_placement(request))
             elif parsed.path == "/api/custom-metrics/placement/remove":

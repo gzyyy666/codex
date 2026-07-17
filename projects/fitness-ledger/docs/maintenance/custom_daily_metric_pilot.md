@@ -22,4 +22,4 @@ Active metrics accept new values. Inactive metrics retain readable history but r
 
 `LedgerViewModels` provides daily-entry, daily-archive, history, placement, and `custom_metrics_export` projections. Corrupt definitions are isolated to that metric; native body/diet/training projections continue to load. Analysis Export includes definition metadata, placements, and date/value rows. The local Cloud Payload dry-run exposes the generic `fl_custom_metrics` collection without changing uploader semantics.
 
-Data Check reports malformed IDs/definitions/values, orphan values and placements, unknown placement locations/modes, archived input placements, and abnormal ordering. It never deletes or repairs data.
+Data Check reports malformed IDs/definitions/values, orphan values and placements, unknown placement locations/modes, archived input placements, and abnormal ordering. It never deletes or repairs data. Cloud Payload and remote sync remain outside this local pilot.

@@ -22,7 +22,6 @@ The generated payload is stored at `cloud_sync/out/fitness_ledger_cloud_payload.
 | `fl_training_sessions` | Training sessions | Yes | Read-only replica |
 | `fl_movements` | Sanitized movement dictionary | Yes | Read-only replica |
 | `fl_movement_history` | Structured movement history | Yes | Read-only replica |
-| `fl_custom_metrics` | Generic daily metric definitions, placements, and date/value rows | Optional | Read-only replica |
 | `fl_search_index` | Prepared searchable text | Yes | Read-only replica |
 | `fl_raw_entries` | IDs, dates, and disabled previews by default | Detail reference only | Read-only replica |
 | `fl_data_quality_issues` | Unacknowledged local Data Check results | Status only | Read-only replica |

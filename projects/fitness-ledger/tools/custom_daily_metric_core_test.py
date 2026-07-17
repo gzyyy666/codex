@@ -11,7 +11,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from ledger_commands import LedgerCommandError, LedgerCommandService
 import ledger_commands
 from fitness_ledger_core.analysis_export import build_export
-from fitness_ledger_core.cloud_payload import build_cloud_payload
 from fitness_ledger_core.custom_metric_quality import collect_custom_metric_issues
 from fitness_ledger_core.shared_view_models import LedgerViewModels
 
@@ -65,7 +64,6 @@ def main() -> None:
         assert len(views.custom_metric_placements(page="Home")) == 1
         export = build_export(views, {"days": 36500})
         assert "custom_metrics" in export["payload"] and "daily_steps" in export["json"] and "Custom Daily Metrics" in export["markdown"]
-        assert "fl_custom_metrics" in build_cloud_payload(views)
         database, _dictionary = service.load_state()
         assert not collect_custom_metric_issues(database)
         # Corrupt one definition: native and other metric projections remain readable.

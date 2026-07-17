@@ -9,6 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from web_desktop.backend.server import LedgerWebService
+from ledger_commands import LedgerCommandError
 
 
 def make_service(root: Path) -> LedgerWebService:
@@ -26,6 +27,20 @@ def main() -> None:
         service.create_custom_metric({"metric_id": "daily_water", "label": "每日饮水量", "unit": "ml", "number_format": "integer", "decimal_places": 0, "order": 2})
         assert [row["metric_id"] for row in service.custom_metric_definitions()] == ["daily_steps", "daily_water"]
 
+        failed = service.parse_entry("2026-07-14 weight 70")
+        before_failed_save = json.loads(service.commands.data_file.read_text(encoding="utf-8"))
+        try:
+            service.save_review({
+                "review_id": failed["review_id"],
+                "review": failed["review"],
+                "custom_metrics": [{"metric_id": "daily_steps", "date": "2026-07-14", "value": "not-an-integer"}],
+            })
+        except LedgerCommandError:
+            pass
+        else:
+            raise AssertionError("invalid custom metric value must fail the complete save")
+        assert json.loads(service.commands.data_file.read_text(encoding="utf-8")) == before_failed_save
+
         parsed = service.parse_entry("2026-07-15 weight 70")
         integrated = service.save_review({
             "review_id": parsed["review_id"],
@@ -36,10 +51,16 @@ def main() -> None:
         assert integrated["custom_metrics_changed"] == 1
         assert next(row for row in service.custom_metric_daily_entry("2026-07-15") if row["metric_id"] == "daily_steps")["value"] == 5000
 
-        service.set_custom_metric_value({"metric_id": "daily_steps", "date": "2026-07-16", "value": "5200"})
-        service.set_custom_metric_value({"metric_id": "daily_water", "date": "2026-07-16", "value": 1800})
-        batch = service.save_custom_metric_values([{"metric_id": "daily_steps", "date": "2026-07-17", "value": 6100}])
-        assert batch["changed_count"] == 1
+        parsed_two = service.parse_entry("2026-07-16 weight 70")
+        integrated_two = service.save_review({
+            "review_id": parsed_two["review_id"],
+            "review": parsed_two["review"],
+            "custom_metrics": [
+                {"metric_id": "daily_steps", "date": "2026-07-16", "value": "5200"},
+                {"metric_id": "daily_water", "date": "2026-07-16", "value": 1800},
+            ],
+        })
+        assert integrated_two["custom_metrics_changed"] == 2
         entry = service.custom_metric_daily_entry("2026-07-16")
         assert {row["metric_id"] for row in entry} == {"daily_steps", "daily_water"}
         assert next(row for row in entry if row["metric_id"] == "daily_steps")["value"] == 5200

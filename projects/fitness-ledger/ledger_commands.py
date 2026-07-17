@@ -2135,6 +2135,57 @@ class LedgerCommandService:
         return movement
 
     def save(self, parsed: dict, save_mode: str | None = None) -> dict:
+        return self.save_with_custom_metrics(parsed, save_mode, [])
+
+    @staticmethod
+    def _empty_custom_metric_batch() -> dict:
+        return {"status": "NO_CHANGES", "changed": False, "changed_count": 0, "results": []}
+
+    def _apply_custom_metric_values(self, database: dict, rows) -> dict:
+        """Validate and apply all Daily Entry metric edits to one in-memory state."""
+        if not isinstance(rows, list):
+            return self._empty_custom_metric_batch()
+        rows = [row for row in rows if isinstance(row, dict)]
+        if not rows:
+            return self._empty_custom_metric_batch()
+        definitions, metric_values, _placements = self._custom_metric_maps(database)
+        before = copy.deepcopy(metric_values)
+        results = []
+        for row in rows:
+            metric_id = validate_metric_id(row.get("metric_id"))
+            entry_date = validate_date(row.get("date"))
+            definition = definitions.get(metric_id)
+            if not isinstance(definition, dict):
+                raise LedgerCommandError("Custom metric was not found.", "METRIC_NOT_FOUND", {"metric_id": metric_id})
+            definition = validate_definition(metric_id, definition)
+            bucket = metric_values.setdefault(metric_id, {})
+            if not isinstance(bucket, dict):
+                raise LedgerCommandError("Custom metric values must be an object map.", "CUSTOM_METRIC_STATE_INVALID")
+            if row.get("remove") or row.get("value") in (None, ""):
+                if entry_date not in bucket:
+                    results.append({"status": "NO_CHANGES", "changed": False, "metric_id": metric_id, "date": entry_date})
+                    continue
+                del bucket[entry_date]
+                results.append({"status": "UPDATED", "changed": True, "metric_id": metric_id, "date": entry_date, "value_removed": True})
+                continue
+            normalized = normalize_value(row.get("value"), definition)
+            if definition["status"] == "archived":
+                raise LedgerCommandError("Archived metrics cannot add or modify values.", "METRIC_ARCHIVED_READ_ONLY")
+            if definition["status"] == "inactive" and entry_date not in bucket:
+                raise LedgerCommandError("Inactive metrics cannot add new values.", "METRIC_INACTIVE_NO_NEW_VALUE")
+            old = bucket.get(entry_date)
+            if old == normalized:
+                results.append({"status": "NO_CHANGES", "changed": False, "metric_id": metric_id, "date": entry_date, "value": normalized})
+                continue
+            bucket[entry_date] = normalized
+            results.append({"status": "UPDATED", "changed": True, "metric_id": metric_id, "date": entry_date, "value": normalized})
+        changed = sum(1 for result in results if result.get("changed"))
+        if not changed and _same_business_content(before, metric_values):
+            return self._empty_custom_metric_batch()
+        return {"status": "UPDATED", "changed": bool(changed), "changed_count": changed, "results": results}
+
+    def save_with_custom_metrics(self, parsed: dict, save_mode: str | None = None, custom_metrics=None) -> dict:
+        """Commit native records and Daily Entry metrics as one tracker transaction."""
         parsed = copy.deepcopy(parsed)
         self.validate_review(parsed)
         with self.write_lock():
@@ -2144,35 +2195,36 @@ class LedgerCommandService:
                 raise DuplicateDateError({key: len(rows) for key, rows in duplicates.items()})
             save_mode = save_mode or "normal"
             before_database, before_dictionary = copy.deepcopy(database), copy.deepcopy(dictionary)
-            tracker_backup = None
-            dictionary_backup = None
+            result = self._apply_save(database, dictionary, parsed, save_mode)
+            custom_result = self._apply_custom_metric_values(database, custom_metrics)
+            if _same_business_content(before_database, database) and _same_business_content(before_dictionary, dictionary):
+                return {
+                    "ok": True, "status": "NO_CHANGES", "changed": False, "date": parsed["date"],
+                    "save_mode": save_mode, "saved_movements": 0, "working_sets": 0,
+                    "body_updated": False, "diet_updated": False, "training_updated": False, "notes_updated": False,
+                    "movements_added": 0, "movements_removed": 0, "custom_metrics_changed": 0,
+                }
+            tracker_backup, dictionary_backup = self._checkpoint()
             try:
-                result = self._apply_save(database, dictionary, parsed, save_mode)
-                if _same_business_content(before_database, database) and _same_business_content(before_dictionary, dictionary):
-                    return {
-                        "ok": True, "status": "NO_CHANGES", "changed": False, "date": parsed["date"],
-                        "save_mode": save_mode, "saved_movements": 0, "working_sets": 0,
-                        "body_updated": False, "diet_updated": False, "training_updated": False, "notes_updated": False,
-                        "movements_added": 0, "movements_removed": 0,
-                    }
-                tracker_backup, dictionary_backup = self._checkpoint()
-                _write_json_atomic(self.dictionary_file, dictionary)
-                try:
-                    _write_json_atomic(self.data_file, database)
-                except Exception:
-                    shutil.copy2(dictionary_backup, self.dictionary_file)
-                    raise
+                self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
+                stored, stored_dictionary = self.load_state()
+                if not _same_business_content(stored, database) or not _same_business_content(stored_dictionary, dictionary):
+                    raise LedgerCommandError("Save post-write validation failed.", "SAVE_VALIDATION_FAILED")
             except Exception:
-                if tracker_backup and not self.data_file.exists():
+                try:
                     shutil.copy2(tracker_backup, self.data_file)
+                    shutil.copy2(dictionary_backup, self.dictionary_file)
+                finally:
+                    self._discard_checkpoint(tracker_backup, dictionary_backup)
                 raise
             result.update({
-                "status": "UPDATED" if any(duplicates.values()) else "CREATED", "changed": True,
+                "status": "UPDATED" if any(duplicates.values()) or custom_result["changed"] else "CREATED", "changed": True,
                 "working_sets": sum(int(block.get("sets") or 0) for movement in parsed.get("training", {}).get("movements", []) for block in movement.get("sets", [])),
                 "body_updated": bool(parsed.get("body")), "diet_updated": bool(parsed.get("diet")),
                 "training_updated": bool(parsed.get("training", {}).get("split") or parsed.get("training", {}).get("movements")),
                 "notes_updated": bool(parsed.get("body", {}).get("notes") or parsed.get("diet", {}).get("notes") or parsed.get("training", {}).get("notes")),
                 "movements_added": result.get("saved_movements", 0), "movements_removed": 0,
+                "custom_metrics_changed": custom_result["changed_count"],
             })
             return result
 
