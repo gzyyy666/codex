@@ -2,6 +2,19 @@
 
 This is the authoritative source and context entry for Fitness Ledger. It is designed so a future Codex session can resume work without reading the original conversation.
 
+## User-facing workflow
+
+You can work in any dedicated long-running specialist conversation. At the start of every task, that conversation reads the live project status; you do not need to provide the latest SHA or copy files between conversations.
+
+Use one of these two phrases when the desired stopping point matters:
+
+- **“先开发/先让我验收”**: the conversation changes only its task Worktree, runs focused tests, and stops for review. It does not Push, Tag, merge, or write to the formal directory.
+- **“按规范封板”**: after tests and review pass, the conversation may finish the full closeout itself: Commit, integrate and Push when authorized, precisely update the formal directory, verify protected data, restart affected services, and update `.codex/task-handoff.json`.
+
+You do not have to return a sealed task to this central conversation. Return it here only when several Worktrees must be coordinated, a conflict is unexplained, or you want a final cross-task audit.
+
+If no closure phrase is given, default to **先开发/先让我验收**. This prevents a normal small fix from unexpectedly changing `main` or the formal environment.
+
 ## Five-Minute Restore
 
 1. Run `python tools/project_status.py --write --json` and use the live result instead of an old prompt SHA.
