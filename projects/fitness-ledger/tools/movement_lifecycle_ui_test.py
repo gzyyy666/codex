@@ -135,6 +135,15 @@ def main() -> None:
             assert status == 200 and excluded["status"] == "UPDATED" and excluded["exclude_from_progress"] is True
             assert TARGET_ID not in {item["movement_id"] for item in service.commands.movement_progress_definitions()}
             assert TARGET_ID in {item["movement_id"] for item in service.dictionary_entries()}
+            status, progress_rows = get_json(base, "/api/movements?limit=100")
+            assert status == 200 and TARGET_ID not in {item["movement_id"] for item in progress_rows}
+            status, training_rows = get_json(base, "/api/training?limit=100")
+            training_ids = {
+                ref.get("movement_id")
+                for row in training_rows
+                for ref in row.get("movement_refs", [])
+            }
+            assert status == 200 and TARGET_ID in training_ids
             status, stable = post_json(
                 base, "/api/movements/progress-exclusion", {"movement_id": TARGET_ID, "excluded": True}
             )
@@ -144,6 +153,8 @@ def main() -> None:
             )
             assert status == 200 and restored["status"] == "UPDATED"
             assert TARGET_ID in {item["movement_id"] for item in service.commands.movement_progress_definitions()}
+            status, progress_rows = get_json(base, "/api/movements?limit=100")
+            assert status == 200 and TARGET_ID in {item["movement_id"] for item in progress_rows}
         finally:
             server.shutdown()
             server.server_close()

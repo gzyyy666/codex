@@ -646,12 +646,19 @@ class LedgerWebService:
     def movement_index(self, query: str = "", limit: int = 80) -> list[dict]:
         cache = self.data._ensure_loaded()
         dictionary_rows = self.commands.load_state()[1].get("movements", []) or []
+        progress_by_id = {
+            str(item.get("movement_id", "")): item
+            for item in self.views.movement_progress_index()
+        }
         pinned_by_id = {str(item.get("movement_id", "")): bool(item.get("pinned", False)) for item in dictionary_rows}
         rank_by_id = {str(item.get("movement_id", "")): int(item.get("focus_rank", 0) or 0) for item in dictionary_rows}
         definitions = list(cache["movements_by_id"].values())
         if query.strip():
             definitions = self.data.find_movement_candidates(query, limit=limit)
-        definitions = [item for item in definitions if item.active]
+        definitions = [
+            item for item in definitions
+            if item.active and str(item.movement_id) in progress_by_id
+        ]
         if not query.strip():
             definitions.sort(
                 key=lambda item: (
@@ -671,6 +678,8 @@ class LedgerWebService:
                 "active": item.active,
                 "pinned": pinned_by_id.get(str(item.movement_id), False),
                 "focus_rank": rank_by_id.get(str(item.movement_id), 0),
+                "exclude_from_progress": False,
+                "history_count": int(progress_by_id[str(item.movement_id)].get("history_count", 0) or 0),
             }
             for item in definitions[: max(1, min(limit, 200))]
         ]

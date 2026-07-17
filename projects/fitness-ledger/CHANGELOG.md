@@ -7,7 +7,8 @@
 - Changed the desktop Movement Progress groups to content-aware masonry placement, removing the large blank gap between uneven panels while keeping the existing single-column responsive layout.
 - Varied dense back and shoulder card rhythms, including a non-uniform shoulder arrangement, without changing movement identity, ordering, search, history, or progress calculations.
 - Removed the duplicate Training session sequence label; the existing archive sequence remains the single displayed record number.
-- Data, backend, Cloud Sync, Mini Program, movement lifecycle commands, and save semantics were not changed.
+- Connected the Web Movement Progress API to the shared progress-visibility projection, so `exclude_from_progress` hides an action from Movement Progress while its Training archive and history remain intact.
+- Data, Cloud Sync, Mini Program, movement lifecycle commands, and save semantics were not changed.
 
 ## 2026-07-16 - Live task context and silent Cloud freshness signal
 
