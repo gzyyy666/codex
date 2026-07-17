@@ -1,12 +1,14 @@
 # Fitness Ledger Visual Style Bible
 
-Status: Active
+Status: Active / Canonical Web UI Reference
 
-Last updated: 2026-07-02
+Last updated: 2026-07-17
+
+This document is the canonical visual and interaction reference for the Fitness Ledger Web UI. The current implementation in `web_desktop/frontend/styles.css`, `app.js`, local assets, and the validated browser captures takes precedence over older extracted reference documents.
 
 ## 1. Design Name
 
-**The Disciplined Archive**
+**Premium Editorial Fitness Archive — The Disciplined Archive**
 
 Fitness Ledger treats personal training data as a private editorial archive: part training notebook, part measurement slip, and part cinematic fitness journal. It should feel designed and tactile without becoming decorative, playful, or dashboard-like.
 
@@ -18,6 +20,7 @@ Fitness Ledger treats personal training data as a private editorial archive: par
 - Dense when reading records, spacious when introducing a section.
 - Strong but restrained: graphite, warm ivory, amber-yellow highlight, and small status colors.
 - Fitness imagery is documentary or graphic-archive material, never glossy stock-app decoration.
+- The Web is a local-first maintenance archive, not a SaaS dashboard or developer console.
 
 ## 3. Visual Hierarchy
 
@@ -40,7 +43,8 @@ Secondary information must not compete with the anchor. Metadata uses smaller ty
 | Paper light | `--color-paper-light` | `#fcf9f2` | Writing and detail surfaces |
 | Paper deep | `--color-paper-deep` | `#f2ede2` | Section contrast |
 | Ink | `--color-ink` | `#000000` | Primary text and decisive rules |
-| Graphite | `--color-graphite` | `#707070` | Metadata and explanation |
+| Graphite | `--color-graphite` | `#28251f` | Current material-layer text and structural metadata |
+| Muted text | `--color-muted-text` | `#746f66` | Quiet explanatory copy and low-emphasis metadata |
 | Volt amber | `--color-volt` | `#ffda6e` | One primary action or latest state |
 | Mint | `--color-mint` | `#6ece9d` | Success/local status only |
 | Lilac paper | `--color-paper-lilac` | `#f5f0f4` | Quiet tonal variation |
@@ -51,6 +55,8 @@ Rules:
 - Use yellow as a highlighter, not as broad decoration.
 - Use green only for success, privacy, or positive change.
 - High/medium/low issue colors must retain readable text contrast.
+
+The earlier compatibility layer contains `#707070` for low-emphasis metadata; the later material layer intentionally resolves `--color-graphite` to `#28251f` and uses `--color-muted-text` for quieter copy. New work should use the latter roles.
 
 ## 5. Typography
 
@@ -168,7 +174,15 @@ The progression chart and recent records are primary. The title/illustration ban
 
 ### Data Check
 
-Only the Open control opens issue details. The row itself is not clickable. Problem descriptions are in Chinese and the final column must remain fully visible.
+Data Health is a contextual maintenance surface. Tools → Data Health is the normal full entry; the global navigation stays silent when there are no unresolved issues. When `NEEDS_REVIEW` has a positive count, only a small edge status hint may appear and it opens the existing overlay. The overlay closes back to the original page and URL. Problem descriptions are in Chinese and the final action area must remain fully visible.
+
+### Tools
+
+Tools is the single restrained technical utility entry for Export, Cloud Sync, Data Health, and low-frequency Custom Metrics management. It uses a wide editorial workbench rather than a dense admin dashboard. Export and Sync retain their existing status, receipts, errors, and routes. Custom Metrics is a secondary management section and must consume generic Core projections rather than metric-name-specific templates.
+
+### Archive Width And Backgrounds
+
+At desktop widths, primary archive content may use the wide measure (`1500px` with responsive outer gutters) so the page does not leave excessive side voids. The center reading layer remains clean while low-contrast local collage or training-document motifs extend across the page background. Background imagery stays below paper/glass surfaces and never reduces text, controls, or record readability.
 
 ### Cloud Sync
 
@@ -217,7 +231,7 @@ The local desktop application should echo, not imitate, the Web design:
 
 ## 13. Maintenance Rule
 
-Update this document whenever a durable token, page pattern, image rule, or interaction semantic changes. Do not add one-off visual experiments until they have been validated in the running UI.
+Update this document whenever a durable token, page pattern, image rule, navigation semantic, or material rule changes. Keep `web_desktop/design_reference/` as a synchronized compatibility extract, not an independent source of truth. Do not add one-off visual experiments until they have been validated in the running UI at 1280px and 1440px.
 
 ## 14. WeChat Mini Program Translation
 
