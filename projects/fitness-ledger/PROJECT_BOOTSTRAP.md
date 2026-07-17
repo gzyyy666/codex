@@ -61,13 +61,13 @@ Use this file to restore project context with low token cost.
 - `ledger_commands.py` is the only shared write boundary for desktop and Web. Web Undo must call `LedgerCommandService.undo_last_write`; do not recreate restore logic in JavaScript.
 - `fitness_ledger_core/shared_view_models.py` is the read-only projection layer for Pre-Workout Reference, movement insight, Analysis Export, and cloud payloads.
 - `fitness_ledger_core/data_quality_view.py` exposes the desktop Data Check rules to Web and preserves `data/data_check_state.json` acknowledgement semantics.
-- `cloud_sync/` prepares a disposable read-only replica only. Local JSON remains the sole source of truth; no provider or network uploader is configured.
+- `cloud_sync/` prepares and manually uploads a disposable read-only replica through the configured TencentCloud SDK provider. Local JSON remains the sole source of truth; automatic sync remains disabled.
 - Generated `cloud_sync/out/*.json` files contain personal data and must remain untracked.
 - `mini_program/` is the maintained WeChat read-only gym reference client with one OpenID-allowlisted `ledgerRead` cloud function.
 - The Mini Program primary flow is `Home body areas -> movement signals -> full movement trajectory`; the second tab is a date-first Training Records archive and Status links to Body/Diet.
 - `ledgerRead` exposes safe identity diagnostics plus allowlisted read actions. `bodyAreas`, `bodyArea`, and `trainingRecords` are the current mobile read boundaries.
 - Local `miniprogram/config/env.local.js` contains the active CloudBase environment and remains untracked. Never commit OpenID allowlists, environment credentials, or generated personal payloads.
-- CloudBase deployment and collection import are operational as of 2026-07-05. Local JSON remains the source of truth; refreshes still originate from `cloud_sync` payload generation and manual CloudBase import/deployment.
+- CloudBase SDK upload and `fl_meta` verification are operational. Every collection, including an empty collection, has an import file so the uploader can clear stale remote rows before verifying the snapshot.
 
 ## Request Routing
 
@@ -111,11 +111,12 @@ Use this file to restore project context with low token cost.
 - Actual cloud upload/provider configuration, accounts, two-way sync, conflict resolution, and wearable integrations
 - Real CloudBase deployment, collection import, OpenID allowlist setup, and real-device Mini Program preview
 
-## Current Cloud Maintenance Boundary (2026-07-06)
+## Current Cloud Maintenance Boundary (2026-07-16)
 
-- Web `Cloud Sync` builds and validates the disposable ten-collection package locally.
-- Network upload remains manual CloudBase import; the workbench must not claim otherwise.
-- After import, paste/export the single `fl_meta` row into the Web verifier to compare schema, generation timestamp, and collection counts.
+- Web `Cloud Sync` manually builds, uploads, and verifies the disposable ten-collection package.
+- Local saves never upload automatically.
+- A successful upload requires every collection result plus all six `fl_meta` checks.
+- After deploying Python Cloud Sync source, restart the Web service before testing; a running process retains previously imported module code.
 - Mini Program freshness labels come from `fl_meta.generated_at` and `latest_record_date`.
 - All cloud and Mini Program views remain read-only; edit and repair operations route back to the local command service.
 - Payload generation is not cloud synchronization. Direct upload stays disabled until provider credentials and a verified upload path are explicitly configured.

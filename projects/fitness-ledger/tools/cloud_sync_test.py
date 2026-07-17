@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -9,6 +10,7 @@ from pathlib import Path
 PROJECT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT))
 
+from cloud_sync import upload_to_cloudbase
 from cloud_sync.sync_to_cloud import sync_payload, validate_payload
 
 
@@ -28,6 +30,46 @@ def main() -> None:
             [sys.executable, str(PROJECT / "cloud_sync" / "build_cloud_payload.py")],
             check=True,
         )
+        import_dir = PROJECT / "cloud_sync" / "out" / "cloudbase_import"
+        manifest = json.loads((import_dir / "manifest.json").read_text(encoding="utf-8"))
+        empty_collections = manifest["empty_collections"]
+        assert manifest["import_files"] == [
+            f"{collection}.json" for collection in manifest["collections"]
+        ]
+        for collection in empty_collections:
+            assert (import_dir / f"{collection}.json").read_text(encoding="utf-8") == ""
+
+        meta = json.loads(
+            next(
+                line for line in (import_dir / "fl_meta.json").read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            )
+        )
+        commands: list[tuple[str, str]] = []
+        original_client = upload_to_cloudbase._make_tcb_client
+        original_command = upload_to_cloudbase._run_tcb_command
+        try:
+            upload_to_cloudbase._make_tcb_client = lambda _config: object()
+
+            def fake_command(_client, _config, collection, command_type, _command):
+                commands.append((collection, command_type))
+                if command_type == "QUERY":
+                    return [json.dumps([meta], ensure_ascii=False)]
+                return []
+
+            upload_to_cloudbase._run_tcb_command = fake_command
+            tencent_result = upload_to_cloudbase._upload_tencentcloud(
+                manifest,
+                {"provider": "tencentcloud", "environment_id": "cloud-test", "batch_size": 20},
+            )
+        finally:
+            upload_to_cloudbase._make_tcb_client = original_client
+            upload_to_cloudbase._run_tcb_command = original_command
+        assert tencent_result["status"] == "SYNCED"
+        for collection in empty_collections:
+            assert tencent_result["collection_results"][collection]["count"] == 0
+            assert (collection, "DELETE") in commands
+            assert (collection, "INSERT") not in commands
 
         dry_run = validate_payload()
         assert dry_run["status"] == "DRY_RUN"

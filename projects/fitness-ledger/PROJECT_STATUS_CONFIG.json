@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "main_worktree": "C:\\Users\\26087\\Documents\\Codex\\github-memory",
+  "formal_directory": "C:\\Users\\26087\\Documents\\Codex\\2026-06-16\\vs-code-ai\\work\\fitness_tracker_app",
+  "shared_state_directory": "C:\\Users\\26087\\Documents\\Codex\\github-memory\\projects\\fitness-ledger\\.codex",
+  "project_prefix": "projects/fitness-ledger",
+  "service_url": "http://127.0.0.1:8766",
+  "deployment_include_prefixes": [
+    "stable_app.pyw",
+    "ledger_commands.py",
+    "fitness_ledger_core/",
+    "web_desktop/",
+    "cloud_sync/",
+    "mobile_viewer/",
+    "mini_program/",
+    "tools/"
+  ],
+  "excluded_deployment_prefixes": [
+    "data/",
+    "backups/",
+    "logs/",
+    "work/",
+    "cloud_sync/out/",
+    "cloud_sync/cloud_sync_config.json",
+    "cloud_sync/cloud_config.local.json",
+    "mini_program/project.private.config.json",
+    "mini_program/miniprogram/config/env.local.js",
+    "web_desktop/.edge-profile/",
+    "tools/capture_web_state.mjs",
+    "tools/extract_history.mjs",
+    "tools/project_status.py",
+    "tools/project_status_test.py"
+  ]
+}

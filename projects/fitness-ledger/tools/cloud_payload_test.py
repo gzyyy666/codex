@@ -39,14 +39,14 @@ def main() -> None:
     import_dir = PAYLOAD.parent / "cloudbase_import"
     for name, rows in payload.items():
         import_file = import_dir / f"{name}.json"
-        if not rows:
-            assert not import_file.exists()
-            continue
+        assert import_file.exists()
         lines = import_file.read_text(encoding="utf-8").splitlines()
         assert len(lines) == len(rows)
         assert all(isinstance(json.loads(line), dict) for line in lines)
     manifest = json.loads((import_dir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["empty_collections"] == [name for name, rows in payload.items() if not rows]
+    assert manifest["import_files"] == [f"{name}.json" for name in payload]
+    assert manifest["upload_order"] == [name for name in payload if name != "fl_meta"] + ["fl_meta"]
     assert manifest["sync_version"] == meta["sync_version"]
     assert manifest["payload_hash"] == meta["payload_hash"]
     assert manifest["collection_counts"] == meta["collection_counts"]

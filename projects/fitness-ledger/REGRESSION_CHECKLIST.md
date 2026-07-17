@@ -332,6 +332,9 @@ Check body, macros, movement order, aliases, strength sets, and cardio metrics.
 
 ## Shared Platform Services
 
+- Run `python tools/project_status_test.py`; expect `FITNESS_LEDGER_PROJECT_STATUS_OK`.
+- At task startup run `python tools/project_status.py --write --json` and investigate unexplained Git/formal deployment drift before editing.
+- After a committed task run `python tools/project_status.py --write --handoff --json` and return the shared handoff path.
 - `python -m py_compile stable_app.pyw ledger_commands.py web_desktop/backend/server.py fitness_ledger_core/*.py`
 - Run Web JavaScript syntax validation with `node --check web_desktop/frontend/app.js` when Node is available.
 - Test Undo only against temporary tracker/dictionary copies: paired files restore together, pre-undo backups exist, and the consumed checkpoint becomes `undone_*`.
@@ -346,6 +349,7 @@ Check body, macros, movement order, aliases, strength sets, and cardio metrics.
 ## Cloud Replica And Mini Program Preparation
 
 - Run `python tools/cloud_payload_test.py`; expect `FITNESS_LEDGER_CLOUD_PAYLOAD_OK`.
+- Run `python tools/cloud_sync_nav_test.py`; confirm `SYNCED`/`NO_CHANGES` are silent, `LOCAL_NEWER` shows the quiet Sync dot, and upload failure shows `!`.
 - Run `python tools/mini_program_test.py`; expect `FITNESS_LEDGER_MINI_PROGRAM_SKELETON_OK`.
 - Confirm `fl_meta.sync_state` remains `local_payload_only` until a real provider upload completes.
 - Confirm all ten collection counts match `fl_meta.collection_counts`.
