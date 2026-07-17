@@ -1,5 +1,14 @@
 # Fitness Ledger Changelog
 
+## 2026-07-17 - Movement archive presentation refinement
+
+- Replaced the chest and shoulder Movement Progress illustrations with the approved low-poly flat-bench-press and dumbbell-fly artwork while preserving the established editorial palette and print texture.
+- Tuned each body-area panel independently so chest, back, shoulders, arms, and legs retain clear subject framing without exposed image edges or unnecessary enlargement.
+- Changed the desktop Movement Progress groups to content-aware masonry placement, removing the large blank gap between uneven panels while keeping the existing single-column responsive layout.
+- Varied dense back and shoulder card rhythms, including a non-uniform shoulder arrangement, without changing movement identity, ordering, search, history, or progress calculations.
+- Removed the duplicate Training session sequence label; the existing archive sequence remains the single displayed record number.
+- Data, backend, Cloud Sync, Mini Program, movement lifecycle commands, and save semantics were not changed.
+
 ## 2026-07-16 - Live task context and silent Cloud freshness signal
 
 - Added a project-level startup contract and `tools/project_status.py` so every Worktree can inspect live main/origin, formal deployment drift, protected data hashes, Web-service availability, and Cloud Sync freshness without copying formal records into Git.
