@@ -8,6 +8,8 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+from .custom_metric_quality import collect_custom_metric_issues
+
 
 def issue_key(issue: dict) -> str:
     fields = (
@@ -39,7 +41,7 @@ def collect_issues(database: dict, dictionary: dict, stable_module, state_file: 
     checker.movement_definitions_by_id, checker.movement_definitions_by_alias = stable_module.movement_definition_index(
         dictionary
     )
-    issues = checker.collect_data_issues()
+    issues = [*checker.collect_data_issues(), *collect_custom_metric_issues(database)]
     acknowledged = _read_state(state_file)["acknowledged"]
     visible = []
     for issue in issues:
@@ -96,7 +98,7 @@ class SilentHealthCheck:
         checker.movement_definitions_by_id, checker.movement_definitions_by_alias = self.stable_module.movement_definition_index(
             dictionary
         )
-        issues = checker.collect_data_issues()
+        issues = [*checker.collect_data_issues(), *collect_custom_metric_issues(database)]
         if self.state_file is not None:
             acknowledged = _read_state(self.state_file)["acknowledged"]
             issues = [item for item in issues if issue_key(item) not in acknowledged]

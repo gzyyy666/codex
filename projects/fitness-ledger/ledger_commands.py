@@ -14,6 +14,13 @@ from pathlib import Path
 from typing import Callable
 
 from fitness_ledger_core.shared_view_models import movement_in_progress
+from fitness_ledger_core.custom_metrics import (
+    PLACEMENT_MODES,
+    normalize_value,
+    validate_date,
+    validate_definition,
+    validate_metric_id,
+)
 
 
 ParserCallback = Callable[[str, dict, dict], dict]
@@ -1734,6 +1741,174 @@ class LedgerCommandService:
             tracker_backup, dictionary_backup = self._checkpoint()
             self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
             return {"status": "UPDATED", "changed": True, "movement_id": movement_id, "history": copy.deepcopy(history)}
+
+    # Custom daily metrics are a tracker-only extension.  They deliberately never
+    # enter movement_dictionary.json or the native body/diet/training collections.
+    @staticmethod
+    def _custom_metric_maps(database: dict) -> tuple[dict, dict, dict]:
+        definitions = database.setdefault("custom_metric_definitions", {})
+        values = database.setdefault("custom_metric_values", {})
+        placements = database.setdefault("custom_metric_placements", {})
+        if not all(isinstance(item, dict) for item in (definitions, values, placements)):
+            raise LedgerCommandError("Custom metric storage must be object maps.", "CUSTOM_METRIC_STATE_INVALID")
+        return definitions, values, placements
+
+    def _commit_custom_metric(self, database: dict, dictionary: dict, before: dict, operation: str, details: dict) -> dict:
+        if _same_business_content(before, database):
+            return {"status": "NO_CHANGES", "changed": False, **details}
+        tracker_backup, dictionary_backup = self._checkpoint()
+        checkpoint = self._checkpoint_identity(tracker_backup)
+        try:
+            # The extension lives in tracker.json only.  Keep the paired
+            # checkpoint/rollback contract, but never rewrite the movement
+            # dictionary when a metric changes.
+            _write_json_atomic(self.data_file, database)
+            stored, _stored_dictionary = self.load_state()
+            if not _same_business_content(stored, database):
+                raise LedgerCommandError("Custom metric post-write validation failed.", "CUSTOM_METRIC_VALIDATION_FAILED")
+        except Exception as exc:
+            rollback_errors = []
+            for backup, destination, label in ((tracker_backup, self.data_file, "tracker"), (dictionary_backup, self.dictionary_file, "dictionary")):
+                try:
+                    shutil.copy2(backup, destination)
+                except Exception as rollback_exc:
+                    rollback_errors.append(f"{label}: {rollback_exc}")
+            rolled_back = not rollback_errors
+            if rolled_back:
+                self._discard_checkpoint(tracker_backup, dictionary_backup)
+            raise LedgerCommandError(
+                "Custom metric write failed; both formal files were restored." if rolled_back else "Custom metric write failed and rollback needs manual review.",
+                "CUSTOM_METRIC_WRITE_FAILED",
+                {"operation": operation, "checkpoint": checkpoint, "rolled_back": rolled_back, "rollback_errors": rollback_errors, "cause_code": getattr(exc, "code", exc.__class__.__name__), "cause": str(exc)},
+            ) from exc
+        return {"status": "UPDATED", "changed": True, "checkpoint": checkpoint, "undo": {"available": True, "checkpoint": checkpoint}, **details}
+
+    def create_custom_metric(self, values: dict) -> dict:
+        metric_id = validate_metric_id(values.get("metric_id") if isinstance(values, dict) else "")
+        with self.write_lock():
+            database, dictionary = self.load_state()
+            definitions, _metric_values, _placements = self._custom_metric_maps(database)
+            if metric_id in definitions:
+                raise LedgerCommandError("A custom metric with this ID already exists.", "METRIC_ID_EXISTS", {"metric_id": metric_id})
+            definition = validate_definition(metric_id, values)
+            before = copy.deepcopy(database)
+            definitions[metric_id] = definition
+            return self._commit_custom_metric(database, dictionary, before, "create_custom_metric", {"metric_id": metric_id, "definition": copy.deepcopy(definition), "status": "CREATED"})
+
+    def update_custom_metric(self, metric_id: str, values: dict) -> dict:
+        metric_id = validate_metric_id(metric_id)
+        with self.write_lock():
+            database, dictionary = self.load_state()
+            definitions, _metric_values, _placements = self._custom_metric_maps(database)
+            existing = definitions.get(metric_id)
+            if not isinstance(existing, dict):
+                raise LedgerCommandError("Custom metric was not found.", "METRIC_NOT_FOUND", {"metric_id": metric_id})
+            if isinstance(values, dict) and "metric_id" in values and str(values["metric_id"]) != metric_id:
+                raise LedgerCommandError("metric_id is immutable.", "METRIC_ID_IMMUTABLE", {"metric_id": metric_id})
+            allowed = {key: value for key, value in (values or {}).items() if key in {"label", "unit", "number_format", "decimal_places", "order"}}
+            definition = validate_definition(metric_id, {**existing, **allowed}, existing)
+            before = copy.deepcopy(database)
+            definitions[metric_id] = definition
+            return self._commit_custom_metric(database, dictionary, before, "update_custom_metric", {"metric_id": metric_id, "definition": copy.deepcopy(definition)})
+
+    def set_custom_metric_status(self, metric_id: str, status: str) -> dict:
+        metric_id = validate_metric_id(metric_id)
+        with self.write_lock():
+            database, dictionary = self.load_state()
+            definitions, _metric_values, _placements = self._custom_metric_maps(database)
+            existing = definitions.get(metric_id)
+            if not isinstance(existing, dict):
+                raise LedgerCommandError("Custom metric was not found.", "METRIC_NOT_FOUND", {"metric_id": metric_id})
+            definition = validate_definition(metric_id, {**existing, "status": status}, existing)
+            before = copy.deepcopy(database)
+            definitions[metric_id] = definition
+            return self._commit_custom_metric(database, dictionary, before, "set_custom_metric_status", {"metric_id": metric_id, "status_value": definition["status"]})
+
+    def set_daily_custom_metric_value(self, metric_id: str, entry_date: str, value) -> dict:
+        metric_id, entry_date = validate_metric_id(metric_id), validate_date(entry_date)
+        with self.write_lock():
+            database, dictionary = self.load_state()
+            definitions, metric_values, _placements = self._custom_metric_maps(database)
+            definition = definitions.get(metric_id)
+            if not isinstance(definition, dict):
+                raise LedgerCommandError("Custom metric was not found.", "METRIC_NOT_FOUND", {"metric_id": metric_id})
+            definition = validate_definition(metric_id, definition)
+            bucket = metric_values.setdefault(metric_id, {})
+            if not isinstance(bucket, dict):
+                raise LedgerCommandError("Custom metric values must be an object map.", "CUSTOM_METRIC_STATE_INVALID")
+            normalized = normalize_value(value, definition)
+            if definition["status"] == "archived":
+                raise LedgerCommandError("Archived metrics cannot add or modify values.", "METRIC_ARCHIVED_READ_ONLY")
+            if definition["status"] == "inactive" and entry_date not in bucket:
+                raise LedgerCommandError("Inactive metrics cannot add new values.", "METRIC_INACTIVE_NO_NEW_VALUE")
+            before = copy.deepcopy(database)
+            old = bucket.get(entry_date)
+            bucket[entry_date] = normalized
+            status = "CREATED" if entry_date not in (before.get("custom_metric_values", {}).get(metric_id, {}) or {}) else "UPDATED"
+            result = self._commit_custom_metric(database, dictionary, before, "set_daily_custom_metric_value", {"metric_id": metric_id, "date": entry_date, "value": normalized})
+            if result.get("status") == "UPDATED": result["status"] = status
+            return result
+
+    def remove_daily_custom_metric_value(self, metric_id: str, entry_date: str) -> dict:
+        metric_id, entry_date = validate_metric_id(metric_id), validate_date(entry_date)
+        with self.write_lock():
+            database, dictionary = self.load_state()
+            definitions, metric_values, _placements = self._custom_metric_maps(database)
+            if not isinstance(definitions.get(metric_id), dict):
+                raise LedgerCommandError("Custom metric was not found.", "METRIC_NOT_FOUND", {"metric_id": metric_id})
+            bucket = metric_values.get(metric_id, {})
+            if not isinstance(bucket, dict) or entry_date not in bucket:
+                return {"status": "NO_CHANGES", "changed": False, "metric_id": metric_id, "date": entry_date}
+            before = copy.deepcopy(database)
+            del bucket[entry_date]
+            return self._commit_custom_metric(database, dictionary, before, "remove_daily_custom_metric_value", {"metric_id": metric_id, "date": entry_date, "value_removed": True})
+
+    def upsert_custom_metric_placement(self, placement_id: str | dict, values: dict | None = None) -> dict:
+        if isinstance(placement_id, dict):
+            values = placement_id
+            placement_id = values.get("placement_id", "")
+        values = values or {}
+        placement_id = str(placement_id or "").strip()
+        if not re.fullmatch(r"^[a-z][a-z0-9_]*$", placement_id):
+            raise LedgerCommandError("placement_id must use lowercase letters, digits and underscores.", "PLACEMENT_ID_INVALID")
+        if not isinstance(values, dict):
+            raise LedgerCommandError("Placement values must be an object.", "PLACEMENT_INVALID")
+        with self.write_lock():
+            database, dictionary = self.load_state()
+            definitions, _metric_values, placements = self._custom_metric_maps(database)
+            if "placement_id" in values and str(values["placement_id"]) != placement_id:
+                raise LedgerCommandError("placement_id is immutable.", "PLACEMENT_ID_IMMUTABLE")
+            existing = placements.get(placement_id, {})
+            if existing and not isinstance(existing, dict):
+                raise LedgerCommandError("Placement is invalid.", "PLACEMENT_INVALID")
+            metric_id = validate_metric_id(values.get("metric_id", existing.get("metric_id", "")))
+            if metric_id not in definitions:
+                raise LedgerCommandError("Placement metric was not found.", "PLACEMENT_METRIC_NOT_FOUND", {"metric_id": metric_id})
+            page = str(values.get("page", existing.get("page", ""))).strip()
+            slot = str(values.get("slot", existing.get("slot", ""))).strip()
+            mode = str(values.get("mode", existing.get("mode", "input"))).strip()
+            if not page or not slot or not mode:
+                raise LedgerCommandError("Placement page, slot and mode are required.", "PLACEMENT_REQUIRED_FIELD")
+            try: order = int(values.get("order", existing.get("order", 0)))
+            except (TypeError, ValueError): raise LedgerCommandError("Placement order must be an integer.", "PLACEMENT_ORDER_INVALID")
+            if order < 0: raise LedgerCommandError("Placement order cannot be negative.", "PLACEMENT_ORDER_INVALID")
+            enabled = values.get("enabled", existing.get("enabled", True))
+            if not isinstance(enabled, bool): raise LedgerCommandError("Placement enabled must be boolean.", "PLACEMENT_ENABLED_INVALID")
+            placement = {**copy.deepcopy(existing), "placement_id": placement_id, "metric_id": metric_id, "page": page, "slot": slot, "mode": mode, "order": order, "enabled": enabled}
+            before = copy.deepcopy(database)
+            placements[placement_id] = placement
+            return self._commit_custom_metric(database, dictionary, before, "upsert_custom_metric_placement", {"placement_id": placement_id, "placement": copy.deepcopy(placement)})
+
+    def remove_custom_metric_placement(self, placement_id: str) -> dict:
+        placement_id = str(placement_id or "").strip()
+        with self.write_lock():
+            database, dictionary = self.load_state()
+            _definitions, _metric_values, placements = self._custom_metric_maps(database)
+            if placement_id not in placements:
+                return {"status": "NO_CHANGES", "changed": False, "placement_id": placement_id}
+            before = copy.deepcopy(database)
+            placements.pop(placement_id, None)
+            return self._commit_custom_metric(database, dictionary, before, "remove_custom_metric_placement", {"placement_id": placement_id, "removed": True})
 
     @contextmanager
     def write_lock(self, timeout: float = 8.0):

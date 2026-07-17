@@ -97,12 +97,23 @@ def build_cloud_payload(view_models, data_quality: dict | None = None) -> dict:
         "diet": [_without_full_raw(row) for row in data["diet"]],
         "training": [_without_full_raw(row) for row in data["training"]],
     }
+    custom_metric_rows = []
+    for metric in data.get("custom_metrics", []) or []:
+        for value in metric.get("values", []) or []:
+            custom_metric_rows.append({
+                "metric_id": metric.get("metric_id", ""), "label": metric.get("label", ""),
+                "unit": metric.get("unit", ""), "number_format": metric.get("number_format", ""),
+                "decimal_places": metric.get("decimal_places", 0), "status": metric.get("status", ""),
+                "date": value.get("date", ""), "value": value.get("value"),
+                "placements": metric.get("placements", []) or [],
+            })
     payload = {
         "fl_meta": [],
         "fl_latest_summary": _latest_summary(safe_data),
         "fl_daily_records": safe_data["body"], "fl_diet_records": safe_data["diet"],
         "fl_training_sessions": safe_data["training"], "fl_movements": movements,
         "fl_movement_history": movement_history, "fl_raw_entries": data["raw_entries"],
+        "fl_custom_metrics": custom_metric_rows,
         "fl_search_index": search_index,
         "fl_data_quality_issues": list((data_quality or {}).get("issues", [])),
     }

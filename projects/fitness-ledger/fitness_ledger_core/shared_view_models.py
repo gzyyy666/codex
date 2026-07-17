@@ -7,6 +7,8 @@ from collections import Counter
 from datetime import date, timedelta
 from pathlib import Path
 
+from .custom_metrics import PLACEMENT_MODES, normalize_definition_for_read, valid_stored_value
+
 
 def _number(value) -> float | None:
     try:
@@ -258,9 +260,123 @@ class LedgerViewModels:
             "movements": candidates[:12],
         }
 
+    @staticmethod
+    def _metric_state(tracker: dict) -> tuple[list[dict], dict, list[dict]]:
+        definitions = tracker.get("custom_metric_definitions", {})
+        values = tracker.get("custom_metric_values", {})
+        placements = tracker.get("custom_metric_placements", {})
+        if not isinstance(definitions, dict): definitions = {}
+        if not isinstance(values, dict): values = {}
+        if not isinstance(placements, dict): placements = {}
+        defs = [normalize_definition_for_read(metric_id, item) for metric_id, item in definitions.items()]
+        defs.sort(key=lambda item: (int(item.get("order", 0) or 0) if str(item.get("order", "")).lstrip("-").isdigit() else 10**9, str(item.get("label", "")).casefold(), item["metric_id"]))
+        rows = []
+        for placement_id, item in placements.items():
+            if isinstance(item, dict):
+                rows.append({"placement_id": str(item.get("placement_id") or placement_id), **copy.deepcopy(item)})
+            else:
+                rows.append({"placement_id": str(placement_id), "definition_valid": False})
+        rows.sort(key=lambda item: (int(item.get("order", 0) or 0) if str(item.get("order", "")).lstrip("-").isdigit() else 10**9, str(item.get("placement_id", ""))))
+        return defs, values, rows
+
+    def custom_metric_definitions(self) -> list[dict]:
+        tracker, _dictionary = self.snapshot()
+        defs, _values, _placements = self._metric_state(tracker)
+        return defs
+
+    def custom_metric_daily_entry(self, entry_date: str) -> list[dict]:
+        tracker, _dictionary = self.snapshot()
+        defs, values, _placements = self._metric_state(tracker)
+        target = _date(entry_date)
+        result = []
+        for definition in defs:
+            if not definition.get("definition_valid") or definition.get("status") != "active": continue
+            raw = values.get(definition["metric_id"], {}) if isinstance(values, dict) else {}
+            value = valid_stored_value(raw[target], definition) if isinstance(raw, dict) and target in raw else None
+            result.append({**copy.deepcopy(definition), "date": target, "value": value, "has_value": value is not None})
+        return result
+
+    def custom_metric_daily_archive(self, entry_date: str) -> list[dict]:
+        tracker, _dictionary = self.snapshot()
+        defs, values, _placements = self._metric_state(tracker)
+        by_id = {item["metric_id"]: item for item in defs}
+        target = _date(entry_date); result = []
+        for metric_id, bucket in values.items() if isinstance(values, dict) else ():
+            definition = by_id.get(str(metric_id), {"metric_id": str(metric_id), "label": str(metric_id), "unit": "", "definition_valid": False})
+            if not isinstance(bucket, dict) or target not in bucket: continue
+            value = valid_stored_value(bucket[target], definition)
+            if value is None: continue
+            result.append({"metric_id": str(metric_id), "label": definition.get("label", str(metric_id)), "unit": definition.get("unit", ""), "status": definition.get("status", "invalid"), "date": target, "value": value, "definition_valid": bool(definition.get("definition_valid"))})
+        return sorted(result, key=lambda item: item["metric_id"])
+
+    def custom_metric_history(self, metric_id: str, end: str = "", days: int = 30) -> dict:
+        tracker, _dictionary = self.snapshot()
+        defs, values, _placements = self._metric_state(tracker)
+        definition = next((item for item in defs if item["metric_id"] == str(metric_id)), None)
+        if not definition: return {"metric_id": str(metric_id), "definition": None, "points": [], "series": [], "latest_date": "", "latest_value": None, "record_count": 0, "valid_days": 0}
+        bucket = values.get(str(metric_id), {}) if isinstance(values, dict) else {}
+        valid = []
+        for raw_date, raw_value in bucket.items() if isinstance(bucket, dict) else ():
+            try: day = __import__('datetime').date.fromisoformat(str(raw_date))
+            except ValueError: continue
+            value = valid_stored_value(raw_value, definition)
+            if value is not None: valid.append((day, value))
+        if not valid: return {"metric_id": str(metric_id), "definition": copy.deepcopy(definition), "points": [], "series": [], "latest_date": "", "latest_value": None, "record_count": 0, "valid_days": 0}
+        valid.sort(); end_day = date.fromisoformat(end) if end else valid[-1][0]
+        start_day = end_day - timedelta(days=max(1, int(days)) - 1)
+        points = [{"date": day.isoformat(), "value": value} for day, value in valid if start_day <= day <= end_day]
+        latest = points[-1] if points else {"date": "", "value": None}
+        return {"metric_id": str(metric_id), "definition": copy.deepcopy(definition), "points": points, "series": copy.deepcopy(points), "latest_date": latest["date"], "latest_value": latest["value"], "record_count": len(valid), "valid_days": len({item[0] for item in valid})}
+
+    def custom_metric_placements(self, page: str = "", slot: str = "", entry_date: str = "", days: int = 30) -> list[dict]:
+        tracker, _dictionary = self.snapshot(); defs, _values, placements = self._metric_state(tracker)
+        by_id = {item["metric_id"]: item for item in defs}; result = []
+        for placement in placements:
+            if page and placement.get("page") != page: continue
+            if slot and placement.get("slot") != slot: continue
+            metric_id = str(placement.get("metric_id", "")); definition = by_id.get(metric_id)
+            item = {**copy.deepcopy(placement), "metric": copy.deepcopy(definition) if definition else None}
+            mode = str(placement.get("mode", ""))
+            if definition and mode == "input": item["data"] = next((row for row in self.custom_metric_daily_entry(entry_date) if row["metric_id"] == metric_id), None) if entry_date else None
+            elif definition and mode == "latest_value":
+                history = self.custom_metric_history(metric_id, entry_date, days); item["data"] = {"date": history["latest_date"], "value": history["latest_value"]}
+            elif definition and mode == "frequency":
+                history = self.custom_metric_history(metric_id, entry_date, days); item["data"] = {"record_count": history["record_count"], "valid_days": history["valid_days"]}
+            elif definition and mode == "trend_30d": item["data"] = self.custom_metric_history(metric_id, entry_date, 30)["series"]
+            else: item["data"] = {}; item["projection_error"] = "UNKNOWN_MODE" if mode not in PLACEMENT_MODES else "METRIC_NOT_FOUND"
+            result.append(item)
+        return result
+
+    def custom_metrics_export(self, start: str = "", end: str = "") -> list[dict]:
+        tracker, _dictionary = self.snapshot(); defs, values, placements = self._metric_state(tracker)
+        start, end = (_date(start), _date(end)); by_id = {item["metric_id"]: item for item in defs}
+        grouped = {item["metric_id"]: {**copy.deepcopy(item), "placements": [], "values": []} for item in defs}
+        for placement in placements:
+            metric_id = str(placement.get("metric_id", "")); grouped.setdefault(metric_id, {"metric_id": metric_id, "label": metric_id, "unit": "", "status": "unknown", "definition_valid": False, "placements": [], "values": []})["placements"].append(copy.deepcopy(placement))
+        for metric_id, bucket in values.items() if isinstance(values, dict) else ():
+            target = grouped.setdefault(str(metric_id), {"metric_id": str(metric_id), "label": str(metric_id), "unit": "", "status": "unknown", "definition_valid": False, "placements": [], "values": []})
+            for raw_date, raw_value in bucket.items() if isinstance(bucket, dict) else ():
+                if start and str(raw_date) < start or end and str(raw_date) > end: continue
+                definition = by_id.get(str(metric_id), target); value = valid_stored_value(raw_value, definition)
+                if value is not None: target["values"].append({"date": str(raw_date), "value": value})
+        for item in grouped.values(): item["placements"].sort(key=lambda row: str(row.get("placement_id", ""))); item["values"].sort(key=lambda row: row["date"])
+        return sorted(grouped.values(), key=lambda item: item["metric_id"])
+
     def analysis(self, start: str = "", end: str = "", days: int = 14, include_raw_preview: bool = False) -> dict:
         tracker, dictionary = self.snapshot()
         dates = sorted({_date(row.get("Date")) for row in tracker.get("daily_records", []) if _date(row.get("Date"))})
+        metric_values = tracker.get("custom_metric_values", {})
+        if isinstance(metric_values, dict):
+            for bucket in metric_values.values():
+                if not isinstance(bucket, dict):
+                    continue
+                for day in bucket:
+                    try:
+                        if date.fromisoformat(str(day)).isoformat() == str(day):
+                            dates.append(str(day))
+                    except ValueError:
+                        continue
+            dates = sorted(set(dates))
         end_date = date.fromisoformat(end) if end else (date.fromisoformat(dates[-1]) if dates else date.today())
         start_date = date.fromisoformat(start) if start else end_date - timedelta(days=max(1, days) - 1)
         in_range = lambda value: start_date.isoformat() <= _date(value) <= end_date.isoformat()
@@ -301,4 +417,8 @@ class LedgerViewModels:
             },
             "body": body, "diet": diet, "training": training,
             "movements": movements, "raw_entries": raw_refs,
+            # Metric definitions/placements/history are a complete extension
+            # contract; unlike the native period tables they are not truncated
+            # by the daily analysis window.
+            "custom_metrics": self.custom_metrics_export(),
         }

@@ -337,6 +337,22 @@ def render_markdown(payload: dict) -> str:
         if notes:
             lines.extend(["notes:", *notes])
 
+    metrics = payload.get("custom_metrics", [])
+    lines.extend(["", "# Custom Daily Metrics"])
+    if not metrics:
+        lines.append("\nNo custom daily metrics configured.")
+    for metric in metrics:
+        label = _text(metric.get("label")) or _text(metric.get("metric_id"))
+        metric_id = _text(metric.get("metric_id"))
+        unit = _text(metric.get("unit"))
+        lines.extend(["", f"## {label} ({metric_id})", "", f"- unit: {unit}", f"- format: {_text(metric.get('number_format'))}", f"- status: {_text(metric.get('status'))}"])
+        placements = metric.get("placements", []) or []
+        if placements:
+            lines.append("- placements: " + ", ".join(f"{_text(item.get('page'))}/{_text(item.get('slot'))} [{_text(item.get('mode'))}]" for item in placements))
+        lines.extend(["", "| date | value |", "| --- | ---: |"])
+        for value in metric.get("values", []) or []:
+            lines.append(f"| {_date(value.get('date'))} | {_text(value.get('value'))} |")
+
     frequent = _select_trend_movements(movement_rows)
     lines.extend([
         "", "# 高频动作趋势", "", "## 统计规则", "",
