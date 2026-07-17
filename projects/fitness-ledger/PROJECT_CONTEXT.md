@@ -1,5 +1,7 @@
 # Fitness Ledger Project Context
 
+> This file contains durable product context, not a live Git or deployment baseline. At task startup use `python tools/project_status.py --write --json`, then follow `AGENTS.md` and `START_HERE.md`. Historical notes below must not override the live status or current source.
+
 ## Current App
 
 - Main program: `stable_app.pyw`
@@ -30,10 +32,10 @@
 - Parser tests must use temporary data paths.
 - Preserve the original raw text even when parser rules improve.
 
-## Known First-Version Limits
+## Historical First-Version Notes
 
-- The confirmation page is read-only; correction currently requires cancelling and editing the original text.
+- The first confirmation page was read-only. The current Desktop/Web Parse & Review flow allows approved field corrections before the shared save boundary while preserving raw input.
 - Movement matching uses aliases and exact normalized names, not semantic AI matching.
-- Movement Matrix cells do not yet open a dedicated history detail window.
+- The legacy Movement Matrix note is superseded by the current Movement Progress and movement-history detail flows; use current source/tests for route behavior.
 - The app does not yet write changes back into the Excel workbook.
 - Nutrient values are recorded from user-provided calculated totals; the app does not calculate meals automatically.

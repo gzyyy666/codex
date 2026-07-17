@@ -132,7 +132,7 @@ Future desktop visual work must modify the final `_premium_*` presentation layer
 | `FitnessTrackerApp.build_data_check_page` | Build the read-only rule-check table. | Startup |
 | `FitnessTrackerApp.open_detail_window` | Show copyable, read-only content in a scrollable detail window. | All data pages |
 | `FitnessTrackerApp.open_record_detail_window` | Convert a record to labeled full text and open the shared detail window. | Body, Diet and Training |
-| `FitnessTrackerApp.open_record_editor` | Open read-only detail/editor window with Edit, Save, and Cancel. | Body, Diet, Training |
+| `FitnessTrackerApp.open_record_editor` | Open the shared detail/editor window with Edit, Save, and Cancel. | Body, Diet, Training |
 | `FitnessTrackerApp.open_movement_cell_detail` | Resolve a matrix cell by row ID and column ID and open its history editor. | Movement Matrix |
 | `FitnessTrackerApp.open_movement_history_editor` | Open editable structured history fields for one movement/date cell. | Movement Matrix double-click |
 | `FitnessTrackerApp.edit_selected_movement_definition` | Open the selected row's dictionary editor. | Movement Matrix controls |

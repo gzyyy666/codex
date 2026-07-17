@@ -34,7 +34,7 @@ This writes the shared local handoff at:
 
 `C:\Users\26087\Documents\Codex\github-memory\projects\fitness-ledger\.codex\task-handoff.json`
 
-Return the handoff path and full Commit SHA. Do not merge main, Push, deploy formal files, or perform a real CloudBase upload unless the task explicitly authorizes those actions.
+Return the handoff path and full Commit SHA. In Development / review mode, do not merge main, Push, deploy formal files, or perform a real CloudBase upload. Seal / finalise mode is the explicit exception defined below.
 
 ## Closure levels
 

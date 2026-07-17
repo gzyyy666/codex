@@ -40,7 +40,7 @@ Use this file to restore project context with low token cost.
 - Body-area controls set an in-page `selectedBodyPart` state on `#training`. They filter and theme the existing record page without opening a separate route or writing classification results to JSON.
 - Web daily Review/Save and Movement Dictionary administration use the shared command service.
 - Web Body/Diet/Training and movement-history editing use the shared command service.
-- Web Undo and Data Check writes remain deferred.
+- Web Undo and Data Check acknowledgement/repair writes use the shared command boundary; do not recreate either write path in JavaScript.
 - Never bypass the shared cross-process lock, paired checkpoint, atomic-write, and rollback workflow.
 
 ## Default Workflow
@@ -56,7 +56,7 @@ Use this file to restore project context with low token cost.
 9. Select the minimum tests from `REGRESSION_CHECKLIST.md`.
 10. Record durable changes in `CHANGELOG.md`.
 
-## Shared Platform Services (2026-07-03)
+## Shared Platform Services (maintained)
 
 - `ledger_commands.py` is the only shared write boundary for desktop and Web. Web Undo must call `LedgerCommandService.undo_last_write`; do not recreate restore logic in JavaScript.
 - `fitness_ledger_core/shared_view_models.py` is the read-only projection layer for Pre-Workout Reference, movement insight, Analysis Export, and cloud payloads.
@@ -108,8 +108,8 @@ Use this file to restore project context with low token cost.
 - Weekly/monthly reports
 - AI diet or training analysis
 - Training-plan generation
-- Actual cloud upload/provider configuration, accounts, two-way sync, conflict resolution, and wearable integrations
-- Real CloudBase deployment, collection import, OpenID allowlist setup, and real-device Mini Program preview
+- Automatic background sync, two-way sync, conflict resolution, and wearable integrations
+- Real CloudBase deployment, collection import, OpenID allowlist setup, and real-device Mini Program preview still require explicit environment configuration and task authorization; the local Cloud Sync build/upload/`fl_meta` verification path is operational.
 
 ## Current Cloud Maintenance Boundary (2026-07-16)
 

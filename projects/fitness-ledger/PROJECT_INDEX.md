@@ -29,7 +29,7 @@
 | `assets/` | App icon files. | Current assets |
 | `tools/` | Extraction and regression utilities. | Auxiliary |
 | `cloud_sync/` | Builds and validates the sanitized read-only cloud replica. | Local-to-cloud preparation |
-| `mini_program/` | WeChat read-only viewer, cloud-function contract, and setup documentation. | Prepared, not deployed |
+| `mini_program/` | WeChat read-only viewer, cloud-function contract, and setup documentation. | Deployment is environment-dependent; Git contains no credentials |
 | `backups/` | Manual project snapshots before maintenance. | Keep |
 | `__pycache__/` | Generated Python bytecode. | Disposable |
 
@@ -54,7 +54,7 @@
 - No runtime `logs/` directory is currently written.
 - Documentation is maintained in the root Markdown files.
 - There are no alternate or historical main-program files in the project.
-- There is no configured cloud provider or real cloud database upload yet.
+- The Git mirror contains no cloud credentials or provider state. A formal working directory may have a configured provider; use `project_status.py` and Cloud Sync reports instead of this static index to determine live status.
 
 ## Maintenance File Set
 

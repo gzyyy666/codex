@@ -12,7 +12,7 @@ Source and personal data use separate recovery systems. Never restore them as on
 6. Run compilation, regression, and smoke tests.
 7. Launch Desktop and Web and inspect recent records without saving.
 
-Stable baseline tag: `fitness-ledger-web-final-2026-07-05`.
+Do not hard-code a stable tag in a task prompt. List tags in the live repository (`git tag --list --sort=-creatordate`), confirm the requested tag or full Commit, and use `project_status.py` before restoring. The 2026-07-05 web tag is historical, not the default current baseline.
 
 ## Personal Data Rollback
 

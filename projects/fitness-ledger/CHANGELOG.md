@@ -1,5 +1,12 @@
 # Fitness Ledger Changelog
 
+## 2026-07-17 - Documentation authority and task closure maintenance
+
+- Marked early Git snapshot and rollback notes as historical so old checkpoints and tags cannot override live `project_status.py` results.
+- Updated Web and Cloud documentation to reflect the current shared command boundary, enabled Undo/Data Check writes, and the empty-collection importer contract.
+- Added one consistent user-facing closure contract: specialist conversations may seal their own Worktree after explicit “按规范封板” authorization; otherwise they stop at development/review.
+- No application code, formal data, Cloud credentials, or Mini Program behavior changed.
+
 ## 2026-07-17 - Movement archive presentation refinement
 
 - Replaced the chest and shoulder Movement Progress illustrations with the approved low-poly flat-bench-press and dumbbell-fly artwork while preserving the established editorial palette and print texture.

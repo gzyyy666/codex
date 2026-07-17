@@ -2,7 +2,7 @@
 
 Local Windows desktop tracker for body data, diet, training sessions, and movement progress.
 
-The project also includes a browser UI, a sanitized cloud-replica preparation layer, and a WeChat read-only viewer skeleton. CloudBase is not connected until an AppID, env_id, collections, and OpenID allowlist are configured explicitly.
+The project also includes a browser UI, a sanitized cloud-replica preparation layer, and a WeChat read-only viewer skeleton. The Git mirror contains no CloudBase credentials; whether a formal working directory is connected depends on its explicit AppID, env_id, collections, and OpenID allowlist configuration and must be checked through the live status/report.
 
 ## Current entry workflow
 

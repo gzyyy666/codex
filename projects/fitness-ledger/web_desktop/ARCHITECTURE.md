@@ -44,7 +44,7 @@ The next migration phase should expose commands rather than direct file writes:
 3. Duplicate dates require an explicit `overwrite` or `append_training` save mode.
 4. Movement Dictionary create, edit, alias reconciliation, enable/disable, and confirmed deletion use the same command boundary.
 5. Existing Body, Diet, Training, and movement-history edits use the shared command boundary.
-6. `undo_last_save` and `acknowledge_data_issue` remain deferred until they can use the same command boundary.
+6. `undo_last_save` and `acknowledge_data_issue` use the same shared command boundary; new Web write actions must follow this pattern.
 
 ## Movement Dictionary Commands
 

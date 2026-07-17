@@ -2,7 +2,7 @@
 
 ## What Exists Now
 
-There is no real CloudBase environment connected yet. The project contains a local payload, import-ready collection files, a read-only cloud function, and a Mini Program skeleton.
+The Git mirror intentionally contains no CloudBase credentials or active environment binding. It contains the local payload builder, import-ready collection files, the read-only cloud function, and the Mini Program skeleton. A formal working directory may be configured; use the live Cloud Sync report and `project_status.py` rather than this source guide to determine whether it is connected.
 
 ## Create And Verify The Environment
 
@@ -17,7 +17,7 @@ There is no real CloudBase environment connected yet. The project contains a loc
 
 Run `python cloud_sync/build_cloud_payload.py`, then open `cloud_sync/out/cloudbase_import/manifest.json`. In the CloudBase document-database console, clear the previous disposable replica collection and import its matching UTF-8 `.json` file using **Insert** mode. Import `fl_meta` last. Although the extension is `.json` for the file picker, the content uses JSON Lines: one complete JSON object per line.
 
-Collections listed in `manifest.json.empty_collections` intentionally have no import file. Create those collections but leave them empty; CloudBase rejects zero-byte imports.
+Collections with zero rows must still follow the current importer contract: use the valid empty-collection representation emitted by the current payload builder/uploader, rather than assuming a missing file is acceptable. Verify the actual `manifest.json` and dry-run report from the current Git baseline before importing; never rely on this guide to infer an older empty-collection behavior.
 
 After import:
 
