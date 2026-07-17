@@ -32,6 +32,7 @@
 @media(max-width:1180px){.movement-index-hero{grid-template-columns:1fr minmax(340px,.8fr);grid-template-areas:"label toolbar" "title toolbar" "copy dictionary"}.movement-dictionary-entry{justify-self:end;width:228px}}
 @media(max-width:980px){.movement-index-hero{grid-template-columns:1fr;grid-template-areas:"label" "title" "copy" "dictionary" "toolbar"}.movement-dictionary-entry{justify-self:start;width:min(100%,280px);margin:8px 0}.movement-index-hero .movement-toolbar{margin-top:8px}}
 @media(max-width:720px){.body-toolbar,.diet-toolbar{display:grid;grid-template-columns:1fr;width:100%}.movement-dictionary-entry{width:100%}}
+@media(min-width:1121px){.movement-groups{grid-auto-rows:4px;align-items:start}}
 
 /* Unified body-area image system: approved five-part abstract training set. */
 .body-theme-control img{
@@ -178,6 +179,71 @@
 .movement-group.group-chest .movement-group-art{object-position:center center}
 .movement-group.group-legs .movement-group-art{object-position:center 55%}
 .movement-group.group-arms .movement-group-art{object-position:center center}
+
+/* Movement Progress art framing follows each panel's aspect ratio rather than
+   forcing every source image through the same oversized crop. */
+.movement-group.group-back .movement-group-art{
+  top:0;
+  width:100%;
+  height:100%;
+  transform:translateX(-50%) scale(.94);
+}
+.movement-group.group-shoulders .movement-group-art{
+  top:-9%;
+  object-position:82% 36%;
+  transform:translateX(-50%) scale(1.28);
+}
+.movement-group.group-legs .movement-group-art{
+  top:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:center 54%;
+  transform:translateX(-50%) scale(1.02);
+}
+.movement-group.group-arms .movement-group-art{
+  top:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:center 46%;
+  transform:translateX(-50%) scale(1);
+}
+.movement-group.group-back:hover .movement-group-art{transform:translateX(-50%) scale(.96)}
+.movement-group.group-shoulders:hover .movement-group-art{transform:translateX(-50%) scale(1.3)}
+.movement-group.group-legs:hover .movement-group-art{transform:translateX(-50%) scale(1.04)}
+.movement-group.group-arms:hover .movement-group-art{transform:translateX(-50%) scale(1.02)}
+
+.movement-group.group-arms .movement-tile.tile-slip{
+  min-height:108px;
+  padding:15px 14px;
+}
+.movement-group.group-back .movement-tile.tile-slip:nth-child(3n+2),
+.movement-group.group-shoulders .movement-tile.tile-slip:nth-child(4n+2){
+  flex-basis:154px;
+  transform:translateY(4px);
+}
+.movement-group.group-back .movement-tile.tile-slip:nth-child(5n),
+.movement-group.group-shoulders .movement-tile.tile-slip:nth-child(5n){
+  flex-basis:178px;
+}
+.movement-group.group-back .movement-tile.tile-slip:nth-child(4n),
+.movement-group.group-shoulders .movement-tile.tile-slip:nth-child(3n){
+  align-self:flex-end;
+  transform:translateY(7px);
+}
+.movement-group.group-shoulders .movement-tile.tile-slip:nth-child(-n+3){
+  flex:1 1 220px;
+  min-width:190px;
+}
+.movement-group.group-shoulders .movement-tile.tile-slip:nth-child(n+4):nth-child(-n+7){
+  flex:1 1 120px;
+  min-width:108px;
+}
+.movement-group.group-shoulders .movement-tile.tile-slip:nth-child(n+8){
+  flex:1 1 90px;
+  min-width:84px;
+}
 
 .movement-group[class*="group-"] .movement-tile.tile-slip{
   border-color:rgba(255,255,255,.12);
