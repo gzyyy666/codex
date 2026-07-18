@@ -156,7 +156,7 @@ Future desktop visual work must modify the final `_premium_*` presentation layer
 | `FitnessTrackerApp.records_on_date` | Find Body, Diet, and Training records for duplicate-date checks. | Review warnings and save |
 | `FitnessTrackerApp.choose_duplicate_action` | Ask whether to overwrite, append a second training session, or cancel. | Duplicate-date save |
 | `FitnessTrackerApp.remove_records_for_overwrite` | Replace one date's structured records and histories while marking old raw entries superseded. | Overwrite save mode |
-| `FitnessTrackerApp.commit_pending` | Review unknown movements, save approved records, and aggregate movement notes into the training-day Notes field. | Existing confirmed-save flow; backs up then writes `data/tracker.json` |
+| `FitnessTrackerApp.commit_pending` | Review unknown movements and save approved records; explicit Training Notes remain independent from per-instance Movement Notes. | Existing confirmed-save flow; backs up then writes `data/tracker.json` |
 
 ## Table Refresh
 

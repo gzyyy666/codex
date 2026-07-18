@@ -1450,14 +1450,22 @@ class LedgerCommandService:
         try:
             _write_json_atomic(self.dictionary_file, dictionary)
             _write_json_atomic(self.data_file, database)
-        except Exception:
+        except Exception as exc:
             rollback_errors = []
             for backup, destination in ((dictionary_backup, self.dictionary_file), (tracker_backup, self.data_file)):
                 try:
                     shutil.copy2(backup, destination)
                 except Exception as rollback_exc:
                     rollback_errors.append(str(rollback_exc))
-            raise
+            if not rollback_errors:
+                self._discard_checkpoint(tracker_backup, dictionary_backup)
+            raise LedgerCommandError(
+                "Paired write failed; both formal files were restored."
+                if not rollback_errors
+                else "Paired write failed and rollback needs manual review.",
+                "SAVE_FAILED",
+                {"rolled_back": not rollback_errors, "rollback_errors": rollback_errors, "cause": str(exc)},
+            ) from exc
 
     def create_movement_definition(self, values: dict) -> dict:
         with self.write_lock():
@@ -1559,15 +1567,20 @@ class LedgerCommandService:
                     )
             except Exception as exc:
                 rollback_errors = []
-                for backup, destination, label in (
-                    (tracker_backup, self.data_file, "tracker"),
-                    (dictionary_backup, self.dictionary_file, "dictionary"),
-                ):
-                    try:
-                        shutil.copy2(backup, destination)
-                    except Exception as rollback_exc:
-                        rollback_errors.append(f"{label}: {rollback_exc}")
-                rolled_back = not rollback_errors
+                if tracker_backup.exists() or dictionary_backup.exists():
+                    for backup, destination, label in (
+                        (tracker_backup, self.data_file, "tracker"),
+                        (dictionary_backup, self.dictionary_file, "dictionary"),
+                    ):
+                        try:
+                            shutil.copy2(backup, destination)
+                        except Exception as rollback_exc:
+                            rollback_errors.append(f"{label}: {rollback_exc}")
+                # _write_pair performs and finalizes its own rollback.  In
+                # that case both checkpoint files are already gone.
+                rolled_back = not rollback_errors and not (
+                    tracker_backup.exists() ^ dictionary_backup.exists()
+                )
                 if rolled_back:
                     self._discard_checkpoint(tracker_backup, dictionary_backup)
                 raise LedgerCommandError(

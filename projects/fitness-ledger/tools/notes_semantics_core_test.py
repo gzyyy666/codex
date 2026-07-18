@@ -129,6 +129,7 @@ def main() -> None:
         assert "Notes" not in service.load_state()[0]["diet_records"][0] or service.load_state()[0]["diet_records"][0]["Notes"]
 
         before_tracker = (root / "tracker.json").read_bytes()
+        backups_before_failure = sorted(path.name for path in (root / "backups").glob("*"))
         original_write = ledger_commands._write_json_atomic
         ledger_commands._write_json_atomic = lambda *_args: (_ for _ in ()).throw(OSError("injected notes failure"))
         try:
@@ -142,6 +143,7 @@ def main() -> None:
         finally:
             ledger_commands._write_json_atomic = original_write
         assert (root / "tracker.json").read_bytes() == before_tracker
+        assert sorted(path.name for path in (root / "backups").glob("*")) == backups_before_failure
 
     print("FITNESS_LEDGER_NOTES_SEMANTICS_CORE_OK")
 
