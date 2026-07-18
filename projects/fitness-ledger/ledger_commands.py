@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Callable
 
 from fitness_ledger_core.shared_view_models import movement_in_progress
+from fitness_ledger_core.notes import normalize_note_text
 
 
 ParserCallback = Callable[[str, dict, dict], dict]
@@ -54,9 +55,11 @@ def _write_json_atomic(path: Path, value) -> None:
 _NON_SEMANTIC_FIELDS = {"id", "created_at", "updated_at", "superseded_at", "superseded_by", "save_mode", "source"}
 
 
-def _normalise_business_value(value):
+def _normalise_business_value(value, field_name: str = ""):
     """Compare ledger content, not JSON layout or write-time bookkeeping."""
     if isinstance(value, str):
+        if field_name.lower() in {"notes", "daily_notes", "diet_notes", "training_notes", "movement_notes"}:
+            return normalize_note_text(value)
         lines = [line.rstrip() for line in value.splitlines()]
         while lines and not lines[0].strip():
             lines.pop(0)
@@ -69,10 +72,10 @@ def _normalise_business_value(value):
             compact.append(line)
         return "\n".join(compact).strip() if len(compact) == 1 else "\n".join(compact)
     if isinstance(value, list):
-        return [_normalise_business_value(item) for item in value if not (isinstance(item, dict) and item.get("superseded"))]
+        return [_normalise_business_value(item, field_name) for item in value if not (isinstance(item, dict) and item.get("superseded"))]
     if isinstance(value, dict):
         return {
-            key: _normalise_business_value(item)
+            key: _normalise_business_value(item, str(key))
             for key, item in sorted(value.items())
             if key not in _NON_SEMANTIC_FIELDS and key != "superseded"
         }
@@ -1444,13 +1447,25 @@ class LedgerCommandService:
         return result
 
     def _write_pair(self, database: dict, dictionary: dict, tracker_backup: Path, dictionary_backup: Path) -> None:
-        _write_json_atomic(self.dictionary_file, dictionary)
         try:
+            _write_json_atomic(self.dictionary_file, dictionary)
             _write_json_atomic(self.data_file, database)
-        except Exception:
-            shutil.copy2(dictionary_backup, self.dictionary_file)
-            shutil.copy2(tracker_backup, self.data_file)
-            raise
+        except Exception as exc:
+            rollback_errors = []
+            for backup, destination in ((dictionary_backup, self.dictionary_file), (tracker_backup, self.data_file)):
+                try:
+                    shutil.copy2(backup, destination)
+                except Exception as rollback_exc:
+                    rollback_errors.append(str(rollback_exc))
+            if not rollback_errors:
+                self._discard_checkpoint(tracker_backup, dictionary_backup)
+            raise LedgerCommandError(
+                "Paired write failed; both formal files were restored."
+                if not rollback_errors
+                else "Paired write failed and rollback needs manual review.",
+                "SAVE_FAILED",
+                {"rolled_back": not rollback_errors, "rollback_errors": rollback_errors, "cause": str(exc)},
+            ) from exc
 
     def create_movement_definition(self, values: dict) -> dict:
         with self.write_lock():
@@ -1552,15 +1567,20 @@ class LedgerCommandService:
                     )
             except Exception as exc:
                 rollback_errors = []
-                for backup, destination, label in (
-                    (tracker_backup, self.data_file, "tracker"),
-                    (dictionary_backup, self.dictionary_file, "dictionary"),
-                ):
-                    try:
-                        shutil.copy2(backup, destination)
-                    except Exception as rollback_exc:
-                        rollback_errors.append(f"{label}: {rollback_exc}")
-                rolled_back = not rollback_errors
+                if tracker_backup.exists() or dictionary_backup.exists():
+                    for backup, destination, label in (
+                        (tracker_backup, self.data_file, "tracker"),
+                        (dictionary_backup, self.dictionary_file, "dictionary"),
+                    ):
+                        try:
+                            shutil.copy2(backup, destination)
+                        except Exception as rollback_exc:
+                            rollback_errors.append(f"{label}: {rollback_exc}")
+                # _write_pair performs and finalizes its own rollback.  In
+                # that case both checkpoint files are already gone.
+                rolled_back = not rollback_errors and not (
+                    tracker_backup.exists() ^ dictionary_backup.exists()
+                )
                 if rolled_back:
                     self._discard_checkpoint(tracker_backup, dictionary_backup)
                 raise LedgerCommandError(
@@ -1658,7 +1678,7 @@ class LedgerCommandService:
                         except (TypeError, ValueError) as exc:
                             raise LedgerCommandError(f"{field} must be numeric or blank.") from exc
                 else:
-                    updates[field] = str(value or "").strip()
+                    updates[field] = normalize_note_text(value) if field == "Notes" else str(value or "").strip()
             if "Date" in updates:
                 try:
                     date.fromisoformat(updates["Date"])
@@ -1724,7 +1744,7 @@ class LedgerCommandService:
                 "sets": self._parse_sets_text(str(values.get("sets_text", ""))),
                 "cardio": cardio,
                 "raw": str(values.get("raw", "")).strip(),
-                "notes": str(values.get("notes", "")).strip(),
+                "notes": normalize_note_text(values.get("notes", "")),
                 "updated_at": datetime.now().replace(microsecond=0).isoformat(),
             }
             before = copy.deepcopy(history)
@@ -1783,7 +1803,7 @@ class LedgerCommandService:
             if note:
                 notes.append(f"{movement.get('display_name') or movement.get('name', '')}：{note}")
         training["standardized_summary"] = summary
-        training["notes"] = f"{'；'.join(notes)}。" if notes else ""
+        training["notes"] = normalize_note_text(training.get("notes", ""))
 
     @staticmethod
     def records_on_date(database: dict, entry_date: str) -> dict[str, list[dict]]:
@@ -1981,22 +2001,38 @@ class LedgerCommandService:
                         "movements_added": 0, "movements_removed": 0,
                     }
                 tracker_backup, dictionary_backup = self._checkpoint()
-                _write_json_atomic(self.dictionary_file, dictionary)
-                try:
-                    _write_json_atomic(self.data_file, database)
-                except Exception:
-                    shutil.copy2(dictionary_backup, self.dictionary_file)
-                    raise
-            except Exception:
-                if tracker_backup and not self.data_file.exists():
-                    shutil.copy2(tracker_backup, self.data_file)
-                raise
+                if not _same_business_content(before_dictionary, dictionary):
+                    _write_json_atomic(self.dictionary_file, dictionary)
+                _write_json_atomic(self.data_file, database)
+            except Exception as exc:
+                rollback_errors = []
+                if tracker_backup and dictionary_backup:
+                    for backup, destination, label in (
+                        (tracker_backup, self.data_file, "tracker"),
+                        (dictionary_backup, self.dictionary_file, "dictionary"),
+                    ):
+                        try:
+                            shutil.copy2(backup, destination)
+                        except Exception as rollback_exc:
+                            rollback_errors.append(f"{label}: {rollback_exc}")
+                    if not rollback_errors:
+                        self._discard_checkpoint(tracker_backup, dictionary_backup)
+                raise LedgerCommandError(
+                    "Daily save failed; both formal files were restored." if not rollback_errors else "Daily save failed and rollback needs manual review.",
+                    "SAVE_FAILED",
+                    {"rolled_back": not rollback_errors, "rollback_errors": rollback_errors, "cause_code": getattr(exc, "code", exc.__class__.__name__), "cause": str(exc)},
+                ) from exc
             result.update({
                 "status": "UPDATED" if any(duplicates.values()) else "CREATED", "changed": True,
                 "working_sets": sum(int(block.get("sets") or 0) for movement in parsed.get("training", {}).get("movements", []) for block in movement.get("sets", [])),
                 "body_updated": bool(parsed.get("body")), "diet_updated": bool(parsed.get("diet")),
                 "training_updated": bool(parsed.get("training", {}).get("split") or parsed.get("training", {}).get("movements")),
-                "notes_updated": bool(parsed.get("body", {}).get("notes") or parsed.get("diet", {}).get("notes") or parsed.get("training", {}).get("notes")),
+                "notes_updated": bool(
+                    parsed.get("body", {}).get("notes")
+                    or parsed.get("diet", {}).get("notes")
+                    or parsed.get("training", {}).get("notes")
+                    or any(str(item.get("notes", "")).strip() for item in parsed.get("training", {}).get("movements", []))
+                ),
                 "movements_added": result.get("saved_movements", 0), "movements_removed": 0,
             })
             return result
@@ -2017,6 +2053,7 @@ class LedgerCommandService:
         database.setdefault("raw_entries", []).append(raw_record)
         save_primary = save_mode != "append_training"
         body = parsed.get("body", {})
+        body["notes"] = normalize_note_text(body.get("notes", ""))
         if save_primary and any(body.get(field) not in (None, "") for field in ("weight", "bowel_movement", "training_summary", "cardio_summary", "notes")):
             database.setdefault("daily_records", []).append(
                 {
@@ -2028,6 +2065,7 @@ class LedgerCommandService:
                 }
             )
         diet = parsed.get("diet", {})
+        diet["notes"] = normalize_note_text(diet.get("notes", ""))
         if save_primary and (diet.get("food_summary") or any(diet.get(field) is not None for field in ("calories", "protein", "carbs", "fat"))):
             database.setdefault("diet_records", []).append(
                 {
@@ -2038,6 +2076,7 @@ class LedgerCommandService:
                 }
             )
         training = parsed.get("training", {})
+        training["notes"] = normalize_note_text(training.get("notes", ""))
         saved_movements = 0
         skipped = []
         if training.get("split") or training.get("movements"):
@@ -2077,7 +2116,7 @@ class LedgerCommandService:
                         "id": str(uuid.uuid4()), "movement_id": definition["movement_id"], "date": entry_date,
                         "training_day": day_number, "order": movement_data.get("order"), "sets": movement_data.get("sets", []),
                         "cardio": movement_data.get("cardio") or {}, "raw": movement_data.get("raw", ""),
-                        "notes": movement_data.get("notes", ""), "source": "text entry",
+                        "notes": normalize_note_text(movement_data.get("notes", "")), "source": "text entry",
                     }
                 )
                 display_name = definition.get("display_name") or movement_data.get("display_name") or candidate
@@ -2086,7 +2125,7 @@ class LedgerCommandService:
                 if note:
                     note_parts.append(f"{display_name}：{note}")
                 saved_movements += 1
-            training_notes = str(training.get("notes", ""))
+            training_notes = normalize_note_text(training.get("notes", ""))
             if save_mode == "append_training":
                 training_notes = f"同日追加训练。{training_notes}" if training_notes else "同日追加训练。"
             database.setdefault("training_sessions", []).append(
@@ -2094,7 +2133,7 @@ class LedgerCommandService:
                     "id": str(uuid.uuid4()), "No.": day_number, "Date": entry_date,
                     "Split": training.get("split", ""), "Raw Record": training.get("raw", ""),
                     "Standardized Summary": training.get("standardized_summary") or "；".join(summary_parts),
-                    "Notes": training_notes or (f"{'；'.join(note_parts)}。" if note_parts else ""),
+                    "Notes": training_notes,
                     "save_mode": save_mode, "source": "text entry",
                 }
             )

@@ -46,8 +46,9 @@ def main() -> None:
         assert "- 记录天数：30" in markdown and "- 动作记录数：8" in markdown
         assert "首末7日均值变化：-2.30 kg" in markdown
         assert "鸡胸肉 200g" not in markdown and "Food Summary" not in markdown and "raw_entries" not in markdown and "不得导出" not in markdown
-        assert "calories: 1500" in markdown and "共同备注" in markdown and markdown.count("共同备注") == 1
-        assert "- 身体：身体备注" in markdown and "- 饮食：饮食备注" in markdown
+        assert "calories: 1500" in markdown and "daily_notes: 共同备注" in markdown
+        assert "diet_notes: 共同备注" in markdown and "training_notes: 共同备注" in markdown
+        assert markdown.count("共同备注") == 3
         assert "跑步机爬坡 30 分钟" in markdown and "自重 × 10 × 2" in markdown
         assert "最大重量：自重" in markdown and "最大重量：41" in markdown
         assert "未归类：5天" in markdown and "未记录天数：5" in markdown
@@ -93,7 +94,7 @@ def main() -> None:
         assert "整体训练因接听电话质量下降。" in notes_markdown
         assert "高碳导致糖原和水分变化。" not in notes_markdown
         assert "明日建议回归高蛋白低油饮食。" not in notes_markdown
-        assert notes_markdown.count("末组接近力竭") == 2
+        assert notes_markdown.count("末组接近力竭") == 1
         assert notes_before == json.dumps(notes_payload, ensure_ascii=False, sort_keys=True)
 
         preserve_parts = [

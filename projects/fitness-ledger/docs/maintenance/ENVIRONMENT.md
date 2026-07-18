@@ -43,6 +43,35 @@ node --check web_desktop/frontend/app.js
 python tools/web_desktop_test.py
 ```
 
+## Web runtime identity
+
+The Web header exposes a small runtime identity marker backed by `GET /api/build-info`.
+In a Git Worktree preview it reads the current Worktree's read-only `HEAD`, branch,
+`main`, `origin/main`, dirty state, and service start time. It never fetches or
+writes Git state. The formal business directory is not a repository, so its
+`web_desktop/runtime_build_info.json` deployment manifest is the only source for
+formal identity; the file is intentionally Git-ignored and missing or incomplete
+metadata renders `BUILD UNKNOWN` rather than inventing a published build.
+
+The Git baseline/integration workflow may generate that manifest only after a
+fresh Git audit and an explicit confirmation that the deployed commit was pushed
+to `origin/main`:
+
+```powershell
+python tools/generate_runtime_build_info.py `
+  --repo C:\path\to\fitness-ledger `
+  --output C:\path\to\formal\web_desktop\runtime_build_info.json `
+  --push-verified `
+  --tag optional-release-tag
+```
+
+The tool reads real `HEAD`, `main`, and `origin/main`, writes atomically as UTF-8,
+and performs no Push, Merge, Tag, data write, or formal writeback beyond the
+explicit `--output` file. `PUBLISHED` is shown only when `push_verified=true`
+and the recorded commit equals the recorded `origin_main_sha`; Worktree builds
+always remain `PREVIEW`, including dirty previews. After deploying changed Web
+code, restart the Web service so `server_started_at` identifies the new process.
+
 ## Local-Only Files
 
 - `data/`

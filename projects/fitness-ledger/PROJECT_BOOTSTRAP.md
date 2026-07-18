@@ -101,6 +101,7 @@ Use this file to restore project context with low token cost.
 - Body field pollution / recent Cardio repair: `extract_labeled_section`, `refresh_body`, `tools/body_bowel_cardio_migration.py`.
 - Existing record editing: `open_record_editor`, `save_record_edit`, `open_selected_body_detail`, `open_selected_diet_detail`, `open_selected_training_detail`.
 - Historical Chinese display and movement-note repair: `tools/training_notes_zh_migration.py`.
+- Notes scope parsing: `fitness_ledger_core/notes.py`, `extract_note_sections`, `parse_entry`, `parse_training_movements`; canonical top-level `notes:`, `diet notes:`, `training notes:` and one-space action `notes:`.
 
 ## Intentionally Deferred
 

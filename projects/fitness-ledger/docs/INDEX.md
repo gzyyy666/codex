@@ -12,6 +12,7 @@ Use this index instead of scanning the project.
 | Function routing | `../FUNCTION_INDEX.md` |
 | Safety rules | `../FITNESS_LEDGER_MAINTENANCE.md` |
 | Minimum validation | `../REGRESSION_CHECKLIST.md` |
+| Canonical Notes input and scope semantics | `maintenance/NOTES_INPUT_STANDARD.md` |
 
 ## Design
 

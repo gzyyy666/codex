@@ -8,7 +8,7 @@ import os
 import re
 import sys
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.machinery import SourceFileLoader
@@ -30,6 +30,7 @@ from fitness_ledger_core.shared_view_models import LedgerViewModels  # noqa: E40
 from cloud_sync.build_cloud_payload import main as build_cloud_replica, source_metadata  # noqa: E402
 from cloud_sync.sync_to_cloud import sync_payload, validate_payload  # noqa: E402
 from cloud_sync.upload_to_cloudbase import config_status, is_upload_configured, load_sync_config  # noqa: E402
+from web_desktop.backend.build_identity import collect_build_info  # noqa: E402
 
 
 def load_stable_module():
@@ -56,6 +57,8 @@ class LedgerWebService:
         data_file: Path | None = None,
         dictionary_file: Path | None = None,
         backup_dir: Path | None = None,
+        build_info_path: Path | None = None,
+        build_info_override: dict | None = None,
     ) -> None:
         data_file = data_file or PROJECT_DIR / "data" / "tracker.json"
         dictionary_file = dictionary_file or PROJECT_DIR / "data" / "movement_dictionary.json"
@@ -70,6 +73,18 @@ class LedgerWebService:
         )
         self.pending_reviews: dict[str, dict] = {}
         self.pending_lock = threading.RLock()
+        self.server_started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        self.build_info_path = build_info_path
+        self.build_info_override = build_info_override
+
+    def build_info(self) -> dict:
+        if self.build_info_override is not None:
+            return {**self.build_info_override, "server_started_at": self.server_started_at}
+        return collect_build_info(
+            PROJECT_DIR,
+            server_started_at=self.server_started_at,
+            manifest_path=self.build_info_path,
+        )
 
     def _parse_with_stable_app(self, raw: str, database: dict, dictionary: dict) -> dict:
         parser = self.stable.FitnessTrackerApp.__new__(self.stable.FitnessTrackerApp)
@@ -728,6 +743,8 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
         try:
             if parsed.path == "/api/health":
                 self.send_json({"ok": True, "service": "fitness-ledger-web"})
+            elif parsed.path == "/api/build-info":
+                self.send_json(self.service.build_info())
             elif parsed.path == "/api/capabilities":
                 self.send_json(self.service.capabilities())
             elif parsed.path == "/api/undo-status":

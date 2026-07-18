@@ -333,9 +333,20 @@ def render_markdown(payload: dict) -> str:
                 lines.append(f" notes: {_text(history.get('notes'))}")
         if body and _text(body.get("Cardio")):
             lines.extend(["cardio:", _text(body.get("Cardio"))])
-        notes = _daily_notes(body, diet, session, histories)
-        if notes:
-            lines.extend(["notes:", *notes])
+        scoped_notes = (
+            ("daily_notes", (body or {}).get("daily_notes", (body or {}).get("Notes", ""))),
+            ("diet_notes", (diet or {}).get("diet_notes", (diet or {}).get("Notes", ""))),
+            ("training_notes", (session or {}).get("training_notes", (session or {}).get("Notes", ""))),
+        )
+        if any(key in (body or {}) or key in (diet or {}) or key in (session or {}) for key, _value in scoped_notes):
+            for key, value in scoped_notes:
+                cleaned = _clean_note(_text(value), {})
+                if cleaned:
+                    lines.append(f"{key}: {cleaned}")
+        else:
+            notes = _daily_notes(body, diet, session, histories)
+            if notes:
+                lines.extend(["notes:", *notes])
 
     frequent = _select_trend_movements(movement_rows)
     lines.extend([
@@ -355,9 +366,7 @@ def render_markdown(payload: dict) -> str:
             order = _number(row.get("order"))
             order_text = f"第{int(order)}个动作" if order is not None else "未记录"
             lines.extend(["", f"#### {_date(row.get('date'))}", "", f"- 当日动作顺序：{order_text}", f"- {_sets_text(row)}"])
-            if _text(row.get("notes")):
-                lines.append(f"- notes: {_text(row.get('notes'))}")
-    lines.extend(["", "# 导出说明", "", "- 每日饮食默认仅保留热量、蛋白质、碳水和脂肪汇总。", "- 不导出早餐、练前、练后、晚餐和加餐的逐项食物明细。", "- 特殊饮食情况通过每日 notes 保留。", "- 默认不包含原始输入文本。", "- 高频动作仅包含日期范围内重复出现的动作，优先覆盖正式训练部位，最多展示16个，并保留完整训练历史。"])
+    lines.extend(["", "# 导出说明", "", "- 每日饮食默认仅保留热量、蛋白质、碳水和脂肪汇总。", "- 不导出早餐、练前、练后、晚餐和加餐的逐项食物明细。", "- Daily、Diet、Training 和 Movement Notes 按作用域分别保留。", "- 默认不包含原始输入文本。", "- 高频动作仅包含日期范围内重复出现的动作，优先覆盖正式训练部位，最多展示16个，并保留完整训练历史。"])
     return "\n".join(lines).strip() + "\n"
 
 

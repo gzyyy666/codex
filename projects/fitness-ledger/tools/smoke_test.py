@@ -78,7 +78,7 @@ after = (
     len(app.database["training_sessions"]),
 )
 assert after == tuple(value + 1 for value in before)
-assert "controlled test note" in app.database["training_sessions"][-1]["Notes"]
+assert app.database["training_sessions"][-1]["Notes"] == ""
 
 day_number = app.database["training_sessions"][-1]["No."]
 assert day_number == before[2] + 1
