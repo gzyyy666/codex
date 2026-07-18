@@ -99,6 +99,8 @@ Future desktop visual work must modify the final `_premium_*` presentation layer
 | `strip_movement_metrics` | Remove order and load text from a movement name. | `parse_entry` |
 | `FitnessTrackerApp.parse_training_movements` | Parse same-line numbering, number-only headers, and unnumbered movement names followed by set lines without crossing section boundaries. | `parse_entry` |
 | `FitnessTrackerApp.parse_entry` | Parse one raw daily note into body, diet, and training sections. | Quick Entry |
+| `fitness_ledger_core.notes.extract_note_sections` | Deterministically separate Daily, Diet, and Training note scopes while preserving explicit action-note context. | Parser, Core save, projection, export |
+| `fitness_ledger_core.notes.normalize_note_text` | Normalize line endings and note-boundary whitespace without rewriting internal prose. | Command Service, parser, projections |
 
 ## Movement Recognition And History
 

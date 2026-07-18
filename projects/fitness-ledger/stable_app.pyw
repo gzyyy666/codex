@@ -16,6 +16,7 @@ if str(MODULE_DIR) not in sys.path:
     sys.path.insert(0, str(MODULE_DIR))
 
 from ledger_commands import LedgerCommandError, LedgerCommandService
+from fitness_ledger_core.notes import extract_note_sections, normalize_action_note_block, normalize_note_text
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -335,7 +336,7 @@ def extract_labeled_section(text: str, labels: tuple[str, ...], stop_labels: tup
 def extract_training_section(text: str) -> tuple[str, str]:
     match = re.search(
         r"(?ms)^(?:training|训练)[ \t]*[:：][ \t]*([^\r\n]*)"
-        r"(?:\r?\n)?(.*?)(?=^(?:cardio|有氧|diet|饮食|notes?|备注)[ \t]*[:：]|\Z)",
+        r"(?:\r?\n)?(.*?)(?=^(?:cardio|有氧|diet|饮食|notes?|备注|diet\s+notes|饮食备注|training\s+notes|训练备注)[ \t]*[:：]|\Z)",
         text,
         re.I,
     )
@@ -1319,7 +1320,7 @@ class FitnessTrackerApp(tk.Tk):
         body["context"] = "；".join(context_parts)
 
         diet_section = ""
-        diet_match = re.search(r"(?:饮食|diet)\s*[:：]?(.*?)(?=\n\s*(?:训练|training)\s*[:：]|$)", raw, re.I | re.S)
+        diet_match = re.search(r"(?:饮食|diet)\s*[:：](.*?)(?=\n\s*(?:训练|training|notes?|备注|diet\s+notes|饮食备注|training\s+notes|训练备注)\s*[:：]|$)", raw, re.I | re.S)
         if diet_match:
             diet_section = " ".join(line.strip() for line in diet_match.group(1).splitlines() if line.strip())
         diet = {
@@ -1333,7 +1334,7 @@ class FitnessTrackerApp(tk.Tk):
         }
 
         diet_after_training = re.search(
-            r"(?ms)^\s*(?:diet|饮食)\s*[:：]\s*(.*?)(?=^\s*(?:notes?|备注|training|训练|cardio|有氧)\s*[:：]|\Z)",
+            r"(?ms)^\s*(?:diet|饮食)\s*[:：]\s*(.*?)(?=^\s*(?:notes?|备注|diet\s+notes|饮食备注|training\s+notes|训练备注|training|训练|cardio|有氧)\s*[:：]|\Z)",
             raw,
             re.I,
         )
@@ -1341,12 +1342,9 @@ class FitnessTrackerApp(tk.Tk):
             diet["food_summary"] = "\n".join(
                 line.strip() for line in diet_after_training.group(1).splitlines() if line.strip()
             )
-        global_notes = re.search(r"(?ms)^\s*(?:notes?|备注)\s*[:：]\s*(.*)$", raw, re.I)
-        if global_notes:
-            body["notes"] = global_notes.group(1).strip()
-        modern_global_notes = re.search(r"(?ms)^(?:notes?|备注)\s*[:：]\s*(.*)$", raw, re.I)
-        if modern_global_notes:
-            body["notes"] = modern_global_notes.group(1).strip()
+        note_sections = extract_note_sections(raw)
+        body["notes"] = note_sections["daily_notes"]
+        diet["notes"] = note_sections["diet_notes"]
         split, training_text = extract_training_section(raw)
         body["training_summary"] = split
         cardio_section = extract_labeled_section(
@@ -1405,7 +1403,7 @@ class FitnessTrackerApp(tk.Tk):
             "raw": raw,
             "body": body,
             "diet": diet,
-            "training": {"split": split, "raw": training_text, "movements": movements},
+            "training": {"split": split, "raw": training_text, "movements": movements, "notes": note_sections["training_notes"]},
             "parsed_at": now_iso(),
         }
 
@@ -1426,12 +1424,7 @@ class FitnessTrackerApp(tk.Tk):
         )
         training["_initial_standardized_summary"] = training["standardized_summary"]
         training["_last_generated_standardized_summary"] = training["standardized_summary"]
-        note_parts = []
-        for movement in training["movements"]:
-            note = str(movement.get("notes", "")).strip().rstrip("；;。.!！")
-            if note:
-                note_parts.append(f"{movement.get('display_name') or movement['name']}：{note}")
-        training["notes"] = f"{'；'.join(note_parts)}。" if note_parts else ""
+        training["notes"] = normalize_note_text(training.get("notes", ""))
         training["_initial_notes"] = training["notes"]
         training["_last_generated_notes"] = training["notes"]
         self.open_review_window()
@@ -1452,8 +1445,10 @@ class FitnessTrackerApp(tk.Tk):
             f"Protein: {diet['protein'] if diet['protein'] is not None else 'Not found'} g",
             f"Carbs: {diet['carbs'] if diet['carbs'] is not None else 'Not found'} g",
             f"Fat: {diet['fat'] if diet['fat'] is not None else 'Not found'} g",
+            f"Diet Notes: {diet.get('notes') or '-'}",
             "",
             f"Training: {training['split'] or 'Not found'}",
+            f"Training Notes: {training.get('notes') or '-'}",
         ]
         for movement in training["movements"]:
             lines.append("")
@@ -1609,36 +1604,23 @@ class FitnessTrackerApp(tk.Tk):
             if movement.get("_review_action") not in {"skip", "cancel"}
         ]
         generated_summary_parts = []
-        generated_note_parts = []
         for movement in active_movements:
             display_name = movement.get("display_name") or movement.get("name", "")
             if movement.get("_review_action") == "map":
                 definition = self.movement_definitions_by_id.get(movement.get("_mapped_movement_id", ""), {})
                 display_name = definition.get("display_name") or display_name
             generated_summary_parts.append(f"第{movement.get('order')}个动作：{display_name}")
-            note = str(movement.get("notes", "")).strip().rstrip("；;。.!！")
-            if note:
-                generated_note_parts.append(f"{display_name}：{note}")
         generated_summary_values = {
             parsed["training"].get("_initial_standardized_summary", ""),
             parsed["training"].get("_last_generated_standardized_summary", ""),
-        }
-        generated_note_values = {
-            parsed["training"].get("_initial_notes", ""),
-            parsed["training"].get("_last_generated_notes", ""),
         }
         if summary_value in generated_summary_values:
             summary_value = "；".join(generated_summary_parts)
             parsed["training"]["_last_generated_standardized_summary"] = summary_value
             widgets["training"]["standardized_summary"].delete("1.0", "end")
             widgets["training"]["standardized_summary"].insert("1.0", summary_value)
-        if notes_value in generated_note_values:
-            notes_value = f"{'；'.join(generated_note_parts)}。" if generated_note_parts else ""
-            parsed["training"]["_last_generated_notes"] = notes_value
-            widgets["training"]["notes"].delete("1.0", "end")
-            widgets["training"]["notes"].insert("1.0", notes_value)
         parsed["training"]["standardized_summary"] = summary_value
-        parsed["training"]["notes"] = notes_value
+        parsed["training"]["notes"] = normalize_note_text(notes_value)
         return True
 
     def refresh_review_warnings(self) -> None:
@@ -1669,7 +1651,12 @@ class FitnessTrackerApp(tk.Tk):
         def value_or_missing(value) -> str:
             return format_number(value) if value not in (None, "") else "缺失"
 
-        notes_present = bool(str(body.get("notes", "")).strip() or str(training.get("notes", "")).strip())
+        notes_present = bool(
+            str(body.get("notes", "")).strip()
+            or str(diet.get("notes", "")).strip()
+            or str(training.get("notes", "")).strip()
+            or any(str(item.get("notes", "")).strip() for item in training.get("movements", []))
+        )
         return (
             f"{parsed.get('date') or '日期缺失'}\n"
             f"体重：{value_or_missing(body.get('weight'))}    排便：{body.get('bowel_movement') or '缺失'}\n"
@@ -3654,7 +3641,7 @@ def _patched_parse_training_movements(self, training_text: str) -> list[dict]:
                     "sets": extract_load_blocks(raw_detail),
                     "cardio": {},
                     "raw": raw_detail,
-                    "notes": "\n".join(current["notes"]),
+                    "notes": normalize_action_note_block("\n".join(current["notes"])),
                 }
             )
         current = None
@@ -3665,7 +3652,7 @@ def _patched_parse_training_movements(self, training_text: str) -> list[dict]:
         is_indented = raw_line[:1].isspace()
         next_line = lines[index + 1].strip() if index + 1 < len(lines) else ""
 
-        if re.match(r"^(?:diet|\u996e\u98df|cardio|\u6709\u6c27)\s*[:\uFF1A]", stripped, re.I):
+        if re.match(r"^(?:diet|\u996e\u98df|cardio|\u6709\u6c27|training\s+notes|\u8bad\u7ec3\u5907\u6ce8|diet\s+notes|\u996e\u98df\u5907\u6ce8)\s*[:\uFF1A]", stripped, re.I):
             finish_current()
             break
 
@@ -3684,6 +3671,7 @@ def _patched_parse_training_movements(self, training_text: str) -> list[dict]:
                 "name": order_match.group(2).strip(),
                 "raw_lines": [stripped],
                 "notes": [],
+                "note_mode": False,
             }
             continue
 
@@ -3695,14 +3683,12 @@ def _patched_parse_training_movements(self, training_text: str) -> list[dict]:
             or next_definition is not None
             or extract_load_blocks(next_line)
         )
-        if note_match and current:
+        if note_match and current and (is_indented or next_is_movement_boundary):
             current["raw_lines"].append(stripped)
             current["notes"].append(note_match.group(1).strip())
-            if next_is_movement_boundary:
-                continue
-            if not is_indented and not next_line:
-                continue
-        if note_match and not is_indented and not next_is_movement_boundary:
+            current["note_mode"] = True
+            continue
+        if note_match:
             finish_current()
             break
 
@@ -3720,10 +3706,15 @@ def _patched_parse_training_movements(self, training_text: str) -> list[dict]:
                 "name": stripped,
                 "raw_lines": [stripped],
                 "notes": [],
+                "note_mode": False,
             }
             pending_order = None
             continue
 
+        if current and current.get("note_mode") and is_indented:
+            current["raw_lines"].append(stripped)
+            current["notes"].append(stripped)
+            continue
         if current:
             current["raw_lines"].append(stripped)
             continue
@@ -3751,7 +3742,10 @@ _ORIGINAL_PARSE_ENTRY = FitnessTrackerApp.parse_entry
 
 def _patched_parse_entry(self, raw: str) -> dict:
     parsed = _ORIGINAL_PARSE_ENTRY(self, raw)
-    parsed["body"]["notes"] = extract_global_notes_section(raw)
+    note_sections = extract_note_sections(raw)
+    parsed["body"]["notes"] = note_sections["daily_notes"]
+    parsed["diet"]["notes"] = note_sections["diet_notes"]
+    parsed["training"]["notes"] = note_sections["training_notes"]
     return parsed
 
 

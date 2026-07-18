@@ -7,6 +7,8 @@ from collections import Counter
 from datetime import date, timedelta
 from pathlib import Path
 
+from .notes import normalize_note_text
+
 
 def _number(value) -> float | None:
     try:
@@ -104,6 +106,7 @@ class LedgerViewModels:
         projected = []
         for row in history[: max(1, limit)]:
             item = copy.deepcopy(row)
+            item["movement_notes"] = normalize_note_text(item.get("notes", ""))
             item["sets_lines"] = self.history_set_lines(item)
             item["metrics"] = self.history_metrics(item)
             projected.append(item)
@@ -202,6 +205,7 @@ class LedgerViewModels:
         rows = []
         for session in sorted(tracker.get("training_sessions", []) or [], key=lambda row: _date(row.get("Date")), reverse=True):
             projected = copy.deepcopy(session)
+            projected["training_notes"] = normalize_note_text(session.get("Notes", ""))
             date_key = _date(session.get("Date"))
             day_key = str(session.get("No.", ""))
             movement_refs = sorted(
@@ -218,6 +222,7 @@ class LedgerViewModels:
                     "order": row.get("order", ""),
                     "sets_lines": row.get("sets_lines", []),
                     "notes": row.get("notes", ""),
+                    "movement_notes": normalize_note_text(row.get("notes", "")),
                     "has_structured_sets": bool(row.get("has_structured_sets")),
                 }
                 for row in movement_refs
@@ -264,9 +269,9 @@ class LedgerViewModels:
         end_date = date.fromisoformat(end) if end else (date.fromisoformat(dates[-1]) if dates else date.today())
         start_date = date.fromisoformat(start) if start else end_date - timedelta(days=max(1, days) - 1)
         in_range = lambda value: start_date.isoformat() <= _date(value) <= end_date.isoformat()
-        body = [copy.deepcopy(row) for row in tracker.get("daily_records", []) if in_range(row.get("Date"))]
-        diet = [copy.deepcopy(row) for row in tracker.get("diet_records", []) if in_range(row.get("Date"))]
-        training = [copy.deepcopy(row) for row in tracker.get("training_sessions", []) if in_range(row.get("Date"))]
+        body = [{**copy.deepcopy(row), "daily_notes": normalize_note_text(row.get("Notes", ""))} for row in tracker.get("daily_records", []) if in_range(row.get("Date"))]
+        diet = [{**copy.deepcopy(row), "diet_notes": normalize_note_text(row.get("Notes", ""))} for row in tracker.get("diet_records", []) if in_range(row.get("Date"))]
+        training = [{**copy.deepcopy(row), "training_notes": normalize_note_text(row.get("Notes", ""))} for row in tracker.get("training_sessions", []) if in_range(row.get("Date"))]
         movements = []
         by_id, _ = self.dictionary_indexes(dictionary)
         for row in tracker.get("movements", {}).values():
@@ -278,7 +283,7 @@ class LedgerViewModels:
                 "movement_id": row.get("movement_id", ""),
                 "display_name": definition.get("display_name") or row.get("name", ""),
                 "muscle_group": definition.get("muscle_group", ""),
-                "history": [{**item, "metrics": self.history_metrics(item)} for item in histories],
+                "history": [{**item, "movement_notes": normalize_note_text(item.get("notes", "")), "metrics": self.history_metrics(item)} for item in histories],
             })
         raw_refs = []
         for item in tracker.get("raw_entries", []) or []:

@@ -216,7 +216,7 @@ Web write commands must be explicitly routed through `LedgerCommandService`. Tes
 - An indented `notes:` line remains attached to its numbered movement.
 - Review preview displays the movement note.
 - Confirm save preserves the note in movement history.
-- Training-day Notes aggregates movement names and their notes in movement order.
+- Training-day Notes stores only an explicit top-level `training notes:` block; Movement Notes remain on their individual history instances and are not copied into the session.
 - Global notes remain Body notes and are not duplicated as movement notes.
 
 ## Body Table Changes

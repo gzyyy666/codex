@@ -1,5 +1,12 @@
 # Fitness Ledger Changelog
 
+## 2026-07-18 - Notes semantic scope Core candidate
+
+- Added deterministic Daily, Diet, Training, and movement-instance Notes parsing with canonical `notes:`, `diet notes:`, `training notes:`, and indented action `notes:` input.
+- Preserved historical unindented action-note compatibility only in an unambiguous next-action context; ambiguous prose remains raw input instead of being guessed.
+- Kept Training Notes independent from Movement Notes, added explicit scope aliases to Core projections and Analysis Export, and normalized note representation for NO_CHANGES/rollback behavior.
+- No formal data, movement dictionary, Web UI, Cloud Sync, Mini Program, or paused Custom Daily Metric experiment was changed.
+
 ## 2026-07-17 - Documentation authority and task closure maintenance
 
 - Marked early Git snapshot and rollback notes as historical so old checkpoints and tags cannot override live `project_status.py` results.
