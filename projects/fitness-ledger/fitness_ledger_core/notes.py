@@ -20,7 +20,7 @@ _NOTE_LABELS = (
 # separate value-aware matcher below so prose such as "calories are high"
 # does not terminate a Notes block.
 _SECTION_LABELS = re.compile(
-    r"^(?:training|训练|cardio|有氧|diet|饮食|"
+    r"^(?:training|训练|训练部位|training\s+(?:part|split)|cardio|有氧|diet|饮食|"
     r"notes?|备注|diet\s+notes|饮食备注|training\s+notes|训练备注)\s*[:：]",
     re.I,
 )

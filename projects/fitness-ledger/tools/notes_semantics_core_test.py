@@ -111,6 +111,18 @@ def test_formal_field_boundaries(app) -> None:
     assert training_after["training"]["notes"] == "整次训练备注。"
     assert training_after["training"]["movements"][0]["notes"] == "动作控制。"
 
+    unindented = app.parse_entry(
+        "2026-07-22\n训练部位: 肩\n俯身哑铃飞鸟\n10kg x 10 x 2"
+    )
+    assert unindented["training"]["split"] == "肩"
+    assert unindented["training"]["movements"][0]["movement_id"] == "SHOULDER_001"
+
+    inline = app.parse_entry(
+        "2026-07-22\ntraining part: 肩\n俯身哑铃飞鸟 10kg x 10 x 2"
+    )
+    assert inline["training"]["split"] == "肩"
+    assert inline["training"]["movements"][0]["sets"][0]["weight"] == 10.0
+
     aliases = app.parse_entry(
         "2026-07-23\n备注:\n整日别名。\nweight: 80\n饮食备注:\n饮食别名。\ncalories: 2200\n训练备注:\n训练别名。"
     )

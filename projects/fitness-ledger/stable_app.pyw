@@ -3584,7 +3584,7 @@ def extract_training_section(text: str) -> tuple[str, str]:
     in_training = False
     for line in lines:
         if not in_training:
-            match = re.match(r"^\s*(?:training|\u8bad\u7ec3)\s*[:\uFF1A]\s*(.*)$", line, re.I)
+            match = re.match(r"^\s*(?:training|\u8bad\u7ec3|\u8bad\u7ec3\u90e8\u4f4d|training\s+(?:part|split))\s*[:\uFF1A]\s*(.*)$", line, re.I)
             if match:
                 split = match.group(1).strip()
                 in_training = True
@@ -3709,12 +3709,31 @@ def _patched_parse_training_movements(self, training_text: str) -> list[dict]:
             break
 
         definition = self.movement_definitions_by_alias.get(normalize_name(stripped))
+        inline_loads = extract_load_blocks(stripped)
+        inline_name = strip_movement_metrics(stripped)
+        starts_inline_movement = bool(
+            inline_loads
+            and inline_name
+            and not is_cardio_line(stripped)
+            and self.movement_definitions_by_alias.get(normalize_name(inline_name)) is not None
+        )
         starts_unnumbered_movement = (
             not note_match
-            and not extract_load_blocks(stripped)
+            and not inline_loads
             and not is_cardio_line(stripped)
             and (definition is not None or bool(extract_load_blocks(next_line)))
         )
+        if starts_inline_movement:
+            finish_current()
+            current = {
+                "order": pending_order if pending_order is not None else len(movements) + 1,
+                "name": inline_name,
+                "raw_lines": [stripped],
+                "notes": [],
+                "note_mode": False,
+            }
+            pending_order = None
+            continue
         if starts_unnumbered_movement:
             finish_current()
             current = {
