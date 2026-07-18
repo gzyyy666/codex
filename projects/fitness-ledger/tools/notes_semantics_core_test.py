@@ -123,6 +123,12 @@ def test_formal_field_boundaries(app) -> None:
     assert inline["training"]["split"] == "肩"
     assert inline["training"]["movements"][0]["sets"][0]["weight"] == 10.0
 
+    split_on_next_line = app.parse_entry(
+        "2026-07-22\ntraining:\n 肩\n 俯身哑铃飞鸟\n 10kg x 10 x 2\n 侧平举\n 5kg x 12 x 3"
+    )
+    assert split_on_next_line["training"]["split"] == "肩"
+    assert [item["name"] for item in split_on_next_line["training"]["movements"]] == ["俯身哑铃飞鸟", "侧平举"]
+
     aliases = app.parse_entry(
         "2026-07-23\n备注:\n整日别名。\nweight: 80\n饮食备注:\n饮食别名。\ncalories: 2200\n训练备注:\n训练别名。"
     )

@@ -1358,6 +1358,22 @@ class FitnessTrackerApp(tk.Tk):
         body["notes"] = note_sections["daily_notes"]
         diet["notes"] = note_sections["diet_notes"]
         split, training_text = extract_training_section(raw)
+        if not split:
+            training_lines = training_text.splitlines()
+            first_training_line = training_lines[0].strip() if training_lines else ""
+            next_training_line = training_lines[1].strip() if len(training_lines) > 1 else ""
+            first_definition = self.movement_definitions_by_alias.get(normalize_name(first_training_line))
+            first_is_numbered = bool(re.match(r"^\d+\s*[.、)]", first_training_line))
+            first_is_movement = bool(
+                first_definition
+                or extract_load_blocks(first_training_line)
+                or extract_load_blocks(next_training_line)
+                or first_is_numbered
+                or is_cardio_line(first_training_line)
+            )
+            if first_training_line and not first_is_movement:
+                split = first_training_line
+                training_text = "\n".join(training_lines[1:]).strip()
         body["training_summary"] = split
         cardio_section = extract_labeled_section(
             raw,
