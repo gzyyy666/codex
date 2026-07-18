@@ -16,7 +16,12 @@ if str(MODULE_DIR) not in sys.path:
     sys.path.insert(0, str(MODULE_DIR))
 
 from ledger_commands import LedgerCommandError, LedgerCommandService
-from fitness_ledger_core.notes import extract_note_sections, normalize_action_note_block, normalize_note_text
+from fitness_ledger_core.notes import (
+    extract_note_sections,
+    is_structural_boundary,
+    normalize_action_note_block,
+    normalize_note_text,
+)
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -334,15 +339,22 @@ def extract_labeled_section(text: str, labels: tuple[str, ...], stop_labels: tup
 
 
 def extract_training_section(text: str) -> tuple[str, str]:
-    match = re.search(
-        r"(?ms)^(?:training|训练)[ \t]*[:：][ \t]*([^\r\n]*)"
-        r"(?:\r?\n)?(.*?)(?=^(?:cardio|有氧|diet|饮食|notes?|备注|diet\s+notes|饮食备注|training\s+notes|训练备注)[ \t]*[:：]|\Z)",
-        text,
-        re.I,
-    )
-    if not match:
+    lines = str(text or "").replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    start = None
+    split = ""
+    for index, line in enumerate(lines):
+        if re.match(r"^\s*(?:training|训练)\s*[:：]", line, re.I):
+            start = index
+            split = re.sub(r"^\s*(?:training|训练)\s*[:：]\s*", "", line, flags=re.I).strip()
+            break
+    if start is None:
         return "", ""
-    return match.group(1).strip(), match.group(2).strip()
+    body_lines = []
+    for line in lines[start + 1 :]:
+        if is_structural_boundary(line):
+            break
+        body_lines.append(line)
+    return split, "\n".join(body_lines).strip()
 
 
 def extract_bowel_movement(text: str) -> str:
@@ -3652,7 +3664,11 @@ def _patched_parse_training_movements(self, training_text: str) -> list[dict]:
         is_indented = raw_line[:1].isspace()
         next_line = lines[index + 1].strip() if index + 1 < len(lines) else ""
 
-        if re.match(r"^(?:diet|\u996e\u98df|cardio|\u6709\u6c27|training\s+notes|\u8bad\u7ec3\u5907\u6ce8|diet\s+notes|\u996e\u98df\u5907\u6ce8)\s*[:\uFF1A]", stripped, re.I):
+        if not is_indented and is_structural_boundary(raw_line) and not re.match(
+            r"^(?:notes?|\u5907\u6ce8|diet\s+notes|\u996e\u98df\u5907\u6ce8|training\s+notes|\u8bad\u7ec3\u5907\u6ce8)\s*[:\uFF1A]",
+            stripped,
+            re.I,
+        ):
             finish_current()
             break
 

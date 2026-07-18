@@ -100,6 +100,7 @@ Future desktop visual work must modify the final `_premium_*` presentation layer
 | `FitnessTrackerApp.parse_training_movements` | Parse same-line numbering, number-only headers, and unnumbered movement names followed by set lines without crossing section boundaries. | `parse_entry` |
 | `FitnessTrackerApp.parse_entry` | Parse one raw daily note into body, diet, and training sections. | Quick Entry |
 | `fitness_ledger_core.notes.extract_note_sections` | Deterministically separate Daily, Diet, and Training note scopes while preserving explicit action-note context. | Parser, Core save, projection, export |
+| `fitness_ledger_core.notes.is_structural_boundary` | Identify complete section and formal-field boundaries without treating ordinary prose as a field. | Notes parser and training-section extraction |
 | `fitness_ledger_core.notes.normalize_note_text` | Normalize line endings and note-boundary whitespace without rewriting internal prose. | Command Service, parser, projections |
 
 ## Movement Recognition And History

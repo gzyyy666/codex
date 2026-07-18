@@ -16,15 +16,42 @@ _NOTE_LABELS = (
     ("daily_notes", re.compile(r"^(?:notes?|备注)\s*[:：]\s*(.*)$", re.I)),
 )
 
-# Only labels which already delimit the maintained input grammar can end a
-# top-level note block.  Natural-language lines without a label remain note
-# content instead of being guessed into another scope.
+# These are the maintained section labels.  Numeric fields are handled by a
+# separate value-aware matcher below so prose such as "calories are high"
+# does not terminate a Notes block.
 _SECTION_LABELS = re.compile(
-    r"^(?:date|日期|weight|体重|body\s+fat|体脂(?:率)?|waist|腰围|sleep|睡眠|steps?|步数|"
-    r"bowel(?:\s+movement)?|排便|training|训练|cardio|有氧|diet|饮食|"
+    r"^(?:training|训练|cardio|有氧|diet|饮食|"
     r"notes?|备注|diet\s+notes|饮食备注|training\s+notes|训练备注)\s*[:：]",
     re.I,
 )
+_NUMERIC_FIELD_LABELS = re.compile(
+    r"^(?:weight|体重|body\s+fat|体脂(?:率)?|waist|腰围|sleep|睡眠|steps?|步数|"
+    r"calories?|kcal|热量|卡路里|protein|蛋白质|carbs?|carbohydrate|碳水(?:化合物)?|"
+    r"fat|脂肪)\s*[:：]\s*[-+]?\d+(?:\.\d+)?\s*$",
+    re.I,
+)
+_BOWEL_FIELD_LABELS = re.compile(
+    r"^(?:bowel(?:\s+movement)?|排便)\s*[:：]\s*\S.*$",
+    re.I,
+)
+
+
+def is_structural_boundary(line: str) -> bool:
+    """Return whether an unindented line starts a maintained structure.
+
+    This is the single boundary predicate shared by top-level Notes parsing
+    and training-section extraction.  It intentionally requires numeric
+    values for numeric fields, keeping natural-language prose in Notes.
+    """
+
+    text = str(line or "").rstrip()
+    if not text or text[0].isspace():
+        return False
+    return bool(
+        _SECTION_LABELS.match(text)
+        or _NUMERIC_FIELD_LABELS.match(text)
+        or _BOWEL_FIELD_LABELS.match(text)
+    )
 
 
 def normalize_note_text(value: str | None) -> str:
@@ -87,7 +114,7 @@ def extract_note_sections(raw: str) -> dict[str, str]:
             if matched[1]:
                 blocks[current].append(matched[1])
             continue
-        if is_top_level and _SECTION_LABELS.match(line):
+        if is_top_level and is_structural_boundary(line):
             if re.match(r"^(?:training|训练)\s*[:：]", line, re.I):
                 in_training = True
             elif re.match(r"^(?:diet|饮食|cardio|有氧|training\s+notes|训练备注|diet\s+notes|饮食备注)\s*[:：]", line, re.I):

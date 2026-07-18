@@ -34,6 +34,14 @@ notes remain compatible only when the next line clearly starts another action.
 An unlabelled or otherwise ambiguous sentence is not silently assigned to a
 scope; the raw input remains available for Review.
 
+Each Notes block ends at the next complete structural marker: another Notes
+scope, a section such as `diet:`, `training:`, or `cardio:`, or a recognized
+formal field such as `calories: 2200`, `protein: 140`, `weight: 80`, or
+`steps: 9000`. Numeric fields must contain a valid numeric value before they
+can terminate Notes; prose such as “calories are higher today” remains note
+content. This same boundary rule is shared by top-level parsing and training
+movement extraction.
+
 Movement Notes belong to one dated movement-history instance. They are not
 Movement Dictionary metadata and are never copied into other dates or same-name
 instances. Training Notes are not copied into movements.
