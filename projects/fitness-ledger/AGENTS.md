@@ -12,6 +12,8 @@ python tools/project_status.py --write --json
 
 Use its live Git, formal-directory, Cloud Sync, service, and deployment results as the authority. Prompt SHAs and old chat summaries are expectations only; report and stop on an unexplained mismatch.
 
+Before starting work that touches an existing module, data structure, or architecture extension, inspect `docs/experiments/EXPERIMENTS_INDEX.md`. Unless the user explicitly resumes an experiment, do not continue, merge, copy, or depend on a paused experiment.
+
 Do not copy formal `data/**` into Git or a Worktree. The status file contains hashes and dates only, never training-record content.
 
 ## Deployment and service rules

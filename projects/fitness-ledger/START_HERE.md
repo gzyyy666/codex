@@ -23,6 +23,7 @@ If no closure phrase is given, default to **先开发/先让我验收**. This pr
 4. Read `docs/INDEX.md` and open only the task-specific references.
 5. Read `FUNCTION_INDEX.md` before opening large source files.
 6. Select the minimum tests from `REGRESSION_CHECKLIST.md`.
+7. The project contains Reviewed / Paused unreleased experiments; before related work, read `docs/experiments/EXPERIMENTS_INDEX.md`.
 
 ## Current Authority
 
