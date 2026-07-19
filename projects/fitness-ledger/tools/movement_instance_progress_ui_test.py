@@ -97,9 +97,15 @@ archiveRows[1].checked=true;
 archiveRows[1].dispatchEvent(new Event('change',{bubbles:true}));
 await wait(180);
 const archiveEditUsesStableIds=updateRequests[0]?.movement_id==='MOV_A'&&updateRequests[0]?.history_id==='history-volume'&&updateRequests[0]?.values?.exclude_from_progress===false;
+const archiveRowsAfter=[...document.querySelectorAll('[data-instance-progress-toggle]')];
+archiveRowsAfter[1].checked=false;
+archiveRowsAfter[1].dispatchEvent(new Event('change',{bubbles:true}));
+await wait(180);
 state.movementSelection='MOV_A';
 await loadMovementFocus('MOV_A');
 await wait(80);
+const movementProgressChartLabelCount=document.querySelectorAll('.movement-progress-panel .chart-labels text').length;
+const movementProgressChartFiltered=movementProgressChartLabelCount===1;
 document.querySelector('[data-movement-history-edit]')?.click();
 await wait(40);
 const editToggle=document.querySelector('#movement-history-form [name="exclude_from_progress"]');
@@ -107,7 +113,7 @@ const editControlVisible=Boolean(editToggle);
 if(editToggle){editToggle.checked=false;await saveMovementHistory();}
 await wait(160);
 const historyEditUsesStableIds=updateRequests.some(row=>row.history_id==='history-main'&&row.values?.exclude_from_progress===true);
-const report=document.createElement('div');report.id='movement-instance-report';report.dataset.value=encodeURIComponent(JSON.stringify({reviewHasTwoIndependentToggles,unknownIsSeparated,saveCarriesInstanceState,archiveKeepsBoth,archiveEditUsesStableIds,editControlVisible,historyEditUsesStableIds,updateRequests}));document.body.appendChild(report);
+const report=document.createElement('div');report.id='movement-instance-report';report.dataset.value=encodeURIComponent(JSON.stringify({reviewHasTwoIndependentToggles,unknownIsSeparated,saveCarriesInstanceState,archiveKeepsBoth,archiveEditUsesStableIds,editControlVisible,historyEditUsesStableIds,movementProgressChartFiltered,movementProgressChartLabelCount,updateRequests}));document.body.appendChild(report);
 """
     with tempfile.TemporaryDirectory(prefix="fitness-ledger-instance-progress-browser-") as temp:
         page = Path(temp) / "index.html"
@@ -125,7 +131,7 @@ const report=document.createElement('div');report.id='movement-instance-report';
     report = json.loads(unquote(match.group(1)))
     assert all(report[key] is True for key in (
         "reviewHasTwoIndependentToggles", "unknownIsSeparated", "saveCarriesInstanceState",
-        "archiveKeepsBoth", "archiveEditUsesStableIds", "editControlVisible", "historyEditUsesStableIds",
+        "archiveKeepsBoth", "archiveEditUsesStableIds", "editControlVisible", "historyEditUsesStableIds", "movementProgressChartFiltered",
     )), report
 
 
