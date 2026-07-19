@@ -212,7 +212,7 @@ class IntelligentExportService:
                     repair_result = self.adapter.generate_json(system_prompt=INTENT_REPAIR_SYSTEM_PROMPT, user_payload={"invalid_output": "intent unavailable", "validation_error": {"code": getattr(exc, "code", "INTENT_INVALID"), "message": str(exc)[:240]}, "intent_schema": intent_json_schema()}, response_schema=intent_json_schema(), config=REPAIR_MODEL_CONFIG)
                     intent = IntentSpec.from_dict(parse_json_object(repair_result.raw_text)); intent_result = repair_result
                 except Exception as repair_error:
-                    return self._fallback(request, getattr(repair_error, "code", "REPAIR_FAILED"), trace_id, started, catalog)
+                    return self._fallback(request, getattr(repair_error, "code", "MODEL_REPAIR_FAILED"), trace_id, started, catalog)
             if self._expired(started):
                 return self._fallback(request, "TASK_TIMEOUT", trace_id, started, catalog)
             try:
@@ -226,16 +226,18 @@ class IntelligentExportService:
                 selection, planning_result = planner.plan(request, intent, package)
                 draft = assembler.assemble(selection, request, intent, trace_id)
                 diagnostics["stages"]["planning"] = self._model_diag(planning_result, {"payload_chars": len(json.dumps(planner.last_payload or {}, ensure_ascii=False)), "schema_chars": len(json.dumps(selection_json_schema(), ensure_ascii=False))})
+                if selection.needs_fallback:
+                    return self._fallback(request, "LOW_CONFIDENCE", trace_id, started, catalog, intent)
             except Exception as exc:
                 if repair_used:
-                    return self._fallback(request, getattr(exc, "code", "PLANNING_INVALID"), trace_id, started, catalog, intent)
+                    return self._fallback(request, getattr(exc, "code", "MODEL_SELECTION_INVALID"), trace_id, started, catalog, intent)
                 try:
                     repair_used = True
                     repair_result = self.adapter.generate_json(system_prompt=REPAIR_SYSTEM_PROMPT, user_payload={"invalid_selection": "selection parse failed", "validation_error": {"code": getattr(exc, "code", "PLANNING_INVALID"), "message": str(exc)[:240]}, "allowed_window_ids": package.allowed_ids["window_ids"], "allowed_module_ids": package.allowed_modules, "allowed_field_ids_by_module": package.allowed_fields, "allowed_movement_ids": package.allowed_ids["movement_ids"], "allowed_note_candidate_ids": package.allowed_ids["note_candidate_ids"], "allowed_candidate_record_ids": package.allowed_ids["candidate_record_ids"], "selection_schema": selection_json_schema()}, response_schema=selection_json_schema(), config=REPAIR_MODEL_CONFIG)
                     selection = planner.parse_selection(repair_result.raw_text); draft = assembler.assemble(selection, request, intent, trace_id)
                     diagnostics["stages"]["repair"] = self._model_diag(repair_result, {"schema_chars": len(json.dumps(selection_json_schema(), ensure_ascii=False))})
                 except Exception as repair_error:
-                    return self._fallback(request, getattr(repair_error, "code", "REPAIR_FAILED"), trace_id, started, catalog, intent)
+                    return self._fallback(request, getattr(repair_error, "code", "MODEL_REPAIR_FAILED"), trace_id, started, catalog, intent)
             repaired = repair_used
             try:
                 plan = self.validator.validate(draft, package, request, trace_id)
@@ -248,7 +250,7 @@ class IntelligentExportService:
                     selection = planner.parse_selection(repair_result.raw_text); draft = assembler.assemble(selection, request, intent, trace_id); plan = self.validator.validate(draft, package, request, trace_id, trim=False)
                     diagnostics["stages"]["repair"] = self._model_diag(repair_result, {"schema_chars": len(json.dumps(selection_json_schema(), ensure_ascii=False))})
                 except Exception as repair_error:
-                    return self._fallback(request, getattr(repair_error, "code", "REPAIR_FAILED"), trace_id, started, catalog, intent)
+                    return self._fallback(request, getattr(repair_error, "code", "MODEL_REPAIR_FAILED"), trace_id, started, catalog, intent)
             if self._expired(started):
                 return self._fallback(request, "TASK_TIMEOUT", trace_id, started, catalog, intent)
             explanation = PlanExplanation(request[:2000], plan.interpreted_goal, plan.date_range, plan.selected_modules, plan.selected_fields, plan.selected_movements, plan.notes_selection, plan.inclusion_reasons, plan.exclusion_reasons, plan.missing_data_warnings, plan.estimated_output_size, plan.planner_confidence, repaired, plan.trimmed, False)
@@ -275,5 +277,5 @@ class IntelligentExportService:
     @staticmethod
     def _model_diag(result, extra=None) -> dict:
         data = dict(extra or {})
-        data.update({"adapter": getattr(result, "adapter", ""), "model": getattr(result, "model", ""), "duration_ms": getattr(result, "duration_ms", 0), "output_chars": getattr(result, "output_chars", len(getattr(result, "raw_text", ""))), "response_keys": getattr(result, "response_keys", []), "message_keys": getattr(result, "message_keys", []), "finish_reason": getattr(result, "finish_reason", ""), "eval_count": getattr(result, "eval_count", 0), "prompt_eval_count": getattr(result, "prompt_eval_count", 0), "truncated": getattr(result, "truncated", False)})
+        data.update({"adapter": getattr(result, "adapter", ""), "model": getattr(result, "model", ""), "duration_ms": getattr(result, "duration_ms", 0), "output_chars": getattr(result, "output_chars", len(getattr(result, "raw_text", ""))), "response_keys": getattr(result, "response_keys", []), "message_keys": getattr(result, "message_keys", []), "finish_reason": getattr(result, "finish_reason", ""), "eval_count": getattr(result, "eval_count", 0), "prompt_eval_count": getattr(result, "prompt_eval_count", 0), "http_status": getattr(result, "http_status", 0), "response_bytes": getattr(result, "response_bytes", 0), "load_duration_ns": getattr(result, "load_duration_ns", 0), "prompt_eval_duration_ns": getattr(result, "prompt_eval_duration_ns", 0), "eval_duration_ns": getattr(result, "eval_duration_ns", 0), "truncated": getattr(result, "truncated", False)})
         return data

@@ -8,6 +8,7 @@ deterministic fake adapter without a running model.
 from __future__ import annotations
 
 import json
+import socket
 import threading
 import time
 import urllib.error
@@ -33,6 +34,7 @@ class ModelConfig:
     think: bool = False
     stream: bool = False
     keep_alive: str | int = 0
+    ensure_ascii: bool = False
 
 
 INTENT_MODEL_CONFIG = ModelConfig(0.05, 4096, 800, 30.0)
@@ -121,7 +123,7 @@ class OllamaNativeAdapter:
                 "model": self.model_name,
                 "messages": [
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False, separators=(",", ":"))},
+                    {"role": "user", "content": json.dumps(user_payload, ensure_ascii=config.ensure_ascii, separators=(",", ":"))},
                 ],
                 "stream": bool(config.stream),
                 "think": bool(config.think),
@@ -133,7 +135,7 @@ class OllamaNativeAdapter:
                 },
                 "keep_alive": config.keep_alive if config.keep_alive is not None else self.keep_alive,
             }
-            body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            body = json.dumps(payload, ensure_ascii=config.ensure_ascii).encode("utf-8")
             request = urllib.request.Request(
                 f"{self.base_url}/api/chat",
                 data=body,
@@ -145,13 +147,15 @@ class OllamaNativeAdapter:
             for attempt in range(2):
                 try:
                     with urllib.request.urlopen(request, timeout=config.timeout) as response:
-                        result = json.loads(response.read().decode("utf-8"))
+                        status = int(getattr(response, "status", 200) or 200)
+                        response_body = response.read()
+                        result = json.loads(response_body.decode("utf-8"))
                     if not isinstance(result, dict):
-                        raise LocalModelError("Ollama response is not an object.", "MODEL_INVALID_RESPONSE")
+                        raise LocalModelError("Ollama response is not an object.", "MODEL_INVALID_JSON")
                     message = result.get("message") or {}
                     content = message.get("content") if isinstance(message, dict) else None
-                    if not isinstance(content, str):
-                        raise LocalModelError("Ollama response has no message content.", "MODEL_INVALID_RESPONSE")
+                    if not isinstance(content, str) or not content.strip():
+                        raise LocalModelError("Ollama response has no message content.", "MODEL_EMPTY_RESPONSE")
                     finish = str(result.get("done_reason", result.get("finish_reason", "")))
                     eval_count = int(result.get("eval_count", 0) or 0)
                     prompt_eval_count = int(result.get("prompt_eval_count", 0) or 0)
@@ -161,16 +165,27 @@ class OllamaNativeAdapter:
                         int((time.monotonic() - started) * 1000),
                         sorted(str(k) for k in result.keys()),
                         sorted(str(k) for k in message.keys()) if isinstance(message, dict) else [],
-                        finish, eval_count, prompt_eval_count, truncated, len(content),
+                        finish, eval_count, prompt_eval_count, truncated, len(content), status, len(response_body),
+                        int(result.get("load_duration", 0) or 0), int(result.get("prompt_eval_duration", 0) or 0), int(result.get("eval_duration", 0) or 0),
                     )
                 except urllib.error.HTTPError as exc:
-                    raise LocalModelError(f"Ollama HTTP {exc.code}.", "MODEL_HTTP_ERROR") from exc
-                except (OSError, urllib.error.URLError, TimeoutError, json.JSONDecodeError, LocalModelError) as exc:
+                    raise LocalModelError(f"Ollama HTTP {exc.code}.", "MODEL_CONNECTION_ERROR") from exc
+                except json.JSONDecodeError as exc:
+                    last_error = LocalModelError("Ollama returned invalid JSON.", "MODEL_INVALID_JSON")
+                    if attempt == 0:
+                        continue
+                except (socket.timeout, TimeoutError) as exc:
+                    last_error = LocalModelError("Ollama request timed out.", "MODEL_TIMEOUT")
+                    if attempt == 0:
+                        continue
+                except (OSError, urllib.error.URLError, LocalModelError) as exc:
                     last_error = exc
-                    if isinstance(exc, LocalModelError) and exc.code not in {"MODEL_INVALID_RESPONSE"}:
+                    if isinstance(exc, LocalModelError) and exc.code not in {"MODEL_INVALID_RESPONSE", "MODEL_EMPTY_RESPONSE"}:
                         raise exc
                     if attempt == 0:
                         continue
+            if isinstance(last_error, LocalModelError):
+                raise last_error
             raise LocalModelError(str(last_error or "Ollama request failed."), "MODEL_UNAVAILABLE")
         finally:
             self._request_slots.release()

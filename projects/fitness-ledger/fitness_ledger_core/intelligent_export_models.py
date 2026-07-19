@@ -23,6 +23,10 @@ MAX_TEXT = 400
 class ContractError(ValueError):
     """Raised when a model response violates a Core contract."""
 
+    def __init__(self, message: str, code: str = "MODEL_SCHEMA_INVALID") -> None:
+        super().__init__(message)
+        self.code = code
+
 
 def _obj(value: Any, name: str) -> dict:
     if not isinstance(value, dict):
@@ -568,6 +572,11 @@ class ModelCallResult:
     prompt_eval_count: int = 0
     truncated: bool = False
     output_chars: int = 0
+    http_status: int = 0
+    response_bytes: int = 0
+    load_duration_ns: int = 0
+    prompt_eval_duration_ns: int = 0
+    eval_duration_ns: int = 0
 
 
 @dataclass(frozen=True)
