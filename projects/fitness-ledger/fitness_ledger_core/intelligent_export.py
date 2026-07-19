@@ -13,9 +13,11 @@ from .candidate_cards import BUDGETS, CandidatePackage, CandidateSummarizer
 from .data_catalog import DataCatalogBuilder, MovementResolver, source_snapshot
 from .export_plan_validator import ExportPlanValidator, PlanValidationError, validate_source_snapshot
 from .export_planner import ExportPlanner
+from .export_plan_assembler import ExportPlanAssembler
 from .intelligent_export_models import (
     ContractError,
     ExportPlanDraft,
+    ModelPlanningSelection,
     IntentSpec,
     ManualFallbackResult,
     PlanExplanation,
@@ -31,10 +33,11 @@ from .local_model_adapter import (
     LocalModelError,
 )
 from .shared_view_models import history_in_progress, movement_in_progress
-from .intelligent_export_models import intent_json_schema, plan_json_schema
+from .intelligent_export_models import intent_json_schema, selection_json_schema
 
 
-REPAIR_SYSTEM_PROMPT = """You are repairing a Fitness Ledger export plan. Return exactly one JSON object matching the supplied schema. Repair only the listed validation errors. Do not change the user's goal, add candidates, widen the date range, invent IDs, execute export, or modify data. Excluded history is context_only and progress metrics must use valid progress history. Set needs_fallback=true if it cannot be repaired."""
+REPAIR_SYSTEM_PROMPT = """Repair only the Fitness Ledger model selection JSON. Return exactly one selection object matching the supplied schema. Use only allowed IDs and fields; do not output a full plan, dates, catalog IDs, paths, estimates, raw text, or prose. Excluded history is context_only and progress metrics must use valid progress history. Set needs_fallback=true when it cannot be repaired."""
+INTENT_REPAIR_SYSTEM_PROMPT = """Repair only the Fitness Ledger intent JSON. Return exactly one object matching the supplied intent schema. Do not output an export plan, catalog contents, raw entries, paths, or prose."""
 
 
 def _date(value) -> str:
@@ -196,69 +199,54 @@ class IntelligentExportService:
             return self._fallback(request, "MODEL_BUSY", trace_id, started)
         try:
             catalog = self.catalog_builder.build()
-            catalog_summary = {
-                "date_range": catalog.date_range,
-                "modules": [{"module_id": item.module_id, "record_count": item.record_count} for item in catalog.modules],
-                "budget_mode": budget_mode,
-            }
+            diagnostics = {"prompt_version": PROMPT_VERSION, "schema_version": "fitness-ledger-intelligent-export-v1", "candidate_counts": {}, "stages": {}}
+            catalog_summary = {"date_range": catalog.date_range, "modules": [{"module_id": item.module_id, "record_count": item.record_count} for item in catalog.modules], "budget_mode": budget_mode}
             repair_used = False
             intent_interpreter = IntentInterpreter(self.adapter)
             try:
                 intent, intent_result = intent_interpreter.interpret(request, catalog_summary)
+                diagnostics["stages"]["intent"] = self._model_diag(intent_result, {"payload_chars": len(json.dumps(catalog_summary, ensure_ascii=False)), "schema_chars": len(json.dumps(intent_json_schema(), ensure_ascii=False))})
             except Exception as exc:
                 try:
                     repair_used = True
-                    repair_result = self.adapter.generate_json(
-                        system_prompt=REPAIR_SYSTEM_PROMPT,
-                        user_payload={"invalid_output": getattr(intent_interpreter.last_result, "raw_text", ""), "validation_error": {"code": getattr(exc, "code", "INTENT_INVALID"), "message": str(exc)}, "intent_schema": intent_json_schema()},
-                        response_schema=intent_json_schema(),
-                        config=REPAIR_MODEL_CONFIG,
-                    )
-                    intent = IntentSpec.from_dict(parse_json_object(repair_result.raw_text))
-                    intent_result = repair_result
+                    repair_result = self.adapter.generate_json(system_prompt=INTENT_REPAIR_SYSTEM_PROMPT, user_payload={"invalid_output": "intent unavailable", "validation_error": {"code": getattr(exc, "code", "INTENT_INVALID"), "message": str(exc)[:240]}, "intent_schema": intent_json_schema()}, response_schema=intent_json_schema(), config=REPAIR_MODEL_CONFIG)
+                    intent = IntentSpec.from_dict(parse_json_object(repair_result.raw_text)); intent_result = repair_result
                 except Exception as repair_error:
                     return self._fallback(request, getattr(repair_error, "code", "REPAIR_FAILED"), trace_id, started, catalog)
             if self._expired(started):
                 return self._fallback(request, "TASK_TIMEOUT", trace_id, started, catalog)
             try:
                 package = CandidateSummarizer(catalog, MovementResolver(self.views)).build(request, intent, budget_mode)
+                diagnostics["candidate_counts"] = {"windows": len(package.windows), "modules": len(package.modules), "movements": len(package.movements), "notes": len(package.notes), "records": len(package.candidate_records), "allowed_ids": {key: len(value) for key, value in package.allowed_ids.items()}}
             except Exception as exc:
                 return self._fallback(request, getattr(exc, "code", "CATALOG_INVALID"), trace_id, started, catalog, intent)
             planner = ExportPlanner(self.adapter)
+            assembler = ExportPlanAssembler(package)
             try:
-                draft, planning_result = planner.plan(request, intent, package)
+                selection, planning_result = planner.plan(request, intent, package)
+                draft = assembler.assemble(selection, request, intent, trace_id)
+                diagnostics["stages"]["planning"] = self._model_diag(planning_result, {"payload_chars": len(json.dumps(planner.last_payload or {}, ensure_ascii=False)), "schema_chars": len(json.dumps(selection_json_schema(), ensure_ascii=False))})
             except Exception as exc:
                 if repair_used:
                     return self._fallback(request, getattr(exc, "code", "PLANNING_INVALID"), trace_id, started, catalog, intent)
                 try:
                     repair_used = True
-                    repair_result = self.adapter.generate_json(
-                        system_prompt=REPAIR_SYSTEM_PROMPT,
-                        user_payload={"invalid_output": getattr(planner.last_result, "raw_text", ""), "validation_error": {"code": getattr(exc, "code", "PLANNING_INVALID"), "message": str(exc)}, "allowed_ids": package.allowed_ids, "allowed_fields": package.allowed_fields, "budget": package.budget, "plan_schema": plan_json_schema()},
-                        response_schema=plan_json_schema(),
-                        config=REPAIR_MODEL_CONFIG,
-                    )
-                    draft = ExportPlanDraft.from_dict(parse_json_object(repair_result.raw_text))
+                    repair_result = self.adapter.generate_json(system_prompt=REPAIR_SYSTEM_PROMPT, user_payload={"invalid_selection": "selection parse failed", "validation_error": {"code": getattr(exc, "code", "PLANNING_INVALID"), "message": str(exc)[:240]}, "allowed_window_ids": package.allowed_ids["window_ids"], "allowed_module_ids": package.allowed_modules, "allowed_field_ids_by_module": package.allowed_fields, "allowed_movement_ids": package.allowed_ids["movement_ids"], "allowed_note_candidate_ids": package.allowed_ids["note_candidate_ids"], "allowed_candidate_record_ids": package.allowed_ids["candidate_record_ids"], "selection_schema": selection_json_schema()}, response_schema=selection_json_schema(), config=REPAIR_MODEL_CONFIG)
+                    selection = planner.parse_selection(repair_result.raw_text); draft = assembler.assemble(selection, request, intent, trace_id)
+                    diagnostics["stages"]["repair"] = self._model_diag(repair_result, {"schema_chars": len(json.dumps(selection_json_schema(), ensure_ascii=False))})
                 except Exception as repair_error:
                     return self._fallback(request, getattr(repair_error, "code", "REPAIR_FAILED"), trace_id, started, catalog, intent)
             repaired = repair_used
             try:
                 plan = self.validator.validate(draft, package, request, trace_id)
             except PlanValidationError as first_error:
-                if repair_used:
-                    return self._fallback(request, first_error.code, trace_id, started, catalog, intent)
-                if self._expired(started):
-                    return self._fallback(request, "TASK_TIMEOUT", trace_id, started, catalog, intent)
+                if repair_used or self._expired(started):
+                    return self._fallback(request, first_error.code if repair_used else "TASK_TIMEOUT", trace_id, started, catalog, intent)
                 repaired = True
                 try:
-                    plan_result = self.adapter.generate_json(
-                        system_prompt=REPAIR_SYSTEM_PROMPT,
-                        user_payload={"invalid_plan": draft.to_dict(), "validation_error": {"code": first_error.code, "message": str(first_error)}, "allowed_ids": package.allowed_ids, "allowed_fields": package.allowed_fields, "budget": package.budget, "plan_schema": plan_json_schema()},
-                        response_schema=plan_json_schema(),
-                        config=REPAIR_MODEL_CONFIG,
-                    )
-                    repaired_draft = ExportPlanDraft.from_dict(parse_json_object(plan_result.raw_text))
-                    plan = self.validator.validate(repaired_draft, package, request, trace_id, trim=False)
+                    repair_result = self.adapter.generate_json(system_prompt=REPAIR_SYSTEM_PROMPT, user_payload={"invalid_selection": selection.to_dict(), "validation_error": {"code": first_error.code, "message": str(first_error)[:240]}, "allowed_window_ids": package.allowed_ids["window_ids"], "allowed_module_ids": package.allowed_modules, "allowed_field_ids_by_module": package.allowed_fields, "allowed_movement_ids": package.allowed_ids["movement_ids"], "allowed_note_candidate_ids": package.allowed_ids["note_candidate_ids"], "allowed_candidate_record_ids": package.allowed_ids["candidate_record_ids"], "selection_schema": selection_json_schema()}, response_schema=selection_json_schema(), config=REPAIR_MODEL_CONFIG)
+                    selection = planner.parse_selection(repair_result.raw_text); draft = assembler.assemble(selection, request, intent, trace_id); plan = self.validator.validate(draft, package, request, trace_id, trim=False)
+                    diagnostics["stages"]["repair"] = self._model_diag(repair_result, {"schema_chars": len(json.dumps(selection_json_schema(), ensure_ascii=False))})
                 except Exception as repair_error:
                     return self._fallback(request, getattr(repair_error, "code", "REPAIR_FAILED"), trace_id, started, catalog, intent)
             if self._expired(started):
@@ -269,7 +257,8 @@ class IntelligentExportService:
             except PlanValidationError as exc:
                 return self._fallback(request, exc.code, trace_id, started, catalog, intent)
             trace = TraceRecord(trace_id, stable_hash(request[:2000]), stable_hash(catalog.to_prompt_dict()), stable_hash(plan.to_dict()), getattr(self.adapter, "adapter_name", "unknown"), getattr(self.adapter, "model_name", "unknown"), PROMPT_VERSION, "", int((time.monotonic() - started) * 1000), "", repaired, plan.trimmed, False)
-            return {"status": "ready", "intent": intent.to_dict(), "catalog": catalog.to_prompt_dict(), "candidate_package": package.to_prompt_dict(), "plan": plan.to_dict(), "explanation": explanation.to_dict(), "output": output, "trace": trace.to_dict()}
+            diagnostics["duration_ms"] = int((time.monotonic() - started) * 1000)
+            return {"status": "ready", "intent": intent.to_dict(), "catalog": catalog.to_prompt_dict(), "candidate_package": package.to_prompt_dict(), "selection": selection.to_dict(), "plan": plan.to_dict(), "explanation": explanation.to_dict(), "output": output, "trace": trace.to_dict(), "diagnostics": diagnostics}
         finally:
             self._task_slots.release()
 
@@ -282,3 +271,9 @@ class IntelligentExportService:
 
     def _expired(self, started: float) -> bool:
         return time.monotonic() - started > self.overall_timeout
+
+    @staticmethod
+    def _model_diag(result, extra=None) -> dict:
+        data = dict(extra or {})
+        data.update({"adapter": getattr(result, "adapter", ""), "model": getattr(result, "model", ""), "duration_ms": getattr(result, "duration_ms", 0), "output_chars": getattr(result, "output_chars", len(getattr(result, "raw_text", ""))), "response_keys": getattr(result, "response_keys", []), "message_keys": getattr(result, "message_keys", []), "finish_reason": getattr(result, "finish_reason", ""), "eval_count": getattr(result, "eval_count", 0), "prompt_eval_count": getattr(result, "prompt_eval_count", 0), "truncated": getattr(result, "truncated", False)})
+        return data
