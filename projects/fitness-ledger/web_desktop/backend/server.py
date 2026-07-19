@@ -617,7 +617,7 @@ class LedgerWebService:
         for target, source in zip(original_movements, submitted_movements):
             if not isinstance(source, dict):
                 raise LedgerCommandError("Invalid movement review data.")
-            for field in ("display_name", "notes", "_review_action", "_mapped_movement_id", "_muscle_group"):
+            for field in ("display_name", "notes", "_review_action", "_mapped_movement_id", "_muscle_group", "exclude_from_progress"):
                 if field in source:
                     target[field] = source[field]
         return reviewed

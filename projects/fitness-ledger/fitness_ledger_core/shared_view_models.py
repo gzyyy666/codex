@@ -32,6 +32,11 @@ def movement_in_progress(definition: dict) -> bool:
     )
 
 
+def history_in_progress(history: dict) -> bool:
+    """Return whether one recorded movement instance contributes to progress."""
+    return not bool(history.get("exclude_from_progress", False))
+
+
 class LedgerViewModels:
     """Read-only projection layer shared by Web, export, and cloud payloads."""
 
@@ -95,7 +100,13 @@ class LedgerViewModels:
         movement_id = str(movement_id or "").strip()
         definition = by_id.get(movement_id)
         if not definition:
-            return {"movement": None, "history": [], "recent_performance": []}
+            return {
+                "movement": None,
+                "history": [],
+                "progress_history": [],
+                "recent_performance": [],
+                "all_recent_performance": [],
+            }
         movement = next(
             (item for item in tracker.get("movements", {}).values() if str(item.get("movement_id", "")) == movement_id),
             {"movement_id": movement_id, "history": []},
@@ -103,14 +114,19 @@ class LedgerViewModels:
         history = sorted(movement.get("history", []) or [], key=lambda row: _date(row.get("date")), reverse=True)
         if before_date:
             history = [row for row in history if _date(row.get("date")) < _date(before_date)]
+        movement_is_progress = movement_in_progress(definition)
+        progress_history = [row for row in history if movement_is_progress and history_in_progress(row)]
         projected = []
         for row in history[: max(1, limit)]:
             item = copy.deepcopy(row)
+            item["exclude_from_progress"] = bool(item.get("exclude_from_progress", False))
             item["movement_notes"] = normalize_note_text(item.get("notes", ""))
             item["sets_lines"] = self.history_set_lines(item)
             item["metrics"] = self.history_metrics(item)
             projected.append(item)
-        recent = [item for item in projected if item["metrics"]["has_structured_sets"]][:3]
+        projected_progress = [item for item in projected if movement_is_progress and history_in_progress(item)]
+        recent = [item for item in projected_progress if item["metrics"]["has_structured_sets"]][:3]
+        all_recent = [item for item in projected if item["metrics"]["has_structured_sets"]][:3]
         for index, item in enumerate(recent):
             previous = recent[index + 1]["metrics"] if index + 1 < len(recent) else None
             item["change"] = {
@@ -121,9 +137,12 @@ class LedgerViewModels:
             "movement": {
                 **copy.deepcopy(definition),
                 "history_count": len(history),
+                "progress_history_count": len(progress_history),
             },
             "history": projected,
+            "progress_history": projected_progress,
             "recent_performance": recent,
+            "all_recent_performance": all_recent,
         }
 
     def movement_history(self, movement_name: str, limit: int = 8) -> dict:
@@ -131,14 +150,22 @@ class LedgerViewModels:
         by_id, by_alias = self.dictionary_indexes(dictionary)
         definition = by_id.get(str(movement_name or "").strip()) or by_alias.get(_normalize(movement_name))
         if not definition:
-            return {"movement": None, "history": [], "recent_performance": []}
+            return {
+                "movement": None,
+                "history": [],
+                "progress_history": [],
+                "recent_performance": [],
+                "all_recent_performance": [],
+            }
         return self.movement_history_by_id(str(definition.get("movement_id", "")), limit)
 
     def movement_progress_index(self) -> list[dict]:
         """Project only movements eligible for Movement Progress without affecting other archives."""
         tracker, dictionary = self.snapshot()
         counts = {
-            str(item.get("movement_id", "")): len(item.get("history", []) or [])
+            str(item.get("movement_id", "")): sum(
+                1 for history in (item.get("history", []) or []) if history_in_progress(history)
+            )
             for item in tracker.get("movements", {}).values()
             if isinstance(item, dict)
         }
@@ -149,6 +176,7 @@ class LedgerViewModels:
             item = copy.deepcopy(definition)
             item["exclude_from_progress"] = bool(item.get("exclude_from_progress", False))
             item["history_count"] = counts.get(str(item.get("movement_id", "")), 0)
+            item["progress_history_count"] = item["history_count"]
             rows.append(item)
         return sorted(
             rows,
@@ -214,6 +242,7 @@ class LedgerViewModels:
             )
             projected["movement_refs"] = [
                 {
+                    "history_id": row.get("id", ""),
                     "movement_id": row["movement_id"],
                     "display_name": row.get("display_name", ""),
                     "english_name": row.get("english_name", ""),
@@ -223,6 +252,7 @@ class LedgerViewModels:
                     "sets_lines": row.get("sets_lines", []),
                     "notes": row.get("notes", ""),
                     "movement_notes": normalize_note_text(row.get("notes", "")),
+                    "exclude_from_progress": bool(row.get("exclude_from_progress", False)),
                     "has_structured_sets": bool(row.get("has_structured_sets")),
                 }
                 for row in movement_refs
@@ -283,7 +313,15 @@ class LedgerViewModels:
                 "movement_id": row.get("movement_id", ""),
                 "display_name": definition.get("display_name") or row.get("name", ""),
                 "muscle_group": definition.get("muscle_group", ""),
-                "history": [{**item, "movement_notes": normalize_note_text(item.get("notes", "")), "metrics": self.history_metrics(item)} for item in histories],
+                "history": [
+                    {
+                        **item,
+                        "exclude_from_progress": bool(item.get("exclude_from_progress", False)),
+                        "movement_notes": normalize_note_text(item.get("notes", "")),
+                        "metrics": self.history_metrics(item),
+                    }
+                    for item in histories
+                ],
             })
         raw_refs = []
         for item in tracker.get("raw_entries", []) or []:

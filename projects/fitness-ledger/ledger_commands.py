@@ -1730,27 +1730,44 @@ class LedgerCommandService:
             if not history:
                 raise LedgerCommandError("Movement history record was not found.")
             try:
-                order_text = str(values.get("order", "")).strip()
+                order_text = str(values.get("order", history.get("order", ""))).strip()
                 order = int(order_text) if order_text else None
-                cardio = {}
-                for field in ("duration_minutes", "incline", "speed", "heart_rate"):
-                    text = str(values.get(field, "")).strip()
-                    cardio[field] = float(text) if text else None
-                cardio = {key: value for key, value in cardio.items() if value is not None}
+                cardio_fields = ("duration_minutes", "incline", "speed", "heart_rate")
+                if any(field in values for field in cardio_fields):
+                    cardio = {}
+                    for field in cardio_fields:
+                        text = str(values.get(field, "")).strip()
+                        cardio[field] = float(text) if text else None
+                    cardio = {key: value for key, value in cardio.items() if value is not None}
+                else:
+                    cardio = copy.deepcopy(history.get("cardio") or {})
             except (TypeError, ValueError) as exc:
                 raise LedgerCommandError("Order and cardio values must be numeric or blank.") from exc
             updates = {
                 "order": order,
-                "sets": self._parse_sets_text(str(values.get("sets_text", ""))),
+                "sets": (
+                    self._parse_sets_text(str(values.get("sets_text", "")))
+                    if "sets_text" in values else copy.deepcopy(history.get("sets") or [])
+                ),
                 "cardio": cardio,
-                "raw": str(values.get("raw", "")).strip(),
-                "notes": normalize_note_text(values.get("notes", "")),
+                "raw": str(values.get("raw", history.get("raw", ""))).strip(),
+                "notes": normalize_note_text(values.get("notes", history.get("notes", ""))),
                 "updated_at": datetime.now().replace(microsecond=0).isoformat(),
             }
+            if "exclude_from_progress" in values:
+                excluded = values.get("exclude_from_progress")
+                if not isinstance(excluded, bool):
+                    raise LedgerCommandError(
+                        "exclude_from_progress must be boolean.",
+                        "INVALID_PROGRESS_EXCLUSION",
+                    )
+                updates["exclude_from_progress"] = excluded
             before = copy.deepcopy(history)
             history.update(updates)
             if _same_business_content(before, history):
-                return {"status": "NO_CHANGES", "changed": False, "movement_id": movement_id, "history": copy.deepcopy(before)}
+                unchanged = copy.deepcopy(before)
+                unchanged.setdefault("exclude_from_progress", False)
+                return {"status": "NO_CHANGES", "changed": False, "movement_id": movement_id, "history": unchanged}
             tracker_backup, dictionary_backup = self._checkpoint()
             self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
             return {"status": "UPDATED", "changed": True, "movement_id": movement_id, "history": copy.deepcopy(history)}
@@ -1831,6 +1848,7 @@ class LedgerCommandService:
             else:
                 movement.setdefault("_review_action", "add")
                 movement["_matched_active"] = None
+            movement.setdefault("exclude_from_progress", False)
         duplicates = self.records_on_date(database, parsed.get("date", ""))
         return {
             "review_id": parsed.get("id"),
@@ -1864,6 +1882,9 @@ class LedgerCommandService:
             "fat": diet.get("fat"),
             "training": training.get("split") or body.get("training_summary", ""),
             "movement_count": len(included),
+            "progress_excluded_count": sum(
+                1 for item in included if bool(item.get("exclude_from_progress", False))
+            ),
             "new_movement_count": sum(1 for item in included if not item.get("movement_id") and item.get("_review_action") != "map"),
             "cardio": body.get("cardio_summary", ""),
             "notes_present": bool(body.get("notes") or training.get("notes")),
@@ -1923,6 +1944,15 @@ class LedgerCommandService:
                 raise LedgerCommandError(f"Movement {movement.get('name', '')} needs a mapping target.")
             if action == "add" and not str(movement.get("_muscle_group", "")).strip():
                 raise LedgerCommandError(f"请为新动作“{movement.get('name', '')}”选择训练部位。")
+
+        for movement in parsed.get("training", {}).get("movements", []):
+            if "exclude_from_progress" not in movement:
+                movement["exclude_from_progress"] = False
+            elif not isinstance(movement.get("exclude_from_progress"), bool):
+                raise LedgerCommandError(
+                    "exclude_from_progress must be boolean.",
+                    "INVALID_PROGRESS_EXCLUSION",
+                )
 
     def _checkpoint(self) -> tuple[Path, Path]:
         try:
@@ -1997,6 +2027,7 @@ class LedgerCommandService:
                     return {
                         "ok": True, "status": "NO_CHANGES", "changed": False, "date": parsed["date"],
                         "save_mode": save_mode, "saved_movements": 0, "working_sets": 0,
+                        "progress_excluded_count": 0,
                         "body_updated": False, "diet_updated": False, "training_updated": False, "notes_updated": False,
                         "movements_added": 0, "movements_removed": 0,
                     }
@@ -2078,6 +2109,7 @@ class LedgerCommandService:
         training = parsed.get("training", {})
         training["notes"] = normalize_note_text(training.get("notes", ""))
         saved_movements = 0
+        progress_excluded_count = 0
         skipped = []
         if training.get("split") or training.get("movements"):
             existing_days = [int(row.get("No.") or 0) for row in database.get("training_sessions", [])]
@@ -2116,7 +2148,9 @@ class LedgerCommandService:
                         "id": str(uuid.uuid4()), "movement_id": definition["movement_id"], "date": entry_date,
                         "training_day": day_number, "order": movement_data.get("order"), "sets": movement_data.get("sets", []),
                         "cardio": movement_data.get("cardio") or {}, "raw": movement_data.get("raw", ""),
-                        "notes": normalize_note_text(movement_data.get("notes", "")), "source": "text entry",
+                        "notes": normalize_note_text(movement_data.get("notes", "")),
+                        "exclude_from_progress": bool(movement_data.get("exclude_from_progress", False)),
+                        "source": "text entry",
                     }
                 )
                 display_name = definition.get("display_name") or movement_data.get("display_name") or candidate
@@ -2125,6 +2159,7 @@ class LedgerCommandService:
                 if note:
                     note_parts.append(f"{display_name}：{note}")
                 saved_movements += 1
+                progress_excluded_count += int(bool(movement_data.get("exclude_from_progress", False)))
             training_notes = normalize_note_text(training.get("notes", ""))
             if save_mode == "append_training":
                 training_notes = f"同日追加训练。{training_notes}" if training_notes else "同日追加训练。"
@@ -2144,5 +2179,6 @@ class LedgerCommandService:
             "date": entry_date,
             "save_mode": save_mode,
             "saved_movements": saved_movements,
+            "progress_excluded_count": progress_excluded_count,
             "skipped_movements": skipped,
         }

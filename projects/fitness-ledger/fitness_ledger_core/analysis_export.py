@@ -331,6 +331,8 @@ def render_markdown(payload: dict) -> str:
             lines.extend([f" {history['_display_name']}", f" { _sets_text(history)}"])
             if _text(history.get("notes")):
                 lines.append(f" notes: {_text(history.get('notes'))}")
+            if bool(history.get("exclude_from_progress", False)):
+                lines.append(" exclude_from_progress: true")
         if body and _text(body.get("Cardio")):
             lines.extend(["cardio:", _text(body.get("Cardio"))])
         scoped_notes = (
