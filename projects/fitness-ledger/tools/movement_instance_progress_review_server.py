@@ -49,11 +49,33 @@ def write_fixture(root: Path) -> None:
     }, ensure_ascii=False), encoding="utf-8")
 
 
+def seed_existing_history(service: LedgerWebService) -> None:
+    """Give the anonymous review a real, already-known movement to match."""
+    service.commands.save({
+        "id": "review-existing-history",
+        "date": "2099-01-01",
+        "raw": "Bench Press\n80kg x 8 x 3",
+        "body": {"date": "2099-01-01", "weight": None, "bowel_movement": "", "training_summary": "Chest", "cardio_summary": "", "notes": ""},
+        "diet": {"date": "2099-01-01", "food_summary": "", "calories": None, "protein": None, "carbs": None, "fat": None, "notes": ""},
+        "training": {
+            "split": "Chest",
+            "raw": "Bench Press\n80kg x 8 x 3",
+            "standardized_summary": "Bench Press",
+            "notes": "Existing history for review.",
+            "movements": [{
+                "name": "Bench Press", "display_name": "Bench Press", "movement_id": "CHEST_001",
+                "order": 1, "sets": [{"weight": 80, "reps": 8, "sets": 3}], "cardio": {},
+                "raw": "Bench Press\n80kg x 8 x 3", "notes": "Existing history for review.",
+                "_review_action": "use", "exclude_from_progress": False,
+            }],
+        },
+    })
 def main() -> None:
     temp = tempfile.TemporaryDirectory(prefix="fitness-ledger-instance-progress-review-")
     root = Path(temp.name)
     write_fixture(root)
     service = LedgerWebService(root / "tracker.json", root / "movement_dictionary.json", root / "backups")
+    seed_existing_history(service)
     server = create_server(port=0, service=service)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -61,6 +83,7 @@ def main() -> None:
     print("Review flow:", flush=True)
     print("1. Parse & Review the sample below.", flush=True)
     print("2. Keep the first Bench Press included; turn off the second Bench Press.", flush=True)
+    print("   Bench Press is pre-seeded in the temporary tracker and should show as 已有动作, not 新动作.", flush=True)
     print("3. Choose the raw-only option for Mystery Movement.", flush=True)
     print("4. Confirm & Save; open Training and verify both Bench Press instances remain.", flush=True)
     print("5. Toggle the second instance back on from the Training archive.", flush=True)
