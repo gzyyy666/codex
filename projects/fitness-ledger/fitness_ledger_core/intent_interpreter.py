@@ -16,12 +16,14 @@ INTENT_SYSTEM_PROMPT = """You are the Fitness Ledger Intent interpreter. Return 
 
 def parse_json_object(raw: str) -> dict:
     text = str(raw or "").replace("\ufeff", "").strip()
+    if not text:
+        raise ContractError("model response is empty", "MODEL_EMPTY_RESPONSE")
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.I)
         text = re.sub(r"\s*```$", "", text)
     start = text.find("{")
     if start < 0:
-        raise ContractError("model output contains no JSON object")
+        raise ContractError("model output contains no JSON object", "MODEL_INVALID_JSON")
     depth = 0
     in_string = False
     escaped = False
@@ -46,10 +48,13 @@ def parse_json_object(raw: str) -> dict:
                 end = index + 1
                 break
     if end is None:
-        raise ContractError("model output contains an incomplete JSON object")
-    value = json.loads(text[start:end])
+        raise ContractError("model output contains an incomplete JSON object", "MODEL_OUTPUT_TRUNCATED")
+    try:
+        value = json.loads(text[start:end])
+    except json.JSONDecodeError as exc:
+        raise ContractError("model output is not valid JSON", "MODEL_INVALID_JSON") from exc
     if not isinstance(value, dict):
-        raise ContractError("model output must be a JSON object")
+        raise ContractError("model output must be a JSON object", "MODEL_INVALID_JSON")
     return value
 
 
