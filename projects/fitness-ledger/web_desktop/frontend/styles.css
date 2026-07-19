@@ -2236,6 +2236,26 @@ table{border-collapse:collapse}thead{background:rgba(18,17,15,.035)}th{font-size
 @media(max-width:760px){.previous-preview{display:none}.training-movement-row{padding:9px 4px}}
 @media(prefers-reduced-motion:reduce){.is-context-focus{animation:none}}
 
+/* Instance-level Movement Progress inclusion: quiet, reversible, and separate from record content. */
+.instance-progress-toggle,.instance-progress-edit{display:flex;flex-direction:row!important;align-items:flex-start;gap:8px!important;color:var(--ink)!important;font-size:10px!important;font-weight:500!important;letter-spacing:0!important;cursor:pointer}
+.instance-progress-toggle input,.instance-progress-edit input{width:15px!important;height:15px;margin:1px 0 0;accent-color:var(--color-volt)}
+.instance-progress-toggle span,.instance-progress-edit span{display:grid;gap:3px;min-width:0}
+.instance-progress-toggle strong,.instance-progress-edit strong{font-size:10px;font-weight:650;line-height:1.2}
+.instance-progress-toggle small,.instance-progress-edit small{color:var(--graphite);font-size:9px;line-height:1.35;letter-spacing:0}
+.instance-progress-note{display:block;color:var(--graphite);font-size:9px;line-height:1.35;letter-spacing:0}
+.instance-progress-note.is-unrecognized{color:#8a5b39}
+.instance-progress-toggle.is-disabled{opacity:.56;cursor:default}
+.review-decision .instance-progress-toggle{margin-top:3px;padding-top:6px;border-top:1px solid rgba(24,21,16,.1)}
+.review-decision .instance-progress-toggle input:focus-visible,.archive-progress-toggle input:focus-visible,.instance-progress-edit input:focus-visible{outline:2px solid var(--color-volt);outline-offset:2px}
+.training-movement-row-shell{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;border-bottom:1px solid rgba(24,21,16,.11)}
+.training-movement-row-shell .training-movement-row{border-bottom:0}
+.training-movement-row-shell.is-excluded{background:rgba(255,218,110,.08)}
+.archive-progress-toggle{display:flex;align-items:center;gap:6px;padding:6px 8px;color:var(--graphite);font-size:9px;line-height:1.2;white-space:nowrap;cursor:pointer}
+.archive-progress-toggle input{width:14px;height:14px;margin:0;accent-color:var(--color-volt)}
+.archive-progress-toggle span{max-width:82px;overflow:hidden;text-overflow:ellipsis}
+.training-theme-slip .archive-progress-toggle{padding:5px 6px;font-size:8px}
+@media(max-width:760px){.training-movement-row-shell{grid-template-columns:1fr}.archive-progress-toggle{padding:2px 6px 7px 34px}.review-decision .instance-progress-toggle{align-items:flex-start}}
+
 /* 2026-07-02 single-screen entry and movement progression pass. */
 .entry-single-screen{
   min-height:calc(100vh - 80px);
