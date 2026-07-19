@@ -354,6 +354,126 @@ class ExportPlanDraft:
         return asdict(self)
 
 
+@dataclass(frozen=True)
+class ModelSelectionModule:
+    module_id: str
+    priority: int = 1
+    reason: str = ""
+
+    @classmethod
+    def from_dict(cls, value: Any) -> "ModelSelectionModule":
+        raw = _obj(value, "selected_modules[]")
+        _unknown(raw, {"module_id", "priority", "reason"}, "selected_modules[]")
+        priority = raw.get("priority", 1)
+        if isinstance(priority, bool) or not isinstance(priority, int) or not 1 <= priority <= 12:
+            raise ContractError("selected_modules[].priority is invalid")
+        return cls(_text(raw.get("module_id", ""), "selected_modules[].module_id", 120, True), priority, _text(raw.get("reason", ""), "selected_modules[].reason", 120))
+
+
+@dataclass(frozen=True)
+class ModelSelectionFields:
+    module_id: str
+    field_ids: list[str]
+    reason: str = ""
+
+    @classmethod
+    def from_dict(cls, value: Any) -> "ModelSelectionFields":
+        raw = _obj(value, "selected_fields[]")
+        _unknown(raw, {"module_id", "field_ids", "reason"}, "selected_fields[]")
+        return cls(_text(raw.get("module_id", ""), "selected_fields[].module_id", 120, True), strings_from(raw.get("field_ids", []), "selected_fields[].field_ids",), _text(raw.get("reason", ""), "selected_fields[].reason", 120))
+
+
+@dataclass(frozen=True)
+class ModelSelectionMovement:
+    movement_id: str
+    detail_level: str = "summary"
+    priority: int = 1
+    reason: str = ""
+
+    @classmethod
+    def from_dict(cls, value: Any) -> "ModelSelectionMovement":
+        raw = _obj(value, "selected_movements[]")
+        _unknown(raw, {"movement_id", "detail_level", "priority", "reason"}, "selected_movements[]")
+        detail = _text(raw.get("detail_level", "summary"), "selected_movements[].detail_level", 24)
+        if detail not in {"summary", "detailed", "full"}:
+            raise ContractError("selected_movements[].detail_level is invalid")
+        priority = raw.get("priority", 1)
+        if isinstance(priority, bool) or not isinstance(priority, int) or not 1 <= priority <= 16:
+            raise ContractError("selected_movements[].priority is invalid")
+        return cls(_text(raw.get("movement_id", ""), "selected_movements[].movement_id", 120, True), detail, priority, _text(raw.get("reason", ""), "selected_movements[].reason", 120))
+
+
+@dataclass(frozen=True)
+class ModelSelectionExclusion:
+    candidate_id: str
+    reason: str = ""
+
+    @classmethod
+    def from_dict(cls, value: Any) -> "ModelSelectionExclusion":
+        raw = _obj(value, "exclusion_decisions[]")
+        _unknown(raw, {"candidate_id", "reason"}, "exclusion_decisions[]")
+        return cls(_text(raw.get("candidate_id", ""), "exclusion_decisions[].candidate_id", 160, True), _text(raw.get("reason", ""), "exclusion_decisions[].reason", 120))
+
+
+@dataclass(frozen=True)
+class ModelPlanningSelection:
+    schema_version: str
+    selected_window_id: str
+    selected_modules: list[ModelSelectionModule]
+    selected_fields: list[ModelSelectionFields]
+    selected_movements: list[ModelSelectionMovement]
+    selected_note_candidate_ids: list[str]
+    selected_candidate_record_ids: list[str]
+    training_detail_level: str
+    movement_detail_level: str
+    include_raw_entries: bool
+    include_excluded_history: bool
+    excluded_history_usage: str
+    use_progress_history_for_metrics: bool
+    missing_data_warning_codes: list[str]
+    exclusion_decisions: list[ModelSelectionExclusion]
+    planner_confidence: float
+    needs_fallback: bool
+
+    @classmethod
+    def from_dict(cls, value: Any) -> "ModelPlanningSelection":
+        raw = _obj(value, "selection")
+        allowed = {"schema_version", "selected_window_id", "selected_modules", "selected_fields", "selected_movements", "selected_note_candidate_ids", "selected_candidate_record_ids", "training_detail_level", "movement_detail_level", "include_raw_entries", "include_excluded_history", "excluded_history_usage", "use_progress_history_for_metrics", "missing_data_warning_codes", "exclusion_decisions", "planner_confidence", "needs_fallback"}
+        _unknown(raw, allowed, "selection")
+        if raw.get("schema_version") != SCHEMA_VERSION:
+            raise ContractError("unsupported selection schema_version")
+        def strings(key: str, limit: int) -> list[str]:
+            return [_text(item, f"{key}[]", 160, True) for item in _list(raw.get(key, []), key, limit)]
+        for key in ("include_raw_entries", "include_excluded_history", "use_progress_history_for_metrics", "needs_fallback"):
+            if not isinstance(raw.get(key), bool):
+                raise ContractError(f"{key} must be boolean")
+        usage = _text(raw.get("excluded_history_usage", "none"), "excluded_history_usage", 32)
+        if usage not in {"none", "context_only"}:
+            raise ContractError("excluded_history_usage is invalid")
+        details = {"summary", "detailed", "full"}
+        training = _text(raw.get("training_detail_level", "summary"), "training_detail_level", 24)
+        movement = _text(raw.get("movement_detail_level", "summary"), "movement_detail_level", 24)
+        if training not in details or movement not in details:
+            raise ContractError("detail level is invalid")
+        return cls(
+            SCHEMA_VERSION,
+            _text(raw.get("selected_window_id", ""), "selected_window_id", 160, True),
+            [ModelSelectionModule.from_dict(item) for item in _list(raw.get("selected_modules"), "selected_modules", 12)],
+            [ModelSelectionFields.from_dict(item) for item in _list(raw.get("selected_fields"), "selected_fields", 12)],
+            [ModelSelectionMovement.from_dict(item) for item in _list(raw.get("selected_movements"), "selected_movements", 16)],
+            strings("selected_note_candidate_ids", 64),
+            strings("selected_candidate_record_ids", 128),
+            training, movement,
+            bool(raw["include_raw_entries"]), bool(raw["include_excluded_history"]), usage,
+            bool(raw["use_progress_history_for_metrics"]), strings("missing_data_warning_codes", 32),
+            [ModelSelectionExclusion.from_dict(item) for item in _list(raw.get("exclusion_decisions"), "exclusion_decisions", 64)],
+            _number(raw.get("planner_confidence"), "planner_confidence"), bool(raw["needs_fallback"]),
+        )
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
 def strings_from(value: Any, name: str) -> list[str]:
     return [_text(item, f"{name}[]", 120, True) for item in _list(value, name, 32)]
 
@@ -441,6 +561,13 @@ class ModelCallResult:
     adapter: str
     model: str
     duration_ms: int = 0
+    response_keys: list[str] = field(default_factory=list)
+    message_keys: list[str] = field(default_factory=list)
+    finish_reason: str = ""
+    eval_count: int = 0
+    prompt_eval_count: int = 0
+    truncated: bool = False
+    output_chars: int = 0
 
 
 @dataclass(frozen=True)
@@ -500,4 +627,32 @@ def plan_json_schema() -> dict:
 
 
 def repair_json_schema() -> dict:
-    return plan_json_schema()
+    return selection_json_schema()
+
+
+def selection_json_schema() -> dict:
+    # Keep the Ollama schema deliberately shallow. Runtime parsing remains
+    # strict (including nested object shape and bounds); the adapter's schema
+    # only needs to force a JSON object and the top-level keys.
+    module = {"type": "object", "additionalProperties": False, "properties": {"module_id": {"type": "string"}, "priority": {"type": "integer"}, "reason": {"type": "string"}}}
+    fields = {"type": "object", "additionalProperties": False, "properties": {"module_id": {"type": "string"}, "field_ids": {"type": "array", "items": {"type": "string"}}, "reason": {"type": "string"}}}
+    movement = {"type": "object", "additionalProperties": False, "properties": {"movement_id": {"type": "string"}, "detail_level": {"type": "string"}, "priority": {"type": "integer"}, "reason": {"type": "string"}}}
+    exclusion = {"type": "object", "additionalProperties": False, "properties": {"candidate_id": {"type": "string"}, "reason": {"type": "string"}}}
+    return {"type": "object", "properties": {
+        "schema_version": {"type": "string"},
+        "selected_window_id": {"type": "string"},
+        "selected_modules": {"type": "array", "maxItems": 12, "items": module},
+        "selected_fields": {"type": "array", "maxItems": 12, "items": fields},
+        "selected_movements": {"type": "array", "maxItems": 16, "items": movement},
+        "selected_note_candidate_ids": {"type": "array", "maxItems": 64, "items": {"type": "string", "maxLength": 160}},
+        "selected_candidate_record_ids": {"type": "array", "maxItems": 128, "items": {"type": "string", "maxLength": 160}},
+        "training_detail_level": {"type": "string", "enum": ["summary", "detailed", "full"]},
+        "movement_detail_level": {"type": "string", "enum": ["summary", "detailed", "full"]},
+        "include_raw_entries": {"type": "boolean"}, "include_excluded_history": {"type": "boolean"},
+        "excluded_history_usage": {"type": "string", "enum": ["none", "context_only"]},
+        "use_progress_history_for_metrics": {"type": "boolean"},
+        "missing_data_warning_codes": {"type": "array", "items": {"type": "string"}},
+        "exclusion_decisions": {"type": "array", "maxItems": 64, "items": exclusion},
+        "planner_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "needs_fallback": {"type": "boolean"},
+    }, "required": ["schema_version", "selected_window_id", "selected_modules", "selected_fields", "selected_movements", "selected_note_candidate_ids", "selected_candidate_record_ids", "training_detail_level", "movement_detail_level", "include_raw_entries", "include_excluded_history", "excluded_history_usage", "use_progress_history_for_metrics", "missing_data_warning_codes", "exclusion_decisions", "planner_confidence", "needs_fallback"]}

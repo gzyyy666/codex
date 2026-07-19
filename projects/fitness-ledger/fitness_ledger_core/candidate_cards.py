@@ -42,6 +42,17 @@ class CandidatePackage:
             "budget": self.budget,
         }
 
+    def to_planning_prompt_dict(self) -> dict:
+        """Compact, selection-only view; IDs remain separately enumerable."""
+        return {
+            "windows": [{"window_id": w.window_id, "requested_start": w.requested_start, "requested_end": w.requested_end, "resolved_start": w.resolved_start, "resolved_end": w.resolved_end, "anchor": w.anchor, "modules": w.modules, "missing_data_warnings": w.missing_data_warnings} for w in self.windows],
+            "modules": [{"module_id": m.module_id, "available": m.available, "record_count": m.record_count, "fields": sorted(m.field_coverage)} for m in self.modules],
+            "movements": [{"movement_id": m.movement_id, "canonical_name": m.canonical_name, "body_part": m.body_part, "progress_history_count": m.progress_history_count, "excluded_history_count": m.excluded_history_count, "latest_valid_progress_date": m.latest_valid_progress_date} for m in self.movements],
+            "notes": [{"note_candidate_id": n.note_candidate_id, "date": n.date, "note_type": n.note_type, "scope": n.scope, "movement_id": n.movement_id} for n in self.notes],
+            "candidate_records": [{"candidate_record_id": r.candidate_record_id, "module_id": r.module_id, "date": r.date, "record_kind": r.record_kind, "flags": r.flags, "related_movement_ids": r.related_movement_ids} for r in self.candidate_records],
+            "movement_matches": self.movement_matches[:12],
+        }
+
 
 BUDGETS = {
     "concise": {"records": 250, "movements": 3, "notes": 12, "raw": 0, "output_bytes": 80_000},
@@ -75,7 +86,12 @@ class CandidateSummarizer:
             # an ambiguous mention is useful, never the resolver alone.
             if matches and matches[0]["score"] >= 0.55:
                 matched_ids.add(matches[0]["movement_id"])
-        movements = [item for item in self.catalog.movements if item.movement_id in matched_ids or not intent.movement_mentions]
+        # A low-confidence/irrelevant mention must not erase all movement
+        # context for a global query. When no candidate matched, expose only
+        # the top real movements; the model still cannot invent IDs.
+        movements = [item for item in self.catalog.movements if item.movement_id in matched_ids]
+        if not movements:
+            movements = sorted(self.catalog.movements, key=lambda item: (-item.progress_history_count, -item.history_count, item.canonical_name))[: max(1, budget["movements"])]
         movements = sorted(movements, key=lambda item: (-item.progress_history_count, -item.history_count, item.canonical_name))[: max(budget["movements"] * 2, budget["movements"])]
         movement_ids = {item.movement_id for item in movements}
         modules = [item for item in self.catalog.modules if item.module_id in set(intent.catalog_requirements) or not intent.catalog_requirements]
@@ -85,7 +101,7 @@ class CandidateSummarizer:
         # Keep the planning prompt comfortably below the configured context
         # window.  The executor still reads the complete local projection
         # after validation; this cap only limits model-visible candidates.
-        prompt_record_cap = {"concise": 24, "standard": 48, "complete": 96}.get(budget_mode, 48)
+        prompt_record_cap = {"concise": 12, "standard": 24, "complete": 48}.get(budget_mode, 24)
         records = records[: min(budget["records"], prompt_record_cap)]
         keywords = _terms(request)
         notes = [item for item in self.catalog.notes if in_range(item.date) and (not movement_ids or not item.movement_id or item.movement_id in movement_ids)]
@@ -98,7 +114,7 @@ class CandidateSummarizer:
                 continue
             seen.add(note.dedup_hash)
             unique.append(note)
-        notes = unique[: budget["notes"]]
+        notes = unique[: min(budget["notes"], 8 if budget_mode == "concise" else 16)]
         allowed_fields = {module.module_id: sorted(module.field_coverage) for module in modules}
         allowed_ids = {
             "window_ids": [item.window_id for item in windows],

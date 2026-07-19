@@ -36,7 +36,7 @@ class ModelConfig:
 
 
 INTENT_MODEL_CONFIG = ModelConfig(0.05, 4096, 800, 30.0)
-PLANNING_MODEL_CONFIG = ModelConfig(0.05, 6144, 2400, 60.0)
+PLANNING_MODEL_CONFIG = ModelConfig(0.05, 8192, 1600, 60.0)
 REPAIR_MODEL_CONFIG = ModelConfig(0.0, 4096, 1400, 30.0)
 
 
@@ -88,7 +88,7 @@ class FakeLocalModelAdapter:
         if isinstance(response, Exception):
             raise response
         raw = response if isinstance(response, str) else json.dumps(response, ensure_ascii=False)
-        return ModelCallResult(raw, self.adapter_name, self.model_name, 0)
+        return ModelCallResult(raw, self.adapter_name, self.model_name, 0, output_chars=len(raw))
 
 
 class OllamaNativeAdapter:
@@ -152,7 +152,17 @@ class OllamaNativeAdapter:
                     content = message.get("content") if isinstance(message, dict) else None
                     if not isinstance(content, str):
                         raise LocalModelError("Ollama response has no message content.", "MODEL_INVALID_RESPONSE")
-                    return ModelCallResult(content, self.adapter_name, self.model_name, int((time.monotonic() - started) * 1000))
+                    finish = str(result.get("done_reason", result.get("finish_reason", "")))
+                    eval_count = int(result.get("eval_count", 0) or 0)
+                    prompt_eval_count = int(result.get("prompt_eval_count", 0) or 0)
+                    truncated = finish in {"length", "max_tokens", "stop_limit"} or (not bool(result.get("done", True)))
+                    return ModelCallResult(
+                        content, self.adapter_name, self.model_name,
+                        int((time.monotonic() - started) * 1000),
+                        sorted(str(k) for k in result.keys()),
+                        sorted(str(k) for k in message.keys()) if isinstance(message, dict) else [],
+                        finish, eval_count, prompt_eval_count, truncated, len(content),
+                    )
                 except urllib.error.HTTPError as exc:
                     raise LocalModelError(f"Ollama HTTP {exc.code}.", "MODEL_HTTP_ERROR") from exc
                 except (OSError, urllib.error.URLError, TimeoutError, json.JSONDecodeError, LocalModelError) as exc:
