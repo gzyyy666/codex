@@ -170,7 +170,10 @@ class DateRangeResolver:
         if not available_start or not available_end:
             return []
         today = today or date.today()
-        date_intent = intent.date_intent
+        # QueryScope exposes the same small DateIntent DTO.  Keeping the
+        # attribute lookup here preserves legacy IntentSpec callers without
+        # maintaining a second date interpretation implementation.
+        date_intent = getattr(intent, "date_request", None) or getattr(intent, "date_intent")
         if date_intent.mode == "explicit":
             explicit = self._explicit_range(request, date_intent.raw_date_mentions, today, available_end)
             if explicit is None:

@@ -55,19 +55,23 @@ class MovementTargetScopeResolver:
         available_movement_ids: set[str],
     ) -> ResolvedMovementTargetScope:
         cards = {item.movement_id: item for item in movement_cards}
-        direct_body_parts = list(dict.fromkeys(intent.target_body_parts))
-        direct_ids = []
+        direct_body_parts = list(dict.fromkeys(getattr(intent, "target_body_part_ids", None) or getattr(intent, "target_body_parts", []) or []))
+        direct_ids = list(dict.fromkeys(str(value) for value in (getattr(intent, "explicit_movement_ids", []) or [])))
         evidence = []
-        for mention in intent.movement_mentions:
-            matches = [item for item in movement_matches if item.get("mention_text") == mention.text]
+        mentions = list(getattr(intent, "explicit_movement_mentions", []) or [])
+        legacy_mentions = list(getattr(intent, "movement_mentions", []) or [])
+        if not mentions:
+            mentions = [item.text for item in legacy_mentions]
+        for mention in mentions:
+            matches = [item for item in movement_matches if item.get("mention_text") == mention]
             best = next((item for item in matches if item.get("score", 0) >= 0.55), None)
             if best and best.get("movement_id") in cards:
                 movement_id = str(best["movement_id"])
                 if movement_id not in direct_ids:
                     direct_ids.append(movement_id)
-                evidence.append({"source_type": "explicit_movement", "source_value": mention.text[:80], "resolution_type": best.get("match_type", "exact"), "resolved_movement_id": movement_id, "reason_code": "EXPLICIT_MOVEMENT_MATCH"})
+                evidence.append({"source_type": "explicit_movement", "source_value": str(mention)[:80], "resolution_type": best.get("match_type", "exact"), "resolved_movement_id": movement_id, "reason_code": "EXPLICIT_MOVEMENT_MATCH"})
             else:
-                evidence.append({"source_type": "explicit_movement", "source_value": mention.text[:80], "resolution_type": "unresolved", "resolved_movement_id": "", "reason_code": "UNRESOLVED_MOVEMENT_MENTION"})
+                evidence.append({"source_type": "explicit_movement", "source_value": str(mention)[:80], "resolution_type": "unresolved", "resolved_movement_id": "", "reason_code": "UNRESOLVED_MOVEMENT_MENTION"})
         expanded = []
         for body_part_id in direct_body_parts:
             part_cards = [item for item in movement_cards if item.body_part_id == body_part_id and item.movement_id in available_movement_ids]
@@ -81,7 +85,9 @@ class MovementTargetScopeResolver:
         warnings = []
         if direct_body_parts and not expanded and not direct_ids:
             warnings.append("TARGET_BODY_PART_HAS_NO_DIRECT_MOVEMENT_DATA")
-        unresolved = [mention.text for mention in intent.movement_mentions if not any(item.get("source_value") == mention.text and item.get("resolved_movement_id") for item in evidence)]
+        unresolved = list(getattr(intent, "unresolved_movement_mentions", []) or [])
+        unresolved.extend(mention for mention in mentions if mention not in {item.get("source_value") for item in evidence if item.get("resolved_movement_id")})
+        unresolved = list(dict.fromkeys(unresolved))
         return ResolvedMovementTargetScope(direct_body_parts, direct_ids, expanded, [], [], unresolved, evidence, warnings)
 
     @staticmethod

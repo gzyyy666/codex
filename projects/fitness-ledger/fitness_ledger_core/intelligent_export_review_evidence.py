@@ -17,6 +17,7 @@ from typing import Any, Iterable
 REVIEW_SCHEMA_VERSION = "fitness-ledger-review-evidence-v1.0"
 MAX_SNIPPET = 80
 BLOCKING_CODES = {
+    "REVIEW_DATE_SCOPE_INVALID", "REVIEW_QUERY_SCOPE_MISSING", "REVIEW_EXPLICIT_MOVEMENT_INVALID", "REVIEW_BASIC_FALLBACK_INVALID",
     "REVIEW_INTENT_MISSING", "REVIEW_INTENT_INVALID", "REVIEW_DATE_EVIDENCE_INVALID",
     "REVIEW_INTENT_SEMANTIC_INVALID", "REVIEW_INTENT_REPAIR_EVIDENCE_MISSING",
     "REVIEW_CANDIDATE_IDS_MISSING", "REVIEW_SELECTED_ID_NOT_IN_CANDIDATES",
@@ -237,6 +238,7 @@ def _repair_projection(result: dict) -> dict:
 
 def project_request(result: dict, request_id: str, original_request: str) -> dict:
     intent = result.get("intent", {}) or {}
+    scope = result.get("query_scope", {}) or {}
     package = result.get("candidate_package", {}) or {}
     selection = result.get("selection", {}) or {}
     plan = result.get("plan", {}) or {}
@@ -265,6 +267,7 @@ def project_request(result: dict, request_id: str, original_request: str) -> dic
         "request_id": request_id,
         "original_request": original_request,
         "status": result.get("status", ""),
+        "query_scope": scope,
         "intent": {
             "interpreted_goal": intent.get("interpreted_goal", ""),
             "analysis_dimensions": intent.get("analysis_dimensions", []) or [],
@@ -336,6 +339,14 @@ def project_request(result: dict, request_id: str, original_request: str) -> dic
 
 
 def _intent_errors(item: dict) -> list[str]:
+    # New single-stage evidence is scoped by deterministic QueryScope.  Intent
+    # diagnostics remain readable for historical packages but are not a
+    # blocker for new packages.
+    if item.get("query_scope"):
+        scope = item.get("query_scope", {}) or {}
+        if not isinstance(scope.get("date_request", {}), dict):
+            return ["REVIEW_DATE_SCOPE_INVALID"]
+        return []
     intent = item.get("intent", {}) or {}
     required = {"interpreted_goal", "analysis_dimensions", "date_intent", "movement_mentions", "intent_confidence"}
     errors = [] if required.issubset(intent) else ["REVIEW_INTENT_MISSING"]
@@ -356,6 +367,7 @@ def _intent_errors(item: dict) -> list[str]:
 def audit_request(item: dict) -> list[str]:
     errors = _intent_errors(item)
     intent = item.get("intent", {}) or {}
+    scope = item.get("query_scope", {}) or {}
     candidates = item.get("candidates", {}) or {}
     allowed = candidates.get("allowed_ids", {}) or {}
     if not allowed or not allowed.get("window_ids") and not allowed.get("movement_ids"):
@@ -378,8 +390,8 @@ def audit_request(item: dict) -> list[str]:
             errors.append("REVIEW_SELECTION_IDS_MISSING")
     if not selection.get("selected_module_ids"):
         errors.append("REVIEW_SELECTION_IDS_MISSING")
-    target_parts = intent.get("target_body_parts")
-    explicit_mentions = intent.get("movement_mentions", []) or []
+    target_parts = scope.get("target_body_part_ids", intent.get("target_body_parts"))
+    explicit_mentions = scope.get("explicit_movement_mentions", intent.get("movement_mentions", [])) or []
     target_scope = item.get("target_scope", {}) or {}
     target_required = bool(target_parts or explicit_mentions)
     if target_required and target_parts is None:
@@ -507,11 +519,11 @@ def write_review_index(bundle: dict, output_dir) -> None:
     out = Path(output_dir) / "human-review"
     out.mkdir(parents=True, exist_ok=True)
     lines = ["# Intelligent Export Core — Review Evidence Index", "", "## 1. Package 状态", "", f"- review_status: **{bundle.get('review_status')}**", f"- source_snapshot_id: `{bundle.get('source_snapshot_id', '')}`", f"- catalog_id: `{bundle.get('catalog_id', '')}`", f"- integrity errors: `{bundle.get('integrity_audit', {}).get('blocking_integrity_codes', [])}`", f"- privacy passed: `{bundle.get('privacy_audit', {}).get('passed')}`", ""]
-    lines += ["## 2. Intent Semantic Summary", "", "| request | initial semantic | Intent Repair | final semantic | semantic codes |", "|---|---|---|---|---|"]
+    lines += ["## 2. QueryScope / Planning Summary", "", "| request | target body parts | explicit movements | Planning Repair | Basic Fallback |", "|---|---|---|---|---|"]
     for item in bundle.get("request_evidence", []):
         repair = item.get("repair", {}) or {}
-        initial = "invalid" if repair.get("intent_initial_semantic_error_codes") else "valid"
-        lines.append(f"| {item['request_id']} | {initial} | {repair.get('intent_repair_used', False)} | {repair.get('intent_semantic_status', 'valid')} | {','.join(repair.get('intent_semantic_error_codes', [])) or '—'} |")
+        scope = item.get("query_scope", {}) or {}
+        lines.append(f"| {item['request_id']} | {','.join(scope.get('target_body_part_ids', [])) or '—'} | {','.join(scope.get('explicit_movement_ids', [])) or '—'} | {repair.get('repair_used', False)} | {item.get('status') == 'basic_fallback_used'} |")
     lines += ["", "## 3. 四请求总览", "", "| request | Intent | target body parts | target movements | context movements | window | modules | Notes | records | progress | context | confidence | Repair | 人工判断 |", "|---|---|---|---|---|---|---|---:|---:|---:|---:|---:|---|---|"]
     for item in bundle.get("request_evidence", []):
         sel, exe = item["selection"], item["execution"]
@@ -524,7 +536,8 @@ def write_review_index(bundle: dict, output_dir) -> None:
     if low:
         mentions = low["intent"].get("movement_mentions", [])
         ids = [item.get("movement_id") for item in low["candidates"].get("movements", [])]
-        lines += [f"- Original Request → Intent：{_short(low['intent'].get('interpreted_goal'))}；target_body_parts={low['intent'].get('target_body_parts', [])}；movement mentions={json.dumps(mentions, ensure_ascii=False)}", f"- Target Scope：`{low.get('target_scope', {})}`", f"- Resolver Matches：`{low['candidates'].get('resolver_matches', [])}`", f"- Candidate movement IDs：`{ids}`；CHEST_006={'存在' if 'CHEST_006' in ids else '未在候选中'}", f"- Selection movement IDs：`{low['selection'].get('selected_movement_ids', [])}`", f"- Plan movement IDs：`{low['plan'].get('selected_movement_ids', [])}`", f"- Execution target progress IDs：`{low['execution'].get('target_progress_history_ids', [])}`", f"- Execution context progress IDs：`{low['execution'].get('context_progress_history_ids', [])}`", f"- Integrity：`{audit_request(low)}`", ""]
+        scope = low.get('query_scope', {}) or {}
+        lines += [f"- Original Request → QueryScope：target_body_parts={scope.get('target_body_part_ids', [])}；explicit movements={scope.get('explicit_movement_ids', [])}", f"- Target Scope：`{low.get('target_scope', {})}`", f"- Resolver Matches：`{low['candidates'].get('resolver_matches', [])}`", f"- Candidate movement IDs：`{ids}`；CHEST_006={'存在' if 'CHEST_006' in ids else '未在候选中'}", f"- Selection movement IDs：`{low['selection'].get('selected_movement_ids', [])}`", f"- Plan movement IDs：`{low['plan'].get('selected_movement_ids', [])}`", f"- Execution target progress IDs：`{low['execution'].get('target_progress_history_ids', [])}`", f"- Execution context progress IDs：`{low['execution'].get('context_progress_history_ids', [])}`", f"- Integrity：`{audit_request(low)}`", ""]
     lines += ["## 5. 卧推证据链", ""]
     bench = next((item for item in bundle.get("request_evidence", []) if item["request_id"] == "03-bench-progress"), None)
     if bench:

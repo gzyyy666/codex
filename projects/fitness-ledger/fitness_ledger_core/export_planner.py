@@ -2,13 +2,22 @@
 
 from __future__ import annotations
 
+import json
 from .candidate_cards import CandidatePackage
 from .intelligent_export_models import ContractError, SCHEMA_VERSION, SELECTION_SCHEMA_VERSION, ExportPlanDraft, ModelPlanningSelection, ModelSelectionExclusion, ModelSelectionFields, ModelSelectionModule, ModelSelectionMovement, selection_json_schema
-from .intent_interpreter import PROMPT_VERSION, parse_json_object
 from .local_model_adapter import PLANNING_MODEL_CONFIG, LocalModelAdapter
 
+PROMPT_VERSION = "intelligent-export-prompts-v1"
 
-PLANNING_SYSTEM_PROMPT = """You are a strict Fitness Ledger export selector. Return only one JSON object with every required key. Set schema_version exactly to fitness-ledger-intelligent-export-v1.1. Choose only IDs and fields listed in the payload. Select at most 3 movements, 6 notes, and 8 records. Reasons are short (under 10 words). Do not output a plan, dates, catalog IDs, paths, estimates, raw text, or prose. Movement candidates have roles: EXPLICIT_TARGET and BODY_PART_TARGET are directly relevant to the stated goal; CONTEXT provides supporting background; GENERAL_FALLBACK is only general representative evidence. When usable direct target candidates exist, prioritize them over context and fallback; do not replace all direct targets with context. Context may be selected only when it adds useful supporting information within budget. Use progress history for metrics; excluded history is context_only only. A plan may be ready even when data is incomplete: missing dates, limited samples, incomplete diet coverage, or inability to prove causation belong in missing_data_warning_codes. Set planning_decision to ready whenever the candidates can form a safe and useful export plan. Set planning_decision to fallback_required only when no safe and meaningful plan can be formed. When fallback_required, fallback_reason_codes must contain an allowed blocking reason. planner_confidence measures confidence that the selected plan is useful, not data completeness. Keep fallback_reason_codes empty for ready selections."""
+
+def parse_json_object(raw_text: str) -> dict:
+    value = json.loads(str(raw_text or "").strip())
+    if not isinstance(value, dict):
+        raise ContractError("model response must be a JSON object")
+    return value
+
+
+PLANNING_SYSTEM_PROMPT = """You are a strict Fitness Ledger export selector. Return only one JSON object matching the supplied selection schema. The application already resolved dates, target body parts, and explicitly named movements deterministically. Use only candidate IDs and fields supplied. EXPLICIT_TARGET and BODY_PART_TARGET directly cover the requested scope; CONTEXT supports it; GENERAL_FALLBACK is representative evidence only. When direct targets exist, retain at least one direct target and do not replace all targets with context. Select only the modules, fields, movements, notes and records needed for a useful export. Use progress history for metrics; excluded history is context_only. Do not output intent fields, dates, catalog IDs, paths, raw text, or prose. Set planning_decision=ready whenever a safe useful selection can be made; otherwise fallback_required with an allowed reason."""
 
 
 class ExportPlanner:
@@ -17,19 +26,11 @@ class ExportPlanner:
         self.last_result = None
         self.last_payload = None
 
-    def plan(self, request: str, intent, package: CandidatePackage) -> tuple[ModelPlanningSelection, object]:
+    def plan(self, request: str, scope, package: CandidatePackage) -> tuple[ModelPlanningSelection, object]:
         schema = selection_json_schema()
         payload = {
             "original_request": str(request or "")[:2000],
-            "intent": {
-                "interpreted_goal": intent.interpreted_goal,
-                "analysis_dimensions": intent.analysis_dimensions,
-                "date_intent": intent.date_intent.__dict__,
-                "target_body_parts": intent.target_body_parts,
-                "movement_mentions": [item.text for item in intent.movement_mentions],
-                "preferred_detail": intent.preferred_detail,
-                "raw_entry_relevance": intent.raw_entry_relevance,
-            },
+            "query_scope": scope.to_dict() if hasattr(scope, "to_dict") else {},
             "candidate_summary": {
                 "windows": package.to_planning_prompt_dict()["windows"],
                 "modules": package.to_planning_prompt_dict()["modules"],

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from .data_catalog import MovementResolver, resolve_windows
-from .intelligent_export_models import CandidateRecordCard, CandidateWindow, DataCatalog, IntentSpec, ModuleCard, MovementCard, NotesCard, stable_hash
+from .intelligent_export_models import CandidateRecordCard, CandidateWindow, DataCatalog, IntentSpec, ModuleCard, MovementCard, NotesCard, stable_hash, MovementMention
 from .movement_target_scope import MovementTargetScopeResolver, ResolvedMovementTargetScope
 
 
@@ -85,9 +85,22 @@ class CandidateSummarizer:
         start, end = (data_window.resolved_start, data_window.resolved_end) if data_window else ("", "")
         in_range = lambda value: bool(value) and (not start or start <= value <= end)
         movement_matches = []
-        for mention_index, mention in enumerate(intent.movement_mentions):
-            matches = self.resolver.resolve(mention, self.catalog.movements)
-            movement_matches.extend({**item, "mention_text": mention.text, "mention_index": mention_index} for item in matches[:4])
+        explicit_ids = list(getattr(intent, "explicit_movement_ids", []) or [])
+        explicit_mentions = list(getattr(intent, "explicit_movement_mentions", []) or [])
+        legacy_mentions = list(getattr(intent, "movement_mentions", []) or [])
+        if not explicit_mentions and legacy_mentions:
+            explicit_mentions = [item.text for item in legacy_mentions]
+        if not explicit_ids:
+            for mention_index, mention in enumerate(legacy_mentions):
+                matches = self.resolver.resolve(mention, self.catalog.movements)
+                movement_matches.extend({**item, "mention_text": mention.text, "mention_index": mention_index} for item in matches[:4])
+                if matches and matches[0].get("score", 0) >= 0.55:
+                    explicit_ids.append(str(matches[0]["movement_id"]))
+        else:
+            for mention_index, (movement_id, mention) in enumerate(zip(explicit_ids, explicit_mentions)):
+                card = next((item for item in self.catalog.movements if item.movement_id == movement_id), None)
+                if card:
+                    movement_matches.append({"movement_id": movement_id, "canonical_name": card.canonical_name, "mention_text": mention, "mention_index": mention_index, "match_type": "deterministic_exact", "score": 1.0})
             # Recall a small, explainable candidate set even when the match is
             # not decisive; the Planning model and validator decide whether
             # an ambiguous mention is useful, never the resolver alone.
@@ -108,7 +121,8 @@ class CandidateSummarizer:
             target_scope = ResolvedMovementTargetScope(target_scope.direct_body_part_ids, target_scope.direct_movement_ids, target_scope.expanded_direct_movement_ids, [], fallback_ids, target_scope.unresolved_movement_mentions, target_scope.resolution_evidence, target_scope.warnings)
         movement_ids = {item.movement_id for item in movements}
         roles = {item.movement_id: ("EXPLICIT_TARGET" if item.movement_id in target_scope.direct_movement_ids else "BODY_PART_TARGET" if item.movement_id in target_scope.expanded_direct_movement_ids else "CONTEXT" if item.movement_id in target_scope.context_movement_ids else "GENERAL_FALLBACK") for item in movements}
-        modules = [item for item in self.catalog.modules if item.module_id in set(intent.catalog_requirements) or not intent.catalog_requirements]
+        requirements = set(getattr(intent, "catalog_requirements", []) or [])
+        modules = [item for item in self.catalog.modules if item.module_id in requirements or not requirements]
         if not modules:
             modules = list(self.catalog.modules)
         records = [item for item in self.catalog.candidate_records if in_range(item.date) and (item.module_id != "movement_history" or not movement_ids or next((mid for mid in item.related_movement_ids if mid in movement_ids), None))]
