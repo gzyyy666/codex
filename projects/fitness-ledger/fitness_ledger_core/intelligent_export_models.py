@@ -84,23 +84,36 @@ def _now() -> str:
 
 @dataclass(frozen=True)
 class DateIntent:
-    kind: str = "unspecified"
-    start: str | None = None
-    end: str | None = None
-    days: int | None = None
-    anchor: str = "latest"
+    mode: str = "unspecified"
+    relative_range: str | None = None
+    comparison_needed: bool = False
+    raw_date_mentions: list[str] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, value: Any) -> "DateIntent":
         raw = _obj(value, "date_intent")
-        _unknown(raw, {"kind", "start", "end", "days", "anchor"}, "date_intent")
-        kind = _text(raw.get("kind", "unspecified"), "date_intent.kind", 32)
-        if kind not in {"unspecified", "explicit_range", "relative", "all"}:
-            raise ContractError("date_intent.kind is invalid")
-        days = raw.get("days")
-        if days is not None and (isinstance(days, bool) or not isinstance(days, int) or not 1 <= days <= 36500):
-            raise ContractError("date_intent.days is invalid")
-        return cls(kind, raw.get("start"), raw.get("end"), days, _text(raw.get("anchor", "latest"), "date_intent.anchor", 32))
+        _unknown(raw, {"mode", "relative_range", "comparison_needed", "raw_date_mentions"}, "date_intent")
+        mode = _text(raw.get("mode", "unspecified"), "date_intent.mode", 32)
+        if mode not in {"unspecified", "relative", "explicit", "all_available"}:
+            raise ContractError("date_intent.mode is invalid")
+        relative = raw.get("relative_range")
+        if relative is not None:
+            relative = _text(relative, "date_intent.relative_range", 32)
+            if relative not in {"recent", "recent_4_weeks", "recent_8_weeks", "recent_12_weeks", "recent_months", "all_available"}:
+                raise ContractError("date_intent.relative_range is invalid")
+        comparison = raw.get("comparison_needed", False)
+        if not isinstance(comparison, bool):
+            raise ContractError("date_intent.comparison_needed must be boolean")
+        mentions = [_text(item, "date_intent.raw_date_mentions[]", 80, True) for item in _list(raw.get("raw_date_mentions", []), "date_intent.raw_date_mentions", 8)]
+        if mode == "relative" and relative is None:
+            raise ContractError("relative date_intent requires relative_range")
+        if mode == "explicit" and not mentions:
+            raise ContractError("explicit date_intent requires raw_date_mentions")
+        if mode == "unspecified" and relative not in {None}:
+            raise ContractError("unspecified date_intent cannot set relative_range")
+        if mode == "all_available" and relative not in {None, "all_available"}:
+            raise ContractError("all_available date_intent has invalid relative_range")
+        return cls(mode, relative, comparison, mentions)
 
 
 @dataclass(frozen=True)
@@ -656,7 +669,7 @@ def intent_json_schema() -> dict:
         "schema_version": {"type": "string", "const": SCHEMA_VERSION},
         "interpreted_goal": {"type": "string", "minLength": 1, "maxLength": 400},
         "analysis_dimensions": {"type": "array", "maxItems": 12, "items": {"type": "string", "maxLength": 64}},
-        "date_intent": _schema({"kind": {"type": "string", "enum": ["unspecified", "explicit_range", "relative", "all"]}, "start": {"type": ["string", "null"], "maxLength": 10}, "end": {"type": ["string", "null"], "maxLength": 10}, "days": {"type": ["integer", "null"], "minimum": 1, "maximum": 36500}, "anchor": {"type": "string", "maxLength": 32}}, ["kind"]),
+        "date_intent": _schema({"mode": {"type": "string", "enum": ["unspecified", "relative", "explicit", "all_available"]}, "relative_range": {"type": ["string", "null"], "enum": ["recent", "recent_4_weeks", "recent_8_weeks", "recent_12_weeks", "recent_months", "all_available", None]}, "comparison_needed": {"type": "boolean"}, "raw_date_mentions": {"type": "array", "maxItems": 8, "items": {"type": "string", "minLength": 1, "maxLength": 80}}}, ["mode", "relative_range", "comparison_needed", "raw_date_mentions"]),
         "movement_mentions": {"type": "array", "maxItems": 8, "items": _schema({"text": {"type": "string", "minLength": 1, "maxLength": 120}, "confidence": {"type": "number", "minimum": 0, "maximum": 1}, "body_part": {"type": "string", "maxLength": 80}}, ["text", "confidence", "body_part"])},
         "catalog_requirements": {"type": "array", "maxItems": 12, "items": {"type": "string", "maxLength": 64}},
         "preferred_detail": {"type": "string", "maxLength": 40},

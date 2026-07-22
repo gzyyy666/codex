@@ -38,7 +38,7 @@ from .intelligent_export_models import intent_json_schema, selection_json_schema
 
 
 REPAIR_SYSTEM_PROMPT = """Repair only the Fitness Ledger model selection JSON. Return exactly one selection object matching the supplied schema. Use only the supplied allowed IDs and fields; do not output a full plan, dates, catalog IDs, paths, estimates, raw text, or prose. Excluded history is context_only and progress metrics must use valid progress history. Repair only semantic contradictions: a complete safe selection should be planning_decision=ready with no fallback reasons; data incompleteness belongs in missing_data_warning_codes. Use planning_decision=fallback_required only when no safe meaningful plan can be formed, with at least one allowed fallback_reason_code. Do not add candidates that were not supplied."""
-INTENT_REPAIR_SYSTEM_PROMPT = """Repair only the Fitness Ledger intent JSON. Return exactly one object matching the supplied intent schema. Do not output an export plan, catalog contents, raw entries, paths, or prose."""
+INTENT_REPAIR_SYSTEM_PROMPT = """Repair only the Fitness Ledger intent JSON. Return exactly one object matching the supplied intent schema. Do not output an export plan, catalog contents, raw entries, paths, or prose. Do not generate normalized or ISO dates. Keep date intent semantic: use only the allowed mode and relative_range, and preserve explicit user date phrases in raw_date_mentions. Do not invent dates or choose a final window."""
 
 
 def _date(value) -> str:
@@ -211,7 +211,7 @@ class IntelligentExportService:
                 try:
                     repair_used = True
                     repair_result = self.adapter.generate_json(system_prompt=INTENT_REPAIR_SYSTEM_PROMPT, user_payload={"invalid_output": "intent unavailable", "validation_error": {"code": getattr(exc, "code", "INTENT_INVALID"), "message": str(exc)[:240]}, "intent_schema": intent_json_schema()}, response_schema=intent_json_schema(), config=REPAIR_MODEL_CONFIG)
-                    intent = IntentSpec.from_dict(parse_json_object(repair_result.raw_text)); intent_result = repair_result
+                    intent = intent_interpreter.normalize_request_intent(request, IntentSpec.from_dict(parse_json_object(repair_result.raw_text))); intent_result = repair_result
                 except Exception as repair_error:
                     return self._fallback(request, getattr(repair_error, "code", "MODEL_REPAIR_FAILED"), trace_id, started, catalog)
             if self._expired(started):
@@ -219,6 +219,8 @@ class IntelligentExportService:
             try:
                 package = CandidateSummarizer(catalog, MovementResolver(self.views)).build(request, intent, budget_mode)
                 diagnostics["candidate_counts"] = {"windows": len(package.windows), "modules": len(package.modules), "movements": len(package.movements), "notes": len(package.notes), "records": len(package.candidate_records), "allowed_ids": {key: len(value) for key, value in package.allowed_ids.items()}}
+                if not package.windows:
+                    return self._fallback(request, "NO_VALID_WINDOW", trace_id, started, catalog, intent)
             except Exception as exc:
                 return self._fallback(request, getattr(exc, "code", "CATALOG_INVALID"), trace_id, started, catalog, intent)
             planner = ExportPlanner(self.adapter)
