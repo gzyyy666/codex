@@ -153,8 +153,11 @@ def _candidate_projection(package: dict) -> dict:
             "associated_movement_ids": item.get("related_movement_ids", []) or [],
             "candidate_flags": item.get("flags", []) or [],
         })
+    resolver_matches = []
+    for item in package.get("movement_matches", []) or []:
+        resolver_matches.append({key: item.get(key) for key in ("movement_id", "canonical_name", "body_part", "match_type", "score", "history_count", "progress_history_count")})
     return {"windows": windows, "modules": modules, "movements": movements, "notes": notes, "records": records,
-            "budget": package.get("budget", {}), "allowed_ids": package.get("allowed_ids", {})}
+            "resolver_matches": resolver_matches, "budget": package.get("budget", {}), "allowed_ids": package.get("allowed_ids", {})}
 
 
 def _execution_projection(result: dict) -> dict:
