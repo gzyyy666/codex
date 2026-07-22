@@ -456,11 +456,11 @@ def write_review_index(bundle: dict, output_dir) -> None:
     out = Path(output_dir) / "human-review"
     out.mkdir(parents=True, exist_ok=True)
     lines = ["# Intelligent Export Core — Review Evidence Index", "", "## 1. Package 状态", "", f"- review_status: **{bundle.get('review_status')}**", f"- source_snapshot_id: `{bundle.get('source_snapshot_id', '')}`", f"- catalog_id: `{bundle.get('catalog_id', '')}`", f"- integrity errors: `{bundle.get('integrity_audit', {}).get('blocking_integrity_codes', [])}`", f"- privacy passed: `{bundle.get('privacy_audit', {}).get('passed')}`", ""]
-    lines += ["## 2. Intent Semantic Summary", "", "| request | initial semantic | Repair | final semantic | semantic codes |", "|---|---|---|---|---|"]
+    lines += ["## 2. Intent Semantic Summary", "", "| request | initial semantic | Intent Repair | final semantic | semantic codes |", "|---|---|---|---|---|"]
     for item in bundle.get("request_evidence", []):
         repair = item.get("repair", {}) or {}
         initial = "invalid" if repair.get("intent_initial_semantic_error_codes") else "valid"
-        lines.append(f"| {item['request_id']} | {initial} | {repair.get('repair_used', False)} | {repair.get('intent_semantic_status', 'valid')} | {','.join(repair.get('intent_semantic_error_codes', [])) or '—'} |")
+        lines.append(f"| {item['request_id']} | {initial} | {repair.get('intent_repair_used', False)} | {repair.get('intent_semantic_status', 'valid')} | {','.join(repair.get('intent_semantic_error_codes', [])) or '—'} |")
     lines += ["", "## 3. 四请求总览", "", "| request | Intent | window | modules | movements | Notes | records | progress | context | confidence | Repair | 人工判断 |", "|---|---|---|---|---:|---:|---:|---:|---:|---:|---|---|"]
     for item in bundle.get("request_evidence", []):
         sel, exe = item["selection"], item["execution"]
