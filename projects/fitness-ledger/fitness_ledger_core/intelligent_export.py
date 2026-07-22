@@ -26,7 +26,8 @@ from .intelligent_export_models import (
     ValidatedExportPlan,
     stable_hash,
 )
-from .intent_interpreter import IntentInterpreter, parse_json_object, INTENT_SYSTEM_PROMPT, PROMPT_VERSION
+from .intent_interpreter import IntentInterpreter, IntentSemanticError, parse_json_object, INTENT_SYSTEM_PROMPT, PROMPT_VERSION
+from .intent_semantic_validator import repair_diff
 from .local_model_adapter import (
     INTENT_MODEL_CONFIG,
     REPAIR_MODEL_CONFIG,
@@ -38,7 +39,7 @@ from .intelligent_export_models import intent_json_schema, selection_json_schema
 
 
 REPAIR_SYSTEM_PROMPT = """Repair only the Fitness Ledger model selection JSON. Return exactly one selection object matching the supplied schema. Use only the supplied allowed IDs and fields; do not output a full plan, dates, catalog IDs, paths, estimates, raw text, or prose. Excluded history is context_only and progress metrics must use valid progress history. Repair only semantic contradictions: a complete safe selection should be planning_decision=ready with no fallback reasons; data incompleteness belongs in missing_data_warning_codes. Use planning_decision=fallback_required only when no safe meaningful plan can be formed, with at least one allowed fallback_reason_code. Do not add candidates that were not supplied."""
-INTENT_REPAIR_SYSTEM_PROMPT = """Repair only the Fitness Ledger intent JSON. Return exactly one object matching the supplied intent schema. Do not output an export plan, catalog contents, raw entries, paths, or prose. Do not generate normalized or ISO dates. Keep date intent semantic: use only the allowed mode and relative_range, and preserve explicit user date phrases in raw_date_mentions. Do not invent dates or choose a final window."""
+INTENT_REPAIR_SYSTEM_PROMPT = """Repair only the Fitness Ledger intent JSON. Return one corrected Intent JSON object matching the supplied schema, with no Markdown or prose. Preserve every valid field and only repair fields identified by the validation errors. Required text fields must contain meaningful natural-language text, not placeholders such as ?, ??, ？？, N/A, unknown, or replacement characters. Use the original user request as the sole semantic source. Do not invent dates, movements, modules, measurements, or facts. Do not generate normalized or ISO dates; preserve explicit date phrases in raw_date_mentions and use only allowed date intent modes. Do not add fields outside the schema. Do not output an export plan, catalog contents, raw entries, paths, or full prompts."""
 
 
 def _date(value) -> str:
@@ -266,7 +267,7 @@ class IntelligentExportService:
             diagnostics = {"prompt_version": PROMPT_VERSION, "schema_version": "fitness-ledger-intelligent-export-v1", "candidate_counts": {}, "stages": {}}
             catalog_summary = {"date_range": catalog.date_range, "modules": [{"module_id": item.module_id, "record_count": item.record_count} for item in catalog.modules], "budget_mode": budget_mode}
             repair_used = False
-            repair_meta = {"repair_used": False, "original_validation_codes": [], "repaired_validation_codes": [], "changed_field_names": [], "added_selected_ids": [], "removed_selected_ids": [], "decision_changed": False, "confidence_before": None, "confidence_after": None}
+            repair_meta = {"repair_used": False, "intent_repair_used": False, "original_validation_codes": [], "repaired_validation_codes": [], "changed_field_names": [], "added_selected_ids": [], "removed_selected_ids": [], "decision_changed": False, "confidence_before": None, "confidence_after": None, "intent_schema_status": "valid", "intent_semantic_status": "valid", "intent_semantic_error_codes": [], "intent_initial_semantic_error_codes": [], "intent_semantic_diagnostics": {}, "intent_repair": {}}
             intent_interpreter = IntentInterpreter(self.adapter)
             try:
                 intent, intent_result = intent_interpreter.interpret(request, catalog_summary)
@@ -274,11 +275,40 @@ class IntelligentExportService:
             except Exception as exc:
                 try:
                     repair_used = True
-                    repair_meta.update({"repair_used": True, "phase": "intent", "original_validation_codes": [getattr(exc, "code", "INTENT_INVALID")], "repaired_validation_codes": ["INTENT_REPAIRED"], "changed_field_names": ["intent"]})
-                    repair_result = self.adapter.generate_json(system_prompt=INTENT_REPAIR_SYSTEM_PROMPT, user_payload={"invalid_output": "intent unavailable", "validation_error": {"code": getattr(exc, "code", "INTENT_INVALID"), "message": str(exc)[:240]}, "intent_schema": intent_json_schema()}, response_schema=intent_json_schema(), config=REPAIR_MODEL_CONFIG)
-                    intent = intent_interpreter.normalize_request_intent(request, IntentSpec.from_dict(parse_json_object(repair_result.raw_text))); intent_result = repair_result
+                    semantic_before = getattr(exc, "result", None)
+                    invalid_intent = getattr(exc, "intent", None)
+                    semantic_codes = list(getattr(semantic_before, "error_codes", []) or [])
+                    invalid_paths = list(getattr(semantic_before, "invalid_field_paths", []) or [])
+                    safe_diagnostics = dict(getattr(semantic_before, "diagnostics", {}) or {})
+                    original_codes = semantic_codes or [getattr(exc, "code", "INTENT_INVALID")]
+                    repair_meta.update({"repair_used": True, "intent_repair_used": True, "phase": "intent", "original_validation_codes": original_codes, "intent_schema_status": "invalid" if not semantic_before else "valid", "intent_semantic_status": "invalid" if semantic_before else "valid", "intent_semantic_error_codes": semantic_codes, "intent_initial_semantic_error_codes": semantic_codes, "intent_semantic_diagnostics": safe_diagnostics})
+                    repair_payload = {"request": str(request or "")[:2000], "invalid_intent": invalid_intent.to_dict() if invalid_intent else {}, "validation_error": {"codes": original_codes, "field_paths": invalid_paths, "diagnostics": safe_diagnostics}, "intent_schema": intent_json_schema()}
+                    repair_result = self.adapter.generate_json(system_prompt=INTENT_REPAIR_SYSTEM_PROMPT, user_payload=repair_payload, response_schema=intent_json_schema(), config=REPAIR_MODEL_CONFIG)
+                    repaired_raw = parse_json_object(repair_result.raw_text)
+                    repaired_intent, repaired_semantic = intent_interpreter.parse_repair(request, repair_result.raw_text)
+                    intent = repaired_intent; intent_result = repair_result
+                    repair_meta["intent_schema_status"] = "valid_after_repair"
+                    repair_meta["intent_semantic_status"] = "valid_after_repair"
+                    repair_meta["intent_semantic_error_codes"] = []
+                    repair_meta["repaired_validation_codes"] = []
+                    repair_meta["intent_repair"] = repair_diff(invalid_intent.to_dict() if invalid_intent else {}, repaired_raw, semantic_codes, repaired_semantic.error_codes)
+                    repair_meta["changed_field_names"] = repair_meta["intent_repair"].get("changed_field_paths", [])
+                    diagnostics["stages"]["intent"] = self._model_diag(intent_result, {"payload_chars": len(json.dumps(catalog_summary, ensure_ascii=False)), "schema_chars": len(json.dumps(intent_json_schema(), ensure_ascii=False))})
                 except Exception as repair_error:
-                    return self._fallback(request, getattr(repair_error, "code", "MODEL_REPAIR_FAILED"), trace_id, started, catalog)
+                    final_semantic = getattr(repair_error, "result", None)
+                    final_intent = getattr(repair_error, "intent", None) or invalid_intent
+                    if final_semantic:
+                        repair_meta["intent_semantic_status"] = "invalid"
+                        repair_meta["intent_semantic_error_codes"] = list(final_semantic.error_codes)
+                        repair_meta["intent_semantic_diagnostics"] = dict(final_semantic.diagnostics)
+                        repair_meta["intent_repair"] = repair_diff(invalid_intent.to_dict() if invalid_intent else {}, final_intent.to_dict() if final_intent else {}, semantic_codes, final_semantic.error_codes)
+                        repair_meta["changed_field_names"] = repair_meta["intent_repair"].get("changed_field_paths", [])
+                        diagnostics["intent_semantic"] = {"initial_status": "invalid", "final_status": "invalid", "error_codes": list(final_semantic.error_codes), "invalid_field_paths": list(final_semantic.invalid_field_paths), "diagnostics": dict(final_semantic.diagnostics)}
+                        diagnostics["repair"] = repair_meta
+                        return self._fallback(request, "MODEL_INTENT_SEMANTIC_INVALID", trace_id, started, catalog, final_intent, diagnostics)
+                    diagnostics["repair"] = repair_meta
+                    return self._fallback(request, getattr(repair_error, "code", "MODEL_REPAIR_FAILED"), trace_id, started, catalog, invalid_intent, diagnostics)
+            diagnostics.setdefault("intent_semantic", {"initial_status": "invalid" if repair_meta.get("intent_initial_semantic_error_codes") else "valid", "final_status": repair_meta.get("intent_semantic_status", "valid"), "error_codes": repair_meta.get("intent_semantic_error_codes", []), "invalid_field_paths": repair_meta.get("intent_repair", {}).get("changed_field_paths", []), "diagnostics": repair_meta.get("intent_semantic_diagnostics", {})})
             if self._expired(started):
                 return self._fallback(request, "TASK_TIMEOUT", trace_id, started, catalog)
             try:
@@ -300,7 +330,7 @@ class IntelligentExportService:
                 diagnostics["stages"]["planning"] = self._model_diag(planning_result, {"payload_chars": len(json.dumps(planner.last_payload or {}, ensure_ascii=False)), "schema_chars": len(json.dumps(selection_json_schema(), ensure_ascii=False))})
             except Exception as exc:
                 if repair_used:
-                    return self._fallback(request, getattr(exc, "code", "MODEL_SELECTION_INVALID"), trace_id, started, catalog, intent)
+                    return self._fallback(request, getattr(exc, "code", "MODEL_SELECTION_INVALID"), trace_id, started, catalog, intent, diagnostics)
                 try:
                     repair_used = True
                     repair_meta.update({"repair_used": True, "phase": "selection", "original_validation_codes": [getattr(exc, "code", "PLANNING_INVALID")]})
@@ -315,7 +345,7 @@ class IntelligentExportService:
                     draft = assembler.assemble(selection, request, intent, trace_id)
                     diagnostics["stages"]["repair"] = self._model_diag(repair_result, {"schema_chars": len(json.dumps(selection_json_schema(), ensure_ascii=False))})
                 except Exception as repair_error:
-                    return self._fallback(request, getattr(repair_error, "code", "MODEL_REPAIR_FAILED"), trace_id, started, catalog, intent)
+                    return self._fallback(request, getattr(repair_error, "code", "MODEL_REPAIR_FAILED"), trace_id, started, catalog, intent, diagnostics)
             repaired = repair_used
             try:
                 plan = self.validator.validate(draft, package, request, trace_id)
@@ -351,12 +381,17 @@ class IntelligentExportService:
         finally:
             self._task_slots.release()
 
-    def _fallback(self, request: str, reason: str, trace_id: str, started: float, catalog=None, intent=None) -> dict:
+    def _fallback(self, request: str, reason: str, trace_id: str, started: float, catalog=None, intent=None, diagnostics=None) -> dict:
         dates = re.findall(r"\b20\d{2}-\d{2}-\d{2}\b", str(request or ""))
         explicit = {"start": dates[0], "end": dates[-1]} if dates else {}
         modules = [item for item in ("body", "diet", "training", "movement_history") if any(word in str(request).lower() for word in {item, {"body": "体重", "diet": "饮食", "training": "训练", "movement_history": "动作"}.get(item, "")})]
         result = ManualFallbackResult(True, reason, explicit, {"days": 14, **explicit, "modules": modules}, ["模型结果不可用，未自动猜测未明确的范围或动作。"], trace_id)
-        return {"status": "fallback", "fallback": result.to_dict(), "trace": {"trace_id": trace_id, "error_code": reason, "duration_ms": int((time.monotonic() - started) * 1000), "fallback": True}}
+        output = {"status": "fallback", "fallback": result.to_dict(), "trace": {"trace_id": trace_id, "error_code": reason, "duration_ms": int((time.monotonic() - started) * 1000), "fallback": True}}
+        if intent is not None:
+            output["intent"] = intent.to_dict() if hasattr(intent, "to_dict") else intent
+        if diagnostics:
+            output["diagnostics"] = diagnostics
+        return output
 
     def _expired(self, started: float) -> bool:
         return time.monotonic() - started > self.overall_timeout
