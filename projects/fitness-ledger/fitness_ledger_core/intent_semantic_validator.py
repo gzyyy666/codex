@@ -8,6 +8,8 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Any
 
+from .intelligent_export_models import BODY_PART_IDS
+
 
 _PLACEHOLDERS = {"?", "??", "???", "unknown", "n/a", "na", "none", "null", "placeholder"}
 _QUESTION_MARKS = {"?", "？"}
@@ -91,6 +93,12 @@ class IntentSemanticValidator:
                 paths.append(f"analysis_dimensions[{index}]")
                 errors.extend("INTENT_DIMENSION_CORRUPTED" if code not in {"INTENT_REPLACEMENT_CHARACTER"} else code for code in codes)
 
+        target_parts = value.get("target_body_parts", [])
+        diagnostics["target_body_parts"] = {"length": len(target_parts) if isinstance(target_parts, list) else 0, "values": [str(item) for item in target_parts] if isinstance(target_parts, list) else []}
+        if not isinstance(target_parts, list) or len(target_parts) != len(set(target_parts)) or any(item not in BODY_PART_IDS for item in target_parts):
+            paths.append("target_body_parts")
+            errors.append("INTENT_TARGET_BODY_PART_INVALID")
+
         mentions = value.get("movement_mentions", []) or []
         for index, item in enumerate(mentions):
             text = item.get("text", "") if isinstance(item, dict) else ""
@@ -124,7 +132,7 @@ def _snapshot(value: Any) -> dict:
 
 def repair_diff(before: dict, after: dict, semantic_codes_before: list[str] | None = None, semantic_codes_after: list[str] | None = None, schema_failed: bool = False) -> dict:
     """Return a safe, text-free diff for Intent repair evidence."""
-    paths = ["interpreted_goal"]
+    paths = ["interpreted_goal", "target_body_parts"]
     paths += [f"analysis_dimensions[{i}]" for i in range(max(len(before.get("analysis_dimensions", [])), len(after.get("analysis_dimensions", []))))]
     paths += [f"movement_mentions[{i}].text" for i in range(max(len(before.get("movement_mentions", [])), len(after.get("movement_mentions", []))))]
     paths += [f"date_intent.raw_date_mentions[{i}]" for i in range(max(len((before.get("date_intent") or {}).get("raw_date_mentions", [])), len((after.get("date_intent") or {}).get("raw_date_mentions", []))))]
@@ -132,6 +140,8 @@ def repair_diff(before: dict, after: dict, semantic_codes_before: list[str] | No
     def get(value: dict, path: str) -> Any:
         if path == "interpreted_goal":
             return value.get(path, "")
+        if path == "target_body_parts":
+            return value.get(path, [])
         match = re.match(r"(.+?)\[(\d+)\](?:\.text)?$", path)
         if not match:
             return ""

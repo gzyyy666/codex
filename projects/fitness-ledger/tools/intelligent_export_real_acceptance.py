@@ -57,6 +57,7 @@ def summarize(result: dict) -> dict:
             "analysis_dimensions": intent.get("analysis_dimensions", []),
             "date_intent": intent.get("date_intent", {}),
             "movement_mentions": intent.get("movement_mentions", []),
+            "target_body_parts": intent.get("target_body_parts", []),
             "confidence": intent.get("confidence", 0),
             "warnings": intent.get("warnings", []),
         },
@@ -64,6 +65,8 @@ def summarize(result: dict) -> dict:
         "candidate_overview": {
             "modules": package.get("modules", []),
             "movements": package.get("movements", []),
+            "target_scope": package.get("target_scope", {}),
+            "movement_roles": package.get("movement_roles", {}),
             "notes_count": len(notes),
             "record_count": len(package.get("candidate_records", []) or []),
             "budget": package.get("budget", {}),
@@ -75,6 +78,9 @@ def summarize(result: dict) -> dict:
             "selected_modules": selection.get("selected_modules", []),
             "selected_fields": selection.get("selected_fields", []),
             "selected_movements": selection.get("selected_movements", []),
+            "selected_target_movements": selection.get("selected_target_movement_ids", []),
+            "selected_context_movements": selection.get("selected_context_movement_ids", []),
+            "target_coverage_status": selection.get("target_coverage_status", ""),
             "notes_count": len(selection.get("selected_note_candidate_ids", []) or []),
             "note_scopes": dict(scopes),
             "records_count": len(selection.get("selected_candidate_record_ids", []) or []),
@@ -95,6 +101,10 @@ def summarize(result: dict) -> dict:
             "notes_count": len(output.get("payload", {}).get("notes", []) or []),
             "progress_evidence_count": sum(len(item.get("progress", []) or []) for item in output.get("payload", {}).get("movements", []) or []),
             "context_only_count": sum(len(item.get("context_only", []) or []) for item in output.get("payload", {}).get("movements", []) or []),
+            "target_movement_ids": (output.get("execution_evidence", {}) or {}).get("target_movement_ids", []),
+            "context_movement_ids": (output.get("execution_evidence", {}) or {}).get("context_movement_ids", []),
+            "target_progress_history_ids": (output.get("execution_evidence", {}) or {}).get("target_progress_history_ids", []),
+            "context_progress_history_ids": (output.get("execution_evidence", {}) or {}).get("context_progress_history_ids", []),
             "missing_data": plan.get("missing_data_warnings", []),
         },
         "trace": {
@@ -115,6 +125,56 @@ def write_request_markdown(path: Path, request: str, item: dict) -> None:
         lines.append(f"- candidate: `{window['window_id']}` → {window['requested_start']}..{window['requested_end']}，交集 {window['resolved_start']}..{window['resolved_end']}；warnings={window['missing_data_warnings']}")
     lines.extend([f"- selected window: `{selection['selected_window_id']}`", "", "## 4. 候选数据概况", "", f"- modules: {json.dumps(item['candidate_overview']['modules'], ensure_ascii=False)}", f"- movement candidates: {json.dumps(item['candidate_overview']['movements'], ensure_ascii=False)}", f"- Notes candidates: {item['candidate_overview']['notes_count']}", f"- record candidates: {item['candidate_overview']['record_count']}", f"- budget: {json.dumps(item['candidate_overview']['budget'], ensure_ascii=False)}", "", "## 5. 最终选择", "", f"- modules: {json.dumps(selection['selected_modules'], ensure_ascii=False)}", f"- fields: {json.dumps(selection['selected_fields'], ensure_ascii=False)}", f"- movements: {json.dumps(selection['selected_movements'], ensure_ascii=False)}", f"- Notes: {selection['notes_count']}，scopes={selection['note_scopes']}", f"- records: {selection['records_count']}", f"- detail: training={selection['training_detail_level']}, movement={selection['movement_detail_level']}", f"- raw: {selection['include_raw_entries']}; excluded history: {selection['include_excluded_history']} ({selection['excluded_history_usage']}); progress metrics={selection['use_progress_history_for_metrics']}", f"- warnings: {selection['missing_data_warning_codes']}", f"- confidence: {selection['planner_confidence']}", "", "## 6. 执行结果", "", f"- estimated records: {execution['estimated_record_count']}; actual safe-count: {execution['actual_record_count']}", f"- estimated output size: {execution['estimated_output_size']}", f"- sections: {execution['sections']}", f"- progress evidence: {execution['progress_evidence_count']}; context-only: {execution['context_only_count']}", f"- Notes count: {execution['notes_count']}", f"- missing data: {execution['missing_data']}", "", "## 7. 安全预览", "", "本包只保留结构、数量、ID 选择和有限诊断，不包含完整 Notes、Raw、tracker、dictionary 或正式路径。", "", "## 8. 人工 Review 问题", "", "1. 时间范围选得是否合理？", "2. 模块是否选多或选少？", "3. 动作是否选对？", "4. Notes 是否有明显噪声或遗漏？", "5. 明细级别是否合适？", "6. 导出内容是否足以回答原问题？", "7. 哪些内容应该增加？", "8. 哪些内容应该删除？", ""])
     path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def write_decision_sheet(bundle: dict, output_dir: Path) -> None:
+    """Write a compact non-developer decision sheet for target-scope review."""
+    out = output_dir / "human-review" / "decision-sheet.md"
+    lines = ["# Canonical Target Body Parts — Decision Sheet", "", "Review each request for semantic target correctness, candidate role separation, and execution evidence.", ""]
+    for item in bundle.get("request_evidence", []):
+        scope = item.get("target_scope", {}) or {}
+        selection = item.get("selection", {}) or {}
+        execution = item.get("execution", {}) or {}
+        errors = bundle.get("integrity_audit", {}).get("request_errors", {}).get(item.get("request_id", ""), [])
+        intent = item.get("intent", {}) or {}
+        candidate_ids = [str(value.get("movement_id")) for value in item.get("candidates", {}).get("movements", []) or []]
+        lines += [
+            f"## {item.get('request_id')}",
+            "",
+            f"- 用户请求：{item.get('original_request', '')}",
+            f"- 目标部位：{','.join(intent.get('target_body_parts', [])) or '无明确部位目标'}",
+            f"- 明确动作：{','.join(value.get('text', '') for value in intent.get('movement_mentions', []) or []) or '无明确动作'}",
+            f"- 直接目标候选：{','.join(scope.get('direct_target_ids', [])) or '—'}",
+            f"- 部位展开候选：{','.join(scope.get('expanded_direct_movement_ids', [])) or '—'}",
+            f"- 上下文候选：{','.join(scope.get('context_movement_ids', [])) or '—'}",
+            f"- 全局候选：{','.join(scope.get('general_fallback_movement_ids', [])) or '—'}",
+            f"- 候选中动作：{','.join(candidate_ids) or '—'}",
+            f"- Planner 最终选择：{','.join(selection.get('selected_movement_ids', [])) or '—'}",
+            f"- 实际目标进步证据：{','.join(execution.get('target_progress_history_ids', [])) or '—'}",
+            f"- 实际上下文进步证据：{','.join(execution.get('context_progress_history_ids', [])) or '—'}",
+            f"- 目标覆盖：{selection.get('target_coverage_status', '—')}",
+            f"- Warnings：{','.join(item.get('warnings', [])) or '—'}",
+            f"- Confidence：{selection.get('planner_confidence', '—')}",
+            f"- Repair：{item.get('repair', {}).get('repair_used', False)}",
+            f"- Integrity：{'PASS' if not errors else ','.join(errors)}",
+            "",
+            "人工判断：",
+            "- □ 时间范围合理",
+            "- □ 模块选择合理",
+            "- □ 目标动作选择正确",
+            "- □ 上下文动作不过多",
+            "- □ Notes 没有明显噪声",
+            "- □ Records 足够",
+            "- □ 最终证据能够回答问题",
+            "",
+        ]
+    lines += [
+        "## 固定判断原则",
+        "- 目标部位只来自 IntentSpec.target_body_parts；动作名只来自 movement_mentions。",
+        "- BODY_PART_TARGET 是部位扩展候选；CONTEXT / GENERAL_FALLBACK 不得替代直接目标。",
+        "- target coverage 必须为 covered（无目标请求除外），并且执行证据至少包含一个选中目标动作。",
+    ]
+    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main() -> None:
@@ -138,7 +198,7 @@ def main() -> None:
     bundle = build_bundle(results, stability)
     bundle["generated_at"] = datetime.now(timezone.utc).isoformat()
     bundle["model_health"] = {key: value for key, value in health.items() if key not in {"raw_response", "prompt", "payload"}}
-    (output / "summary.json").write_text(json.dumps({"review_schema_version": bundle["review_schema_version"], "generated_at": bundle["generated_at"], "review_status": bundle["review_status"], "source_snapshot_id": bundle.get("source_snapshot_id", ""), "catalog_id": bundle.get("catalog_id", ""), "requests": [{"request_id": item["request_id"], "status": item["status"], "window": item["selection"].get("selected_window_id", ""), "modules": item["selection"].get("selected_module_ids", []), "movements": item["selection"].get("selected_movement_ids", []), "notes": len(item["selection"].get("selected_note_candidate_ids", [])), "records": len(item["selection"].get("selected_candidate_record_ids", [])), "progress_history": item["execution"].get("progress_history_count", 0), "context_only": item["execution"].get("context_only_count", 0), "confidence": item["selection"].get("planner_confidence", 0), "repair": item["repair"].get("repair_used", False)} for item in bundle["request_evidence"]], "stability": bundle["stability_comparison"], "integrity_audit": bundle["integrity_audit"], "privacy_audit": bundle["privacy_audit"]}, ensure_ascii=False, indent=2), encoding="utf-8")
+    (output / "summary.json").write_text(json.dumps({"review_schema_version": bundle["review_schema_version"], "generated_at": bundle["generated_at"], "review_status": bundle["review_status"], "source_snapshot_id": bundle.get("source_snapshot_id", ""), "catalog_id": bundle.get("catalog_id", ""), "requests": [{"request_id": item["request_id"], "status": item["status"], "target_body_parts": item["intent"].get("target_body_parts", []), "direct_target_movements": item.get("target_scope", {}).get("direct_target_ids", []), "selected_target_movements": item["selection"].get("selected_target_movement_ids", []), "selected_context_movements": item["selection"].get("selected_context_movement_ids", []), "target_coverage": item["selection"].get("target_coverage_status", ""), "window": item["selection"].get("selected_window_id", ""), "modules": item["selection"].get("selected_module_ids", []), "movements": item["selection"].get("selected_movement_ids", []), "notes": len(item["selection"].get("selected_note_candidate_ids", [])), "records": len(item["selection"].get("selected_candidate_record_ids", [])), "progress_history": item["execution"].get("progress_history_count", 0), "target_progress_history": item["execution"].get("target_progress_history_ids", []), "context_only": item["execution"].get("context_only_count", 0), "confidence": item["selection"].get("planner_confidence", 0), "repair": item["repair"].get("repair_used", False)} for item in bundle["request_evidence"]], "stability": bundle["stability_comparison"], "integrity_audit": bundle["integrity_audit"], "privacy_audit": bundle["privacy_audit"]}, ensure_ascii=False, indent=2), encoding="utf-8")
     (output / "integrity-audit.json").write_text(json.dumps(bundle["integrity_audit"], ensure_ascii=False, indent=2), encoding="utf-8")
     (output / "privacy-audit.json").write_text(json.dumps(bundle["privacy_audit"], ensure_ascii=False, indent=2), encoding="utf-8")
     for item in bundle["request_evidence"]:
@@ -150,6 +210,7 @@ def main() -> None:
     (output / "stability" / "comparison.json").write_text(json.dumps(bundle["stability_comparison"], ensure_ascii=False, indent=2), encoding="utf-8")
     (output / "README.md").write_text("# Fitness Ledger Intelligent Export Review Evidence\n\n本包来自运行时结构化 Intent、Candidate、Selection、Plan 与 Execution evidence 投影。它不包含完整 Notes、Raw、tracker、dictionary、正式路径、完整 Prompt 或完整模型响应。请先阅读 `human-review/review-index.md` 与 `integrity-audit.json`。\n", encoding="utf-8")
     write_review_index(bundle, output)
+    write_decision_sheet(bundle, output)
     print(str(output))
 
 

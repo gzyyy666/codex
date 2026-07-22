@@ -12,12 +12,15 @@ import hashlib
 import json
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 
 SCHEMA_VERSION = "fitness-ledger-intelligent-export-v1"
+INTENT_SCHEMA_VERSION = "fitness-ledger-intelligent-export-intent-v2"
 SELECTION_SCHEMA_VERSION = "fitness-ledger-intelligent-export-v1.1"
 PLANNER_CONFIDENCE_THRESHOLD = 0.5
+BODY_PART_IDS = ("CHEST", "BACK", "SHOULDER", "ARMS", "CORE", "LEGS")
+BodyPartId = Literal["CHEST", "BACK", "SHOULDER", "ARMS", "CORE", "LEGS"]
 PLANNING_DECISIONS = {"ready", "fallback_required"}
 FALLBACK_REASON_CODES = {
     "NO_VALID_WINDOW",
@@ -120,16 +123,14 @@ class DateIntent:
 class MovementMention:
     text: str
     confidence: float = 0.0
-    body_part: str = ""
 
     @classmethod
     def from_dict(cls, value: Any) -> "MovementMention":
         raw = _obj(value, "movement_mention")
-        _unknown(raw, {"text", "confidence", "body_part"}, "movement_mention")
+        _unknown(raw, {"text", "confidence"}, "movement_mention")
         return cls(
             _text(raw.get("text", ""), "movement_mention.text", 120, True),
             _number(raw.get("confidence", 0.0), "movement_mention.confidence"),
-            _text(raw.get("body_part", ""), "movement_mention.body_part", 80),
         )
 
 
@@ -139,21 +140,29 @@ class IntentSpec:
     analysis_dimensions: list[str]
     date_intent: DateIntent
     movement_mentions: list[MovementMention]
+    target_body_parts: list[BodyPartId]
     catalog_requirements: list[str]
     preferred_detail: str = "summary"
     raw_entry_relevance: str = "none"
     confidence: float = 0.0
     needs_fallback: bool = False
     warnings: list[str] = field(default_factory=list)
-    schema_version: str = SCHEMA_VERSION
+    schema_version: str = INTENT_SCHEMA_VERSION
 
     @classmethod
     def from_dict(cls, value: Any) -> "IntentSpec":
         raw = _obj(value, "intent")
-        allowed = {"schema_version", "interpreted_goal", "analysis_dimensions", "date_intent", "movement_mentions", "catalog_requirements", "preferred_detail", "raw_entry_relevance", "confidence", "needs_fallback", "warnings"}
+        allowed = {"schema_version", "interpreted_goal", "analysis_dimensions", "date_intent", "movement_mentions", "target_body_parts", "catalog_requirements", "preferred_detail", "raw_entry_relevance", "confidence", "needs_fallback", "warnings"}
         _unknown(raw, allowed, "intent")
-        if raw.get("schema_version", SCHEMA_VERSION) != SCHEMA_VERSION:
+        if raw.get("schema_version") != INTENT_SCHEMA_VERSION:
             raise ContractError("unsupported intent schema_version")
+        if "target_body_parts" not in raw:
+            raise ContractError("target_body_parts is required")
+        target_body_parts = _list(raw.get("target_body_parts"), "target_body_parts", 6)
+        if any(not isinstance(item, str) or item not in BODY_PART_IDS for item in target_body_parts):
+            raise ContractError("target_body_parts contains an invalid BodyPartId")
+        if len(target_body_parts) != len(set(target_body_parts)):
+            raise ContractError("target_body_parts must not contain duplicates")
         dimensions = [_text(item, "analysis_dimensions[]", 64, True) for item in _list(raw.get("analysis_dimensions", []), "analysis_dimensions", 12)]
         requirements = [_text(item, "catalog_requirements[]", 64, True) for item in _list(raw.get("catalog_requirements", []), "catalog_requirements", 12)]
         warnings = [_text(item, "warnings[]", 240) for item in _list(raw.get("warnings", []), "warnings", 12)]
@@ -168,13 +177,14 @@ class IntentSpec:
             dimensions,
             DateIntent.from_dict(raw.get("date_intent", {})),
             [MovementMention.from_dict(item) for item in _list(raw.get("movement_mentions", []), "movement_mentions", 8)],
+            list(target_body_parts),
             requirements,
             detail,
             raw_relevance,
             _number(raw.get("confidence", 0.0), "confidence"),
             bool(raw.get("needs_fallback", False)),
             warnings,
-            SCHEMA_VERSION,
+            INTENT_SCHEMA_VERSION,
         )
 
     def to_dict(self) -> dict:
@@ -221,6 +231,7 @@ class MovementCard:
     canonical_name: str
     aliases: list[str]
     body_part: str
+    body_part_id: str
     history_count: int
     progress_history_count: int
     excluded_history_count: int
@@ -666,18 +677,19 @@ def _schema(properties: dict, required: list[str]) -> dict:
 
 def intent_json_schema() -> dict:
     return _schema({
-        "schema_version": {"type": "string", "const": SCHEMA_VERSION},
+        "schema_version": {"type": "string", "const": INTENT_SCHEMA_VERSION},
         "interpreted_goal": {"type": "string", "minLength": 1, "maxLength": 400},
         "analysis_dimensions": {"type": "array", "maxItems": 12, "items": {"type": "string", "maxLength": 64}},
         "date_intent": _schema({"mode": {"type": "string", "enum": ["unspecified", "relative", "explicit", "all_available"]}, "relative_range": {"type": ["string", "null"], "enum": ["recent", "recent_4_weeks", "recent_8_weeks", "recent_12_weeks", "recent_months", "all_available", None]}, "comparison_needed": {"type": "boolean"}, "raw_date_mentions": {"type": "array", "maxItems": 8, "items": {"type": "string", "minLength": 1, "maxLength": 80}}}, ["mode", "relative_range", "comparison_needed", "raw_date_mentions"]),
-        "movement_mentions": {"type": "array", "maxItems": 8, "items": _schema({"text": {"type": "string", "minLength": 1, "maxLength": 120}, "confidence": {"type": "number", "minimum": 0, "maximum": 1}, "body_part": {"type": "string", "maxLength": 80}}, ["text", "confidence", "body_part"])},
+        "movement_mentions": {"type": "array", "maxItems": 8, "items": _schema({"text": {"type": "string", "minLength": 1, "maxLength": 120}, "confidence": {"type": "number", "minimum": 0, "maximum": 1}}, ["text", "confidence"])},
+        "target_body_parts": {"type": "array", "maxItems": 6, "uniqueItems": True, "items": {"type": "string", "enum": list(BODY_PART_IDS)}},
         "catalog_requirements": {"type": "array", "maxItems": 12, "items": {"type": "string", "maxLength": 64}},
         "preferred_detail": {"type": "string", "maxLength": 40},
         "raw_entry_relevance": {"type": "string", "enum": ["none", "preview", "requested"]},
         "confidence": {"type": "number", "minimum": 0, "maximum": 1},
         "needs_fallback": {"type": "boolean"},
         "warnings": {"type": "array", "maxItems": 12, "items": {"type": "string", "maxLength": 240}},
-    }, ["schema_version", "interpreted_goal", "analysis_dimensions", "date_intent", "movement_mentions", "catalog_requirements", "preferred_detail", "raw_entry_relevance", "confidence", "needs_fallback", "warnings"])
+    }, ["schema_version", "interpreted_goal", "analysis_dimensions", "date_intent", "movement_mentions", "target_body_parts", "catalog_requirements", "preferred_detail", "raw_entry_relevance", "confidence", "needs_fallback", "warnings"])
 
 
 def plan_json_schema() -> dict:

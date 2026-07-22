@@ -33,6 +33,12 @@ def main() -> None:
         assert bundle["privacy_audit"]["passed"]
         assert all(len(item["snippet"]) <= 80 for item in bundle["request_evidence"][0]["candidates"]["notes"])
         assert "progress" not in bundle["request_evidence"][0]["execution"]
+        evidence = bundle["request_evidence"][0]
+        assert evidence["intent"]["target_body_parts"] == ["SHOULDER"]
+        assert evidence["candidates"]["target_scope"]["direct_body_part_ids"] == ["SHOULDER"]
+        assert {item["candidate_role"] for item in evidence["candidates"]["movements"]} <= {"EXPLICIT_TARGET", "BODY_PART_TARGET"}
+        assert evidence["selection"]["target_coverage_status"] == "covered"
+        assert evidence["execution"]["target_progress_history_ids"]
         assert bundle["stability_comparison"]["common_note_ids"]
 
         missing_execution = copy.deepcopy(result)

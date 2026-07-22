@@ -8,7 +8,7 @@ from .intent_interpreter import PROMPT_VERSION, parse_json_object
 from .local_model_adapter import PLANNING_MODEL_CONFIG, LocalModelAdapter
 
 
-PLANNING_SYSTEM_PROMPT = """You are a strict Fitness Ledger export selector. Return only one JSON object with every required key. Set schema_version exactly to fitness-ledger-intelligent-export-v1.1. Choose only IDs and fields listed in the payload. Select at most 3 movements, 6 notes, and 8 records. Reasons are short (under 10 words). Do not output a plan, dates, catalog IDs, paths, estimates, raw text, or prose. Use progress history for metrics; excluded history is context_only only. A plan may be ready even when data is incomplete: missing dates, limited samples, incomplete diet coverage, or inability to prove causation belong in missing_data_warning_codes. Set planning_decision to ready whenever the candidates can form a safe and useful export plan. Set planning_decision to fallback_required only when no safe and meaningful plan can be formed. When fallback_required, fallback_reason_codes must contain an allowed blocking reason. planner_confidence measures confidence that the selected plan is useful, not data completeness. Keep fallback_reason_codes empty for ready selections."""
+PLANNING_SYSTEM_PROMPT = """You are a strict Fitness Ledger export selector. Return only one JSON object with every required key. Set schema_version exactly to fitness-ledger-intelligent-export-v1.1. Choose only IDs and fields listed in the payload. Select at most 3 movements, 6 notes, and 8 records. Reasons are short (under 10 words). Do not output a plan, dates, catalog IDs, paths, estimates, raw text, or prose. Movement candidates have roles: EXPLICIT_TARGET and BODY_PART_TARGET are directly relevant to the stated goal; CONTEXT provides supporting background; GENERAL_FALLBACK is only general representative evidence. When usable direct target candidates exist, prioritize them over context and fallback; do not replace all direct targets with context. Context may be selected only when it adds useful supporting information within budget. Use progress history for metrics; excluded history is context_only only. A plan may be ready even when data is incomplete: missing dates, limited samples, incomplete diet coverage, or inability to prove causation belong in missing_data_warning_codes. Set planning_decision to ready whenever the candidates can form a safe and useful export plan. Set planning_decision to fallback_required only when no safe and meaningful plan can be formed. When fallback_required, fallback_reason_codes must contain an allowed blocking reason. planner_confidence measures confidence that the selected plan is useful, not data completeness. Keep fallback_reason_codes empty for ready selections."""
 
 
 class ExportPlanner:
@@ -25,6 +25,8 @@ class ExportPlanner:
                 "interpreted_goal": intent.interpreted_goal,
                 "analysis_dimensions": intent.analysis_dimensions,
                 "date_intent": intent.date_intent.__dict__,
+                "target_body_parts": intent.target_body_parts,
+                "movement_mentions": [item.text for item in intent.movement_mentions],
                 "preferred_detail": intent.preferred_detail,
                 "raw_entry_relevance": intent.raw_entry_relevance,
             },
@@ -50,6 +52,7 @@ class ExportPlanner:
         self.last_result = result
         parsed = self.parse_selection(result.raw_text)
         self._validate_selection(parsed, package)
+        self._validate_target_coverage(parsed, package)
         return parsed, result
 
     @staticmethod
@@ -76,6 +79,15 @@ class ExportPlanner:
         budget = package.budget
         if len(selection.selected_movements) > budget["movements"] or len(selection.selected_note_candidate_ids) > budget["notes"] or len(selection.selected_candidate_record_ids) > budget["records"]:
             raise ContractError("selection exceeds budget")
+
+    @staticmethod
+    def _validate_target_coverage(selection: ModelPlanningSelection, package: CandidatePackage) -> None:
+        target_ids = set(package.target_scope.direct_target_ids) & set(package.allowed_ids.get("movement_ids", []))
+        if not target_ids or not selection.selected_movements:
+            return
+        selected_ids = {item.movement_id for item in selection.selected_movements}
+        if not selected_ids.intersection(target_ids):
+            raise ContractError("selection does not cover a direct target movement", "TARGET_SCOPE_NOT_COVERED")
 
     @staticmethod
     def parse_selection(raw_text: str) -> ModelPlanningSelection:
