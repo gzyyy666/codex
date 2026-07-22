@@ -72,9 +72,10 @@ class CandidateSummarizer:
 
     def build(self, request: str, intent: IntentSpec, budget_mode: str = "standard") -> CandidatePackage:
         budget = dict(BUDGETS.get(budget_mode, BUDGETS["standard"]))
-        windows = resolve_windows(self.catalog, intent)
+        windows = resolve_windows(self.catalog, intent, request)
         window = windows[0] if windows else None
-        start, end = (window.resolved_start, window.resolved_end) if window else ("", "")
+        data_window = windows[-1] if windows else None
+        start, end = (data_window.resolved_start, data_window.resolved_end) if data_window else ("", "")
         in_range = lambda value: bool(value) and (not start or start <= value <= end)
         movement_matches = []
         matched_ids: set[str] = set()

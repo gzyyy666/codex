@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import calendar
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Iterable
@@ -128,36 +129,144 @@ class MovementResolver:
 
 
 class DateRangeResolver:
-    def resolve(self, intent: IntentSpec, catalog: DataCatalog) -> list[CandidateWindow]:
+    """Deterministically turn semantic DateIntent plus the raw request into windows."""
+
+    _ISO = re.compile(r"(?<!\d)(\d{4})[-/](\d{2})[-/](\d{2})(?!\d)")
+    _ISO_LAX = re.compile(r"(?<!\d)(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?!\d)")
+    _CN = re.compile(r"(?:(\d{4})年)?(\d{1,2})月(\d{1,2})(?:日|号)")
+    _EN = re.compile(r"\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})(?:,\s*(\d{4}))?\b", re.I)
+    _EN_MONTH = {name.lower(): index for index, name in enumerate(calendar.month_name) if name}
+
+    @classmethod
+    def extract_raw_date_mentions(cls, request: str) -> list[str]:
+        text = str(request or "")
+        patterns = [cls._ISO_LAX, cls._CN, cls._EN]
+        found: list[str] = []
+        for pattern in patterns:
+            found.extend(match.group(0) for match in pattern.finditer(text))
+        month_names = "|".join(cls._EN_MONTH)
+        if re.search(rf"\b(?:from|since)\s+(?:{month_names})\b|\b(?:from)\s+(?:{month_names})\s+to\s+(?:{month_names})\b", text, re.I):
+            found.extend(match.group(0) for match in re.finditer(rf"\b(?:from|since)\s+(?:{month_names})(?:\s+to\s+(?:{month_names}))?\b", text, re.I))
+        return list(dict.fromkeys(found))[:8]
+
+    @staticmethod
+    def infer_relative_range(request: str) -> str | None:
+        text = str(request or "").lower()
+        if any(token in text for token in ("全部历史", "所有记录", "完整成长记录", "all available", "all history", "all records")):
+            return "all_available"
+        if any(token in text for token in ("最近两个月", "这几个月", "最近几个月", "recent months", "last few months")):
+            return "recent_months"
+        if any(token in text for token in ("最近十二周", "最近12周", "recent 12 weeks", "last 12 weeks")):
+            return "recent_12_weeks"
+        if any(token in text for token in ("最近八周", "最近8周", "recent 8 weeks", "last 8 weeks")):
+            return "recent_8_weeks"
+        if any(token in text for token in ("最近四周", "最近4周", "recent 4 weeks", "last 4 weeks")):
+            return "recent_4_weeks"
+        if any(token in text for token in ("最近", "近期", "一段时间", "recent", "lately", "these months")):
+            return "recent"
+        return None
+
+    def resolve(self, intent: IntentSpec, catalog: DataCatalog, request: str = "", today: date | None = None) -> list[CandidateWindow]:
         available_start, available_end = catalog.date_range.get("start", ""), catalog.date_range.get("end", "")
         if not available_start or not available_end:
             return []
+        today = today or date.today()
         date_intent = intent.date_intent
-        if date_intent.kind == "explicit_range":
-            requested_start = date_intent.start or available_start
-            requested_end = date_intent.end or available_end
-            anchor = "explicit"
-        elif date_intent.kind == "relative":
-            days = date_intent.days or 28
-            requested_end = available_end
-            requested_start = (date.fromisoformat(requested_end) - timedelta(days=days - 1)).isoformat()
-            anchor = date_intent.anchor or "latest"
-        elif date_intent.kind == "all":
-            requested_start, requested_end, anchor = available_start, available_end, "all"
+        if date_intent.mode == "explicit":
+            explicit = self._explicit_range(request, date_intent.raw_date_mentions, today, available_end)
+            if explicit is None:
+                return []
+            requested_ranges = [(explicit[0], explicit[1], "explicit")]
+        elif date_intent.mode == "relative":
+            requested_ranges = [(start, min(today.isoformat(), available_end), "relative") for start in self._relative_starts(date_intent.relative_range or "recent", available_end)]
+        elif date_intent.mode == "all_available" or date_intent.relative_range == "all_available":
+            requested_ranges = [(available_start, min(today.isoformat(), available_end), "all")]
         else:
-            requested_end = available_end
-            requested_start = (date.fromisoformat(requested_end) - timedelta(days=27)).isoformat()
-            anchor = "safe_default_recent_28d"
-        resolved_start = max(requested_start, available_start)
-        resolved_end = min(requested_end, available_end)
-        warnings = []
-        if requested_start < available_start or requested_end > available_end:
-            warnings.append("requested range partly falls outside available data; only the real intersection is used")
-        if resolved_start > resolved_end:
-            warnings.append("requested range has no intersection with available data")
-            resolved_start, resolved_end = available_start, available_end
-        window_id = f"window:{requested_start}..{requested_end}:{resolved_start}..{resolved_end}"
-        return [CandidateWindow(window_id, requested_start, requested_end, resolved_start, resolved_end, anchor, list(MODULE_FIELDS), 0, warnings)]
+            requested_ranges = [(start, min(today.isoformat(), available_end), "safe_default_recent_28d") for start in self._relative_starts("recent_4_weeks", available_end)]
+        windows = []
+        for requested_start, requested_end, anchor in requested_ranges:
+            try:
+                requested_start = date.fromisoformat(requested_start).isoformat()
+                requested_end = date.fromisoformat(requested_end).isoformat()
+            except ValueError:
+                continue
+            resolved_start = max(requested_start, available_start)
+            resolved_end = min(requested_end, available_end)
+            if resolved_start > resolved_end:
+                continue
+            warnings = []
+            if requested_start < available_start or requested_end > available_end:
+                warnings.append("requested range partly falls outside available data; only the real intersection is used")
+            window_id = f"window:{requested_start}..{requested_end}:{resolved_start}..{resolved_end}"
+            windows.append(CandidateWindow(window_id, requested_start, requested_end, resolved_start, resolved_end, anchor, list(MODULE_FIELDS), 0, warnings))
+        return list(dict((item.window_id, item) for item in windows).values())
+
+    @staticmethod
+    def _relative_starts(relative_range: str, available_end: str) -> list[str]:
+        days = {"recent_4_weeks": 28, "recent_8_weeks": 56, "recent_12_weeks": 84}
+        if relative_range == "recent":
+            spans = (28, 56)
+        elif relative_range == "recent_months":
+            spans = (56, 84)
+        else:
+            spans = (days.get(relative_range, 28),)
+        end = date.fromisoformat(available_end)
+        return [(end - timedelta(days=span - 1)).isoformat() for span in spans]
+
+    def _explicit_range(self, request: str, mentions: list[str], today: date, available_end: str) -> tuple[str, str] | None:
+        text = str(request or "")
+        source = text or " ".join(mentions)
+        if self._ISO_LAX.search(source) and not self._ISO.search(source):
+            return None
+        dates = []
+        for match in self._ISO.finditer(source):
+            try:
+                dates.append(date(int(match.group(1)), int(match.group(2)), int(match.group(3))))
+            except ValueError:
+                return None
+        if not dates:
+            for match in self._CN.finditer(source):
+                parsed = self._safe_month_day(match.group(1), match.group(2), match.group(3), today, available_end)
+                if parsed is None:
+                    return None
+                dates.append(parsed)
+        if not dates:
+            for match in self._EN.finditer(source):
+                parsed = self._safe_month_day(match.group(3), str(self._EN_MONTH[match.group(1).lower()]), match.group(2), today, available_end)
+                if parsed is None:
+                    return None
+                dates.append(parsed)
+        if not dates:
+            month_names = "|".join(self._EN_MONTH)
+            month_matches = list(re.finditer(rf"\b({month_names})\b", source, re.I))
+            if month_matches:
+                year = today.year
+                first = date(year, self._EN_MONTH[month_matches[0].group(1).lower()], 1)
+                last_month = self._EN_MONTH[month_matches[-1].group(1).lower()]
+                last = date(year, last_month, calendar.monthrange(year, last_month)[1])
+                if re.search(rf"\bsince\s+{month_names}\b", source, re.I):
+                    last = date.fromisoformat(min(today.isoformat(), available_end))
+                if first > today and date(year - 1, first.month, first.day) <= today:
+                    first = first.replace(year=year - 1); last = last.replace(year=year - 1)
+                dates = [first, last]
+        if not dates:
+            return None
+        start, end = min(dates), max(dates)
+        return start.isoformat(), end.isoformat()
+
+    @staticmethod
+    def _safe_month_day(year_text: str | None, month_text: str, day_text: str, today: date, available_end: str) -> date | None:
+        try:
+            year = int(year_text) if year_text else today.year
+            value = date(year, int(month_text), int(day_text))
+        except (TypeError, ValueError):
+            return None
+        if not year_text and value > today and value.isoformat() > available_end:
+            try:
+                value = value.replace(year=value.year - 1)
+            except ValueError:
+                return None
+        return value
 
 
 class DataCatalogBuilder:
@@ -238,5 +347,5 @@ class DataCatalogBuilder:
         return note_id
 
 
-def resolve_windows(catalog: DataCatalog, intent: IntentSpec) -> list[CandidateWindow]:
-    return DateRangeResolver().resolve(intent, catalog)
+def resolve_windows(catalog: DataCatalog, intent: IntentSpec, request: str = "") -> list[CandidateWindow]:
+    return DateRangeResolver().resolve(intent, catalog, request)
