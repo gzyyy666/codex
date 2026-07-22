@@ -34,9 +34,9 @@ def main() -> None:
     for value in ("减脂", "卧推"):
         sample = copy.deepcopy(base); sample["interpreted_goal"] = value
         assert validator.validate(sample).is_valid
-    sample = copy.deepcopy(base); sample["movement_mentions"] = [{"text": "胸", "confidence": 0.8, "body_part": "胸"}]
+    sample = copy.deepcopy(base); sample["movement_mentions"] = [{"text": "胸", "confidence": 0.8}]
     assert validator.validate(sample).is_valid
-    sample["movement_mentions"] = [{"text": "??", "confidence": 0.8, "body_part": ""}]
+    sample["movement_mentions"] = [{"text": "??", "confidence": 0.8}]
     assert "INTENT_MOVEMENT_MENTION_CORRUPTED" in validator.validate(sample).error_codes
     sample = copy.deepcopy(base); sample["movement_mentions"] = []; sample["date_intent"]["raw_date_mentions"] = []
     assert validator.validate(sample).is_valid

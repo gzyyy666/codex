@@ -16,6 +16,7 @@ from .export_planner import ExportPlanner
 from .export_plan_assembler import ExportPlanAssembler
 from .intelligent_export_models import (
     ContractError,
+    BODY_PART_IDS,
     ExportPlanDraft,
     ModelPlanningSelection,
     PLANNER_CONFIDENCE_THRESHOLD,
@@ -38,8 +39,8 @@ from .shared_view_models import history_in_progress, movement_in_progress
 from .intelligent_export_models import intent_json_schema, selection_json_schema
 
 
-REPAIR_SYSTEM_PROMPT = """Repair only the Fitness Ledger model selection JSON. Return exactly one selection object matching the supplied schema. Use only the supplied allowed IDs and fields; do not output a full plan, dates, catalog IDs, paths, estimates, raw text, or prose. Excluded history is context_only and progress metrics must use valid progress history. Repair only semantic contradictions: a complete safe selection should be planning_decision=ready with no fallback reasons; data incompleteness belongs in missing_data_warning_codes. Use planning_decision=fallback_required only when no safe meaningful plan can be formed, with at least one allowed fallback_reason_code. Do not add candidates that were not supplied."""
-INTENT_REPAIR_SYSTEM_PROMPT = """Repair only the Fitness Ledger intent JSON. Return one corrected Intent JSON object matching the supplied schema, with no Markdown or prose. Preserve every valid field and only repair fields identified by the validation errors. Required text fields must contain meaningful natural-language text, not placeholders such as ?, ??, ？？, N/A, unknown, or replacement characters. Use the original user request as the sole semantic source. Do not invent dates, movements, modules, measurements, or facts. Do not generate normalized or ISO dates; preserve explicit date phrases in raw_date_mentions and use only allowed date intent modes. Do not add fields outside the schema. Do not output an export plan, catalog contents, raw entries, paths, or full prompts."""
+REPAIR_SYSTEM_PROMPT = """Repair only the Fitness Ledger model selection JSON. Return exactly one selection object matching the supplied schema. Use only the supplied allowed IDs and fields; do not output a full plan, dates, catalog IDs, paths, estimates, raw text, or prose. Movement candidates have roles: EXPLICIT_TARGET and BODY_PART_TARGET directly cover the stated target; CONTEXT and GENERAL_FALLBACK are supporting evidence only. When a direct target candidate exists and movements are selected, retain at least one direct target. Excluded history is context_only and progress metrics must use valid progress history. Repair only semantic contradictions: a complete safe selection should be planning_decision=ready with no fallback reasons; data incompleteness belongs in missing_data_warning_codes. Use planning_decision=fallback_required only when no safe meaningful plan can be formed, with at least one allowed fallback_reason_code. Do not add candidates that were not supplied."""
+INTENT_REPAIR_SYSTEM_PROMPT = """Repair only the Fitness Ledger intent JSON. Return one corrected Intent JSON object matching the supplied schema, with no Markdown or prose. Preserve every valid field and only repair fields identified by the validation errors. Required text fields must contain meaningful natural-language text, not placeholders such as ?, ??, ？？, N/A, unknown, or replacement characters. Represent explicitly requested body regions in target_body_parts using only CHEST, BACK, SHOULDER, ARMS, CORE, or LEGS. Represent only explicitly named exercises in movement_mentions. Do not convert a body-part scope into a specific movement, invent movements or body parts, or retain movement_mentions.body_part. Use the original user request as the sole semantic source. Do not invent dates, modules, measurements, or facts. Do not generate normalized or ISO dates; preserve explicit date phrases in raw_date_mentions and use only allowed date intent modes. Do not add fields outside the schema. Do not output an export plan, catalog contents, raw entries, paths, or full prompts."""
 
 
 def _date(value) -> str:
@@ -132,6 +133,12 @@ class ExportExecutor:
             if count:
                 movement_record_counts[movement_id] = count
         note_ids = [str(item.get("note_candidate_id", "")) for item in payload.get("notes", []) if item.get("note_candidate_id")]
+        roles = dict(getattr(package, "movement_roles", {}) or {})
+        target_ids = {movement_id for movement_id, role in roles.items() if role in {"EXPLICIT_TARGET", "BODY_PART_TARGET"}}
+        context_movement_ids = {movement_id for movement_id, role in roles.items() if role == "CONTEXT"}
+        target_progress_ids = [rid for rid in progress_ids if len(rid.split(":", 2)) > 1 and rid.split(":", 2)[1] in target_ids]
+        context_progress_ids = [rid for rid in progress_ids if len(rid.split(":", 2)) > 1 and rid.split(":", 2)[1] in context_movement_ids]
+        target_training_record_ids = [item.candidate_record_id for item in package.candidate_records if item.module_id == "training" and item.candidate_record_id in set(plan.candidate_record_ids) and set(item.related_movement_ids).intersection(target_ids)]
         sections = sorted(key for key in payload if key in {"body", "diet", "training", "movements", "notes", "raw_entries"})
         return {
             "actual_record_ids": sorted(set(actual_record_ids)),
@@ -140,6 +147,11 @@ class ExportExecutor:
             "actual_output_size": len(json.dumps(payload, ensure_ascii=False, separators=(",", ":"))),
             "progress_history_count": len(progress_ids),
             "progress_history_ids": sorted(set(progress_ids)),
+            "target_movement_ids": sorted(target_ids),
+            "context_movement_ids": sorted(context_movement_ids),
+            "target_progress_history_ids": sorted(target_progress_ids),
+            "context_progress_history_ids": sorted(context_progress_ids),
+            "target_training_record_ids": sorted(target_training_record_ids),
             "context_only_count": len(context_ids),
             "context_only_ids": sorted(set(context_ids)),
             "module_record_counts": module_record_counts,
@@ -282,7 +294,7 @@ class IntelligentExportService:
                     safe_diagnostics = dict(getattr(semantic_before, "diagnostics", {}) or {})
                     original_codes = semantic_codes or [getattr(exc, "code", "INTENT_INVALID")]
                     repair_meta.update({"repair_used": True, "intent_repair_used": True, "phase": "intent", "original_validation_codes": original_codes, "intent_schema_status": "invalid" if not semantic_before else "valid", "intent_semantic_status": "invalid" if semantic_before else "valid", "intent_semantic_error_codes": semantic_codes, "intent_initial_semantic_error_codes": semantic_codes, "intent_semantic_diagnostics": safe_diagnostics})
-                    repair_payload = {"request": str(request or "")[:2000], "invalid_intent": invalid_intent.to_dict() if invalid_intent else {}, "validation_error": {"codes": original_codes, "field_paths": invalid_paths, "diagnostics": safe_diagnostics}, "intent_schema": intent_json_schema()}
+                    repair_payload = {"request": str(request or "")[:2000], "invalid_intent": invalid_intent.to_dict() if invalid_intent else {}, "validation_error": {"codes": original_codes, "field_paths": invalid_paths, "diagnostics": safe_diagnostics}, "allowed_target_body_parts": list(BODY_PART_IDS), "intent_schema": intent_json_schema()}
                     repair_result = self.adapter.generate_json(system_prompt=INTENT_REPAIR_SYSTEM_PROMPT, user_payload=repair_payload, response_schema=intent_json_schema(), config=REPAIR_MODEL_CONFIG)
                     repaired_raw = parse_json_object(repair_result.raw_text)
                     repaired_intent, repaired_semantic = intent_interpreter.parse_repair(request, repair_result.raw_text)
@@ -336,8 +348,8 @@ class IntelligentExportService:
                     repair_used = True
                     repair_meta.update({"repair_used": True, "phase": "selection", "original_validation_codes": [getattr(exc, "code", "PLANNING_INVALID")]})
                     before_selection = getattr(planner, "last_selection", None)
-                    repair_result = self.adapter.generate_json(system_prompt=REPAIR_SYSTEM_PROMPT, user_payload={"invalid_selection": getattr(planner.last_result, "raw_text", "")[:12000], "validation_error": {"code": getattr(exc, "code", "PLANNING_INVALID"), "message": str(exc)[:240]}, "allowed_window_ids": package.allowed_ids["window_ids"], "allowed_module_ids": package.allowed_modules, "allowed_field_ids_by_module": package.allowed_fields, "allowed_movement_ids": package.allowed_ids["movement_ids"], "allowed_note_candidate_ids": package.allowed_ids["note_candidate_ids"], "allowed_candidate_record_ids": package.allowed_ids["candidate_record_ids"], "selection_schema": selection_json_schema()}, response_schema=selection_json_schema(), config=REPAIR_MODEL_CONFIG)
-                    selection = planner.parse_selection(repair_result.raw_text)
+                    repair_result = self.adapter.generate_json(system_prompt=REPAIR_SYSTEM_PROMPT, user_payload={"invalid_selection": getattr(planner.last_result, "raw_text", "")[:12000], "validation_error": {"code": getattr(exc, "code", "PLANNING_INVALID"), "message": str(exc)[:240]}, "target_scope": package.target_scope.to_dict(), "candidate_roles": package.movement_roles, "allowed_window_ids": package.allowed_ids["window_ids"], "allowed_module_ids": package.allowed_modules, "allowed_field_ids_by_module": package.allowed_fields, "allowed_movement_ids": package.allowed_ids["movement_ids"], "allowed_note_candidate_ids": package.allowed_ids["note_candidate_ids"], "allowed_candidate_record_ids": package.allowed_ids["candidate_record_ids"], "selection_schema": selection_json_schema()}, response_schema=selection_json_schema(), config=REPAIR_MODEL_CONFIG)
+                    selection = planner.parse_selection(repair_result.raw_text); planner._validate_target_coverage(selection, package)
                     self._record_repair_meta(repair_meta, before_selection.to_dict() if before_selection else {}, selection.to_dict())
                     if selection.planning_decision == "fallback_required":
                         return self._fallback(request, "PLANNER_FALLBACK_REQUIRED", trace_id, started, catalog, intent)
@@ -357,8 +369,8 @@ class IntelligentExportService:
                 try:
                     repair_meta.update({"repair_used": True, "phase": "validation", "original_validation_codes": [first_error.code]})
                     before_selection = selection.to_dict()
-                    repair_result = self.adapter.generate_json(system_prompt=REPAIR_SYSTEM_PROMPT, user_payload={"invalid_selection": selection.to_dict(), "validation_error": {"code": first_error.code, "message": str(first_error)[:240]}, "allowed_window_ids": package.allowed_ids["window_ids"], "allowed_module_ids": package.allowed_modules, "allowed_field_ids_by_module": package.allowed_fields, "allowed_movement_ids": package.allowed_ids["movement_ids"], "allowed_note_candidate_ids": package.allowed_ids["note_candidate_ids"], "allowed_candidate_record_ids": package.allowed_ids["candidate_record_ids"], "selection_schema": selection_json_schema()}, response_schema=selection_json_schema(), config=REPAIR_MODEL_CONFIG)
-                    selection = planner.parse_selection(repair_result.raw_text)
+                    repair_result = self.adapter.generate_json(system_prompt=REPAIR_SYSTEM_PROMPT, user_payload={"invalid_selection": selection.to_dict(), "validation_error": {"code": first_error.code, "message": str(first_error)[:240]}, "target_scope": package.target_scope.to_dict(), "candidate_roles": package.movement_roles, "allowed_window_ids": package.allowed_ids["window_ids"], "allowed_module_ids": package.allowed_modules, "allowed_field_ids_by_module": package.allowed_fields, "allowed_movement_ids": package.allowed_ids["movement_ids"], "allowed_note_candidate_ids": package.allowed_ids["note_candidate_ids"], "allowed_candidate_record_ids": package.allowed_ids["candidate_record_ids"], "selection_schema": selection_json_schema()}, response_schema=selection_json_schema(), config=REPAIR_MODEL_CONFIG)
+                    selection = planner.parse_selection(repair_result.raw_text); planner._validate_target_coverage(selection, package)
                     self._record_repair_meta(repair_meta, before_selection, selection.to_dict())
                     if selection.planning_decision == "fallback_required":
                         return self._fallback(request, "PLANNER_FALLBACK_REQUIRED", trace_id, started, catalog, intent)

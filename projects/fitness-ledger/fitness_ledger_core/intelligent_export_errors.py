@@ -10,6 +10,7 @@ ERRORS = {
     "MODEL_SCHEMA_INVALID": {"user": "本地模型返回未符合选择协议。", "retry": False, "repair": True},
     "MODEL_INTENT_SEMANTIC_INVALID": {"user": "本地模型未能生成可用的请求理解结果。", "retry": False, "repair": False},
     "MODEL_SELECTION_INVALID": {"user": "本地模型选择无法安全确认。", "retry": False, "repair": True},
+    "TARGET_SCOPE_NOT_COVERED": {"user": "本地模型未覆盖用户明确请求的目标范围。", "retry": False, "repair": True},
     "MODEL_REPAIR_FAILED": {"user": "本地模型修复失败，已安全回退。", "retry": False, "repair": False},
     "MODEL_OUTPUT_TRUNCATED": {"user": "本地模型输出不完整，已安全回退。", "retry": True, "repair": True},
     "SOURCE_CHANGED": {"user": "导出期间数据发生变化，请重新尝试。", "retry": True, "repair": False},

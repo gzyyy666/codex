@@ -25,6 +25,9 @@ BLOCKING_CODES = {
     "REVIEW_SNAPSHOT_MISMATCH", "REVIEW_CATALOG_MISMATCH",
     "REVIEW_STABILITY_IDS_MISSING", "REVIEW_REPAIR_DIFF_MISSING",
     "REVIEW_PRIVACY_VIOLATION",
+    "REVIEW_TARGET_BODY_PARTS_MISSING", "REVIEW_TARGET_SCOPE_MISSING", "REVIEW_DIRECT_TARGET_NOT_IN_CANDIDATES",
+    "REVIEW_CANDIDATE_ROLE_MISSING", "REVIEW_CONTEXT_MISLABELED_AS_TARGET", "REVIEW_TARGET_SCOPE_NOT_COVERED",
+    "REVIEW_TARGET_EXECUTION_EVIDENCE_MISSING",
 }
 
 
@@ -122,6 +125,8 @@ def _candidate_projection(package: dict) -> dict:
             "movement_id": movement_id,
             "display_name": item.get("canonical_name", movement_id),
             "body_part": item.get("body_part", ""),
+            "body_part_id": item.get("body_part_id", ""),
+            "candidate_role": package.get("movement_roles", {}).get(movement_id, ""),
             "history_count": item.get("history_count", 0),
             "valid_progress_count": item.get("progress_history_count", 0),
             "excluded_history_count": excluded,
@@ -157,8 +162,13 @@ def _candidate_projection(package: dict) -> dict:
     resolver_matches = []
     for item in package.get("movement_matches", []) or []:
         resolver_matches.append({key: item.get(key) for key in ("movement_id", "canonical_name", "body_part", "match_type", "score", "history_count", "progress_history_count")})
+    target_scope = package.get("target_scope", {}) or {}
+    candidate_ids = {str(item.get("movement_id")) for item in movements}
+    target_ids = _ids(target_scope.get("direct_target_ids", []))
     return {"windows": windows, "modules": modules, "movements": movements, "notes": notes, "records": records,
-            "resolver_matches": resolver_matches, "budget": package.get("budget", {}), "allowed_ids": package.get("allowed_ids", {})}
+            "resolver_matches": resolver_matches, "target_scope": target_scope, "movement_roles": package.get("movement_roles", {}),
+            "target_candidates_excluded_by_budget": [item for item in target_ids if item not in candidate_ids],
+            "budget": package.get("budget", {}), "allowed_ids": package.get("allowed_ids", {})}
 
 
 def _execution_projection(result: dict) -> dict:
@@ -168,7 +178,7 @@ def _execution_projection(result: dict) -> dict:
     if not evidence:
         return {"actual_record_ids": [], "actual_note_ids": [], "output_sections": sorted(k for k in payload if k in {"body", "diet", "training", "movements", "notes", "raw_entries"}),
                 "actual_output_size": len(str(output.get("json", ""))), "progress_history_count": 0, "progress_history_ids": [],
-                "context_only_count": 0, "context_only_ids": [], "module_record_counts": {}, "movement_record_counts": {},
+                "context_only_count": 0, "context_only_ids": [], "target_movement_ids": [], "context_movement_ids": [], "target_progress_history_ids": [], "context_progress_history_ids": [], "target_training_record_ids": [], "module_record_counts": {}, "movement_record_counts": {},
                 "missing_data_codes": [], "insufficient_sample_codes": [], "execution_warning_codes": [], "evidence_present": False}
     projected = {
         "actual_record_ids": _ids(evidence.get("actual_record_ids", [])),
@@ -179,6 +189,11 @@ def _execution_projection(result: dict) -> dict:
         "progress_history_ids": _ids(evidence.get("progress_history_ids", [])),
         "context_only_count": int(evidence.get("context_only_count", 0) or 0),
         "context_only_ids": _ids(evidence.get("context_only_ids", [])),
+        "target_movement_ids": _ids(evidence.get("target_movement_ids", [])),
+        "context_movement_ids": _ids(evidence.get("context_movement_ids", [])),
+        "target_progress_history_ids": _ids(evidence.get("target_progress_history_ids", [])),
+        "context_progress_history_ids": _ids(evidence.get("context_progress_history_ids", [])),
+        "target_training_record_ids": _ids(evidence.get("target_training_record_ids", [])),
         "module_record_counts": evidence.get("module_record_counts", {}) or {},
         "movement_record_counts": evidence.get("movement_record_counts", {}) or {},
         "missing_data_codes": evidence.get("missing_data_codes", []) or [],
@@ -231,6 +246,10 @@ def project_request(result: dict, request_id: str, original_request: str) -> dic
     selected_movements = _selected_movements(selection)
     selected_notes = _ids(selection.get("selected_note_candidate_ids", []))
     selected_records = _ids(selection.get("selected_candidate_record_ids", []))
+    movement_roles = package.get("movement_roles", {}) or {}
+    selected_target_movements = [movement_id for movement_id in selected_movements if movement_roles.get(movement_id) in {"EXPLICIT_TARGET", "BODY_PART_TARGET"}]
+    selected_context_movements = [movement_id for movement_id in selected_movements if movement_roles.get(movement_id) == "CONTEXT"]
+    selected_fallback_movements = [movement_id for movement_id in selected_movements if movement_roles.get(movement_id) == "GENERAL_FALLBACK"]
     movement_reasons = {str(item.get("movement_id")): str(item.get("reason", "")) for item in selection.get("selected_movements", []) or [] if item.get("movement_id")}
     inclusion = dict(plan.get("inclusion_reasons", {}) or {})
     inclusion.update({key: value for key, value in movement_reasons.items() if value})
@@ -251,6 +270,7 @@ def project_request(result: dict, request_id: str, original_request: str) -> dic
             "analysis_dimensions": intent.get("analysis_dimensions", []) or [],
             "date_intent": intent.get("date_intent", {}) or {},
             "movement_mentions": intent.get("movement_mentions", []) or [],
+            "target_body_parts": intent.get("target_body_parts", []) or [],
             "requested_modules": intent.get("catalog_requirements", []) or [],
             "requested_detail": intent.get("preferred_detail", ""),
             "raw_entry_relevance": intent.get("raw_entry_relevance", "none"),
@@ -273,6 +293,10 @@ def project_request(result: dict, request_id: str, original_request: str) -> dic
             "selected_module_ids": selected_modules,
             "selected_field_ids_by_module": selected_fields,
             "selected_movement_ids": selected_movements,
+            "selected_target_movement_ids": selected_target_movements,
+            "selected_context_movement_ids": selected_context_movements,
+            "selected_fallback_movement_ids": selected_fallback_movements,
+            "target_coverage_status": "covered" if selected_target_movements else "not_applicable" if not (set(candidate.get("target_scope", {}).get("direct_movement_ids", [])) | set(candidate.get("target_scope", {}).get("expanded_direct_movement_ids", []))) else "not_covered",
             "selected_note_candidate_ids": selected_notes,
             "selected_candidate_record_ids": selected_records,
             "training_detail_level": selection.get("training_detail_level", ""),
@@ -304,9 +328,10 @@ def project_request(result: dict, request_id: str, original_request: str) -> dic
         "execution": execution,
         "model_call": (result.get("diagnostics", {}) or {}).get("stages", {}) or {},
         "repair": repair,
-        "warnings": sorted(set((intent.get("warnings", []) or []) + (selection.get("missing_data_warning_codes", []) or []) + (plan.get("missing_data_warnings", []) or []))),
+        "warnings": sorted(set((intent.get("warnings", []) or []) + (selection.get("missing_data_warning_codes", []) or []) + (plan.get("missing_data_warnings", []) or []) + (candidate.get("target_scope", {}).get("warnings", []) or []))),
         "source_snapshot_id": package.get("source_snapshot_id", ""),
         "catalog_id": package.get("catalog_id", ""),
+        "target_scope": candidate.get("target_scope", {}),
     }
 
 
@@ -330,6 +355,7 @@ def _intent_errors(item: dict) -> list[str]:
 
 def audit_request(item: dict) -> list[str]:
     errors = _intent_errors(item)
+    intent = item.get("intent", {}) or {}
     candidates = item.get("candidates", {}) or {}
     allowed = candidates.get("allowed_ids", {}) or {}
     if not allowed or not allowed.get("window_ids") and not allowed.get("movement_ids"):
@@ -352,6 +378,23 @@ def audit_request(item: dict) -> list[str]:
             errors.append("REVIEW_SELECTION_IDS_MISSING")
     if not selection.get("selected_module_ids"):
         errors.append("REVIEW_SELECTION_IDS_MISSING")
+    target_parts = intent.get("target_body_parts")
+    explicit_mentions = intent.get("movement_mentions", []) or []
+    target_scope = item.get("target_scope", {}) or {}
+    target_required = bool(target_parts or explicit_mentions)
+    if target_required and target_parts is None:
+        errors.append("REVIEW_TARGET_BODY_PARTS_MISSING")
+    if target_required and not target_scope:
+        errors.append("REVIEW_TARGET_SCOPE_MISSING")
+    candidate_movements = candidates.get("movements", []) or []
+    roles = {str(value.get("movement_id")): value.get("candidate_role", "") for value in candidate_movements}
+    if target_required and candidate_movements and any(not roles.get(str(value.get("movement_id"))) for value in candidate_movements):
+        errors.append("REVIEW_CANDIDATE_ROLE_MISSING")
+    explicit_direct_ids = set(_ids(target_scope.get("direct_movement_ids", [])))
+    direct_ids = explicit_direct_ids | set(_ids(target_scope.get("expanded_direct_movement_ids", [])))
+    allowed_movement_ids = set(_ids(allowed.get("movement_ids", [])))
+    if explicit_direct_ids and not explicit_direct_ids.issubset(allowed_movement_ids):
+        errors.append("REVIEW_DIRECT_TARGET_NOT_IN_CANDIDATES")
     plan = item.get("plan", {}) or {}
     if plan.get("selected_window_id") != selection.get("selected_window_id") or set(plan.get("selected_module_ids", [])) != set(selection.get("selected_module_ids", [])) or set(plan.get("selected_movement_ids", [])) != set(selection.get("selected_movement_ids", [])) or set(plan.get("selected_note_ids", [])) != set(selection.get("selected_note_candidate_ids", [])) or set(plan.get("selected_record_ids", [])) != set(selection.get("selected_candidate_record_ids", [])):
         errors.append("REVIEW_SNAPSHOT_MISMATCH")
@@ -359,6 +402,12 @@ def audit_request(item: dict) -> list[str]:
         errors.append("REVIEW_SNAPSHOT_MISMATCH")
     if plan.get("catalog_id") != item.get("catalog_id"):
         errors.append("REVIEW_CATALOG_MISMATCH")
+    selected_target = set(_ids(selection.get("selected_target_movement_ids", [])))
+    selected_context = set(_ids(selection.get("selected_context_movement_ids", [])))
+    if selected_context.intersection(selected_target):
+        errors.append("REVIEW_CONTEXT_MISLABELED_AS_TARGET")
+    if direct_ids and selection.get("selected_movement_ids") and not selected_target:
+        errors.append("REVIEW_TARGET_SCOPE_NOT_COVERED")
     execution = item.get("execution", {}) or {}
     if not execution.get("evidence_present") or "actual_record_ids" not in execution or "actual_note_ids" not in execution:
         errors.append("REVIEW_EXECUTION_IDS_MISSING")
@@ -366,6 +415,8 @@ def audit_request(item: dict) -> list[str]:
         errors.append("REVIEW_COUNT_ID_MISMATCH")
     if not execution.get("evidence_present") or "progress" in execution:
         errors.append("REVIEW_PROGRESS_FIELD_MISMATCH")
+    if selected_target and not set(_ids(execution.get("target_movement_ids", []))).intersection(selected_target):
+        errors.append("REVIEW_TARGET_EXECUTION_EVIDENCE_MISSING")
     repair = item.get("repair", {}) or {}
     if repair.get("repair_used") and not (repair.get("changed_field_names") or repair.get("original_validation_codes") or repair.get("repaired_validation_codes")):
         errors.append("REVIEW_REPAIR_DIFF_MISSING")
@@ -461,17 +512,20 @@ def write_review_index(bundle: dict, output_dir) -> None:
         repair = item.get("repair", {}) or {}
         initial = "invalid" if repair.get("intent_initial_semantic_error_codes") else "valid"
         lines.append(f"| {item['request_id']} | {initial} | {repair.get('intent_repair_used', False)} | {repair.get('intent_semantic_status', 'valid')} | {','.join(repair.get('intent_semantic_error_codes', [])) or '—'} |")
-    lines += ["", "## 3. 四请求总览", "", "| request | Intent | window | modules | movements | Notes | records | progress | context | confidence | Repair | 人工判断 |", "|---|---|---|---|---:|---:|---:|---:|---:|---:|---|---|"]
+    lines += ["", "## 3. 四请求总览", "", "| request | Intent | target body parts | target movements | context movements | window | modules | Notes | records | progress | context | confidence | Repair | 人工判断 |", "|---|---|---|---|---|---|---|---:|---:|---:|---:|---:|---|---|"]
     for item in bundle.get("request_evidence", []):
         sel, exe = item["selection"], item["execution"]
-        lines.append(f"| {item['request_id']} | {_short(item['intent'].get('interpreted_goal'))} | {item['date_resolution'].get('resolved_start')}..{item['date_resolution'].get('resolved_end')} | {','.join(sel.get('selected_module_ids', []))} | {','.join(sel.get('selected_movement_ids', [])) or '—'} | {len(sel.get('selected_note_candidate_ids', []))} | {len(sel.get('selected_candidate_record_ids', []))} | {exe.get('progress_history_count', 0)} | {exe.get('context_only_count', 0)} | {sel.get('planner_confidence')} | {item.get('repair', {}).get('repair_used')} | {'是' if not audit_request(item) else '否'} |")
-    lines += ["", "## 3. 低碳请求证据链", ""]
+        target_scope = item.get("target_scope", {}) or {}
+        target_ids = target_scope.get("direct_target_ids", [])
+        context_ids = target_scope.get("context_movement_ids", [])
+        lines.append(f"| {item['request_id']} | {_short(item['intent'].get('interpreted_goal'))} | {','.join(item['intent'].get('target_body_parts', [])) or '—'} | {','.join(target_ids) or '—'} | {','.join(context_ids) or '—'} | {item['date_resolution'].get('resolved_start')}..{item['date_resolution'].get('resolved_end')} | {','.join(sel.get('selected_module_ids', []))} | {len(sel.get('selected_note_candidate_ids', []))} | {len(sel.get('selected_candidate_record_ids', []))} | {exe.get('progress_history_count', 0)} | {exe.get('context_only_count', 0)} | {sel.get('planner_confidence')} | {item.get('repair', {}).get('repair_used')} | {'是' if not audit_request(item) else '否'} |")
+    lines += ["", "## 4. 低碳请求证据链", ""]
     low = next((item for item in bundle.get("request_evidence", []) if item["request_id"] == "02-low-carb-training"), None)
     if low:
         mentions = low["intent"].get("movement_mentions", [])
         ids = [item.get("movement_id") for item in low["candidates"].get("movements", [])]
-        lines += [f"- Original Request → Intent：{_short(low['intent'].get('interpreted_goal'))}；movement mentions={json.dumps(mentions, ensure_ascii=False)}", f"- Resolver Matches：`{low['candidates'].get('resolver_matches', [])}`", f"- Candidate movement IDs：`{ids}`；CHEST_006={'存在' if 'CHEST_006' in ids else '未在候选中'}", f"- Selection movement IDs：`{low['selection'].get('selected_movement_ids', [])}`", f"- Plan movement IDs：`{low['plan'].get('selected_movement_ids', [])}`", f"- Execution progress IDs：`{low['execution'].get('progress_history_ids', [])}`", f"- Integrity：`{audit_request(low)}`", ""]
-    lines += ["## 4. 卧推证据链", ""]
+        lines += [f"- Original Request → Intent：{_short(low['intent'].get('interpreted_goal'))}；target_body_parts={low['intent'].get('target_body_parts', [])}；movement mentions={json.dumps(mentions, ensure_ascii=False)}", f"- Target Scope：`{low.get('target_scope', {})}`", f"- Resolver Matches：`{low['candidates'].get('resolver_matches', [])}`", f"- Candidate movement IDs：`{ids}`；CHEST_006={'存在' if 'CHEST_006' in ids else '未在候选中'}", f"- Selection movement IDs：`{low['selection'].get('selected_movement_ids', [])}`", f"- Plan movement IDs：`{low['plan'].get('selected_movement_ids', [])}`", f"- Execution target progress IDs：`{low['execution'].get('target_progress_history_ids', [])}`", f"- Execution context progress IDs：`{low['execution'].get('context_progress_history_ids', [])}`", f"- Integrity：`{audit_request(low)}`", ""]
+    lines += ["## 5. 卧推证据链", ""]
     bench = next((item for item in bundle.get("request_evidence", []) if item["request_id"] == "03-bench-progress"), None)
     if bench:
         chest = next((item for item in bench["candidates"].get("movements", []) if item.get("movement_id") == "CHEST_006"), {})

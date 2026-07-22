@@ -55,7 +55,7 @@ def fixture(root: Path) -> tuple[Path, Path]:
 
 
 def intent() -> dict:
-    return {"schema_version": "fitness-ledger-intelligent-export-v1", "interpreted_goal": "比较肩部训练表现与饮食支持", "analysis_dimensions": ["movement_progress", "diet_macros", "training_notes"], "date_intent": {"mode": "relative", "relative_range": "recent_4_weeks", "comparison_needed": True, "raw_date_mentions": []}, "movement_mentions": [{"text": "侧平举", "confidence": 0.98, "body_part": "肩"}], "catalog_requirements": ["body", "diet", "training", "movement_history"], "preferred_detail": "detailed", "raw_entry_relevance": "none", "confidence": 0.95, "needs_fallback": False, "warnings": []}
+    return {"schema_version": "fitness-ledger-intelligent-export-intent-v2", "interpreted_goal": "比较肩部训练表现与饮食支持", "analysis_dimensions": ["movement_progress", "diet_macros", "training_notes"], "date_intent": {"mode": "relative", "relative_range": "recent_4_weeks", "comparison_needed": True, "raw_date_mentions": []}, "movement_mentions": [{"text": "侧平举", "confidence": 0.98}], "target_body_parts": ["SHOULDER"], "catalog_requirements": ["body", "diet", "training", "movement_history"], "preferred_detail": "detailed", "raw_entry_relevance": "none", "confidence": 0.95, "needs_fallback": False, "warnings": []}
 
 
 def plan_for(views, include_excluded=True, selected_modules=None, invalid=False) -> dict:

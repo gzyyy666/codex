@@ -24,6 +24,7 @@ from .intelligent_export_models import (
     stable_hash,
 )
 from .shared_view_models import history_in_progress, movement_in_progress
+from .movement_target_scope import body_part_id_for_muscle_group
 
 
 MODULE_FIELDS = {
@@ -122,8 +123,6 @@ class MovementResolver:
                 score, match = 0.68, "normalized_partial"
             else:
                 continue
-            if mention.body_part and _normalize(mention.body_part) not in _normalize(item.body_part):
-                score -= 0.1
             scored.append({"movement_id": item.movement_id, "canonical_name": item.canonical_name, "body_part": item.body_part, "match_type": match, "score": round(score, 3), "history_count": item.history_count, "progress_history_count": item.progress_history_count})
         return sorted(scored, key=lambda value: (-value["score"], -value["progress_history_count"], value["movement_id"]))
 
@@ -312,6 +311,7 @@ class DataCatalogBuilder:
                 str(definition.get("display_name") or tracker_movement.get("name") or movement_id),
                 aliases,
                 str(definition.get("muscle_group", "")),
+                body_part_id_for_muscle_group(str(definition.get("muscle_group", ""))) or "",
                 len(histories), len(progress), len(histories) - len(progress),
                 dates[0] if dates else "", dates[-1] if dates else "", dates[-1] if dates else "", progress_dates[-1] if progress_dates else "",
                 _performance(progress[-1]) if progress else {},
