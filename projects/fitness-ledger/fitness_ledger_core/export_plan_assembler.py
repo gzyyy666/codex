@@ -31,7 +31,7 @@ class ExportPlanAssembler:
     def __init__(self, package: CandidatePackage) -> None:
         self.package = package
 
-    def assemble(self, selection: ModelPlanningSelection, request: str, intent, trace_id: str = "") -> ExportPlanDraft:
+    def assemble(self, selection: ModelPlanningSelection, request: str, scope, trace_id: str = "") -> ExportPlanDraft:
         window = next((item for item in self.package.windows if item.window_id == selection.selected_window_id), None)
         if window is None:
             raise ContractError("selected_window_id is not present in the candidate package")
@@ -57,8 +57,8 @@ class ExportPlanAssembler:
             warnings.append(WARNING_TEXT["LOW_CONFIDENCE"])
         progress = True if "movement_progress" in modules else selection.use_progress_history_for_metrics
         return ExportPlanDraft(
-            interpreted_goal=intent.interpreted_goal,
-            analysis_dimensions=list(intent.analysis_dimensions),
+            interpreted_goal=str(request or "")[:400] or "Fitness Ledger export",
+            analysis_dimensions=list(dict.fromkeys(modules)),
             date_range=window.to_dict(),
             selected_modules=modules,
             selected_fields=fields,

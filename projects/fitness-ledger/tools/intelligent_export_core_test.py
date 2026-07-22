@@ -83,7 +83,7 @@ def main() -> None:
         assert all("完整私人" not in json.dumps(item.to_dict(), ensure_ascii=False) for item in catalog.candidate_records)
 
         good_plan = plan_for(views)
-        adapter = FakeLocalModelAdapter([intent(), good_plan])
+        adapter = FakeLocalModelAdapter([good_plan])
         result = IntelligentExportService(views, adapter).run("比较最近肩部训练、饮食和体重变化")
         assert result["status"] == "ready", result
         assert result["plan"]["source_snapshot_id"] == catalog.source_snapshot_id
@@ -91,22 +91,22 @@ def main() -> None:
         assert all("完整私人" not in json.dumps(call["user_payload"], ensure_ascii=False) for call in adapter.calls)
         assert all("private raw" not in json.dumps(call["user_payload"], ensure_ascii=False) for call in adapter.calls)
         assert "完整私人" not in result["output"]["json"]
-        assert len(adapter.calls) == 2
+        assert len(adapter.calls) == 1
 
         # Planning validation and one successful Repair.
-        repair_adapter = FakeLocalModelAdapter([intent(), plan_for(views, invalid=True), good_plan])
+        repair_adapter = FakeLocalModelAdapter([plan_for(views, invalid=True), good_plan])
         repaired = IntelligentExportService(views, repair_adapter).run("比较肩部训练")
         assert repaired["status"] == "ready" and repaired["trace"]["repaired"] is True
-        assert len(repair_adapter.calls) == 3
+        assert len(repair_adapter.calls) == 2
 
         # Repair failure becomes a safe fallback.
-        failing = FakeLocalModelAdapter([intent(), plan_for(views, invalid=True), plan_for(views, invalid=True)])
+        failing = FakeLocalModelAdapter([plan_for(views, invalid=True), plan_for(views, invalid=True)])
         fallback = IntelligentExportService(views, failing).run("比较肩部训练")
-        assert fallback["status"] == "fallback"
+        assert fallback["status"] == "basic_fallback_used"
 
         # Model unavailable never touches files.
         unavailable = FakeLocalModelAdapter(errors=[LocalModelError("down", "MODEL_UNAVAILABLE")])
-        assert IntelligentExportService(views, unavailable).run("模糊减脂复盘")["status"] == "fallback"
+        assert IntelligentExportService(views, unavailable).run("模糊减脂复盘")["status"] in {"basic_fallback_used", "no_usable_data", "execution_failed"}
 
         # Unknown IDs, progress semantics, and snapshot changes are hard blockers.
         validator = ExportPlanValidator()

@@ -30,6 +30,7 @@ STABILITY_REQUEST = REQUESTS[1][1]
 
 def summarize(result: dict) -> dict:
     intent = result.get("intent", {}) or {}
+    scope = result.get("query_scope", {}) or {}
     package = result.get("candidate_package", {}) or {}
     selection = result.get("selection", {}) or {}
     plan = result.get("plan", {}) or {}
@@ -52,12 +53,13 @@ def summarize(result: dict) -> dict:
     return {
         "status": result.get("status", ""),
         "fallback_reason": (result.get("fallback") or {}).get("fallback_reason", ""),
+        "query_scope": scope,
         "intent": {
             "interpreted_goal": intent.get("interpreted_goal", ""),
             "analysis_dimensions": intent.get("analysis_dimensions", []),
             "date_intent": intent.get("date_intent", {}),
             "movement_mentions": intent.get("movement_mentions", []),
-            "target_body_parts": intent.get("target_body_parts", []),
+            "target_body_parts": scope.get("target_body_part_ids", intent.get("target_body_parts", [])),
             "confidence": intent.get("confidence", 0),
             "warnings": intent.get("warnings", []),
         },
@@ -137,13 +139,14 @@ def write_decision_sheet(bundle: dict, output_dir: Path) -> None:
         execution = item.get("execution", {}) or {}
         errors = bundle.get("integrity_audit", {}).get("request_errors", {}).get(item.get("request_id", ""), [])
         intent = item.get("intent", {}) or {}
+        query_scope = item.get("query_scope", {}) or {}
         candidate_ids = [str(value.get("movement_id")) for value in item.get("candidates", {}).get("movements", []) or []]
         lines += [
             f"## {item.get('request_id')}",
             "",
             f"- 用户请求：{item.get('original_request', '')}",
-            f"- 目标部位：{','.join(intent.get('target_body_parts', [])) or '无明确部位目标'}",
-            f"- 明确动作：{','.join(value.get('text', '') for value in intent.get('movement_mentions', []) or []) or '无明确动作'}",
+            f"- 目标部位：{','.join(query_scope.get('target_body_part_ids', intent.get('target_body_parts', []))) or '无明确部位目标'}",
+            f"- 明确动作：{','.join(query_scope.get('explicit_movement_mentions', [])) or '无明确动作'}",
             f"- 直接目标候选：{','.join(scope.get('direct_target_ids', [])) or '—'}",
             f"- 部位展开候选：{','.join(scope.get('expanded_direct_movement_ids', [])) or '—'}",
             f"- 上下文候选：{','.join(scope.get('context_movement_ids', [])) or '—'}",
@@ -170,7 +173,7 @@ def write_decision_sheet(bundle: dict, output_dir: Path) -> None:
         ]
     lines += [
         "## 固定判断原则",
-        "- 目标部位只来自 IntentSpec.target_body_parts；动作名只来自 movement_mentions。",
+        "- 目标部位和明确动作来自确定性 QueryScope，不由模型生成。",
         "- BODY_PART_TARGET 是部位扩展候选；CONTEXT / GENERAL_FALLBACK 不得替代直接目标。",
         "- target coverage 必须为 covered（无目标请求除外），并且执行证据至少包含一个选中目标动作。",
     ]
@@ -190,6 +193,7 @@ def main() -> None:
         (output / "README.md").write_text("# Intelligent Export Review Evidence\n\n当前模型不可用，Package blocked。未生成任何模型结果。\n", encoding="utf-8")
         print(str(output)); return
     views = LedgerViewModels(tracker, dictionary); results = []
+    (output / "fallback").mkdir(exist_ok=True)
     for label, request in REQUESTS:
         started = time.monotonic(); result = IntelligentExportService(views, adapter, overall_timeout=120).run(request, "concise"); results.append((label, request, result));
     stability = []
@@ -198,7 +202,7 @@ def main() -> None:
     bundle = build_bundle(results, stability)
     bundle["generated_at"] = datetime.now(timezone.utc).isoformat()
     bundle["model_health"] = {key: value for key, value in health.items() if key not in {"raw_response", "prompt", "payload"}}
-    (output / "summary.json").write_text(json.dumps({"review_schema_version": bundle["review_schema_version"], "generated_at": bundle["generated_at"], "review_status": bundle["review_status"], "source_snapshot_id": bundle.get("source_snapshot_id", ""), "catalog_id": bundle.get("catalog_id", ""), "requests": [{"request_id": item["request_id"], "status": item["status"], "target_body_parts": item["intent"].get("target_body_parts", []), "direct_target_movements": item.get("target_scope", {}).get("direct_target_ids", []), "selected_target_movements": item["selection"].get("selected_target_movement_ids", []), "selected_context_movements": item["selection"].get("selected_context_movement_ids", []), "target_coverage": item["selection"].get("target_coverage_status", ""), "window": item["selection"].get("selected_window_id", ""), "modules": item["selection"].get("selected_module_ids", []), "movements": item["selection"].get("selected_movement_ids", []), "notes": len(item["selection"].get("selected_note_candidate_ids", [])), "records": len(item["selection"].get("selected_candidate_record_ids", [])), "progress_history": item["execution"].get("progress_history_count", 0), "target_progress_history": item["execution"].get("target_progress_history_ids", []), "context_only": item["execution"].get("context_only_count", 0), "confidence": item["selection"].get("planner_confidence", 0), "repair": item["repair"].get("repair_used", False)} for item in bundle["request_evidence"]], "stability": bundle["stability_comparison"], "integrity_audit": bundle["integrity_audit"], "privacy_audit": bundle["privacy_audit"]}, ensure_ascii=False, indent=2), encoding="utf-8")
+    (output / "summary.json").write_text(json.dumps({"review_schema_version": bundle["review_schema_version"], "generated_at": bundle["generated_at"], "review_status": bundle["review_status"], "source_snapshot_id": bundle.get("source_snapshot_id", ""), "catalog_id": bundle.get("catalog_id", ""), "requests": [{"request_id": item["request_id"], "status": item["status"], "target_body_parts": item.get("query_scope", {}).get("target_body_part_ids", []), "explicit_movement_ids": item.get("query_scope", {}).get("explicit_movement_ids", []), "direct_target_movements": item.get("target_scope", {}).get("direct_target_ids", []), "selected_target_movements": item["selection"].get("selected_target_movement_ids", []), "selected_context_movements": item["selection"].get("selected_context_movement_ids", []), "target_coverage": item["selection"].get("target_coverage_status", ""), "window": item["selection"].get("selected_window_id", ""), "modules": item["selection"].get("selected_module_ids", []), "movements": item["selection"].get("selected_movement_ids", []), "notes": len(item["selection"].get("selected_note_candidate_ids", [])), "records": len(item["selection"].get("selected_candidate_record_ids", [])), "progress_history": item["execution"].get("progress_history_count", 0), "target_progress_history": item["execution"].get("target_progress_history_ids", []), "context_only": item["execution"].get("context_only_count", 0), "confidence": item["selection"].get("planner_confidence", 0), "repair": item["repair"].get("repair_used", False)} for item in bundle["request_evidence"]], "stability": bundle["stability_comparison"], "integrity_audit": bundle["integrity_audit"], "privacy_audit": bundle["privacy_audit"]}, ensure_ascii=False, indent=2), encoding="utf-8")
     (output / "integrity-audit.json").write_text(json.dumps(bundle["integrity_audit"], ensure_ascii=False, indent=2), encoding="utf-8")
     (output / "privacy-audit.json").write_text(json.dumps(bundle["privacy_audit"], ensure_ascii=False, indent=2), encoding="utf-8")
     for item in bundle["request_evidence"]:
@@ -211,6 +215,8 @@ def main() -> None:
     (output / "README.md").write_text("# Fitness Ledger Intelligent Export Review Evidence\n\n本包来自运行时结构化 Intent、Candidate、Selection、Plan 与 Execution evidence 投影。它不包含完整 Notes、Raw、tracker、dictionary、正式路径、完整 Prompt 或完整模型响应。请先阅读 `human-review/review-index.md` 与 `integrity-audit.json`。\n", encoding="utf-8")
     write_review_index(bundle, output)
     write_decision_sheet(bundle, output)
+    (output / "human-review" / "architecture-summary.md").write_text("# Single-Stage Intelligent Export\n\n正常路径只有一次本地模型 Planning。日期、部位和明确动作由确定性程序解析；模型只从合法候选中选择数据；Planning 失败时使用确定性基础导出。\n", encoding="utf-8")
+    (output / "single-stage-web-contract.md").write_text("# Single-Stage Web Contract\n\n输入：`natural_language_request`。\n\n结果：`status`、`resolved_scope_summary`、`selection_summary`、`export_preview`、`warnings`、`confidence`、`used_planning_repair`、`used_basic_fallback`。\n\n用户状态：理解请求 → 整理本地数据 → 智能选择 → 生成导出。\n", encoding="utf-8")
     print(str(output))
 
 
