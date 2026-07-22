@@ -14,6 +14,7 @@ ERRORS = {
     "SOURCE_CHANGED": {"user": "导出期间数据发生变化，请重新尝试。", "retry": True, "repair": False},
     "PLAN_OVER_BUDGET": {"user": "请求超出本次导出预算。", "retry": False, "repair": True},
     "LOW_CONFIDENCE": {"user": "当前证据不足以安全生成分析。", "retry": False, "repair": False},
+    "PLANNER_FALLBACK_REQUIRED": {"user": "本地模型认为当前候选无法形成可靠的智能导出计划。", "retry": False, "repair": False},
     "CANCELLED": {"user": "导出已取消。", "retry": False, "repair": False},
     "INTERNAL_ERROR": {"user": "导出内部处理失败，已安全回退。", "retry": False, "repair": False},
 }

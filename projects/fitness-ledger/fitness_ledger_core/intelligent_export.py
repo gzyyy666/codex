@@ -18,6 +18,7 @@ from .intelligent_export_models import (
     ContractError,
     ExportPlanDraft,
     ModelPlanningSelection,
+    PLANNER_CONFIDENCE_THRESHOLD,
     IntentSpec,
     ManualFallbackResult,
     PlanExplanation,
@@ -36,7 +37,7 @@ from .shared_view_models import history_in_progress, movement_in_progress
 from .intelligent_export_models import intent_json_schema, selection_json_schema
 
 
-REPAIR_SYSTEM_PROMPT = """Repair only the Fitness Ledger model selection JSON. Return exactly one selection object matching the supplied schema. Use only allowed IDs and fields; do not output a full plan, dates, catalog IDs, paths, estimates, raw text, or prose. Excluded history is context_only and progress metrics must use valid progress history. Set needs_fallback=true when it cannot be repaired."""
+REPAIR_SYSTEM_PROMPT = """Repair only the Fitness Ledger model selection JSON. Return exactly one selection object matching the supplied schema. Use only the supplied allowed IDs and fields; do not output a full plan, dates, catalog IDs, paths, estimates, raw text, or prose. Excluded history is context_only and progress metrics must use valid progress history. Repair only semantic contradictions: a complete safe selection should be planning_decision=ready with no fallback reasons; data incompleteness belongs in missing_data_warning_codes. Use planning_decision=fallback_required only when no safe meaningful plan can be formed, with at least one allowed fallback_reason_code. Do not add candidates that were not supplied."""
 INTENT_REPAIR_SYSTEM_PROMPT = """Repair only the Fitness Ledger intent JSON. Return exactly one object matching the supplied intent schema. Do not output an export plan, catalog contents, raw entries, paths, or prose."""
 
 
@@ -224,17 +225,24 @@ class IntelligentExportService:
             assembler = ExportPlanAssembler(package)
             try:
                 selection, planning_result = planner.plan(request, intent, package)
+                if selection.planning_decision == "fallback_required":
+                    return self._fallback(request, "PLANNER_FALLBACK_REQUIRED", trace_id, started, catalog, intent)
+                if selection.planner_confidence < PLANNER_CONFIDENCE_THRESHOLD:
+                    return self._fallback(request, "LOW_CONFIDENCE", trace_id, started, catalog, intent)
                 draft = assembler.assemble(selection, request, intent, trace_id)
                 diagnostics["stages"]["planning"] = self._model_diag(planning_result, {"payload_chars": len(json.dumps(planner.last_payload or {}, ensure_ascii=False)), "schema_chars": len(json.dumps(selection_json_schema(), ensure_ascii=False))})
-                if selection.needs_fallback:
-                    return self._fallback(request, "LOW_CONFIDENCE", trace_id, started, catalog, intent)
             except Exception as exc:
                 if repair_used:
                     return self._fallback(request, getattr(exc, "code", "MODEL_SELECTION_INVALID"), trace_id, started, catalog, intent)
                 try:
                     repair_used = True
-                    repair_result = self.adapter.generate_json(system_prompt=REPAIR_SYSTEM_PROMPT, user_payload={"invalid_selection": "selection parse failed", "validation_error": {"code": getattr(exc, "code", "PLANNING_INVALID"), "message": str(exc)[:240]}, "allowed_window_ids": package.allowed_ids["window_ids"], "allowed_module_ids": package.allowed_modules, "allowed_field_ids_by_module": package.allowed_fields, "allowed_movement_ids": package.allowed_ids["movement_ids"], "allowed_note_candidate_ids": package.allowed_ids["note_candidate_ids"], "allowed_candidate_record_ids": package.allowed_ids["candidate_record_ids"], "selection_schema": selection_json_schema()}, response_schema=selection_json_schema(), config=REPAIR_MODEL_CONFIG)
-                    selection = planner.parse_selection(repair_result.raw_text); draft = assembler.assemble(selection, request, intent, trace_id)
+                    repair_result = self.adapter.generate_json(system_prompt=REPAIR_SYSTEM_PROMPT, user_payload={"invalid_selection": getattr(planner.last_result, "raw_text", "")[:12000], "validation_error": {"code": getattr(exc, "code", "PLANNING_INVALID"), "message": str(exc)[:240]}, "allowed_window_ids": package.allowed_ids["window_ids"], "allowed_module_ids": package.allowed_modules, "allowed_field_ids_by_module": package.allowed_fields, "allowed_movement_ids": package.allowed_ids["movement_ids"], "allowed_note_candidate_ids": package.allowed_ids["note_candidate_ids"], "allowed_candidate_record_ids": package.allowed_ids["candidate_record_ids"], "selection_schema": selection_json_schema()}, response_schema=selection_json_schema(), config=REPAIR_MODEL_CONFIG)
+                    selection = planner.parse_selection(repair_result.raw_text)
+                    if selection.planning_decision == "fallback_required":
+                        return self._fallback(request, "PLANNER_FALLBACK_REQUIRED", trace_id, started, catalog, intent)
+                    if selection.planner_confidence < PLANNER_CONFIDENCE_THRESHOLD:
+                        return self._fallback(request, "LOW_CONFIDENCE", trace_id, started, catalog, intent)
+                    draft = assembler.assemble(selection, request, intent, trace_id)
                     diagnostics["stages"]["repair"] = self._model_diag(repair_result, {"schema_chars": len(json.dumps(selection_json_schema(), ensure_ascii=False))})
                 except Exception as repair_error:
                     return self._fallback(request, getattr(repair_error, "code", "MODEL_REPAIR_FAILED"), trace_id, started, catalog, intent)
@@ -247,7 +255,12 @@ class IntelligentExportService:
                 repaired = True
                 try:
                     repair_result = self.adapter.generate_json(system_prompt=REPAIR_SYSTEM_PROMPT, user_payload={"invalid_selection": selection.to_dict(), "validation_error": {"code": first_error.code, "message": str(first_error)[:240]}, "allowed_window_ids": package.allowed_ids["window_ids"], "allowed_module_ids": package.allowed_modules, "allowed_field_ids_by_module": package.allowed_fields, "allowed_movement_ids": package.allowed_ids["movement_ids"], "allowed_note_candidate_ids": package.allowed_ids["note_candidate_ids"], "allowed_candidate_record_ids": package.allowed_ids["candidate_record_ids"], "selection_schema": selection_json_schema()}, response_schema=selection_json_schema(), config=REPAIR_MODEL_CONFIG)
-                    selection = planner.parse_selection(repair_result.raw_text); draft = assembler.assemble(selection, request, intent, trace_id); plan = self.validator.validate(draft, package, request, trace_id, trim=False)
+                    selection = planner.parse_selection(repair_result.raw_text)
+                    if selection.planning_decision == "fallback_required":
+                        return self._fallback(request, "PLANNER_FALLBACK_REQUIRED", trace_id, started, catalog, intent)
+                    if selection.planner_confidence < PLANNER_CONFIDENCE_THRESHOLD:
+                        return self._fallback(request, "LOW_CONFIDENCE", trace_id, started, catalog, intent)
+                    draft = assembler.assemble(selection, request, intent, trace_id); plan = self.validator.validate(draft, package, request, trace_id, trim=False)
                     diagnostics["stages"]["repair"] = self._model_diag(repair_result, {"schema_chars": len(json.dumps(selection_json_schema(), ensure_ascii=False))})
                 except Exception as repair_error:
                     return self._fallback(request, getattr(repair_error, "code", "MODEL_REPAIR_FAILED"), trace_id, started, catalog, intent)
