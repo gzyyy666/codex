@@ -63,12 +63,13 @@ def main() -> None:
         assert item["repair"]["intent_semantic_status"] == "valid_after_repair"
 
         failed_adapter = FakeLocalModelAdapter([corrupt, corrupt])
-        with patch.object(DateRangeResolver, "extract_raw_date_mentions", side_effect=AssertionError("DateResolver called before semantic validation")), patch("fitness_ledger_core.intelligent_export.CandidateSummarizer") as summarizer:
+        with patch.object(DateRangeResolver, "extract_raw_date_mentions", side_effect=AssertionError("DateResolver called before semantic validation")), patch("fitness_ledger_core.intelligent_export.CandidateSummarizer") as summarizer, patch("fitness_ledger_core.intelligent_export.DataCatalogBuilder.build", side_effect=AssertionError("Data Catalog built before semantic validation")) as catalog_build:
             failed = IntelligentExportService(views, failed_adapter).run("分析最近低碳训练")
         assert failed["status"] == "fallback"
         assert failed["trace"]["error_code"] == "MODEL_INTENT_SEMANTIC_INVALID"
         assert len(failed_adapter.calls) == 2
         summarizer.assert_not_called()
+        catalog_build.assert_not_called()
         blocked = build_bundle([("semantic-invalid", "分析最近低碳训练", failed)])
         assert "REVIEW_INTENT_SEMANTIC_INVALID" in blocked["integrity_audit"]["blocking_integrity_codes"]
         assert blocked["privacy_audit"]["passed"]

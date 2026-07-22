@@ -263,9 +263,9 @@ class IntelligentExportService:
         if not self._task_slots.acquire(timeout=5.0):
             return self._fallback(request, "MODEL_BUSY", trace_id, started)
         try:
-            catalog = self.catalog_builder.build()
+            catalog = None
             diagnostics = {"prompt_version": PROMPT_VERSION, "schema_version": "fitness-ledger-intelligent-export-v1", "candidate_counts": {}, "stages": {}}
-            catalog_summary = {"date_range": catalog.date_range, "modules": [{"module_id": item.module_id, "record_count": item.record_count} for item in catalog.modules], "budget_mode": budget_mode}
+            catalog_summary = self._intent_catalog_summary(budget_mode)
             repair_used = False
             repair_meta = {"repair_used": False, "intent_repair_used": False, "original_validation_codes": [], "repaired_validation_codes": [], "changed_field_names": [], "added_selected_ids": [], "removed_selected_ids": [], "decision_changed": False, "confidence_before": None, "confidence_after": None, "intent_schema_status": "valid", "intent_semantic_status": "valid", "intent_semantic_error_codes": [], "intent_initial_semantic_error_codes": [], "intent_semantic_diagnostics": {}, "intent_repair": {}}
             intent_interpreter = IntentInterpreter(self.adapter)
@@ -309,6 +309,7 @@ class IntelligentExportService:
                     diagnostics["repair"] = repair_meta
                     return self._fallback(request, getattr(repair_error, "code", "MODEL_REPAIR_FAILED"), trace_id, started, catalog, invalid_intent, diagnostics)
             diagnostics.setdefault("intent_semantic", {"initial_status": "invalid" if repair_meta.get("intent_initial_semantic_error_codes") else "valid", "final_status": repair_meta.get("intent_semantic_status", "valid"), "error_codes": repair_meta.get("intent_semantic_error_codes", []), "invalid_field_paths": repair_meta.get("intent_repair", {}).get("changed_field_paths", []), "diagnostics": repair_meta.get("intent_semantic_diagnostics", {})})
+            catalog = self.catalog_builder.build()
             if self._expired(started):
                 return self._fallback(request, "TASK_TIMEOUT", trace_id, started, catalog)
             try:
@@ -395,6 +396,31 @@ class IntelligentExportService:
 
     def _expired(self, started: float) -> bool:
         return time.monotonic() - started > self.overall_timeout
+
+    def _intent_catalog_summary(self, budget_mode: str) -> dict:
+        """Build only the safe date/module summary needed by Intent prompting."""
+        data = self.views.analysis(days=36500, include_raw_preview=False)
+        tracker, _dictionary = self.views.snapshot()
+        dates = []
+        for module in ("body", "diet", "training"):
+            dates.extend(str(row.get("Date", ""))[:10] for row in data.get(module, []) or [] if row.get("Date"))
+        movement_count = 0
+        for movement in (tracker.get("movements", {}) or {}).values():
+            histories = movement.get("history", []) if isinstance(movement, dict) else []
+            movement_count += len(histories or [])
+            dates.extend(str(row.get("date", ""))[:10] for row in histories or [] if row.get("date"))
+        dates = sorted(value for value in dates if value)
+        return {
+            "date_range": {"start": dates[0] if dates else "", "end": dates[-1] if dates else ""},
+            "modules": [
+                {"module_id": "body", "record_count": len(data.get("body", []) or [])},
+                {"module_id": "diet", "record_count": len(data.get("diet", []) or [])},
+                {"module_id": "training", "record_count": len(data.get("training", []) or [])},
+                {"module_id": "movement_history", "record_count": movement_count},
+                {"module_id": "raw_entries", "record_count": len(data.get("raw_entries", []) or [])},
+            ],
+            "budget_mode": budget_mode,
+        }
 
     @staticmethod
     def _record_repair_meta(meta: dict, before: dict, after: dict) -> None:
