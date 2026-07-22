@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from .candidate_cards import CandidatePackage
 from .export_plan_validator import ALLOWED_FIELDS
-from .intelligent_export_models import ContractError, ExportPlanDraft, ModelPlanningSelection
+from .intelligent_export_models import ContractError, ExportPlanDraft, ModelPlanningSelection, PLANNER_CONFIDENCE_THRESHOLD
 
 
 WARNING_TEXT = {
@@ -53,7 +53,7 @@ class ExportPlanAssembler:
             inclusion.setdefault(item.movement_id, item.reason)
         exclusions = {item.candidate_id: item.reason for item in selection.exclusion_decisions}
         warnings = [WARNING_TEXT.get(code, f"Planner warning: {code}") for code in dict.fromkeys(selection.missing_data_warning_codes)]
-        if selection.planner_confidence < 0.5 and "LOW_CONFIDENCE" not in selection.missing_data_warning_codes:
+        if selection.planner_confidence < PLANNER_CONFIDENCE_THRESHOLD and "LOW_CONFIDENCE" not in selection.missing_data_warning_codes:
             warnings.append(WARNING_TEXT["LOW_CONFIDENCE"])
         progress = True if "movement_progress" in modules else selection.use_progress_history_for_metrics
         return ExportPlanDraft(
@@ -75,6 +75,7 @@ class ExportPlanAssembler:
             exclusion_reasons=exclusions,
             missing_data_warnings=warnings,
             planner_confidence=selection.planner_confidence,
-            needs_fallback=selection.needs_fallback,
+            planning_decision=selection.planning_decision,
+            fallback_reason_codes=list(selection.fallback_reason_codes),
             priority=modules + movements,
         )

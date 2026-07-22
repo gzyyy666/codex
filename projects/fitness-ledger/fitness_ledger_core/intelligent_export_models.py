@@ -16,6 +16,17 @@ from typing import Any
 
 
 SCHEMA_VERSION = "fitness-ledger-intelligent-export-v1"
+SELECTION_SCHEMA_VERSION = "fitness-ledger-intelligent-export-v1.1"
+PLANNER_CONFIDENCE_THRESHOLD = 0.5
+PLANNING_DECISIONS = {"ready", "fallback_required"}
+FALLBACK_REASON_CODES = {
+    "NO_VALID_WINDOW",
+    "NO_RELEVANT_MODULES",
+    "NO_USABLE_CANDIDATES",
+    "UNRESOLVED_REQUIRED_MOVEMENT",
+    "REQUEST_NOT_UNDERSTOOD",
+    "NO_SAFE_PLAN",
+}
 MAX_LIST = 64
 MAX_TEXT = 400
 
@@ -297,14 +308,15 @@ class ExportPlanDraft:
     exclusion_reasons: dict[str, str] = field(default_factory=dict)
     missing_data_warnings: list[str] = field(default_factory=list)
     planner_confidence: float = 0.0
-    needs_fallback: bool = False
+    planning_decision: str = "ready"
+    fallback_reason_codes: list[str] = field(default_factory=list)
     priority: list[str] = field(default_factory=list)
     schema_version: str = SCHEMA_VERSION
 
     @classmethod
     def from_dict(cls, value: Any) -> "ExportPlanDraft":
         raw = _obj(value, "plan")
-        allowed = {"schema_version", "interpreted_goal", "analysis_dimensions", "date_range", "selected_modules", "selected_fields", "selected_movements", "notes_selection", "candidate_record_ids", "training_detail_level", "movement_detail_level", "include_raw_entries", "include_excluded_history", "excluded_history_usage", "use_progress_history_for_metrics", "inclusion_reasons", "exclusion_reasons", "missing_data_warnings", "planner_confidence", "needs_fallback", "priority"}
+        allowed = {"schema_version", "interpreted_goal", "analysis_dimensions", "date_range", "selected_modules", "selected_fields", "selected_movements", "notes_selection", "candidate_record_ids", "training_detail_level", "movement_detail_level", "include_raw_entries", "include_excluded_history", "excluded_history_usage", "use_progress_history_for_metrics", "inclusion_reasons", "exclusion_reasons", "missing_data_warnings", "planner_confidence", "planning_decision", "fallback_reason_codes", "needs_fallback", "priority"}
         _unknown(raw, allowed, "plan")
         if raw.get("schema_version", SCHEMA_VERSION) != SCHEMA_VERSION:
             raise ContractError("unsupported plan schema_version")
@@ -319,7 +331,7 @@ class ExportPlanDraft:
         for key in ("window_id", "requested_start", "requested_end", "resolved_start", "resolved_end"):
             if key not in date_range or not isinstance(date_range[key], str):
                 raise ContractError(f"date_range.{key} is required")
-        for key in ("include_raw_entries", "include_excluded_history", "use_progress_history_for_metrics", "needs_fallback"):
+        for key in ("include_raw_entries", "include_excluded_history", "use_progress_history_for_metrics"):
             if not isinstance(raw.get(key, False if key != "use_progress_history_for_metrics" else True), bool):
                 raise ContractError(f"{key} must be boolean")
         usage = _text(raw.get("excluded_history_usage", "none"), "excluded_history_usage", 32)
@@ -330,6 +342,21 @@ class ExportPlanDraft:
         movement_detail = _text(raw.get("movement_detail_level", "summary"), "movement_detail_level", 24)
         if training_detail not in detail_values or movement_detail not in detail_values:
             raise ContractError("detail level is invalid")
+        legacy_fallback = raw.get("needs_fallback", False)
+        if not isinstance(legacy_fallback, bool):
+            raise ContractError("needs_fallback must be boolean")
+        decision = _text(raw.get("planning_decision", "fallback_required" if legacy_fallback else "ready"), "planning_decision", 32)
+        if decision not in PLANNING_DECISIONS:
+            raise ContractError("planning_decision is invalid")
+        reasons = strings("fallback_reason_codes", 8)
+        if legacy_fallback and not reasons:
+            reasons = ["NO_SAFE_PLAN"]
+        if decision == "ready" and reasons:
+            raise ContractError("ready selection cannot contain fallback reasons")
+        if decision == "fallback_required" and not reasons:
+            raise ContractError("fallback_required selection needs a reason")
+        if any(code not in FALLBACK_REASON_CODES for code in reasons):
+            raise ContractError("fallback_reason_codes contains an unknown code")
         return cls(
             _text(raw.get("interpreted_goal", ""), "interpreted_goal", 400, True),
             strings("analysis_dimensions", 12),
@@ -349,7 +376,7 @@ class ExportPlanDraft:
             mapping(raw.get("exclusion_reasons", {}), "exclusion_reasons"),
             strings("missing_data_warnings", 32),
             _number(raw.get("planner_confidence", 0.0), "planner_confidence"),
-            bool(raw.get("needs_fallback", False)),
+            decision, reasons,
             strings("priority", 128),
             SCHEMA_VERSION,
         )
@@ -437,18 +464,19 @@ class ModelPlanningSelection:
     missing_data_warning_codes: list[str]
     exclusion_decisions: list[ModelSelectionExclusion]
     planner_confidence: float
-    needs_fallback: bool
+    planning_decision: str
+    fallback_reason_codes: list[str]
 
     @classmethod
     def from_dict(cls, value: Any) -> "ModelPlanningSelection":
         raw = _obj(value, "selection")
-        allowed = {"schema_version", "selected_window_id", "selected_modules", "selected_fields", "selected_movements", "selected_note_candidate_ids", "selected_candidate_record_ids", "training_detail_level", "movement_detail_level", "include_raw_entries", "include_excluded_history", "excluded_history_usage", "use_progress_history_for_metrics", "missing_data_warning_codes", "exclusion_decisions", "planner_confidence", "needs_fallback"}
+        allowed = {"schema_version", "selected_window_id", "selected_modules", "selected_fields", "selected_movements", "selected_note_candidate_ids", "selected_candidate_record_ids", "training_detail_level", "movement_detail_level", "include_raw_entries", "include_excluded_history", "excluded_history_usage", "use_progress_history_for_metrics", "missing_data_warning_codes", "exclusion_decisions", "planner_confidence", "planning_decision", "fallback_reason_codes"}
         _unknown(raw, allowed, "selection")
-        if raw.get("schema_version") != SCHEMA_VERSION:
+        if raw.get("schema_version") != SELECTION_SCHEMA_VERSION:
             raise ContractError("unsupported selection schema_version")
         def strings(key: str, limit: int) -> list[str]:
             return [_text(item, f"{key}[]", 160, True) for item in _list(raw.get(key, []), key, limit)]
-        for key in ("include_raw_entries", "include_excluded_history", "use_progress_history_for_metrics", "needs_fallback"):
+        for key in ("include_raw_entries", "include_excluded_history", "use_progress_history_for_metrics"):
             if not isinstance(raw.get(key), bool):
                 raise ContractError(f"{key} must be boolean")
         usage = _text(raw.get("excluded_history_usage", "none"), "excluded_history_usage", 32)
@@ -459,20 +487,35 @@ class ModelPlanningSelection:
         movement = _text(raw.get("movement_detail_level", "summary"), "movement_detail_level", 24)
         if training not in details or movement not in details:
             raise ContractError("detail level is invalid")
-        return cls(
-            SCHEMA_VERSION,
-            _text(raw.get("selected_window_id", ""), "selected_window_id", 160, True),
+        selection = cls(
+            SELECTION_SCHEMA_VERSION,
+            _text(raw.get("selected_window_id", ""), "selected_window_id", 160),
             [ModelSelectionModule.from_dict(item) for item in _list(raw.get("selected_modules"), "selected_modules", 12)],
             [ModelSelectionFields.from_dict(item) for item in _list(raw.get("selected_fields"), "selected_fields", 12)],
             [ModelSelectionMovement.from_dict(item) for item in _list(raw.get("selected_movements"), "selected_movements", 16)],
-            strings("selected_note_candidate_ids", 64),
-            strings("selected_candidate_record_ids", 128),
-            training, movement,
+            strings("selected_note_candidate_ids", 64), strings("selected_candidate_record_ids", 128), training, movement,
             bool(raw["include_raw_entries"]), bool(raw["include_excluded_history"]), usage,
             bool(raw["use_progress_history_for_metrics"]), strings("missing_data_warning_codes", 32),
             [ModelSelectionExclusion.from_dict(item) for item in _list(raw.get("exclusion_decisions"), "exclusion_decisions", 64)],
-            _number(raw.get("planner_confidence"), "planner_confidence"), bool(raw["needs_fallback"]),
+            _number(raw.get("planner_confidence"), "planner_confidence"),
+            _text(raw.get("planning_decision"), "planning_decision", 32), strings("fallback_reason_codes", 8),
         )
+        if selection.planning_decision not in PLANNING_DECISIONS:
+            raise ContractError("planning_decision is invalid")
+        if any(code not in FALLBACK_REASON_CODES for code in selection.fallback_reason_codes):
+            raise ContractError("fallback_reason_codes contains an unknown code")
+        if set(selection.missing_data_warning_codes) & FALLBACK_REASON_CODES:
+            raise ContractError("warning and fallback reason codes cannot be mixed")
+        if selection.planning_decision == "ready":
+            if selection.fallback_reason_codes:
+                raise ContractError("ready selection cannot contain fallback reasons")
+            if not selection.selected_window_id:
+                raise ContractError("ready selection requires a window")
+            if not selection.selected_modules:
+                raise ContractError("ready selection requires modules")
+        elif not selection.fallback_reason_codes:
+            raise ContractError("fallback_required selection needs a reason")
+        return selection
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -515,7 +558,8 @@ class ValidatedExportPlan:
     estimated_record_count: int
     estimated_output_size: int
     planner_confidence: float
-    needs_fallback: bool
+    planning_decision: str
+    fallback_reason_codes: list[str]
     model_trace_id: str
     generated_at: str = field(default_factory=_now)
     trimmed: bool = False
@@ -647,8 +691,8 @@ def selection_json_schema() -> dict:
     fields = {"type": "object", "additionalProperties": False, "properties": {"module_id": {"type": "string"}, "field_ids": {"type": "array", "items": {"type": "string"}}, "reason": {"type": "string"}}}
     movement = {"type": "object", "additionalProperties": False, "properties": {"movement_id": {"type": "string"}, "detail_level": {"type": "string"}, "priority": {"type": "integer"}, "reason": {"type": "string"}}}
     exclusion = {"type": "object", "additionalProperties": False, "properties": {"candidate_id": {"type": "string"}, "reason": {"type": "string"}}}
-    return {"type": "object", "properties": {
-        "schema_version": {"type": "string"},
+    return {"type": "object", "additionalProperties": False, "properties": {
+        "schema_version": {"type": "string", "const": SELECTION_SCHEMA_VERSION},
         "selected_window_id": {"type": "string"},
         "selected_modules": {"type": "array", "maxItems": 12, "items": module},
         "selected_fields": {"type": "array", "maxItems": 12, "items": fields},
@@ -663,5 +707,6 @@ def selection_json_schema() -> dict:
         "missing_data_warning_codes": {"type": "array", "items": {"type": "string"}},
         "exclusion_decisions": {"type": "array", "maxItems": 64, "items": exclusion},
         "planner_confidence": {"type": "number", "minimum": 0, "maximum": 1},
-        "needs_fallback": {"type": "boolean"},
-    }, "required": ["schema_version", "selected_window_id", "selected_modules", "selected_fields", "selected_movements", "selected_note_candidate_ids", "selected_candidate_record_ids", "training_detail_level", "movement_detail_level", "include_raw_entries", "include_excluded_history", "excluded_history_usage", "use_progress_history_for_metrics", "missing_data_warning_codes", "exclusion_decisions", "planner_confidence", "needs_fallback"]}
+        "planning_decision": {"type": "string", "enum": ["ready", "fallback_required"]},
+        "fallback_reason_codes": {"type": "array", "maxItems": 8, "items": {"type": "string", "enum": sorted(FALLBACK_REASON_CODES)}},
+    }, "required": ["schema_version", "selected_window_id", "selected_modules", "selected_fields", "selected_movements", "selected_note_candidate_ids", "selected_candidate_record_ids", "training_detail_level", "movement_detail_level", "include_raw_entries", "include_excluded_history", "excluded_history_usage", "use_progress_history_for_metrics", "missing_data_warning_codes", "exclusion_decisions", "planner_confidence", "planning_decision", "fallback_reason_codes"]}

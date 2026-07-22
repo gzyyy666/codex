@@ -129,7 +129,8 @@ class ExportPlanValidator:
             estimated_record_count=estimated_count,
             estimated_output_size=estimated_size,
             planner_confidence=draft.planner_confidence,
-            needs_fallback=draft.needs_fallback,
+            planning_decision=draft.planning_decision,
+            fallback_reason_codes=list(draft.fallback_reason_codes),
             model_trace_id=trace_id,
             trimmed=trimmed,
         )
