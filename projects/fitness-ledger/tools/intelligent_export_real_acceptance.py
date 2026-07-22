@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from fitness_ledger_core.intelligent_export import IntelligentExportService
+from fitness_ledger_core.intelligent_export_review_evidence import build_bundle, write_review_index
 from fitness_ledger_core.local_model_adapter import OllamaNativeAdapter
 from fitness_ledger_core.shared_view_models import LedgerViewModels
 
@@ -122,17 +123,33 @@ def main() -> None:
     tracker = root / "data" / "tracker.json"; dictionary = root / "data" / "movement_dictionary.json"
     adapter = OllamaNativeAdapter(); health = adapter.health_check(); (output / "requests").mkdir(exist_ok=True); (output / "machine").mkdir(exist_ok=True); (output / "stability").mkdir(exist_ok=True)
     if not health.get("available"):
-        (output / "summary.json").write_text(json.dumps({"status": "blocked", "health": health}, ensure_ascii=False, indent=2), encoding="utf-8"); print(str(output)); return
+        blocked = {"review_schema_version": "fitness-ledger-review-evidence-v1.0", "review_status": "blocked", "health": health, "integrity_audit": {"passed": False, "blocking_integrity_codes": ["MODEL_UNAVAILABLE"]}, "privacy_audit": {"passed": True, "violations": []}, "request_evidence": [], "stability_evidence": []}
+        (output / "summary.json").write_text(json.dumps(blocked, ensure_ascii=False, indent=2), encoding="utf-8")
+        (output / "integrity-audit.json").write_text(json.dumps(blocked["integrity_audit"], ensure_ascii=False, indent=2), encoding="utf-8")
+        (output / "privacy-audit.json").write_text(json.dumps(blocked["privacy_audit"], ensure_ascii=False, indent=2), encoding="utf-8")
+        (output / "README.md").write_text("# Intelligent Export Review Evidence\n\n当前模型不可用，Package blocked。未生成任何模型结果。\n", encoding="utf-8")
+        print(str(output)); return
     views = LedgerViewModels(tracker, dictionary); results = []
     for label, request in REQUESTS:
-        started = time.monotonic(); result = IntelligentExportService(views, adapter, overall_timeout=120).run(request, "concise"); item = summarize(result); item["request"] = request; item["label"] = label; item["elapsed_ms"] = int((time.monotonic() - started) * 1000); results.append(item); (output / "machine" / f"{label}.json").write_text(json.dumps(item, ensure_ascii=False, indent=2), encoding="utf-8"); write_request_markdown(output / "requests" / f"{label}.md", request, item)
+        started = time.monotonic(); result = IntelligentExportService(views, adapter, overall_timeout=120).run(request, "concise"); results.append((label, request, result));
     stability = []
-    if all(item["status"] == "ready" for item in results):
-        for index in range(1, 4):
-            started = time.monotonic(); item = summarize(IntelligentExportService(views, adapter, overall_timeout=120).run(STABILITY_REQUEST, "concise")); item["run"] = index; item["elapsed_ms"] = int((time.monotonic() - started) * 1000); stability.append(item); (output / "stability" / f"low-carb-run-{index}.json").write_text(json.dumps(item, ensure_ascii=False, indent=2), encoding="utf-8")
-    summary = {"generated_at": datetime.now(timezone.utc).isoformat(), "status": "ready" if all(item["status"] == "ready" for item in results) and len(stability) == 3 and all(item["status"] == "ready" for item in stability) else "blocked", "health": health, "requests": [{"label": item["label"], "request": item["request"], "status": item["status"], "fallback_reason": item["fallback_reason"], "window": item["selection"]["selected_window_id"], "modules": item["selection"]["selected_modules"], "movements": item["selection"]["selected_movements"], "notes": item["selection"]["notes_count"], "records": item["selection"]["records_count"], "warnings": item["selection"]["missing_data_warning_codes"], "confidence": item["selection"]["planner_confidence"], "repaired": item["trace"]["repaired"], "duration_ms": item["trace"]["duration_ms"]} for item in results], "stability": [{"run": item["run"], "status": item["status"], "window": item["selection"]["selected_window_id"], "modules": item["selection"]["selected_modules"], "movements": item["selection"]["selected_movements"], "notes": item["selection"]["notes_count"], "confidence": item["selection"]["planner_confidence"], "repaired": item["trace"]["repaired"], "duration_ms": item["trace"]["duration_ms"]} for item in stability], "privacy": {"complete_notes": False, "raw": False, "formal_paths": False, "full_tracker": False, "full_dictionary": False}}
-    (output / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
-    (output / "README.md").write_text("# Fitness Ledger Intelligent Export Core Review\n\n本包由匿名结构化结果生成，供人工审阅模型选择质量。它不包含完整 Notes、Raw、tracker、dictionary 或正式路径。请先阅读 `summary.json`，再逐一阅读 `requests/*.md`；稳定性结果位于 `stability/`。\n", encoding="utf-8")
+    for index in range(1, 4):
+        started = time.monotonic(); stability.append(IntelligentExportService(views, adapter, overall_timeout=120).run(STABILITY_REQUEST, "concise"));
+    bundle = build_bundle(results, stability)
+    bundle["generated_at"] = datetime.now(timezone.utc).isoformat()
+    bundle["model_health"] = {key: value for key, value in health.items() if key not in {"raw_response", "prompt", "payload"}}
+    (output / "summary.json").write_text(json.dumps({"review_schema_version": bundle["review_schema_version"], "generated_at": bundle["generated_at"], "review_status": bundle["review_status"], "source_snapshot_id": bundle.get("source_snapshot_id", ""), "catalog_id": bundle.get("catalog_id", ""), "requests": [{"request_id": item["request_id"], "status": item["status"], "window": item["selection"].get("selected_window_id", ""), "modules": item["selection"].get("selected_module_ids", []), "movements": item["selection"].get("selected_movement_ids", []), "notes": len(item["selection"].get("selected_note_candidate_ids", [])), "records": len(item["selection"].get("selected_candidate_record_ids", [])), "progress_history": item["execution"].get("progress_history_count", 0), "context_only": item["execution"].get("context_only_count", 0), "confidence": item["selection"].get("planner_confidence", 0), "repair": item["repair"].get("repair_used", False)} for item in bundle["request_evidence"]], "stability": bundle["stability_comparison"], "integrity_audit": bundle["integrity_audit"], "privacy_audit": bundle["privacy_audit"]}, ensure_ascii=False, indent=2), encoding="utf-8")
+    (output / "integrity-audit.json").write_text(json.dumps(bundle["integrity_audit"], ensure_ascii=False, indent=2), encoding="utf-8")
+    (output / "privacy-audit.json").write_text(json.dumps(bundle["privacy_audit"], ensure_ascii=False, indent=2), encoding="utf-8")
+    for item in bundle["request_evidence"]:
+        label = item["request_id"]
+        (output / "machine" / f"{label}.json").write_text(json.dumps(item, ensure_ascii=False, indent=2), encoding="utf-8")
+        (output / "requests" / f"{label}.md").write_text("# Review Evidence\n\n" + json.dumps({"request_id": label, "original_request": item["original_request"], "intent": item["intent"], "selection": item["selection"], "execution": {key: item["execution"].get(key) for key in ("output_sections", "actual_output_size", "progress_history_count", "context_only_count", "actual_note_ids", "actual_record_ids")}, "integrity_errors": bundle["integrity_audit"]["request_errors"].get(label, [])}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    for index, item in enumerate(bundle["stability_evidence"], 1):
+        (output / "stability" / f"low-carb-run-{index}.json").write_text(json.dumps(item, ensure_ascii=False, indent=2), encoding="utf-8")
+    (output / "stability" / "comparison.json").write_text(json.dumps(bundle["stability_comparison"], ensure_ascii=False, indent=2), encoding="utf-8")
+    (output / "README.md").write_text("# Fitness Ledger Intelligent Export Review Evidence\n\n本包来自运行时结构化 Intent、Candidate、Selection、Plan 与 Execution evidence 投影。它不包含完整 Notes、Raw、tracker、dictionary、正式路径、完整 Prompt 或完整模型响应。请先阅读 `human-review/review-index.md` 与 `integrity-audit.json`。\n", encoding="utf-8")
+    write_review_index(bundle, output)
     print(str(output))
 
 
