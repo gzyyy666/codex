@@ -10,7 +10,7 @@ import uuid
 from dataclasses import asdict
 
 from .candidate_cards import BUDGETS, CandidatePackage, CandidateSummarizer
-from .data_catalog import DataCatalogBuilder, MovementResolver, source_snapshot
+from .data_catalog import DataCatalogBuilder, MovementResolver, _record_id, source_snapshot
 from .export_plan_validator import ExportPlanValidator, PlanValidationError, validate_source_snapshot
 from .export_planner import ExportPlanner
 from .export_plan_assembler import ExportPlanAssembler
@@ -83,7 +83,70 @@ class ExportExecutor:
             "raw_entries": raw,
             "plan_explanation": explanation.to_dict(),
         }
-        return {"payload": payload, "json": json.dumps(payload, ensure_ascii=False, indent=2), "markdown": self._markdown(payload, plan, explanation)}
+        execution_evidence = self._execution_evidence(data, package, plan, payload)
+        return {"payload": payload, "json": json.dumps(payload, ensure_ascii=False, indent=2), "markdown": self._markdown(payload, plan, explanation), "execution_evidence": execution_evidence}
+
+    @staticmethod
+    def _movement_record_id(movement_id: str, history: dict) -> str:
+        return f"movement-history:{movement_id}:{history.get('id') or stable_hash([_date(history.get('date')), history.get('order'), history.get('sets')])[:20]}"
+
+    def _execution_evidence(self, data: dict, package: CandidatePackage, plan: ValidatedExportPlan, payload: dict) -> dict:
+        """Expose IDs/counts already used by execution without changing payload semantics."""
+        start, end = plan.date_range["resolved_start"], plan.date_range["resolved_end"]
+        in_range = lambda value: bool(value) and (not start or start <= str(value)[:10] <= end)
+        actual_record_ids: list[str] = []
+        module_record_counts: dict[str, int] = {}
+        for module in ("body", "diet", "training"):
+            if module not in plan.selected_modules:
+                continue
+            rows = [row for row in data.get(module, []) or [] if in_range(row.get("Date"))]
+            module_record_counts[module] = len(rows)
+            actual_record_ids.extend(_record_id(module, row) for row in rows)
+        if plan.include_raw_entries and "raw_entries" in plan.selected_modules:
+            rows = [row for row in data.get("raw_entries", []) or [] if in_range(row.get("date"))]
+            module_record_counts["raw_entries"] = len(rows)
+            actual_record_ids.extend(_record_id("raw", row) for row in rows)
+        progress_ids: list[str] = []
+        context_ids: list[str] = []
+        movement_record_counts: dict[str, int] = {}
+        _tracker, dictionary = self.views.snapshot()
+        definitions = {str(item.get("movement_id")): item for item in dictionary.get("movements", []) or []}
+        wanted = set(plan.selected_movements)
+        for movement in data.get("movements", []) or []:
+            movement_id = str(movement.get("movement_id", ""))
+            if wanted and movement_id not in wanted:
+                continue
+            count = 0
+            definition = definitions.get(movement_id, {})
+            for history in movement.get("history", []) or []:
+                if not in_range(history.get("date")):
+                    continue
+                count += 1
+                rid = self._movement_record_id(movement_id, history)
+                actual_record_ids.append(rid)
+                if movement_in_progress(definition) and history_in_progress(history):
+                    progress_ids.append(rid)
+                elif plan.include_excluded_history:
+                    context_ids.append(rid)
+            if count:
+                movement_record_counts[movement_id] = count
+        note_ids = [str(item.get("note_candidate_id", "")) for item in payload.get("notes", []) if item.get("note_candidate_id")]
+        sections = sorted(key for key in payload if key in {"body", "diet", "training", "movements", "notes", "raw_entries"})
+        return {
+            "actual_record_ids": sorted(set(actual_record_ids)),
+            "actual_note_ids": sorted(set(note_ids)),
+            "output_sections": sections,
+            "actual_output_size": len(json.dumps(payload, ensure_ascii=False, separators=(",", ":"))),
+            "progress_history_count": len(progress_ids),
+            "progress_history_ids": sorted(set(progress_ids)),
+            "context_only_count": len(context_ids),
+            "context_only_ids": sorted(set(context_ids)),
+            "module_record_counts": module_record_counts,
+            "movement_record_counts": movement_record_counts,
+            "missing_data_codes": list(plan.missing_data_warnings),
+            "insufficient_sample_codes": [],
+            "execution_warning_codes": [],
+        }
 
     @staticmethod
     def _fields(rows: list[dict], module: str, plan: ValidatedExportPlan) -> list[dict]:
@@ -203,6 +266,7 @@ class IntelligentExportService:
             diagnostics = {"prompt_version": PROMPT_VERSION, "schema_version": "fitness-ledger-intelligent-export-v1", "candidate_counts": {}, "stages": {}}
             catalog_summary = {"date_range": catalog.date_range, "modules": [{"module_id": item.module_id, "record_count": item.record_count} for item in catalog.modules], "budget_mode": budget_mode}
             repair_used = False
+            repair_meta = {"repair_used": False, "original_validation_codes": [], "repaired_validation_codes": [], "changed_field_names": [], "added_selected_ids": [], "removed_selected_ids": [], "decision_changed": False, "confidence_before": None, "confidence_after": None}
             intent_interpreter = IntentInterpreter(self.adapter)
             try:
                 intent, intent_result = intent_interpreter.interpret(request, catalog_summary)
@@ -210,6 +274,7 @@ class IntelligentExportService:
             except Exception as exc:
                 try:
                     repair_used = True
+                    repair_meta.update({"repair_used": True, "phase": "intent", "original_validation_codes": [getattr(exc, "code", "INTENT_INVALID")], "repaired_validation_codes": ["INTENT_REPAIRED"], "changed_field_names": ["intent"]})
                     repair_result = self.adapter.generate_json(system_prompt=INTENT_REPAIR_SYSTEM_PROMPT, user_payload={"invalid_output": "intent unavailable", "validation_error": {"code": getattr(exc, "code", "INTENT_INVALID"), "message": str(exc)[:240]}, "intent_schema": intent_json_schema()}, response_schema=intent_json_schema(), config=REPAIR_MODEL_CONFIG)
                     intent = intent_interpreter.normalize_request_intent(request, IntentSpec.from_dict(parse_json_object(repair_result.raw_text))); intent_result = repair_result
                 except Exception as repair_error:
@@ -238,8 +303,11 @@ class IntelligentExportService:
                     return self._fallback(request, getattr(exc, "code", "MODEL_SELECTION_INVALID"), trace_id, started, catalog, intent)
                 try:
                     repair_used = True
+                    repair_meta.update({"repair_used": True, "phase": "selection", "original_validation_codes": [getattr(exc, "code", "PLANNING_INVALID")]})
+                    before_selection = getattr(planner, "last_selection", None)
                     repair_result = self.adapter.generate_json(system_prompt=REPAIR_SYSTEM_PROMPT, user_payload={"invalid_selection": getattr(planner.last_result, "raw_text", "")[:12000], "validation_error": {"code": getattr(exc, "code", "PLANNING_INVALID"), "message": str(exc)[:240]}, "allowed_window_ids": package.allowed_ids["window_ids"], "allowed_module_ids": package.allowed_modules, "allowed_field_ids_by_module": package.allowed_fields, "allowed_movement_ids": package.allowed_ids["movement_ids"], "allowed_note_candidate_ids": package.allowed_ids["note_candidate_ids"], "allowed_candidate_record_ids": package.allowed_ids["candidate_record_ids"], "selection_schema": selection_json_schema()}, response_schema=selection_json_schema(), config=REPAIR_MODEL_CONFIG)
                     selection = planner.parse_selection(repair_result.raw_text)
+                    self._record_repair_meta(repair_meta, before_selection.to_dict() if before_selection else {}, selection.to_dict())
                     if selection.planning_decision == "fallback_required":
                         return self._fallback(request, "PLANNER_FALLBACK_REQUIRED", trace_id, started, catalog, intent)
                     if selection.planner_confidence < PLANNER_CONFIDENCE_THRESHOLD:
@@ -256,8 +324,11 @@ class IntelligentExportService:
                     return self._fallback(request, first_error.code if repair_used else "TASK_TIMEOUT", trace_id, started, catalog, intent)
                 repaired = True
                 try:
+                    repair_meta.update({"repair_used": True, "phase": "validation", "original_validation_codes": [first_error.code]})
+                    before_selection = selection.to_dict()
                     repair_result = self.adapter.generate_json(system_prompt=REPAIR_SYSTEM_PROMPT, user_payload={"invalid_selection": selection.to_dict(), "validation_error": {"code": first_error.code, "message": str(first_error)[:240]}, "allowed_window_ids": package.allowed_ids["window_ids"], "allowed_module_ids": package.allowed_modules, "allowed_field_ids_by_module": package.allowed_fields, "allowed_movement_ids": package.allowed_ids["movement_ids"], "allowed_note_candidate_ids": package.allowed_ids["note_candidate_ids"], "allowed_candidate_record_ids": package.allowed_ids["candidate_record_ids"], "selection_schema": selection_json_schema()}, response_schema=selection_json_schema(), config=REPAIR_MODEL_CONFIG)
                     selection = planner.parse_selection(repair_result.raw_text)
+                    self._record_repair_meta(repair_meta, before_selection, selection.to_dict())
                     if selection.planning_decision == "fallback_required":
                         return self._fallback(request, "PLANNER_FALLBACK_REQUIRED", trace_id, started, catalog, intent)
                     if selection.planner_confidence < PLANNER_CONFIDENCE_THRESHOLD:
@@ -275,6 +346,7 @@ class IntelligentExportService:
                 return self._fallback(request, exc.code, trace_id, started, catalog, intent)
             trace = TraceRecord(trace_id, stable_hash(request[:2000]), stable_hash(catalog.to_prompt_dict()), stable_hash(plan.to_dict()), getattr(self.adapter, "adapter_name", "unknown"), getattr(self.adapter, "model_name", "unknown"), PROMPT_VERSION, "", int((time.monotonic() - started) * 1000), "", repaired, plan.trimmed, False)
             diagnostics["duration_ms"] = int((time.monotonic() - started) * 1000)
+            diagnostics["repair"] = repair_meta
             return {"status": "ready", "intent": intent.to_dict(), "catalog": catalog.to_prompt_dict(), "candidate_package": package.to_prompt_dict(), "selection": selection.to_dict(), "plan": plan.to_dict(), "explanation": explanation.to_dict(), "output": output, "trace": trace.to_dict(), "diagnostics": diagnostics}
         finally:
             self._task_slots.release()
@@ -288,6 +360,26 @@ class IntelligentExportService:
 
     def _expired(self, started: float) -> bool:
         return time.monotonic() - started > self.overall_timeout
+
+    @staticmethod
+    def _record_repair_meta(meta: dict, before: dict, after: dict) -> None:
+        before = before or {}; after = after or {}
+        meta["repaired_validation_codes"] = ["REPAIRED_SELECTION"]
+        meta["confidence_before"] = before.get("planner_confidence")
+        meta["confidence_after"] = after.get("planner_confidence")
+        meta["decision_changed"] = before.get("planning_decision") != after.get("planning_decision") if before else False
+        changed = []
+        for key in ("selected_window_id", "selected_modules", "selected_fields", "selected_movements", "selected_note_candidate_ids", "selected_candidate_record_ids", "training_detail_level", "movement_detail_level", "include_excluded_history", "excluded_history_usage", "use_progress_history_for_metrics", "missing_data_warning_codes", "planning_decision", "fallback_reason_codes", "planner_confidence"):
+            if before.get(key) != after.get(key):
+                changed.append(key)
+        meta["changed_field_names"] = changed
+        before_ids = set()
+        after_ids = set()
+        for key in ("selected_note_candidate_ids", "selected_candidate_record_ids"):
+            before_ids.update(str(value) for value in before.get(key, []) or [])
+            after_ids.update(str(value) for value in after.get(key, []) or [])
+        meta["added_selected_ids"] = sorted(after_ids - before_ids)
+        meta["removed_selected_ids"] = sorted(before_ids - after_ids)
 
     @staticmethod
     def _model_diag(result, extra=None) -> dict:
