@@ -18,6 +18,7 @@ REVIEW_SCHEMA_VERSION = "fitness-ledger-review-evidence-v1.0"
 MAX_SNIPPET = 80
 BLOCKING_CODES = {
     "REVIEW_INTENT_MISSING", "REVIEW_INTENT_INVALID", "REVIEW_DATE_EVIDENCE_INVALID",
+    "REVIEW_INTENT_SEMANTIC_INVALID", "REVIEW_INTENT_REPAIR_EVIDENCE_MISSING",
     "REVIEW_CANDIDATE_IDS_MISSING", "REVIEW_SELECTED_ID_NOT_IN_CANDIDATES",
     "REVIEW_SELECTION_IDS_MISSING", "REVIEW_EXECUTION_IDS_MISSING",
     "REVIEW_PROGRESS_FIELD_MISMATCH", "REVIEW_COUNT_ID_MISMATCH",
@@ -191,8 +192,11 @@ def _execution_projection(result: dict) -> dict:
 def _repair_projection(result: dict) -> dict:
     repair = (result.get("diagnostics", {}) or {}).get("repair", {}) or {}
     trace = result.get("trace", {}) or {}
+    intent_repair = repair.get("intent_repair", {}) or {}
     return {
         "repair_used": bool(repair.get("repair_used", trace.get("repaired", False))),
+        "intent_repair_used": bool(repair.get("intent_repair_used", False)),
+        "phase": repair.get("phase", ""),
         "original_validation_codes": _ids(repair.get("original_validation_codes", [])),
         "repaired_validation_codes": _ids(repair.get("repaired_validation_codes", [])),
         "changed_field_names": _ids(repair.get("changed_field_names", [])),
@@ -201,6 +205,18 @@ def _repair_projection(result: dict) -> dict:
         "decision_changed": bool(repair.get("decision_changed", False)),
         "confidence_before": repair.get("confidence_before"),
         "confidence_after": repair.get("confidence_after"),
+        "intent_schema_status": repair.get("intent_schema_status", "valid"),
+        "intent_semantic_status": repair.get("intent_semantic_status", "valid"),
+        "intent_semantic_error_codes": _ids(repair.get("intent_semantic_error_codes", [])),
+        "intent_initial_semantic_error_codes": _ids(repair.get("intent_initial_semantic_error_codes", [])),
+        "intent_semantic_diagnostics": repair.get("intent_semantic_diagnostics", {}) or {},
+        "repair_reason": intent_repair.get("repair_reason", ""),
+        "changed_field_paths": _ids(intent_repair.get("changed_field_paths", [])),
+        "fields_added": _ids(intent_repair.get("fields_added", [])),
+        "fields_removed": _ids(intent_repair.get("fields_removed", [])),
+        "semantic_codes_before": _ids(intent_repair.get("semantic_codes_before", [])),
+        "semantic_codes_after": _ids(intent_repair.get("semantic_codes_after", [])),
+        "field_snapshots": intent_repair.get("field_snapshots", {}) or {},
     }
 
 
@@ -220,6 +236,12 @@ def project_request(result: dict, request_id: str, original_request: str) -> dic
     inclusion.update({key: value for key, value in movement_reasons.items() if value})
     execution = _execution_projection(result)
     repair = _repair_projection(result)
+    intent_semantic = (result.get("diagnostics", {}) or {}).get("intent_semantic", {}) or {}
+    if intent_semantic:
+        repair["intent_schema_status"] = intent_semantic.get("schema_status", repair.get("intent_schema_status", "valid"))
+        repair["intent_semantic_status"] = intent_semantic.get("final_status", repair.get("intent_semantic_status", "valid"))
+        repair["intent_semantic_error_codes"] = _ids(intent_semantic.get("error_codes", repair.get("intent_semantic_error_codes", [])))
+        repair["intent_semantic_diagnostics"] = intent_semantic.get("diagnostics", repair.get("intent_semantic_diagnostics", {})) or {}
     return {
         "request_id": request_id,
         "original_request": original_request,
@@ -299,6 +321,10 @@ def _intent_errors(item: dict) -> list[str]:
         errors.append("REVIEW_INTENT_INVALID")
     if any(key in date_intent for key in ("start", "end", "resolved_start", "resolved_end")):
         errors.append("REVIEW_DATE_EVIDENCE_INVALID")
+    repair = item.get("repair", {}) or {}
+    semantic_status = repair.get("intent_semantic_status", "valid")
+    if semantic_status == "invalid":
+        errors.append("REVIEW_INTENT_SEMANTIC_INVALID")
     return sorted(set(errors))
 
 
@@ -343,6 +369,8 @@ def audit_request(item: dict) -> list[str]:
     repair = item.get("repair", {}) or {}
     if repair.get("repair_used") and not (repair.get("changed_field_names") or repair.get("original_validation_codes") or repair.get("repaired_validation_codes")):
         errors.append("REVIEW_REPAIR_DIFF_MISSING")
+    if repair.get("repair_used") and repair.get("phase") == "intent" and not repair.get("changed_field_paths") and not repair.get("fields_added") and not repair.get("fields_removed"):
+        errors.append("REVIEW_INTENT_REPAIR_EVIDENCE_MISSING")
     return sorted(set(errors))
 
 
@@ -428,7 +456,12 @@ def write_review_index(bundle: dict, output_dir) -> None:
     out = Path(output_dir) / "human-review"
     out.mkdir(parents=True, exist_ok=True)
     lines = ["# Intelligent Export Core — Review Evidence Index", "", "## 1. Package 状态", "", f"- review_status: **{bundle.get('review_status')}**", f"- source_snapshot_id: `{bundle.get('source_snapshot_id', '')}`", f"- catalog_id: `{bundle.get('catalog_id', '')}`", f"- integrity errors: `{bundle.get('integrity_audit', {}).get('blocking_integrity_codes', [])}`", f"- privacy passed: `{bundle.get('privacy_audit', {}).get('passed')}`", ""]
-    lines += ["## 2. 四请求总览", "", "| request | Intent | window | modules | movements | Notes | records | progress | context | confidence | Repair | 人工判断 |", "|---|---|---|---|---:|---:|---:|---:|---:|---:|---|---|"]
+    lines += ["## 2. Intent Semantic Summary", "", "| request | initial semantic | Repair | final semantic | semantic codes |", "|---|---|---|---|---|"]
+    for item in bundle.get("request_evidence", []):
+        repair = item.get("repair", {}) or {}
+        initial = "invalid" if repair.get("intent_initial_semantic_error_codes") else "valid"
+        lines.append(f"| {item['request_id']} | {initial} | {repair.get('repair_used', False)} | {repair.get('intent_semantic_status', 'valid')} | {','.join(repair.get('intent_semantic_error_codes', [])) or '—'} |")
+    lines += ["", "## 3. 四请求总览", "", "| request | Intent | window | modules | movements | Notes | records | progress | context | confidence | Repair | 人工判断 |", "|---|---|---|---|---:|---:|---:|---:|---:|---:|---|---|"]
     for item in bundle.get("request_evidence", []):
         sel, exe = item["selection"], item["execution"]
         lines.append(f"| {item['request_id']} | {_short(item['intent'].get('interpreted_goal'))} | {item['date_resolution'].get('resolved_start')}..{item['date_resolution'].get('resolved_end')} | {','.join(sel.get('selected_module_ids', []))} | {','.join(sel.get('selected_movement_ids', [])) or '—'} | {len(sel.get('selected_note_candidate_ids', []))} | {len(sel.get('selected_candidate_record_ids', []))} | {exe.get('progress_history_count', 0)} | {exe.get('context_only_count', 0)} | {sel.get('planner_confidence')} | {item.get('repair', {}).get('repair_used')} | {'是' if not audit_request(item) else '否'} |")
@@ -437,7 +470,7 @@ def write_review_index(bundle: dict, output_dir) -> None:
     if low:
         mentions = low["intent"].get("movement_mentions", [])
         ids = [item.get("movement_id") for item in low["candidates"].get("movements", [])]
-        lines += [f"- Intent：{_short(low['intent'].get('interpreted_goal'))}；movement mentions={json.dumps(mentions, ensure_ascii=False)}", f"- Candidate movement IDs：`{ids}`；CHEST_006={'存在' if 'CHEST_006' in ids else '未在候选中'}", f"- Selection movement IDs：`{low['selection'].get('selected_movement_ids', [])}`", f"- Plan movement IDs：`{low['plan'].get('selected_movement_ids', [])}`", f"- Execution progress IDs：`{low['execution'].get('progress_history_ids', [])}`", f"- Integrity：`{audit_request(low)}`", ""]
+        lines += [f"- Original Request → Intent：{_short(low['intent'].get('interpreted_goal'))}；movement mentions={json.dumps(mentions, ensure_ascii=False)}", f"- Resolver Matches：`{low['candidates'].get('resolver_matches', [])}`", f"- Candidate movement IDs：`{ids}`；CHEST_006={'存在' if 'CHEST_006' in ids else '未在候选中'}", f"- Selection movement IDs：`{low['selection'].get('selected_movement_ids', [])}`", f"- Plan movement IDs：`{low['plan'].get('selected_movement_ids', [])}`", f"- Execution progress IDs：`{low['execution'].get('progress_history_ids', [])}`", f"- Integrity：`{audit_request(low)}`", ""]
     lines += ["## 4. 卧推证据链", ""]
     bench = next((item for item in bundle.get("request_evidence", []) if item["request_id"] == "03-bench-progress"), None)
     if bench:

@@ -8,6 +8,7 @@ ERRORS = {
     "MODEL_EMPTY_RESPONSE": {"user": "本地模型没有返回结果。", "retry": True, "repair": True},
     "MODEL_INVALID_JSON": {"user": "本地模型返回格式不可读。", "retry": False, "repair": True},
     "MODEL_SCHEMA_INVALID": {"user": "本地模型返回未符合选择协议。", "retry": False, "repair": True},
+    "MODEL_INTENT_SEMANTIC_INVALID": {"user": "本地模型未能生成可用的请求理解结果。", "retry": False, "repair": False},
     "MODEL_SELECTION_INVALID": {"user": "本地模型选择无法安全确认。", "retry": False, "repair": True},
     "MODEL_REPAIR_FAILED": {"user": "本地模型修复失败，已安全回退。", "retry": False, "repair": False},
     "MODEL_OUTPUT_TRUNCATED": {"user": "本地模型输出不完整，已安全回退。", "retry": True, "repair": True},
