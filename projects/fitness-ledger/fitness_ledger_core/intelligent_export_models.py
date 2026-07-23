@@ -17,10 +17,30 @@ from typing import Any, Literal
 
 SCHEMA_VERSION = "fitness-ledger-intelligent-export-v1"
 INTENT_SCHEMA_VERSION = "fitness-ledger-intelligent-export-intent-v2"
+SEMANTIC_HINTS_SCHEMA_VERSION = "fitness-ledger-semantic-hints-v1"
 SELECTION_SCHEMA_VERSION = "fitness-ledger-intelligent-export-v1.1"
 PLANNER_CONFIDENCE_THRESHOLD = 0.5
 BODY_PART_IDS = ("CHEST", "BACK", "SHOULDER", "ARMS", "CORE", "LEGS")
 BodyPartId = Literal["CHEST", "BACK", "SHOULDER", "ARMS", "CORE", "LEGS"]
+INTENT_DIMENSIONS = (
+    "body_state",
+    "diet_macros",
+    "training_context",
+    "movement_progress",
+    "daily_notes",
+    "diet_notes",
+    "training_notes",
+    "movement_notes",
+    "raw_trace",
+)
+SEMANTIC_HINT_DIMENSIONS = (
+    "body_state",
+    "diet_macros",
+    "training_context",
+    "movement_progress",
+)
+INTENT_RELATIONSHIP_TYPES = ("trend", "comparison", "impact", "correlation", "summary")
+INTENT_EVIDENCE_FOCUS = ("quantitative_metrics", "session_context", "progress_history", "notes_context", "raw_trace")
 PLANNING_DECISIONS = {"ready", "fallback_required"}
 FALLBACK_REASON_CODES = {
     "NO_VALID_WINDOW",
@@ -40,6 +60,50 @@ class ContractError(ValueError):
     def __init__(self, message: str, code: str = "MODEL_SCHEMA_INVALID") -> None:
         super().__init__(message)
         self.code = code
+
+
+@dataclass(frozen=True)
+class SemanticHint:
+    dimension: str
+    evidence: str
+
+
+@dataclass(frozen=True)
+class SemanticHints:
+    """The only semantic object the local model is allowed to produce."""
+
+    hints: list[SemanticHint]
+    schema_version: str = SEMANTIC_HINTS_SCHEMA_VERSION
+
+    @property
+    def dimensions(self) -> list[str]:
+        return list(dict.fromkeys(item.dimension for item in self.hints))
+
+    def to_dict(self) -> dict:
+        return {
+            "schema_version": self.schema_version,
+            "semantic_hints": [{"dimension": item.dimension, "evidence": item.evidence} for item in self.hints],
+        }
+
+    @classmethod
+    def from_dict(cls, value: Any) -> "SemanticHints":
+        raw = _obj(value, "semantic_hints")
+        _unknown(raw, {"schema_version", "semantic_hints"}, "semantic_hints")
+        if raw.get("schema_version") != SEMANTIC_HINTS_SCHEMA_VERSION:
+            raise ContractError("unsupported semantic hints schema_version")
+        items = _list(raw.get("semantic_hints"), "semantic_hints", 8)
+        parsed: list[SemanticHint] = []
+        for index, item in enumerate(items):
+            entry = _obj(item, f"semantic_hints[{index}]")
+            _unknown(entry, {"dimension", "evidence"}, f"semantic_hints[{index}]")
+            dimension = _text(entry.get("dimension"), f"semantic_hints[{index}].dimension", 40, True)
+            evidence = _text(entry.get("evidence"), f"semantic_hints[{index}].evidence", 120, True)
+            if dimension not in SEMANTIC_HINT_DIMENSIONS:
+                raise ContractError("semantic hint dimension is invalid", "MODEL_SEMANTIC_HINT_ENUM")
+            parsed.append(SemanticHint(dimension, evidence))
+        if len({(item.dimension, item.evidence) for item in parsed}) != len(parsed):
+            raise ContractError("semantic hints must not contain duplicates", "MODEL_SEMANTIC_HINT_DUPLICATE")
+        return cls(parsed)
 
 
 def _obj(value: Any, name: str) -> dict:
@@ -102,7 +166,7 @@ class DateIntent:
         relative = raw.get("relative_range")
         if relative is not None:
             relative = _text(relative, "date_intent.relative_range", 32)
-            if relative not in {"recent", "recent_4_weeks", "recent_8_weeks", "recent_12_weeks", "recent_months", "all_available"}:
+            if relative not in {"last_week", "recent", "recent_4_weeks", "recent_8_weeks", "recent_12_weeks", "recent_months", "all_available"}:
                 raise ContractError("date_intent.relative_range is invalid")
         comparison = raw.get("comparison_needed", False)
         if not isinstance(comparison, bool):
@@ -136,12 +200,19 @@ class MovementMention:
 
 @dataclass(frozen=True)
 class IntentSpec:
-    interpreted_goal: str
-    analysis_dimensions: list[str]
-    date_intent: DateIntent
-    movement_mentions: list[MovementMention]
+    """Canonical semantic scope plus non-authoritative compatibility metadata."""
+
+    dimensions: list[str]
+    excluded_dimensions: list[str]
+    date_text: list[str]
+    movement_mentions: list[str]
     target_body_parts: list[BodyPartId]
-    catalog_requirements: list[str]
+    ambiguous: bool
+    interpreted_goal: str = ""
+    date_intent: DateIntent = field(default_factory=DateIntent)
+    relationship_types: list[str] = field(default_factory=list)
+    evidence_focus: list[str] = field(default_factory=list)
+    catalog_requirements: list[str] = field(default_factory=list)
     preferred_detail: str = "summary"
     raw_entry_relevance: str = "none"
     confidence: float = 0.0
@@ -149,11 +220,49 @@ class IntentSpec:
     warnings: list[str] = field(default_factory=list)
     schema_version: str = INTENT_SCHEMA_VERSION
 
+    @property
+    def analysis_dimensions(self) -> list[str]:
+        return list(self.dimensions)
+
+    @property
+    def target_body_part_ids(self) -> list[str]:
+        return list(self.target_body_parts)
+
+    @property
+    def explicit_movement_mentions(self) -> list[str]:
+        return list(self.movement_mentions)
+
     @classmethod
     def from_dict(cls, value: Any) -> "IntentSpec":
         raw = _obj(value, "intent")
-        allowed = {"schema_version", "interpreted_goal", "analysis_dimensions", "date_intent", "movement_mentions", "target_body_parts", "catalog_requirements", "preferred_detail", "raw_entry_relevance", "confidence", "needs_fallback", "warnings"}
-        _unknown(raw, allowed, "intent")
+        canonical = {"dimensions", "excluded_dimensions", "date_text", "movement_mentions", "target_body_parts", "ambiguous"}
+        if canonical.issubset(raw):
+            _unknown(raw, canonical | {"schema_version"}, "intent")
+            if raw.get("schema_version") != INTENT_SCHEMA_VERSION:
+                raise ContractError("unsupported intent schema_version")
+            dimensions = [_text(item, "dimensions[]", 64, True) for item in _list(raw.get("dimensions"), "dimensions", 12)]
+            date_text = [_text(item, "date_text[]", 80, True) for item in _list(raw.get("date_text"), "date_text", 8)]
+            movement_mentions = [_text(item, "movement_mentions[]", 120, True) for item in _list(raw.get("movement_mentions"), "movement_mentions", 8)]
+            target_body_parts = [_text(item, "target_body_parts[]", 16, True) for item in _list(raw.get("target_body_parts"), "target_body_parts", 6)]
+            excluded = [_text(item, "excluded_dimensions[]", 64, True) for item in _list(raw.get("excluded_dimensions"), "excluded_dimensions", len(INTENT_DIMENSIONS))]
+            if any(item not in INTENT_DIMENSIONS for item in dimensions + excluded):
+                raise ContractError("intent dimensions contain an invalid semantic value")
+            if any(item not in BODY_PART_IDS for item in target_body_parts):
+                raise ContractError("target_body_parts contains an invalid BodyPartId")
+            if len(set(dimensions)) != len(dimensions) or len(set(excluded)) != len(excluded):
+                raise ContractError("intent dimensions must not contain duplicates")
+            if set(dimensions).intersection(excluded):
+                raise ContractError("a dimension cannot be both included and excluded")
+            if len(set(target_body_parts)) != len(target_body_parts):
+                raise ContractError("target_body_parts must not contain duplicates")
+            if not isinstance(raw.get("ambiguous"), bool):
+                raise ContractError("ambiguous must be boolean")
+            return cls(dimensions, excluded, date_text, movement_mentions, list(target_body_parts), raw["ambiguous"], schema_version=INTENT_SCHEMA_VERSION)
+
+        # Legacy fixture compatibility. This branch is never accepted by the
+        # model boundary; it only keeps old deterministic tests readable.
+        allowed = {"schema_version", "interpreted_goal", "analysis_dimensions", "date_intent", "relationship_types", "evidence_focus", "excluded_dimensions", "movement_mentions", "target_body_parts", "catalog_requirements", "preferred_detail", "raw_entry_relevance", "confidence", "needs_fallback", "warnings"}
+        _unknown(raw, allowed, "legacy intent")
         if raw.get("schema_version") != INTENT_SCHEMA_VERSION:
             raise ContractError("unsupported intent schema_version")
         if "target_body_parts" not in raw:
@@ -164,6 +273,27 @@ class IntentSpec:
         if len(target_body_parts) != len(set(target_body_parts)):
             raise ContractError("target_body_parts must not contain duplicates")
         dimensions = [_text(item, "analysis_dimensions[]", 64, True) for item in _list(raw.get("analysis_dimensions", []), "analysis_dimensions", 12)]
+        if any(item not in INTENT_DIMENSIONS for item in dimensions):
+            raise ContractError("analysis_dimensions contains an invalid semantic dimension")
+        if len(dimensions) != len(set(dimensions)):
+            raise ContractError("analysis_dimensions must not contain duplicates")
+        relationships = [_text(item, "relationship_types[]", 32, True) for item in _list(raw.get("relationship_types", []), "relationship_types", 5)]
+        if any(item not in INTENT_RELATIONSHIP_TYPES for item in relationships):
+            raise ContractError("relationship_types contains an invalid relationship type")
+        if len(relationships) != len(set(relationships)):
+            raise ContractError("relationship_types must not contain duplicates")
+        focus = [_text(item, "evidence_focus[]", 40, True) for item in _list(raw.get("evidence_focus", []), "evidence_focus", 5)]
+        if any(item not in INTENT_EVIDENCE_FOCUS for item in focus):
+            raise ContractError("evidence_focus contains an invalid evidence focus")
+        if len(focus) != len(set(focus)):
+            raise ContractError("evidence_focus must not contain duplicates")
+        excluded = [_text(item, "excluded_dimensions[]", 64, True) for item in _list(raw.get("excluded_dimensions", []), "excluded_dimensions", len(INTENT_DIMENSIONS))]
+        if any(item not in INTENT_DIMENSIONS for item in excluded):
+            raise ContractError("excluded_dimensions contains an invalid semantic dimension")
+        if len(excluded) != len(set(excluded)):
+            raise ContractError("excluded_dimensions must not contain duplicates")
+        if set(excluded).intersection(dimensions):
+            raise ContractError("a dimension cannot be both included and excluded")
         requirements = [_text(item, "catalog_requirements[]", 64, True) for item in _list(raw.get("catalog_requirements", []), "catalog_requirements", 12)]
         warnings = [_text(item, "warnings[]", 240) for item in _list(raw.get("warnings", []), "warnings", 12)]
         detail = _text(raw.get("preferred_detail", "summary"), "preferred_detail", 40)
@@ -172,23 +302,19 @@ class IntentSpec:
             raise ContractError("raw_entry_relevance is invalid")
         if not isinstance(raw.get("needs_fallback", False), bool):
             raise ContractError("needs_fallback must be boolean")
-        return cls(
-            _text(raw.get("interpreted_goal", ""), "interpreted_goal", 400, True),
-            dimensions,
-            DateIntent.from_dict(raw.get("date_intent", {})),
-            [MovementMention.from_dict(item) for item in _list(raw.get("movement_mentions", []), "movement_mentions", 8)],
-            list(target_body_parts),
-            requirements,
-            detail,
-            raw_relevance,
-            _number(raw.get("confidence", 0.0), "confidence"),
-            bool(raw.get("needs_fallback", False)),
-            warnings,
-            INTENT_SCHEMA_VERSION,
-        )
+        old_mentions = [MovementMention.from_dict(item).text for item in _list(raw.get("movement_mentions", []), "movement_mentions", 8)]
+        return cls(dimensions, excluded, list(DateIntent.from_dict(raw.get("date_intent", {})).raw_date_mentions), old_mentions, list(target_body_parts), bool(raw.get("needs_fallback", False)), _text(raw.get("interpreted_goal", ""), "interpreted_goal", 400, True), DateIntent.from_dict(raw.get("date_intent", {})), relationships, focus, requirements, detail, raw_relevance, _number(raw.get("confidence", 0.0), "confidence"), bool(raw.get("needs_fallback", False)), warnings, INTENT_SCHEMA_VERSION)
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        return {
+            "schema_version": self.schema_version,
+            "dimensions": list(self.dimensions),
+            "excluded_dimensions": list(self.excluded_dimensions),
+            "date_text": list(self.date_text),
+            "movement_mentions": list(self.movement_mentions),
+            "target_body_parts": list(self.target_body_parts),
+            "ambiguous": bool(self.ambiguous),
+        }
 
 
 @dataclass(frozen=True)
@@ -678,18 +804,27 @@ def _schema(properties: dict, required: list[str]) -> dict:
 def intent_json_schema() -> dict:
     return _schema({
         "schema_version": {"type": "string", "const": INTENT_SCHEMA_VERSION},
-        "interpreted_goal": {"type": "string", "minLength": 1, "maxLength": 400},
-        "analysis_dimensions": {"type": "array", "maxItems": 12, "items": {"type": "string", "maxLength": 64}},
-        "date_intent": _schema({"mode": {"type": "string", "enum": ["unspecified", "relative", "explicit", "all_available"]}, "relative_range": {"type": ["string", "null"], "enum": ["recent", "recent_4_weeks", "recent_8_weeks", "recent_12_weeks", "recent_months", "all_available", None]}, "comparison_needed": {"type": "boolean"}, "raw_date_mentions": {"type": "array", "maxItems": 8, "items": {"type": "string", "minLength": 1, "maxLength": 80}}}, ["mode", "relative_range", "comparison_needed", "raw_date_mentions"]),
-        "movement_mentions": {"type": "array", "maxItems": 8, "items": _schema({"text": {"type": "string", "minLength": 1, "maxLength": 120}, "confidence": {"type": "number", "minimum": 0, "maximum": 1}}, ["text", "confidence"])},
+        "dimensions": {"type": "array", "maxItems": len(INTENT_DIMENSIONS), "uniqueItems": True, "items": {"type": "string", "enum": list(INTENT_DIMENSIONS)}},
+        "excluded_dimensions": {"type": "array", "maxItems": len(INTENT_DIMENSIONS), "uniqueItems": True, "items": {"type": "string", "enum": list(INTENT_DIMENSIONS)}},
+        "date_text": {"type": "array", "maxItems": 8, "items": {"type": "string", "minLength": 1, "maxLength": 80}},
+        "movement_mentions": {"type": "array", "maxItems": 8, "items": {"type": "string", "minLength": 1, "maxLength": 120}},
         "target_body_parts": {"type": "array", "maxItems": 6, "uniqueItems": True, "items": {"type": "string", "enum": list(BODY_PART_IDS)}},
-        "catalog_requirements": {"type": "array", "maxItems": 12, "items": {"type": "string", "maxLength": 64}},
-        "preferred_detail": {"type": "string", "maxLength": 40},
-        "raw_entry_relevance": {"type": "string", "enum": ["none", "preview", "requested"]},
-        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
-        "needs_fallback": {"type": "boolean"},
-        "warnings": {"type": "array", "maxItems": 12, "items": {"type": "string", "maxLength": 240}},
-    }, ["schema_version", "interpreted_goal", "analysis_dimensions", "date_intent", "movement_mentions", "target_body_parts", "catalog_requirements", "preferred_detail", "raw_entry_relevance", "confidence", "needs_fallback", "warnings"])
+        "ambiguous": {"type": "boolean"},
+    }, ["schema_version", "dimensions", "excluded_dimensions", "date_text", "movement_mentions", "target_body_parts", "ambiguous"])
+
+
+def semantic_hints_json_schema() -> dict:
+    return _schema({
+        "schema_version": {"type": "string", "const": SEMANTIC_HINTS_SCHEMA_VERSION},
+        "semantic_hints": {
+            "type": "array",
+            "maxItems": 8,
+            "items": _schema({
+                "dimension": {"type": "string", "enum": list(SEMANTIC_HINT_DIMENSIONS)},
+                "evidence": {"type": "string", "minLength": 1, "maxLength": 120},
+            }, ["dimension", "evidence"]),
+        },
+    }, ["schema_version", "semantic_hints"])
 
 
 def plan_json_schema() -> dict:
@@ -708,17 +843,18 @@ def repair_json_schema() -> dict:
     return selection_json_schema()
 
 
-def selection_json_schema() -> dict:
-    # Keep the Ollama schema deliberately shallow. Runtime parsing remains
-    # strict (including nested object shape and bounds); the adapter's schema
-    # only needs to force a JSON object and the top-level keys.
-    module = {"type": "object", "additionalProperties": False, "properties": {"module_id": {"type": "string"}, "priority": {"type": "integer"}, "reason": {"type": "string"}}}
-    fields = {"type": "object", "additionalProperties": False, "properties": {"module_id": {"type": "string"}, "field_ids": {"type": "array", "items": {"type": "string"}}, "reason": {"type": "string"}}}
-    movement = {"type": "object", "additionalProperties": False, "properties": {"movement_id": {"type": "string"}, "detail_level": {"type": "string"}, "priority": {"type": "integer"}, "reason": {"type": "string"}}}
-    exclusion = {"type": "object", "additionalProperties": False, "properties": {"candidate_id": {"type": "string"}, "reason": {"type": "string"}}}
-    return {"type": "object", "additionalProperties": False, "properties": {
+def selection_json_schema(allowed_window_ids: list[str] | None = None) -> dict:
+    # Keep the Ollama schema compact while mirroring runtime nested bounds;
+    # this prevents common malformed optional objects from forcing Repair.
+    non_empty = {"type": "string", "minLength": 1, "maxLength": 160}
+    short_text = {"type": "string", "maxLength": 120}
+    module = {"type": "object", "additionalProperties": False, "properties": {"module_id": non_empty, "priority": {"type": "integer", "minimum": 1, "maximum": 12}, "reason": short_text}, "required": ["module_id", "priority", "reason"]}
+    fields = {"type": "object", "additionalProperties": False, "properties": {"module_id": non_empty, "field_ids": {"type": "array", "items": {"type": "string", "maxLength": 120}}, "reason": short_text}, "required": ["module_id", "field_ids", "reason"]}
+    movement = {"type": "object", "additionalProperties": False, "properties": {"movement_id": non_empty, "detail_level": {"type": "string", "enum": ["summary", "detailed", "full"]}, "priority": {"type": "integer", "minimum": 1, "maximum": 16}, "reason": short_text}, "required": ["movement_id", "detail_level", "priority", "reason"]}
+    exclusion = {"type": "object", "additionalProperties": False, "properties": {"candidate_id": non_empty, "reason": short_text}, "required": ["candidate_id", "reason"]}
+    schema = {"type": "object", "additionalProperties": False, "properties": {
         "schema_version": {"type": "string", "const": SELECTION_SCHEMA_VERSION},
-        "selected_window_id": {"type": "string"},
+        "selected_window_id": non_empty,
         "selected_modules": {"type": "array", "maxItems": 12, "items": module},
         "selected_fields": {"type": "array", "maxItems": 12, "items": fields},
         "selected_movements": {"type": "array", "maxItems": 16, "items": movement},
@@ -735,3 +871,6 @@ def selection_json_schema() -> dict:
         "planning_decision": {"type": "string", "enum": ["ready", "fallback_required"]},
         "fallback_reason_codes": {"type": "array", "maxItems": 8, "items": {"type": "string", "enum": sorted(FALLBACK_REASON_CODES)}},
     }, "required": ["schema_version", "selected_window_id", "selected_modules", "selected_fields", "selected_movements", "selected_note_candidate_ids", "selected_candidate_record_ids", "training_detail_level", "movement_detail_level", "include_raw_entries", "include_excluded_history", "excluded_history_usage", "use_progress_history_for_metrics", "missing_data_warning_codes", "exclusion_decisions", "planner_confidence", "planning_decision", "fallback_reason_codes"]}
+    if allowed_window_ids:
+        schema["properties"]["selected_window_id"] = {"type": "string", "enum": list(allowed_window_ids)}
+    return schema

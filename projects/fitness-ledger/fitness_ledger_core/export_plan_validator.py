@@ -40,6 +40,13 @@ class ExportPlanValidator:
             raise PlanValidationError("plan contains an unknown module ID", "UNKNOWN_MODULE_ID")
         if not selected_modules:
             raise PlanValidationError("plan selects no modules", "NO_MODULES")
+        for module in selected_modules:
+            if not draft.selected_fields.get(module):
+                raise PlanValidationError(f"selected module has no explicit fields: {module}", "EMPTY_SELECTED_FIELDS")
+        if {"movement_history", "movement_progress"}.intersection(selected_modules) and not draft.selected_movements:
+            raise PlanValidationError("movement export requires explicit selected movements", "EMPTY_SELECTED_MOVEMENTS")
+        if draft.include_raw_entries and not any(token in str(request or "").casefold() for token in ("原始记录", "原始输入", "原文追溯", "追溯原始", "raw record", "raw input", "raw trace")):
+            raise PlanValidationError("raw entries require an explicit raw-trace request", "RAW_NOT_EXPLICIT")
         if draft.date_range.get("window_id") not in {item.window_id for item in package.windows}:
             raise PlanValidationError("plan contains an unknown window ID", "UNKNOWN_WINDOW_ID")
         window = next(item for item in package.windows if item.window_id == draft.date_range["window_id"])

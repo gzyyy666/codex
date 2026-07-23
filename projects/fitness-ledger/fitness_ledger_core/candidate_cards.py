@@ -50,11 +50,33 @@ class CandidatePackage:
 
     def to_planning_prompt_dict(self) -> dict:
         """Compact, selection-only view; IDs remain separately enumerable."""
+        module_semantics = {
+            "body": {
+                "semantic_role": "daily_body_state",
+                "selection_hint": "体重、身体状态和每日整体记录；用于减脂趋势与全局状态判断。",
+            },
+            "diet": {
+                "semantic_role": "diet_and_macros",
+                "selection_hint": "饮食与宏量营养记录；热量、蛋白质、碳水、脂肪和饮食备注；用于低碳或饮食支持判断。",
+            },
+            "training": {
+                "semantic_role": "training_session_context",
+                "selection_hint": "训练日、训练分组和训练备注；用于训练表现、安排与恢复上下文。",
+            },
+            "movement_history": {
+                "semantic_role": "movement_instance_history",
+                "selection_hint": "具体动作实例的重量、次数、组数、动作备注和历史；用于单动作进步判断。",
+            },
+            "raw_entries": {
+                "semantic_role": "raw_input_trace",
+                "selection_hint": "原始输入预览；仅在需要追溯录入文本时使用，不作为常规分析证据。",
+            },
+        }
         return {
             "windows": [{"window_id": w.window_id, "requested_start": w.requested_start, "requested_end": w.requested_end, "resolved_start": w.resolved_start, "resolved_end": w.resolved_end, "anchor": w.anchor, "modules": w.modules, "missing_data_warnings": w.missing_data_warnings} for w in self.windows],
-            "modules": [{"module_id": m.module_id, "available": m.available, "record_count": m.record_count, "fields": sorted(m.field_coverage)} for m in self.modules],
+            "modules": [{"module_id": m.module_id, "available": m.available, "record_count": m.record_count, "fields": sorted(m.field_coverage), **module_semantics.get(m.module_id, {"semantic_role": "other", "selection_hint": "候选数据模块。"})} for m in self.modules],
             "movements": [{"movement_id": m.movement_id, "canonical_name": m.canonical_name, "body_part": m.body_part, "body_part_id": m.body_part_id, "candidate_role": self.movement_roles.get(m.movement_id, "GENERAL_FALLBACK"), "progress_history_count": m.progress_history_count, "excluded_history_count": m.excluded_history_count, "latest_valid_progress_date": m.latest_valid_progress_date} for m in self.movements],
-            "notes": [{"note_candidate_id": n.note_candidate_id, "date": n.date, "note_type": n.note_type, "scope": n.scope, "movement_id": n.movement_id} for n in self.notes],
+            "notes": [{"note_candidate_id": n.note_candidate_id, "date": n.date, "note_type": n.note_type, "scope": n.scope, "movement_id": n.movement_id, "short_fragment": n.short_fragment, "semantic_role": f"{n.scope}_note"} for n in self.notes],
             "candidate_records": [{"candidate_record_id": r.candidate_record_id, "module_id": r.module_id, "date": r.date, "record_kind": r.record_kind, "flags": r.flags, "related_movement_ids": r.related_movement_ids} for r in self.candidate_records],
             "movement_matches": self.movement_matches[:12],
             "target_scope": self.target_scope.to_dict(),
@@ -89,11 +111,13 @@ class CandidateSummarizer:
         explicit_mentions = list(getattr(intent, "explicit_movement_mentions", []) or [])
         legacy_mentions = list(getattr(intent, "movement_mentions", []) or [])
         if not explicit_mentions and legacy_mentions:
-            explicit_mentions = [item.text for item in legacy_mentions]
+            explicit_mentions = [item.text if hasattr(item, "text") else str(item) for item in legacy_mentions]
         if not explicit_ids:
             for mention_index, mention in enumerate(legacy_mentions):
-                matches = self.resolver.resolve(mention, self.catalog.movements)
-                movement_matches.extend({**item, "mention_text": mention.text, "mention_index": mention_index} for item in matches[:4])
+                mention_text = mention.text if hasattr(mention, "text") else str(mention)
+                from .intelligent_export_models import MovementMention
+                matches = self.resolver.resolve(MovementMention(mention_text, 1.0), self.catalog.movements)
+                movement_matches.extend({**item, "mention_text": mention_text, "mention_index": mention_index} for item in matches[:4])
                 if matches and matches[0].get("score", 0) >= 0.55:
                     explicit_ids.append(str(matches[0]["movement_id"]))
         else:

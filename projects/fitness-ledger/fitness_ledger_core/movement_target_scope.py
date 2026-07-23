@@ -61,7 +61,7 @@ class MovementTargetScopeResolver:
         mentions = list(getattr(intent, "explicit_movement_mentions", []) or [])
         legacy_mentions = list(getattr(intent, "movement_mentions", []) or [])
         if not mentions:
-            mentions = [item.text for item in legacy_mentions]
+            mentions = [item.text if hasattr(item, "text") else str(item) for item in legacy_mentions]
         for mention in mentions:
             matches = [item for item in movement_matches if item.get("mention_text") == mention]
             best = next((item for item in matches if item.get("score", 0) >= 0.55), None)
