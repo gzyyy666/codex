@@ -52,7 +52,7 @@ window.fetch=async (path,options={})=>{
   }
   if(url.includes('/api/movement-history')){
     movementHistoryRequests++;
-    return {ok:true,status:200,json:async()=>({movement:state.movements[0],history:historyRows})};
+    return {ok:true,status:200,json:async()=>({movement:state.movements[0],history:historyRows,progress_history:historyRows})};
   }
   if(method==='POST'&&url.includes('/api/record/update')){
     return {ok:true,status:200,json:async()=>({ok:true,status:'UPDATED',training_updated:true})};

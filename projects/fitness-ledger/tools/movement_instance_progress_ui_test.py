@@ -107,7 +107,7 @@ await wait(80);
 const movementProgressChartLabelCount=document.querySelectorAll('.movement-progress-panel .chart-labels text').length;
 const movementProgressChartFiltered=movementProgressChartLabelCount===1;
 const movementTrajectoryEntries=[...document.querySelectorAll('.trajectory-entry')];
-const movementTrajectoryFiltered=movementTrajectoryEntries.length===1&&movementTrajectoryEntries[0].textContent.includes('100kg x 8 x 3')&&!movementTrajectoryEntries[0].textContent.includes('60kg x 12 x 2');
+const movementTrajectoryKeepsFullHistory=movementTrajectoryEntries.length===2&&movementTrajectoryEntries.some(row=>row.textContent.includes('100kg x 8 x 3'))&&movementTrajectoryEntries.some(row=>row.textContent.includes('60kg x 12 x 2'));
 document.querySelector('[data-movement-history-edit]')?.click();
 await wait(40);
 const editToggle=document.querySelector('#movement-history-form [name="exclude_from_progress"]');
@@ -115,7 +115,7 @@ const editControlVisible=Boolean(editToggle);
 if(editToggle){editToggle.checked=false;await saveMovementHistory();}
 await wait(160);
 const historyEditUsesStableIds=updateRequests.some(row=>row.history_id==='history-main'&&row.values?.exclude_from_progress===true);
-const report=document.createElement('div');report.id='movement-instance-report';report.dataset.value=encodeURIComponent(JSON.stringify({reviewHasTwoIndependentToggles,unknownIsSeparated,saveCarriesInstanceState,archiveKeepsBoth,archiveEditUsesStableIds,editControlVisible,historyEditUsesStableIds,movementProgressChartFiltered,movementTrajectoryFiltered,movementProgressChartLabelCount,updateRequests}));document.body.appendChild(report);
+const report=document.createElement('div');report.id='movement-instance-report';report.dataset.value=encodeURIComponent(JSON.stringify({reviewHasTwoIndependentToggles,unknownIsSeparated,saveCarriesInstanceState,archiveKeepsBoth,archiveEditUsesStableIds,editControlVisible,historyEditUsesStableIds,movementProgressChartFiltered,movementTrajectoryKeepsFullHistory,movementProgressChartLabelCount,updateRequests}));document.body.appendChild(report);
 """
     with tempfile.TemporaryDirectory(prefix="fitness-ledger-instance-progress-browser-") as temp:
         page = Path(temp) / "index.html"
@@ -133,7 +133,7 @@ const report=document.createElement('div');report.id='movement-instance-report';
     report = json.loads(unquote(match.group(1)))
     assert all(report[key] is True for key in (
         "reviewHasTwoIndependentToggles", "unknownIsSeparated", "saveCarriesInstanceState",
-        "archiveKeepsBoth", "archiveEditUsesStableIds", "editControlVisible", "historyEditUsesStableIds", "movementProgressChartFiltered", "movementTrajectoryFiltered",
+        "archiveKeepsBoth", "archiveEditUsesStableIds", "editControlVisible", "historyEditUsesStableIds", "movementProgressChartFiltered", "movementTrajectoryKeepsFullHistory",
     )), report
 
 
