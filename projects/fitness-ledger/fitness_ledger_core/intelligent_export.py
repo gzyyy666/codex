@@ -11,6 +11,8 @@ from dataclasses import asdict
 from .candidate_cards import BUDGETS, CandidatePackage, CandidateSummarizer
 from .data_catalog import DataCatalogBuilder, MovementResolver, _record_id, source_snapshot
 from .export_plan_validator import ExportPlanValidator, PlanValidationError, validate_source_snapshot
+from .intent_compiler import IntentCompileError, IntentCompiler
+from .intent_interpreter import IntentInterpreter
 from .export_planner import ExportPlanner
 from .export_plan_assembler import ExportPlanAssembler
 from .intelligent_export_models import (
@@ -32,10 +34,10 @@ from .local_model_adapter import (
 from .shared_view_models import history_in_progress, movement_in_progress
 from .intelligent_export_models import selection_json_schema
 
-PROMPT_VERSION = "intelligent-export-prompts-v1"
+PROMPT_VERSION = "intelligent-export-prompts-v2"
 
 
-REPAIR_SYSTEM_PROMPT = """Repair only the Fitness Ledger model selection JSON. Return exactly one selection object matching the supplied schema. Use only the supplied allowed IDs and fields; do not output a full plan, dates, catalog IDs, paths, estimates, raw text, or prose. Movement candidates have roles: EXPLICIT_TARGET and BODY_PART_TARGET directly cover the stated target; CONTEXT and GENERAL_FALLBACK are supporting evidence only. When a direct target candidate exists and movements are selected, retain at least one direct target. Excluded history is context_only and progress metrics must use valid progress history. Repair only semantic contradictions: a complete safe selection should be planning_decision=ready with no fallback reasons; data incompleteness belongs in missing_data_warning_codes. Use planning_decision=fallback_required only when no safe meaningful plan can be formed, with at least one allowed fallback_reason_code. Do not add candidates that were not supplied."""
+REPAIR_SYSTEM_PROMPT = """Repair only the Fitness Ledger model selection JSON. Return exactly one selection object matching the supplied schema. Use only the supplied allowed IDs and fields; do not output a full plan, dates, catalog IDs, paths, estimates, raw text, or prose. This is a structural repair pass, not a second unconstrained analysis: preserve every semantically valid selected module, note, movement, and record from invalid_selection; remove or correct only entries that violate the supplied contract. Do not drop a meaningful module merely to make the export concise. Use candidate module semantic_role/selection_hint and note short_fragment to preserve evidence relevant to the original request. In particular, retain available diet_and_macros or diet_note evidence when the request concerns diet, low carbohydrate, calories, macros, food, or dietary support. Movement candidates have roles: EXPLICIT_TARGET and BODY_PART_TARGET directly cover the stated target; CONTEXT and GENERAL_FALLBACK are supporting evidence only. When a direct target candidate exists and movements are selected, retain at least one direct target. Excluded history is context_only and progress metrics must use valid progress history. A complete safe selection should be planning_decision=ready with no fallback reasons; data incompleteness belongs in missing_data_warning_codes. Use planning_decision=fallback_required only when no safe meaningful plan can be formed, with at least one allowed fallback_reason_code. Do not add candidates that were not supplied."""
 def _date(value) -> str:
     return str(value or "")[:10]
 
@@ -48,6 +50,13 @@ class ExportExecutor:
 
     def execute(self, plan: ValidatedExportPlan, package: CandidatePackage, explanation: PlanExplanation) -> dict:
         validate_source_snapshot(self.views, plan.source_snapshot_id)
+        for module in plan.selected_modules:
+            if not plan.selected_fields.get(module):
+                raise PlanValidationError(f"selected module has no explicit fields: {module}", "EMPTY_SELECTED_FIELDS")
+        if {"movement_history", "movement_progress"}.intersection(plan.selected_modules) and not plan.selected_movements:
+            raise PlanValidationError("movement export requires explicit selected movements", "EMPTY_SELECTED_MOVEMENTS")
+        if plan.include_raw_entries and "raw_entries" not in plan.selected_modules:
+            raise PlanValidationError("raw entries require the raw_entries module", "RAW_MODULE_MISMATCH")
         data = self.views.analysis(
             start=plan.date_range["resolved_start"],
             end=plan.date_range["resolved_end"],
@@ -158,12 +167,16 @@ class ExportExecutor:
     def _fields(rows: list[dict], module: str, plan: ValidatedExportPlan) -> list[dict]:
         fields = set(plan.selected_fields.get(module, []))
         if not fields:
-            return [dict(row) for row in rows]
+            raise PlanValidationError(f"selected module has no explicit fields: {module}", "EMPTY_SELECTED_FIELDS")
         fields.add("Date")
         return [{key: value for key, value in row.items() if key in fields} for row in rows]
 
     def _movement_payload(self, movements: list[dict], plan: ValidatedExportPlan, selected: set[str]) -> list[dict]:
+        if not {"movement_history", "movement_progress"}.intersection(selected):
+            return []
         wanted = set(plan.selected_movements)
+        if not wanted:
+            raise PlanValidationError("movement export requires explicit selected movements", "EMPTY_SELECTED_MOVEMENTS")
         result = []
         _tracker, dictionary = self.views.snapshot()
         definitions = {str(item.get("movement_id")): item for item in dictionary.get("movements", []) or []}
@@ -262,7 +275,7 @@ class IntelligentExportService:
         self.validator = ExportPlanValidator()
         self.executor = ExportExecutor(views)
 
-    def run(self, request: str, budget_mode: str = "standard") -> dict:
+    def _legacy_run(self, request: str, budget_mode: str = "standard") -> dict:
         started = time.monotonic(); trace_id = f"trace:{uuid.uuid4().hex[:16]}"
         if not self._task_slots.acquire(timeout=5.0):
             return {"status": "model_unavailable", "error_code": "MODEL_BUSY", "trace": {"trace_id": trace_id}}
@@ -279,6 +292,7 @@ class IntelligentExportService:
             if not package.windows:
                 return {"status": "no_usable_data", "error_code": "NO_USABLE_DATA", "query_scope": scope.to_dict(), "catalog": catalog.to_prompt_dict(), "candidate_package": package.to_prompt_dict(), "trace": {"trace_id": trace_id}}
             planner = ExportPlanner(self.adapter); assembler = ExportPlanAssembler(package)
+            planning_view = package.to_planning_prompt_dict()
             selection = None; result = None; repaired = False; repair_meta = {}
             try:
                 selection, result = planner.plan(request, scope, package); diagnostics["model_call_count"] = 1
@@ -294,7 +308,28 @@ class IntelligentExportService:
                 try:
                     repaired = True; diagnostics["planning_repair_used"] = True
                     diagnostics["repair"] = {"repair_used": True, "phase": "planning", "original_validation_codes": [getattr(first_error, "code", "PLANNING_INVALID")], "repaired_validation_codes": []}
-                    repair_result = self.adapter.generate_json(system_prompt=REPAIR_SYSTEM_PROMPT, user_payload={"original_request": str(request or "")[:2000], "query_scope": scope.to_dict(), "invalid_selection": selection.to_dict() if selection else {}, "validation_error": {"code": getattr(first_error, "code", "PLANNING_INVALID"), "message": str(first_error)[:240]}, "target_scope": package.target_scope.to_dict(), "candidate_roles": package.movement_roles, "allowed_window_ids": package.allowed_ids["window_ids"], "allowed_module_ids": package.allowed_modules, "allowed_field_ids_by_module": package.allowed_fields, "allowed_movement_ids": package.allowed_ids["movement_ids"], "allowed_note_candidate_ids": package.allowed_ids["note_candidate_ids"], "allowed_candidate_record_ids": package.allowed_ids["candidate_record_ids"], "selection_schema": selection_json_schema()}, response_schema=selection_json_schema(), config=REPAIR_MODEL_CONFIG)
+                    repair_result = self.adapter.generate_json(
+                        system_prompt=REPAIR_SYSTEM_PROMPT,
+                        user_payload={
+                            "original_request": str(request or "")[:2000],
+                            "query_scope": scope.to_dict(),
+                            "candidate_summary": planning_view,
+                            "invalid_selection": selection.to_dict() if selection else {},
+                            "validation_error": {"code": getattr(first_error, "code", "PLANNING_INVALID"), "message": str(first_error)[:240]},
+                            "repair_mode": "structural_only_preserve_semantics",
+                            "target_scope": package.target_scope.to_dict(),
+                            "candidate_roles": package.movement_roles,
+                            "allowed_window_ids": package.allowed_ids["window_ids"],
+                            "allowed_module_ids": package.allowed_modules,
+                            "allowed_field_ids_by_module": package.allowed_fields,
+                            "allowed_movement_ids": package.allowed_ids["movement_ids"],
+                            "allowed_note_candidate_ids": package.allowed_ids["note_candidate_ids"],
+                            "allowed_candidate_record_ids": package.allowed_ids["candidate_record_ids"],
+                            "selection_schema": selection_json_schema(package.allowed_ids["window_ids"]),
+                        },
+                        response_schema=selection_json_schema(package.allowed_ids["window_ids"]),
+                        config=REPAIR_MODEL_CONFIG,
+                    )
                     diagnostics["model_call_count"] = 2; diagnostics["stages"]["repair"] = self._model_diag(repair_result)
                     selection = planner.parse_selection(repair_result.raw_text); planner._validate_target_coverage(selection, package)
                     diagnostics["repair"]["repaired_validation_codes"] = ["REPAIRED_SELECTION"]
@@ -308,6 +343,52 @@ class IntelligentExportService:
             return {"status": "ready", "query_scope": scope.to_dict(), "catalog": catalog.to_prompt_dict(), "candidate_package": package.to_prompt_dict(), "selection": selection.to_dict(), "plan": plan.to_dict(), "explanation": explanation.to_dict(), "output": output, "trace": trace.to_dict(), "diagnostics": diagnostics}
         except Exception as exc:
             return {"status": "execution_failed", "error_code": getattr(exc, "code", "EXECUTION_FAILED"), "trace": {"trace_id": trace_id, "error": str(exc)[:240]}}
+        finally:
+            self._task_slots.release()
+
+    # The legacy planner implementation above remains available for review,
+    # but this is the only run method used by the service after the semantic
+    # single-entry refactor.
+    def run(self, request: str, budget_mode: str = "standard") -> dict:
+        started = time.monotonic()
+        trace_id = f"trace:{uuid.uuid4().hex[:16]}"
+        if not self._task_slots.acquire(timeout=5.0):
+            return {"status": "safe_fallback", "error_code": "MODEL_BUSY", "trace": {"trace_id": trace_id}}
+        diagnostics = {"prompt_version": "deterministic-analysis-export-command-v1", "model_call_count": 0, "planner_called": False, "repair_called": False}
+        try:
+            catalog = self.catalog_builder.build()
+            compiler = IntentCompiler(self.views)
+            grounding_facts = compiler.prepare(request, catalog)
+            # MVP default chain is finite-domain deterministic parsing.  The
+            # local model adapter remains injectable for compatibility and
+            # offline contract tests, but this path deliberately makes zero
+            # model calls and never consumes SemanticHints.
+            self.interpreter = None
+            compiled_intent, package, draft = compiler.compile(request, None, catalog, budget_mode, grounding_facts)
+            plan = self.validator.validate(draft, package, request, trace_id, trim=False)
+            explanation = PlanExplanation(
+                request[:2000], plan.interpreted_goal, plan.date_range, plan.selected_modules,
+                plan.selected_fields, plan.selected_movements, plan.notes_selection,
+                plan.inclusion_reasons, plan.exclusion_reasons, plan.missing_data_warnings,
+                plan.estimated_output_size, 1.0, False, plan.trimmed, False,
+            )
+            output = self.executor.execute(plan, package, explanation)
+            diagnostics["duration_ms"] = int((time.monotonic() - started) * 1000)
+            trace = TraceRecord(
+                trace_id, stable_hash(request[:2000]), stable_hash(grounding_facts.to_model_context()), stable_hash(plan.to_dict()),
+                "", "", "deterministic-analysis-export-command-v1", "", diagnostics["duration_ms"], "", False, False, False,
+            )
+            return {
+                "status": "ready", "intent": compiled_intent.to_dict(), "plan": plan.to_dict(),
+                "explanation": explanation.to_dict(), "output": output, "diagnostics": diagnostics,
+                "trace": trace.to_dict(),
+            }
+        except (IntentCompileError, PlanValidationError, ContractError, LocalModelError) as exc:
+            diagnostics["duration_ms"] = int((time.monotonic() - started) * 1000)
+            return {"status": "safe_fallback", "error_code": getattr(exc, "code", "NO_SAFE_PLAN"), "error": str(exc)[:240], "diagnostics": diagnostics, "trace": {"trace_id": trace_id, "fallback": True}}
+        except Exception as exc:
+            diagnostics["duration_ms"] = int((time.monotonic() - started) * 1000)
+            return {"status": "safe_fallback", "error_code": "NO_SAFE_PLAN", "error": str(exc)[:240], "diagnostics": diagnostics, "trace": {"trace_id": trace_id, "fallback": True}}
         finally:
             self._task_slots.release()
 

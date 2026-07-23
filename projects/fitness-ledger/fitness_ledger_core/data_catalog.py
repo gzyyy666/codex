@@ -132,6 +132,7 @@ class DateRangeResolver:
 
     _ISO = re.compile(r"(?<!\d)(\d{4})[-/](\d{2})[-/](\d{2})(?!\d)")
     _ISO_LAX = re.compile(r"(?<!\d)(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?!\d)")
+    _CN_MONTH = re.compile(r"(?:(\d{4})\u5e74)?(\d{1,2})\u6708")
     _CN = re.compile(r"(?:(\d{4})年)?(\d{1,2})月(\d{1,2})(?:日|号)")
     _EN = re.compile(r"\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})(?:,\s*(\d{4}))?\b", re.I)
     _EN_MONTH = {name.lower(): index for index, name in enumerate(calendar.month_name) if name}
@@ -139,14 +140,15 @@ class DateRangeResolver:
     @classmethod
     def extract_raw_date_mentions(cls, request: str) -> list[str]:
         text = str(request or "")
-        patterns = [cls._ISO_LAX, cls._CN, cls._EN]
+        patterns = [cls._ISO_LAX, cls._CN, cls._CN_MONTH, cls._EN]
         found: list[str] = []
         for pattern in patterns:
             found.extend(match.group(0) for match in pattern.finditer(text))
         month_names = "|".join(cls._EN_MONTH)
         if re.search(rf"\b(?:from|since)\s+(?:{month_names})\b|\b(?:from)\s+(?:{month_names})\s+to\s+(?:{month_names})\b", text, re.I):
             found.extend(match.group(0) for match in re.finditer(rf"\b(?:from|since)\s+(?:{month_names})(?:\s+to\s+(?:{month_names}))?\b", text, re.I))
-        return list(dict.fromkeys(found))[:8]
+        unique = list(dict.fromkeys(found))
+        return [item for item in unique if not any(item != other and item in other for other in unique)][:8]
 
     @staticmethod
     def infer_relative_range(request: str) -> str | None:
@@ -161,7 +163,9 @@ class DateRangeResolver:
             return "recent_8_weeks"
         if any(token in text for token in ("最近四周", "最近4周", "recent 4 weeks", "last 4 weeks")):
             return "recent_4_weeks"
-        if any(token in text for token in ("最近", "近期", "一段时间", "recent", "lately", "these months")):
+        if any(token in text for token in ("最近一周", "最近7天", "last week", "上周", "本周", "这周")):
+            return "last_week"
+        if any(token in text for token in ("最近", "近期", "一段时间", "这阵子", "这段时间", "recent", "lately", "these months")):
             return "recent"
         return None
 
@@ -205,7 +209,7 @@ class DateRangeResolver:
 
     @staticmethod
     def _relative_starts(relative_range: str, available_end: str) -> list[str]:
-        days = {"recent_4_weeks": 28, "recent_8_weeks": 56, "recent_12_weeks": 84}
+        days = {"last_week": 7, "recent_4_weeks": 28, "recent_8_weeks": 56, "recent_12_weeks": 84}
         if relative_range == "recent":
             spans = (28, 56)
         elif relative_range == "recent_months":
@@ -218,10 +222,8 @@ class DateRangeResolver:
     def _explicit_range(self, request: str, mentions: list[str], today: date, available_end: str) -> tuple[str, str] | None:
         text = str(request or "")
         source = text or " ".join(mentions)
-        if self._ISO_LAX.search(source) and not self._ISO.search(source):
-            return None
         dates = []
-        for match in self._ISO.finditer(source):
+        for match in self._ISO_LAX.finditer(source):
             try:
                 dates.append(date(int(match.group(1)), int(match.group(2)), int(match.group(3))))
             except ValueError:
@@ -232,6 +234,14 @@ class DateRangeResolver:
                 if parsed is None:
                     return None
                 dates.append(parsed)
+        if not dates:
+            for match in self._CN_MONTH.finditer(source):
+                year = int(match.group(1)) if match.group(1) else today.year
+                month = int(match.group(2))
+                try:
+                    dates.extend((date(year, month, 1), date(year, month, calendar.monthrange(year, month)[1])))
+                except ValueError:
+                    return None
         if not dates:
             for match in self._EN.finditer(source):
                 parsed = self._safe_month_day(match.group(3), str(self._EN_MONTH[match.group(1).lower()]), match.group(2), today, available_end)

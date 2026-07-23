@@ -8,11 +8,18 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Any
 
-from .intelligent_export_models import BODY_PART_IDS
+from .intelligent_export_models import BODY_PART_IDS, SEMANTIC_HINT_DIMENSIONS, SemanticHints
 
 
 _PLACEHOLDERS = {"?", "??", "???", "unknown", "n/a", "na", "none", "null", "placeholder"}
 _QUESTION_MARKS = {"?", "？"}
+_HINT_TERMS = {
+    "body_state": ("体重", "体脂", "身体", "身材", "体型", "减脂", "减重", "weight", "body"),
+    "diet_macros": ("饮食", "低碳", "碳水", "热量", "卡路里", "蛋白", "脂肪", "宏量", "摄入", "diet", "macro", "carb", "calorie", "intake"),
+    "training_context": ("训练", "锻炼", "健身", "训练状态", "training", "workout", "performance", "表现", "影响", "受影响", "导致"),
+    "movement_progress": ("进步", "增长", "下降", "表现", "动作", "movement", "progress", "bench press"),
+}
+_GENERIC_HINTS = {"最近", "近期", "情况", "看看", "怎么样", "分析", "变化", "最近的情况", "recent", "lately"}
 
 
 def _meaningful_chars(value: str) -> list[str]:
@@ -76,22 +83,18 @@ class IntentSemanticValidator:
         paths: list[str] = []
         diagnostics: dict[str, dict] = {}
 
-        goal = value.get("interpreted_goal", "")
-        invalid, codes = _field_invalid(goal, minimum=2)
-        diagnostics["interpreted_goal"] = _safe_summary(goal)
-        if invalid:
-            paths.append("interpreted_goal")
-            errors.extend("INTENT_GOAL_CORRUPTED" if code == "INTENT_PLACEHOLDER_ONLY" and _safe_summary(goal)["meaningful_character_count"] else code for code in codes)
-            if not str(goal or "").strip():
-                errors.append("INTENT_GOAL_EMPTY")
-
-        dimensions = value.get("analysis_dimensions", []) or []
+        dimensions = value.get("dimensions", []) or []
         for index, item in enumerate(dimensions):
             invalid, codes = _field_invalid(item, minimum=1)
-            diagnostics[f"analysis_dimensions[{index}]"] = _safe_summary(item)
+            diagnostics[f"dimensions[{index}]"] = _safe_summary(item)
             if invalid:
-                paths.append(f"analysis_dimensions[{index}]")
+                paths.append(f"dimensions[{index}]")
                 errors.extend("INTENT_DIMENSION_CORRUPTED" if code not in {"INTENT_REPLACEMENT_CHARACTER"} else code for code in codes)
+
+        excluded = value.get("excluded_dimensions", []) or []
+        if not isinstance(excluded, list) or set(dimensions).intersection(excluded):
+            paths.append("excluded_dimensions")
+            errors.append("INTENT_SCOPE_CONFLICT")
 
         target_parts = value.get("target_body_parts", [])
         diagnostics["target_body_parts"] = {"length": len(target_parts) if isinstance(target_parts, list) else 0, "values": [str(item) for item in target_parts] if isinstance(target_parts, list) else []}
@@ -101,23 +104,66 @@ class IntentSemanticValidator:
 
         mentions = value.get("movement_mentions", []) or []
         for index, item in enumerate(mentions):
-            text = item.get("text", "") if isinstance(item, dict) else ""
+            text = item if isinstance(item, str) else ""
             invalid, codes = _field_invalid(text, minimum=1)
-            diagnostics[f"movement_mentions[{index}].text"] = _safe_summary(text)
+            diagnostics[f"movement_mentions[{index}]"] = _safe_summary(text)
             if invalid:
-                paths.append(f"movement_mentions[{index}].text")
+                paths.append(f"movement_mentions[{index}]")
                 errors.extend("INTENT_MOVEMENT_MENTION_CORRUPTED" if code not in {"INTENT_REPLACEMENT_CHARACTER"} else code for code in codes)
 
-        date_intent = value.get("date_intent", {}) or {}
-        raw_mentions = date_intent.get("raw_date_mentions", []) if isinstance(date_intent, dict) else []
+        raw_mentions = value.get("date_text", []) or []
         for index, item in enumerate(raw_mentions):
             invalid, codes = _field_invalid(item, minimum=1)
-            diagnostics[f"date_intent.raw_date_mentions[{index}]"] = _safe_summary(item)
+            diagnostics[f"date_text[{index}]"] = _safe_summary(item)
             if invalid:
-                paths.append(f"date_intent.raw_date_mentions[{index}]")
+                paths.append(f"date_text[{index}]")
                 errors.extend("INTENT_DATE_MENTION_CORRUPTED" if code not in {"INTENT_REPLACEMENT_CHARACTER"} else code for code in codes)
 
         return IntentSemanticValidationResult(not errors, sorted(set(errors)), sorted(set(paths)), diagnostics)
+
+
+@dataclass(frozen=True)
+class GroundingValidationResult:
+    hints: SemanticHints
+    rejected: list[dict]
+
+    def to_dict(self) -> dict:
+        return {"hints": self.hints.to_dict(), "rejected": list(self.rejected)}
+
+
+class GroundingValidator:
+    """Keep only model hints grounded in the original request and closed facts."""
+
+    @staticmethod
+    def validate(hints: SemanticHints, request: str, context: dict | None = None) -> GroundingValidationResult:
+        text = str(request or "")
+        context = dict(context or {})
+        excluded = set(context.get("excluded_dimensions", []))
+        only = set(context.get("only_dimensions", []))
+        movement_unique = bool(context.get("movement_unique", False))
+        accepted = []
+        rejected = []
+        for item in hints.hints:
+            evidence = item.evidence.strip()
+            lowered = re.sub(r"\s+", "", evidence).casefold()
+            code = ""
+            if not evidence or evidence not in text:
+                code = "HINT_EVIDENCE_NOT_IN_REQUEST"
+            elif lowered in {re.sub(r"\s+", "", value).casefold() for value in _GENERIC_HINTS}:
+                code = "HINT_GENERIC_EVIDENCE"
+            elif item.dimension in excluded:
+                code = "HINT_EXCLUDED_DIMENSION"
+            elif only and item.dimension not in only:
+                code = "HINT_OUTSIDE_ONLY_SCOPE"
+            elif item.dimension == "movement_progress" and not movement_unique:
+                code = "HINT_MOVEMENT_NOT_UNIQUE"
+            elif item.dimension in SEMANTIC_HINT_DIMENSIONS and not any(term.casefold() in evidence.casefold() for term in _HINT_TERMS[item.dimension]):
+                code = "HINT_DIMENSION_EVIDENCE_MISMATCH"
+            if code:
+                rejected.append({"dimension": item.dimension, "evidence": evidence[:120], "code": code})
+            else:
+                accepted.append(item)
+        return GroundingValidationResult(SemanticHints(accepted), rejected)
 
 
 def _snapshot(value: Any) -> dict:
