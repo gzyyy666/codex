@@ -26,6 +26,8 @@ from mobile_viewer.data_access import LedgerDataAccess  # noqa: E402
 from ledger_commands import DuplicateDateError, LedgerCommandError, LedgerCommandService  # noqa: E402
 from fitness_ledger_core.data_quality_view import SilentHealthCheck, acknowledge_issue, collect_issues  # noqa: E402
 from fitness_ledger_core.analysis_export import build_export  # noqa: E402
+from fitness_ledger_core.intelligent_export import IntelligentExportService  # noqa: E402
+from fitness_ledger_core.local_model_adapter import FakeLocalModelAdapter  # noqa: E402
 from fitness_ledger_core.shared_view_models import LedgerViewModels  # noqa: E402
 from cloud_sync.build_cloud_payload import main as build_cloud_replica, source_metadata  # noqa: E402
 from cloud_sync.sync_to_cloud import sync_payload, validate_payload  # noqa: E402
@@ -73,6 +75,10 @@ class LedgerWebService:
         )
         self.pending_reviews: dict[str, dict] = {}
         self.pending_lock = threading.RLock()
+        # The Web candidate exposes the deterministic Core only.  The adapter
+        # is injected for the Core contract but ``IntelligentExportService.run``
+        # deliberately performs zero model calls in this phase.
+        self.intelligent_export = IntelligentExportService(self.views, FakeLocalModelAdapter())
         self.server_started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
         self.build_info_path = build_info_path
         self.build_info_override = build_info_override
@@ -136,6 +142,13 @@ class LedgerWebService:
 
     def analysis_export(self, request: dict) -> dict:
         return build_export(self.views, request)
+
+    def intelligent_export_preview(self, request: dict) -> dict:
+        text = str(request.get("request", "") or "").strip()
+        if not text:
+            raise LedgerCommandError("请输入分析或导出需求。")
+        result = self.intelligent_export.run(text, str(request.get("budget_mode", "standard") or "standard"))
+        return {"request": text, "deterministic": True, "model_calls": 0, **result}
 
     def acknowledge_data_issue(self, request: dict) -> dict:
         key = str(request.get("issue_key", "")).strip()
@@ -834,6 +847,8 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.open_cloud_sync_target(request.get("target", "")))
             elif parsed.path == "/api/analysis-export":
                 self.send_json(self.service.analysis_export(request))
+            elif parsed.path == "/api/intelligent-export/preview":
+                self.send_json(self.service.intelligent_export_preview(request))
             elif parsed.path == "/api/save":
                 self.send_json(self.service.save_review(request))
             elif parsed.path == "/api/dictionary/create":
