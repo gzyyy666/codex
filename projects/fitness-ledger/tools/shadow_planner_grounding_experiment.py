@@ -27,6 +27,8 @@ from fitness_ledger_core.shadow_planner_evaluation import (  # noqa: E402
     CAPABILITY_SELECTION_SYSTEM_PROMPT,
     TWO_STAGE_PROMPT_VERSION,
     TWO_STAGE_REQUEST_SCHEMA_VERSION,
+    CapabilityRegistryV2,
+    compare_registry_reports,
     compare_report_values,
     run_grounding_benchmark,
     select_minimal_fix,
@@ -39,7 +41,7 @@ MATRIX = ROOT / "tools" / "fixtures" / "intelligent_export_shadow_matrix.json"
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--phase", choices=("v1", "v2"), required=True)
+    parser.add_argument("--phase", choices=("v1", "v2", "v2-registry"), required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     return parser.parse_args()
 
@@ -70,7 +72,7 @@ def main() -> None:
                 SHADOW_SYSTEM_PROMPT,
                 "v1-reproduced",
             )
-        else:
+        elif args.phase == "v2":
             v1_output = output_dir / "shadow_planner_v1_trace.json"
             if not v1_output.is_file():
                 raise SystemExit(f"v1 trace is required before v2: {v1_output}")
@@ -89,7 +91,28 @@ def main() -> None:
                 strategy="two_stage_schema",
                 request_schema_version=TWO_STAGE_REQUEST_SCHEMA_VERSION,
             )
-    output = output_dir / f"shadow_planner_{args.phase}_trace.json"
+        else:
+            baseline_output = output_dir / "shadow_planner_v2_trace.json"
+            if not baseline_output.is_file():
+                raise SystemExit(f"committed v2 baseline trace is required before Registry v2: {baseline_output}")
+            baseline_report = json.loads(baseline_output.read_text(encoding="utf-8"))
+            registry = CapabilityRegistryV2()
+            registry_view = registry.model_view()
+            registry_view["sha256"] = registry.model_view_hash
+            report = run_grounding_benchmark(
+                matrix,
+                views,
+                catalog,
+                registry,
+                TWO_STAGE_PROMPT_VERSION,
+                CAPABILITY_SELECTION_SYSTEM_PROMPT + "\n" + ANALYSIS_DETAILS_SYSTEM_PROMPT,
+                "v2-registry-grounding",
+                strategy="two_stage_schema",
+                request_schema_version=TWO_STAGE_REQUEST_SCHEMA_VERSION,
+                capability_view=registry_view,
+            )
+    output_name = "shadow_planner_v2_registry_trace.json" if args.phase == "v2-registry" else f"shadow_planner_{args.phase}_trace.json"
+    output = output_dir / output_name
     output.write_text(json.dumps(report.to_dict(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     comparison_output = None
     comparison = None
@@ -105,6 +128,12 @@ def main() -> None:
             json.dumps(comparison, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
+    elif args.phase == "v2-registry":
+        comparison = compare_registry_reports(baseline_report, report.to_dict())
+        if not all(comparison[key] for key in ("same_holdout", "same_model", "same_model_digest")):
+            raise SystemExit("v2 baseline/Registry v2 comparison identity check failed")
+        comparison_output = output_dir / "shadow_planner_v2_baseline_registry_v2_comparison.json"
+        comparison_output.write_text(json.dumps(comparison, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(
         json.dumps(
             {
@@ -116,7 +145,7 @@ def main() -> None:
                 "holdout_hash": report.holdout_hash,
                 "metrics": report.metrics["holdout"],
                 "failure_counts": report.failure_counts,
-                "decision": comparison["decision"] if comparison else None,
+                "decision": comparison.get("decision", comparison.get("state")) if comparison else None,
             },
             ensure_ascii=False,
             sort_keys=True,

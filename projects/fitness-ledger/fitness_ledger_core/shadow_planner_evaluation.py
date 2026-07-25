@@ -30,6 +30,7 @@ from .shadow_planner import (
 
 
 GROUNDING_REGISTRY_SCHEMA_VERSION = "fitness-ledger-capability-registry-v2"
+REGISTRY_V2_MODEL_VIEW_VERSION = "fitness-ledger-capability-registry-v2-model-view-v1"
 GROUNDING_PROMPT_VERSION = "qwen3-shadow-planner-grounding-v2"
 TWO_STAGE_PROMPT_VERSION = "qwen3-shadow-planner-two-stage-v2"
 GROUNDING_REPORT_SCHEMA_VERSION = "fitness-ledger-qwen-shadow-grounding-report-v2"
@@ -140,6 +141,35 @@ class CapabilityRegistryV2(CapabilityRegistryV1):
         for capability in payload["capabilities"]:
             capability.update(GROUNDING_METADATA[capability["capability_id"]])
         return payload
+
+    def model_view(self) -> dict[str, Any]:
+        """Return the bounded, canonical view that may cross the model boundary."""
+        capabilities = []
+        for capability in self.to_dict()["capabilities"]:
+            capabilities.append(
+                {
+                    "capability_id": capability["capability_id"],
+                    "human_description": capability["human_description"],
+                    "user_expression_examples": list(capability["user_expression_examples"]),
+                    "analysis_questions": list(capability["analysis_questions"]),
+                    "related_capabilities": list(capability["related_capabilities"]),
+                    "forbidden_usage": list(capability["forbidden_usage"]),
+                    "evidence_examples": list(capability["evidence_examples"]),
+                    "model_selectable": bool(capability["model_selectable"]),
+                    "requires_user_confirmation": bool(capability["requires_user_confirmation"]),
+                    "grants_raw": bool(capability["grants_raw"]),
+                }
+            )
+        return {
+            "view_version": REGISTRY_V2_MODEL_VIEW_VERSION,
+            "registry_schema_version": self.schema_version,
+            "capabilities": capabilities,
+        }
+
+    @property
+    def model_view_hash(self) -> str:
+        payload = json.dumps(self.model_view(), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 CAPABILITY_SELECTION_SYSTEM_PROMPT = """You are the capability-selection stage of a shadow-only Fitness Ledger analysis planner.
 Return exactly one JSON object matching the supplied schema. Select the smallest
@@ -390,7 +420,15 @@ def _case_metrics(record: Any, case: ShadowMatrixCase) -> dict[str, Any]:
         "required_capability_recall": round(required_recall, 4),
         "capability_match": bool(exact_match),
         "hallucinated_capabilities": sorted(mapped - expected - optional),
+        "optional_capabilities_selected": sorted(mapped & optional),
         "forbidden_capabilities_selected": sorted(mapped & forbidden),
+        "unknown_capability": record.mapping_result.get("error_code") == "UNKNOWN_CAPABILITY",
+        "explicit_abstain": bool(
+            record.final_status == "ABSTAIN"
+            and record.schema_result.get("passed")
+            and record.mapping_result.get("passed")
+            and not mapped
+        ),
         "correct_abstain": bool(correct_abstain),
         "boundary_safe": _boundary_safe(record, case),
         "schema_valid": bool(record.schema_result.get("passed")),
@@ -445,6 +483,8 @@ class ShadowTraceRecord:
     failure_category: str
     failure_reason: str
     split: str
+    registry_view_version: str = ""
+    registry_view_hash: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -463,6 +503,8 @@ class ShadowTraceRecord:
             "failure_category": self.failure_category,
             "failure_reason": self.failure_reason,
             "split": self.split,
+            "registry_view_version": self.registry_view_version,
+            "registry_view_hash": self.registry_view_hash,
         }
 
 
@@ -483,6 +525,8 @@ class ShadowGroundingReport:
     traces: list[ShadowTraceRecord]
     references: tuple[dict[str, str], ...] = EVALUATION_REFERENCE_IMPLEMENTATIONS
     schema_version: str = GROUNDING_REPORT_SCHEMA_VERSION
+    registry_view_version: str = ""
+    registry_view_hash: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -501,6 +545,10 @@ class ShadowGroundingReport:
             "failure_counts": self.failure_counts,
             "traces": [item.to_dict() for item in self.traces],
             "references": [dict(item) for item in self.references],
+            "registry_view": {
+                "version": self.registry_view_version,
+                "sha256": self.registry_view_hash,
+            },
         }
 
 
@@ -551,6 +599,7 @@ def run_two_stage_case(
     manifest: ShadowModelManifest,
     transport: ShadowTransport,
     registry: CapabilityRegistryV1,
+    capability_view: list[dict[str, Any]] | None = None,
 ) -> TwoStageExecution:
     from .shadow_planner import build_shadow_input
 
@@ -564,7 +613,7 @@ def run_two_stage_case(
     latency_ms = 0
     retry = 0
     try:
-        selection_input = build_shadow_input(case.user_goal, registry, analysis_context)
+        selection_input = build_shadow_input(case.user_goal, registry, analysis_context, capability_view)
         selection_call: ShadowCall = transport.generate(
             user_payload=selection_input,
             response_schema=capability_selection_json_schema(registry),
@@ -609,9 +658,8 @@ def run_two_stage_case(
             item["capability_id"]
             for item in selection["required_capabilities"] + selection["optional_capabilities"]
         ]
-        selected_definitions = [
-            item for item in registry.to_dict()["capabilities"] if item["capability_id"] in set(selected_ids)
-        ]
+        available_definitions = capability_view if capability_view is not None else registry.to_dict()["capabilities"]
+        selected_definitions = [item for item in available_definitions if item["capability_id"] in set(selected_ids)]
         details_input = {
             "user_goal": case.user_goal,
             "available_capabilities": selected_definitions,
@@ -728,6 +776,12 @@ def _metrics_for(traces: Iterable[ShadowTraceRecord]) -> dict[str, Any]:
             "correct_abstain_count": sum(bool(item.get("correct_abstain")) for item in metrics),
             "correct_abstain_denominator": len(abstain),
             "correct_abstain": round(sum(bool(item.get("correct_abstain")) for item in abstain) / len(abstain), 4) if abstain else 1.0,
+            "explicit_abstain_count": sum(bool(item.get("explicit_abstain")) for item in abstain),
+            "explicit_abstain_denominator": len(abstain),
+            "explicit_abstain": round(sum(bool(item.get("explicit_abstain")) for item in abstain) / len(abstain), 4) if abstain else 1.0,
+            "unknown_capability_count": sum(bool(item.get("unknown_capability")) for item in metrics),
+            "optional_capabilities_selected_count": sum(len(item.get("optional_capabilities_selected", [])) for item in metrics),
+            "optional_overselection_cases": sum(bool(item.get("optional_capabilities_selected")) for item in metrics),
             "latency_average_ms": round(sum(latencies) / len(latencies), 1) if latencies else 0,
             "latency_p50_ms": latencies[(len(latencies) - 1) // 2] if latencies else 0,
             "latency_p95_ms": latencies[min(len(latencies) - 1, int(len(latencies) * 0.95) - 1)] if latencies else 0,
@@ -748,6 +802,7 @@ def run_grounding_benchmark(
     transport: ShadowTransport | None = None,
     strategy: str = "v1",
     request_schema_version: str = REQUEST_SCHEMA_VERSION,
+    capability_view: dict[str, Any] | None = None,
 ) -> ShadowGroundingReport:
     from .shadow_planner import OllamaShadowTransport
 
@@ -757,13 +812,20 @@ def run_grounding_benchmark(
     transport = transport or OllamaShadowTransport(system_prompt=system_prompt)
     manifest: ShadowModelManifest = transport.read_manifest()
     runner = ShadowPlannerRunner(transport, registry=registry)
+    model_view = capability_view or {"view_version": registry.schema_version, "capabilities": registry.to_dict()["capabilities"]}
+    view_capabilities = list(model_view["capabilities"])
+    view_version = str(model_view.get("view_version") or registry.schema_version)
+    view_hash = str(
+        model_view.get("sha256")
+        or hashlib.sha256(json.dumps(model_view, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    )
     baseline = __import__("fitness_ledger_core.shadow_planner", fromlist=["DeterministicBaseline"]).DeterministicBaseline(views, catalog)
     traces: list[ShadowTraceRecord] = []
     for case in matrix.cases:
         deterministic_baseline = baseline.evaluate(case.user_goal)
         analysis_context = {"coverage": {"modules": ["body", "diet", "training"], "mode": "anonymous_aggregate"}}
         if strategy == "two_stage_schema":
-            execution = run_two_stage_case(case, deterministic_baseline, analysis_context, manifest, transport, registry)
+            execution = run_two_stage_case(case, deterministic_baseline, analysis_context, manifest, transport, registry, view_capabilities)
             record = execution.record
             raw_output = execution.model_raw_output
             stage_results = execution.stage_results
@@ -798,7 +860,7 @@ def run_grounding_benchmark(
             "baseline": record.baseline,
             "stage_results": stage_results,
         }
-        traces.append(ShadowTraceRecord(case.case_id, case.user_goal, manifest.model, manifest.digest, prompt_version, registry.schema_version, request_schema_version, raw_output, parsed_requirement, gold_requirement(case), validation, case_metrics, category, reason, case.split))
+        traces.append(ShadowTraceRecord(case.case_id, case.user_goal, manifest.model, manifest.digest, prompt_version, registry.schema_version, request_schema_version, raw_output, parsed_requirement, gold_requirement(case), validation, case_metrics, category, reason, case.split, view_version, view_hash))
     failure_counts: dict[str, int] = {}
     for trace in traces:
         if trace.failure_category:
@@ -807,7 +869,23 @@ def run_grounding_benchmark(
     report_id = hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()[:20]
     metrics = _metrics_for(traces)
     metrics["report_id"] = f"grounding:{report_id}"
-    return ShadowGroundingReport(version, matrix.matrix_id, matrix.matrix_hash, current_holdout_hash, manifest.model, manifest.digest, manifest.endpoint, manifest.to_dict(), prompt_version, registry.schema_version, metrics, failure_counts, traces)
+    return ShadowGroundingReport(
+        version,
+        matrix.matrix_id,
+        matrix.matrix_hash,
+        current_holdout_hash,
+        manifest.model,
+        manifest.digest,
+        manifest.endpoint,
+        manifest.to_dict(),
+        prompt_version,
+        registry.schema_version,
+        metrics,
+        failure_counts,
+        traces,
+        registry_view_version=view_version,
+        registry_view_hash=view_hash,
+    )
 
 
 def compare_reports(v1: ShadowGroundingReport, v2: ShadowGroundingReport) -> dict[str, Any]:
@@ -873,6 +951,20 @@ def select_minimal_fix(v1_report: dict[str, Any]) -> dict[str, Any]:
 def _trace_summary(trace: dict[str, Any]) -> dict[str, Any]:
     validation = trace.get("validation_result", {})
     metrics = trace.get("metrics", {})
+    mapped = set(metrics.get("mapped_capabilities", []))
+    gold = trace.get("gold_requirement", {})
+    optional = set(gold.get("optional_capabilities", []))
+    explicit_abstain = metrics.get("explicit_abstain")
+    if explicit_abstain is None:
+        explicit_abstain = bool(
+            validation.get("final_status") == "ABSTAIN"
+            and validation.get("schema_result", {}).get("passed")
+            and validation.get("mapping_result", {}).get("passed")
+            and not mapped
+        )
+    unknown_capability = metrics.get("unknown_capability")
+    if unknown_capability is None:
+        unknown_capability = validation.get("mapping_result", {}).get("error_code") == "UNKNOWN_CAPABILITY"
     return {
         "failure_category": trace.get("failure_category", ""),
         "failure_reason": trace.get("failure_reason", ""),
@@ -883,6 +975,9 @@ def _trace_summary(trace: dict[str, Any]) -> dict[str, Any]:
         "capability_match": metrics.get("capability_match", False),
         "boundary_safe": metrics.get("boundary_safe", False),
         "correct_abstain": metrics.get("correct_abstain", False),
+        "explicit_abstain": bool(explicit_abstain),
+        "unknown_capability": bool(unknown_capability),
+        "optional_capabilities_selected": metrics.get("optional_capabilities_selected", sorted(mapped & optional)),
         "latency_ms": metrics.get("latency_ms", 0),
         "retry": metrics.get("retry", 0),
     }
@@ -985,4 +1080,107 @@ def compare_report_values(v1: dict[str, Any], v2: dict[str, Any]) -> dict[str, A
         },
         "decision": decision,
         "decision_reason": decision_reason,
+    }
+
+
+def _registry_metric(report: dict[str, Any], key: str) -> float | int:
+    holdout = report.get("metrics", {}).get("holdout", {})
+    if key in holdout:
+        return holdout[key]
+    traces = [trace for trace in report.get("traces", []) if trace.get("split") == "holdout"]
+    summaries = [_trace_summary(trace) for trace in traces]
+    if key == "explicit_abstain":
+        expected = [trace for trace in traces if trace.get("gold_requirement", {}).get("expected_abstain")]
+        return round(sum(item["explicit_abstain"] for item in summaries if item["explicit_abstain"]) / len(expected), 4) if expected else 1.0
+    if key == "explicit_abstain_count":
+        return sum(item["explicit_abstain"] for trace, item in zip(traces, summaries) if trace.get("gold_requirement", {}).get("expected_abstain"))
+    if key == "explicit_abstain_denominator":
+        return sum(bool(trace.get("gold_requirement", {}).get("expected_abstain")) for trace in traces)
+    if key == "unknown_capability_count":
+        return sum(item["unknown_capability"] for item in summaries)
+    if key == "optional_overselection_cases":
+        return sum(bool(item["optional_capabilities_selected"]) for item in summaries)
+    if key == "optional_capabilities_selected_count":
+        return sum(len(item["optional_capabilities_selected"]) for item in summaries)
+    raise KeyError(key)
+
+
+def compare_registry_reports(baseline: dict[str, Any], candidate: dict[str, Any]) -> dict[str, Any]:
+    """Compare Registry v2 against the committed two-stage Schema baseline."""
+    same_holdout = baseline.get("holdout_hash") == candidate.get("holdout_hash") == LEGACY_M3_HOLDOUT_HASH
+    same_model = baseline.get("model") == candidate.get("model") == SHADOW_MODEL
+    same_digest = bool(baseline.get("model_digest")) and baseline.get("model_digest") == candidate.get("model_digest")
+    keys = (
+        "schema_validity",
+        "capability_match",
+        "boundary_safety",
+        "explicit_abstain",
+        "unknown_capability_count",
+        "optional_overselection_cases",
+        "optional_capabilities_selected_count",
+        "latency_average_ms",
+        "latency_p95_ms",
+    )
+    metrics = {
+        key: {
+            "baseline": _registry_metric(baseline, key),
+            "registry_v2": _registry_metric(candidate, key),
+            "delta": round(_registry_metric(candidate, key) - _registry_metric(baseline, key), 4),
+        }
+        for key in keys
+    }
+    baseline_by_id = {trace["case_id"]: trace for trace in baseline.get("traces", []) if trace.get("split") == "holdout"}
+    candidate_by_id = {trace["case_id"]: trace for trace in candidate.get("traces", []) if trace.get("split") == "holdout"}
+    per_case = []
+    for case_id in sorted(baseline_by_id):
+        before, after = _trace_summary(baseline_by_id[case_id]), _trace_summary(candidate_by_id[case_id])
+        per_case.append(
+            {
+                "case_id": case_id,
+                "baseline": before,
+                "registry_v2": after,
+                "changed": {key: {"baseline": before[key], "registry_v2": after[key]} for key in before if before[key] != after[key]},
+            }
+        )
+    boundary_failures = [item for item in (_boundary_evidence(trace) for trace in candidate_by_id.values()) if item]
+    schema_not_regressed = metrics["schema_validity"]["registry_v2"] >= metrics["schema_validity"]["baseline"]
+    capability_gate = metrics["capability_match"]["registry_v2"] >= 0.8
+    boundary_gate = metrics["boundary_safety"]["registry_v2"] == 1.0 and not boundary_failures
+    abstain_gate = metrics["explicit_abstain"]["registry_v2"] == 1.0
+    unknown_gate = metrics["unknown_capability_count"]["registry_v2"] == 0
+    latency_gate = (
+        metrics["latency_average_ms"]["registry_v2"] <= SHADOW_V2_LATENCY_AVERAGE_BUDGET_MS
+        and metrics["latency_p95_ms"]["registry_v2"] <= SHADOW_V2_LATENCY_P95_BUDGET_MS
+    )
+    meaningful = metrics["capability_match"]["delta"] >= 0.2
+    if capability_gate and boundary_gate and abstain_gate and unknown_gate and schema_not_regressed and latency_gate:
+        state = "READY_FOR_WEB_INTERFACE"
+        reason = "Registry v2 passed capability, boundary, abstain, unknown-capability, schema, and latency gates"
+    elif meaningful and (not boundary_gate or not abstain_gate or not unknown_gate):
+        state = "NEEDS_GROUNDING_BOUNDARY_FIX"
+        reason = "Registry v2 materially improved grounding but did not restore the safety gates"
+    else:
+        state = "READY_FOR_MODEL_COMPARISON"
+        reason = "Registry v2 did not produce a sufficiently large capability improvement under the fixed contract"
+    return {
+        "schema_version": GROUNDING_REPORT_SCHEMA_VERSION,
+        "same_holdout": same_holdout,
+        "same_model": same_model,
+        "same_model_digest": same_digest,
+        "metrics": metrics,
+        "baseline_failure_counts": _failure_counts_for_split(baseline, "holdout"),
+        "registry_v2_failure_counts": _failure_counts_for_split(candidate, "holdout"),
+        "registry_v2_boundary_evidence": boundary_failures,
+        "per_case": per_case,
+        "gates": {
+            "capability_match_at_least_80_percent": capability_gate,
+            "boundary_100_percent": boundary_gate,
+            "explicit_abstain_4_of_4": abstain_gate,
+            "unknown_capability_zero": unknown_gate,
+            "schema_not_below_baseline": schema_not_regressed,
+            "latency_within_budget": latency_gate,
+        },
+        "state": state,
+        "reason": reason,
+        "registry_view": candidate.get("registry_view", {}),
     }

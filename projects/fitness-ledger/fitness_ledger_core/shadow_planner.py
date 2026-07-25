@@ -394,7 +394,12 @@ class DeterministicBaseline:
         }
 
 
-def build_shadow_input(user_goal: str, registry: CapabilityRegistryV1, analysis_context: dict[str, Any] | None = None) -> dict[str, Any]:
+def build_shadow_input(
+    user_goal: str,
+    registry: CapabilityRegistryV1,
+    analysis_context: dict[str, Any] | None = None,
+    capability_view: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     goal = str(user_goal or "").strip()
     if not goal or len(goal) > 2000:
         raise FoundationError("shadow user_goal is invalid", "EVALUATION_CASE_INVALID")
@@ -406,7 +411,7 @@ def build_shadow_input(user_goal: str, registry: CapabilityRegistryV1, analysis_
         raise FoundationError("shadow analysis_context exceeds 6000 bytes", "EVALUATION_DATASET_INVALID")
     payload = {
         "user_goal": goal,
-        "available_capabilities": registry.to_dict()["capabilities"],
+        "available_capabilities": capability_view if capability_view is not None else registry.to_dict()["capabilities"],
         "analysis_context": context,
     }
     return payload

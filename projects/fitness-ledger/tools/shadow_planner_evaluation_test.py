@@ -27,9 +27,11 @@ from fitness_ledger_core.shadow_planner_evaluation import (  # noqa: E402
     EVALUATION_REFERENCE_IMPLEMENTATIONS,
     GROUNDING_PROMPT_VERSION,
     LEGACY_M3_HOLDOUT_HASH,
+    REGISTRY_V2_MODEL_VIEW_VERSION,
     TWO_STAGE_PROMPT_VERSION,
     TWO_STAGE_REQUEST_SCHEMA_VERSION,
     CapabilityRegistryV2,
+    compare_registry_reports,
     compare_report_values,
     compare_reports,
     holdout_hash,
@@ -104,6 +106,26 @@ def test_gold_and_registry() -> ShadowEvaluationMatrix:
         assert not (set(case.expected_capabilities) & set(case.forbidden_capabilities))
     registry = CapabilityRegistryV2()
     assert set(registry.ids) == set(CapabilityRegistryV1().ids)
+    model_view = registry.model_view()
+    assert model_view["view_version"] == REGISTRY_V2_MODEL_VIEW_VERSION
+    assert registry.model_view_hash == __import__("hashlib").sha256(
+        json.dumps(model_view, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    assert "tracker.json" not in json.dumps(model_view, ensure_ascii=False)
+    assert "movement_dictionary" not in json.dumps(model_view, ensure_ascii=False)
+    expected_view_fields = {
+        "capability_id",
+        "human_description",
+        "user_expression_examples",
+        "analysis_questions",
+        "related_capabilities",
+        "forbidden_usage",
+        "evidence_examples",
+        "model_selectable",
+        "requires_user_confirmation",
+        "grants_raw",
+    }
+    assert all(set(item) == expected_view_fields for item in model_view["capabilities"])
     for capability in registry.to_dict()["capabilities"]:
         assert capability["human_description"]
         assert capability["user_expression_examples"]
@@ -241,6 +263,41 @@ def test_two_stage_schema_strategy(matrix: ShadowEvaluationMatrix):
         temp.cleanup()
 
 
+def test_registry_v2_model_view_injection(matrix: ShadowEvaluationMatrix):
+    temp, views, catalog = environment()
+    try:
+        responses = []
+        for case in matrix.cases:
+            responses.append(selection(case))
+            if not case.expected_abstain:
+                responses.append(details(case))
+        registry = CapabilityRegistryV2()
+        view = registry.model_view()
+        view["sha256"] = registry.model_view_hash
+        transport = FakeShadowTransport(responses)
+        report = run_grounding_benchmark(
+            matrix,
+            views,
+            catalog,
+            registry,
+            TWO_STAGE_PROMPT_VERSION,
+            CAPABILITY_SELECTION_SYSTEM_PROMPT + "\n" + ANALYSIS_DETAILS_SYSTEM_PROMPT,
+            "v2-registry-test",
+            transport,
+            strategy="two_stage_schema",
+            request_schema_version=TWO_STAGE_REQUEST_SCHEMA_VERSION,
+            capability_view=view,
+        )
+        assert report.registry_view_version == REGISTRY_V2_MODEL_VIEW_VERSION
+        assert report.registry_view_hash == registry.model_view_hash
+        assert report.metrics["holdout"]["explicit_abstain"] == 1.0
+        selection_calls = [call for call in transport.calls if call["system_prompt"] == CAPABILITY_SELECTION_SYSTEM_PROMPT]
+        assert selection_calls and selection_calls[0]["user_payload"]["available_capabilities"] == view["capabilities"]
+        assert compare_registry_reports(report.to_dict(), report.to_dict())["state"] == "READY_FOR_WEB_INTERFACE"
+    finally:
+        temp.cleanup()
+
+
 def test_holdout_guard(matrix: ShadowEvaluationMatrix):
     changed = matrix.to_dict()
     changed["cases"][0]["user_goal"] = "不同输入"
@@ -271,6 +328,7 @@ def main() -> None:
     test_reproducible_trace(matrix)
     test_failure_classification(matrix)
     test_two_stage_schema_strategy(matrix)
+    test_registry_v2_model_view_injection(matrix)
     test_holdout_guard(matrix)
     print("FITNESS_LEDGER_SHADOW_PLANNER_EVALUATION_OK")
 
