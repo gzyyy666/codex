@@ -124,7 +124,7 @@ class ShadowCall:
 class ShadowTransport(Protocol):
     def read_manifest(self) -> ShadowModelManifest: ...
 
-    def generate(self, *, user_payload: dict[str, Any], response_schema: dict[str, Any]) -> ShadowCall: ...
+    def generate(self, *, user_payload: dict[str, Any], response_schema: dict[str, Any], system_prompt: str | None = None) -> ShadowCall: ...
 
 
 def _json_bytes(value: Any) -> bytes:
@@ -134,7 +134,7 @@ def _json_bytes(value: Any) -> bytes:
 class OllamaShadowTransport:
     """One-purpose client for the fixed local qwen3:4b shadow endpoint."""
 
-    def __init__(self, endpoint: str = SHADOW_ENDPOINT, model: str = SHADOW_MODEL, timeout: float = SHADOW_TIMEOUT_SECONDS) -> None:
+    def __init__(self, endpoint: str = SHADOW_ENDPOINT, model: str = SHADOW_MODEL, timeout: float = SHADOW_TIMEOUT_SECONDS, system_prompt: str = SHADOW_SYSTEM_PROMPT) -> None:
         if endpoint.rstrip("/") != SHADOW_ENDPOINT:
             raise ValueError("Shadow endpoint must be the fixed local Ollama endpoint")
         if model != SHADOW_MODEL:
@@ -144,7 +144,10 @@ class OllamaShadowTransport:
         self.endpoint = endpoint.rstrip("/")
         self.model = model
         self.timeout = float(timeout)
+        self.system_prompt = system_prompt
         self._slot = threading.BoundedSemaphore(1)
+        self.last_payload: dict[str, Any] | None = None
+        self.last_call: ShadowCall | None = None
 
     def read_manifest(self) -> ShadowModelManifest:
         request = urllib.request.Request(f"{self.endpoint}/api/tags", method="GET")
@@ -170,15 +173,17 @@ class OllamaShadowTransport:
             return ShadowModelManifest(self.endpoint, self.model, False, model_names=sorted(names), error_code="MODEL_UNAVAILABLE", error="qwen3:4b is not present or has no digest")
         return ShadowModelManifest(self.endpoint, self.model, True, digest=digest, model_names=sorted(names))
 
-    def generate(self, *, user_payload: dict[str, Any], response_schema: dict[str, Any]) -> ShadowCall:
+    def generate(self, *, user_payload: dict[str, Any], response_schema: dict[str, Any], system_prompt: str | None = None) -> ShadowCall:
         if not self._slot.acquire(timeout=min(self.timeout, 5.0)):
             raise ShadowTransportError("shadow transport is busy", "MODEL_BUSY")
         started = time.monotonic()
+        self.last_payload = json.loads(json.dumps(user_payload, ensure_ascii=False))
+        self.last_call = None
         try:
             request_payload = {
                 "model": self.model,
                 "messages": [
-                    {"role": "system", "content": SHADOW_SYSTEM_PROMPT},
+                    {"role": "system", "content": system_prompt or self.system_prompt},
                     {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False, separators=(",", ":"))},
                 ],
                 "stream": False,
@@ -204,7 +209,8 @@ class OllamaShadowTransport:
                     if not isinstance(content, str) or not content.strip():
                         raise ShadowTransportError("shadow response has no content", "MODEL_EMPTY_RESPONSE", attempt)
                     finish_reason = str(payload.get("done_reason") or payload.get("finish_reason") or "")
-                    return ShadowCall(content, int((time.monotonic() - started) * 1000), attempt, finish_reason, len(content))
+                    self.last_call = ShadowCall(content, int((time.monotonic() - started) * 1000), attempt, finish_reason, len(content))
+                    return self.last_call
                 except ShadowTransportError as exc:
                     last_error = exc
                 except urllib.error.HTTPError as exc:
@@ -228,12 +234,16 @@ class FakeShadowTransport:
         self.errors = list(errors or [])
         self.calls: list[dict[str, Any]] = []
         self.manifest = manifest or ShadowModelManifest(SHADOW_ENDPOINT, SHADOW_MODEL, True, "fake-digest")
+        self.last_payload: dict[str, Any] | None = None
+        self.last_call: ShadowCall | None = None
 
     def read_manifest(self) -> ShadowModelManifest:
         return self.manifest
 
-    def generate(self, *, user_payload: dict[str, Any], response_schema: dict[str, Any]) -> ShadowCall:
-        self.calls.append({"user_payload": user_payload, "response_schema": response_schema})
+    def generate(self, *, user_payload: dict[str, Any], response_schema: dict[str, Any], system_prompt: str | None = None) -> ShadowCall:
+        self.last_payload = json.loads(json.dumps(user_payload, ensure_ascii=False))
+        self.last_call = None
+        self.calls.append({"user_payload": user_payload, "response_schema": response_schema, "system_prompt": system_prompt})
         if self.errors:
             error = self.errors.pop(0)
             if isinstance(error, ShadowTransportError):
@@ -243,7 +253,8 @@ class FakeShadowTransport:
             raise ShadowTransportError("fake shadow has no response", "MODEL_UNAVAILABLE")
         response = self.responses.pop(0)
         raw = response if isinstance(response, str) else json.dumps(response, ensure_ascii=False)
-        return ShadowCall(raw, 0, 1, "stop", len(raw))
+        self.last_call = ShadowCall(raw, 0, 1, "stop", len(raw))
+        return self.last_call
 
 
 @dataclass(frozen=True)
@@ -252,12 +263,20 @@ class ShadowMatrixCase:
     category: str
     user_goal: str
     labels: list[str]
+    expected_capabilities: list[str]
+    optional_capabilities: list[str]
+    forbidden_capabilities: list[str]
+    expected_abstain: bool
+    boundary_rules: list[str]
+    explanation: str
+    expected_error_category: str = ""
+    split: str = "holdout"
 
     @classmethod
     def from_dict(cls, value: Any) -> "ShadowMatrixCase":
         if not isinstance(value, dict):
             raise FoundationError("shadow matrix case must be an object", "EVALUATION_CASE_INVALID")
-        allowed = {"case_id", "category", "user_goal", "labels"}
+        allowed = {"case_id", "category", "user_goal", "labels", "expected_capabilities", "optional_capabilities", "forbidden_capabilities", "expected_abstain", "boundary_rules", "explanation", "expected_error_category", "split"}
         unknown = sorted(set(value) - allowed)
         if unknown:
             raise FoundationError(f"shadow matrix case contains unknown fields: {', '.join(unknown)}", "EVALUATION_CASE_INVALID")
@@ -265,11 +284,22 @@ class ShadowMatrixCase:
         category = str(value.get("category") or "").strip()
         user_goal = str(value.get("user_goal") or "").strip()
         labels = [str(item).strip() for item in value.get("labels", [])]
+        expected = [str(item).strip() for item in value.get("expected_capabilities", [])]
+        optional = [str(item).strip() for item in value.get("optional_capabilities", [])]
+        forbidden = [str(item).strip() for item in value.get("forbidden_capabilities", [])]
+        boundary_rules = [str(item).strip() for item in value.get("boundary_rules", [])]
+        explanation = str(value.get("explanation") or "").strip()
+        expected_error_category = str(value.get("expected_error_category") or "").strip()
+        split = str(value.get("split") or "holdout").strip()
         if not case_id or not category or not user_goal or category not in REQUIRED_CATEGORIES:
             raise FoundationError("shadow matrix case has invalid identity or category", "EVALUATION_CASE_INVALID")
         if not labels or any(not item for item in labels):
             raise FoundationError("shadow matrix case labels are invalid", "EVALUATION_CASE_INVALID")
-        return cls(case_id, category, user_goal, labels)
+        if any(not item for item in expected + optional + forbidden + boundary_rules) or not explanation or split not in {"holdout", "golden"}:
+            raise FoundationError("shadow matrix gold fields are invalid", "GOLD_LABEL_ERROR")
+        if set(expected) & set(forbidden) or expected and bool(value.get("expected_abstain")):
+            raise FoundationError("shadow matrix gold fields conflict", "GOLD_LABEL_ERROR")
+        return cls(case_id, category, user_goal, labels, expected, optional, forbidden, bool(value.get("expected_abstain", False)), boundary_rules, explanation, expected_error_category, split)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -569,8 +599,16 @@ def shadow_matrix_json_schema() -> dict[str, Any]:
             "category": {"type": "string", "enum": sorted(REQUIRED_CATEGORIES)},
             "user_goal": {"type": "string", "minLength": 1, "maxLength": 2000},
             "labels": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"type": "string", "minLength": 1, "maxLength": 80}},
+            "expected_capabilities": {"type": "array", "items": {"type": "string", "minLength": 1}},
+            "optional_capabilities": {"type": "array", "items": {"type": "string", "minLength": 1}},
+            "forbidden_capabilities": {"type": "array", "items": {"type": "string", "minLength": 1}},
+            "expected_abstain": {"type": "boolean"},
+            "boundary_rules": {"type": "array", "items": {"type": "string", "minLength": 1}},
+            "explanation": {"type": "string", "minLength": 1},
+            "expected_error_category": {"type": "string"},
+            "split": {"type": "string", "enum": ["golden", "holdout"]},
         },
-        "required": ["case_id", "category", "user_goal", "labels"],
+        "required": ["case_id", "category", "user_goal", "labels", "expected_capabilities", "optional_capabilities", "forbidden_capabilities", "expected_abstain", "boundary_rules", "explanation"],
     }
     return {
         "type": "object",
