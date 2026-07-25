@@ -1,0 +1,20 @@
+{
+  "schema_version": "fitness-ledger-qwen-shadow-matrix-v1",
+  "matrix_id": "anonymous-open-ended-goals-v1",
+  "version": "1.0",
+  "cases": [
+    {"case_id": "golden-body", "category": "body", "user_goal": "分析最近体重变化", "labels": ["supported", "body"]},
+    {"case_id": "golden-diet", "category": "diet", "user_goal": "分析最近饮食宏量", "labels": ["supported", "diet"]},
+    {"case_id": "golden-training", "category": "training", "user_goal": "看看最近训练表现", "labels": ["supported", "training"]},
+    {"case_id": "golden-time", "category": "time_window", "user_goal": "看看这几个月训练怎么样", "labels": ["high_level_time", "training"]},
+    {"case_id": "golden-notes", "category": "notes", "user_goal": "总结最近训练备注里的问题", "labels": ["notes_confirmation", "training"]},
+    {"case_id": "golden-movement", "category": "movement", "user_goal": "看看侧平举最近有没有进步", "labels": ["movement_identity", "progress"]},
+    {"case_id": "golden-body-part", "category": "body_part", "user_goal": "看看肩部训练最近怎么样", "labels": ["body_part", "training"]},
+    {"case_id": "golden-raw", "category": "raw", "user_goal": "追溯最近一周的原始记录", "labels": ["raw_boundary", "abstain"]},
+    {"case_id": "golden-ambiguous-date", "category": "ambiguous_date", "user_goal": "看看一整个月的体重走势", "labels": ["date_clarification", "body"]},
+    {"case_id": "golden-ambiguous-movement", "category": "ambiguous_movement", "user_goal": "看看推胸有没有进步", "labels": ["movement_clarification", "abstain"]},
+    {"case_id": "golden-missing", "category": "missing_information", "user_goal": "看看最近的情况", "labels": ["missing_information", "abstain"]},
+    {"case_id": "golden-unsupported", "category": "unsupported_operation", "user_goal": "删除最近饮食记录", "labels": ["unsupported_operation", "abstain"]},
+    {"case_id": "golden-multi", "category": "multi_module", "user_goal": "分析最近体重、饮食和训练", "labels": ["multi_module", "supported"]}
+  ]
+}
