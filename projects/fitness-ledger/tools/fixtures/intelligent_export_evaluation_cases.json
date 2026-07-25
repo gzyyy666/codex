@@ -1,0 +1,180 @@
+{
+  "schema_version": "fitness-ledger-intelligent-export-evaluation-dataset-v1",
+  "dataset_id": "intelligent-export-foundation-evaluation",
+  "version": "1.0.0",
+  "cases": [
+    {
+      "case_id": "golden-body-diet-recent",
+      "split": "golden",
+      "user_goal": "分析最近体重变化和饮食宏量，看看减脂趋势。",
+      "candidate_requirement": {
+        "schema_version": "fitness-ledger-analysis-requirement-v1",
+        "analysis_goal": "评估最近体重与饮食宏量的减脂趋势",
+        "questions_to_answer": ["体重趋势如何？", "饮食宏量是否与目标一致？"],
+        "required_capabilities": [
+          {"capability_id": "body_history", "reason": "用户明确提到体重变化"},
+          {"capability_id": "diet_macros", "reason": "用户明确提到饮食宏量"}
+        ],
+        "optional_capabilities": [],
+        "preferred_time_window": {"kind": "recent", "label": "最近"},
+        "derived_metrics": [{"name": "体重变化趋势", "reason": "帮助回答体重趋势问题"}],
+        "missing_information": [],
+        "clarifications": [],
+        "evidence": [{"text": "最近体重变化和饮食宏量", "source": "user_goal"}],
+        "gpt_prompt_outline": ["先概括数据覆盖", "区分事实与不确定性"]
+      },
+      "expected": {
+        "outcome": "mapped",
+        "mapped_capabilities": ["body_history", "diet_macros"],
+        "required_capabilities": ["body_history", "diet_macros"],
+        "optional_capabilities": [],
+        "preferred_time_window_kind": "recent",
+        "require_clarification": false,
+        "notes_scope_status": "not_selected"
+      },
+      "labels": ["body", "diet", "trend"]
+    },
+    {
+      "case_id": "golden-movement-with-context",
+      "split": "golden",
+      "user_goal": "看看肩部训练最近有没有进步，重点关注动作表现。",
+      "candidate_requirement": {
+        "schema_version": "fitness-ledger-analysis-requirement-v1",
+        "analysis_goal": "评估肩部训练动作表现的近期变化",
+        "questions_to_answer": ["肩部训练表现是否有进步？"],
+        "required_capabilities": [{"capability_id": "movement_progress", "reason": "用户明确要求查看动作表现"}],
+        "optional_capabilities": [{"capability_id": "training_context", "reason": "训练背景可能帮助解释动作变化"}],
+        "preferred_time_window": {"kind": "recent", "label": "最近"},
+        "derived_metrics": [{"name": "动作表现变化", "reason": "帮助比较已记录的动作表现"}],
+        "missing_information": ["尚未指定单一动作"],
+        "clarifications": ["如需单动作结论，请确认具体动作"],
+        "evidence": [{"text": "肩部训练最近有没有进步", "source": "user_goal"}],
+        "gpt_prompt_outline": ["仅使用已解析的动作候选", "标记动作身份不确定性"]
+      },
+      "expected": {
+        "outcome": "mapped",
+        "mapped_capabilities": ["movement_progress", "training_context"],
+        "required_capabilities": ["movement_progress"],
+        "optional_capabilities": ["training_context"],
+        "preferred_time_window_kind": "recent",
+        "require_clarification": true,
+        "notes_scope_status": "not_selected"
+      },
+      "labels": ["movement", "training", "clarification"]
+    },
+    {
+      "case_id": "golden-notes-pending-scope",
+      "split": "golden",
+      "user_goal": "总结最近训练备注里反复出现的问题。",
+      "candidate_requirement": {
+        "schema_version": "fitness-ledger-analysis-requirement-v1",
+        "analysis_goal": "总结最近训练备注中的重复问题",
+        "questions_to_answer": ["训练备注中有哪些重复问题？"],
+        "required_capabilities": [{"capability_id": "notes_context", "reason": "用户明确要求查看训练备注"}],
+        "optional_capabilities": [],
+        "preferred_time_window": {"kind": "recent", "label": "最近"},
+        "derived_metrics": [],
+        "missing_information": ["Notes 作用域需要确定性确认"],
+        "clarifications": ["请确认只分析训练 Notes"],
+        "evidence": [{"text": "最近训练备注里反复出现的问题", "source": "user_goal"}],
+        "gpt_prompt_outline": ["先等待 Notes 作用域确认"]
+      },
+      "expected": {
+        "outcome": "needs_confirmation",
+        "mapped_capabilities": ["notes_context"],
+        "required_capabilities": ["notes_context"],
+        "optional_capabilities": [],
+        "preferred_time_window_kind": "recent",
+        "require_clarification": true,
+        "notes_scope_status": "requires_user_confirmation"
+      },
+      "labels": ["notes", "permission", "clarification"]
+    },
+    {
+      "case_id": "holdout-diet-recent",
+      "split": "holdout",
+      "user_goal": "分析最近饮食宏量是否稳定。",
+      "candidate_requirement": {
+        "schema_version": "fitness-ledger-analysis-requirement-v1",
+        "analysis_goal": "评估最近饮食宏量稳定性",
+        "questions_to_answer": ["饮食宏量是否稳定？"],
+        "required_capabilities": [{"capability_id": "diet_macros", "reason": "用户明确要求分析饮食宏量"}],
+        "optional_capabilities": [],
+        "preferred_time_window": {"kind": "recent", "label": "最近"},
+        "derived_metrics": [{"name": "宏量波动", "reason": "帮助判断稳定性"}],
+        "missing_information": [],
+        "clarifications": [],
+        "evidence": [{"text": "最近饮食宏量是否稳定", "source": "user_goal"}],
+        "gpt_prompt_outline": ["报告记录覆盖和宏量波动"]
+      },
+      "expected": {
+        "outcome": "mapped",
+        "mapped_capabilities": ["diet_macros"],
+        "required_capabilities": ["diet_macros"],
+        "optional_capabilities": [],
+        "preferred_time_window_kind": "recent",
+        "require_clarification": false,
+        "notes_scope_status": "not_selected"
+      },
+      "labels": ["diet", "holdout"]
+    },
+    {
+      "case_id": "holdout-raw-permission-rejected",
+      "split": "holdout",
+      "user_goal": "追溯最近一周的原始记录。",
+      "candidate_requirement": {
+        "schema_version": "fitness-ledger-analysis-requirement-v1",
+        "analysis_goal": "追溯最近一周的原始记录",
+        "questions_to_answer": ["原始记录是什么？"],
+        "required_capabilities": [{"capability_id": "raw_trace", "reason": "模型错误地尝试把原始记录作为能力"}],
+        "optional_capabilities": [],
+        "preferred_time_window": {"kind": "last_week", "label": "最近一周"},
+        "derived_metrics": [],
+        "missing_information": [],
+        "clarifications": ["Raw 需要由用户明确请求并由确定性 Core 处理"],
+        "evidence": [{"text": "最近一周的原始记录", "source": "user_goal"}],
+        "gpt_prompt_outline": ["不得直接授权 Raw"]
+      },
+      "expected": {
+        "outcome": "rejected",
+        "mapped_capabilities": [],
+        "required_capabilities": [],
+        "optional_capabilities": [],
+        "preferred_time_window_kind": "last_week",
+        "require_clarification": true,
+        "error_code": "RAW_PERMISSION_NOT_GRANTABLE",
+        "notes_scope_status": "not_selected"
+      },
+      "labels": ["raw", "permission", "holdout"]
+    },
+    {
+      "case_id": "holdout-evidence-hallucination-rejected",
+      "split": "holdout",
+      "user_goal": "看看肩部训练最近有没有进步。",
+      "candidate_requirement": {
+        "schema_version": "fitness-ledger-analysis-requirement-v1",
+        "analysis_goal": "评估肩部训练表现",
+        "questions_to_answer": ["训练表现如何？"],
+        "required_capabilities": [{"capability_id": "training_context", "reason": "用户提到肩部训练"}],
+        "optional_capabilities": [],
+        "preferred_time_window": {"kind": "recent", "label": "最近"},
+        "derived_metrics": [],
+        "missing_information": [],
+        "clarifications": [],
+        "evidence": [{"text": "最近体重下降了5公斤", "source": "user_goal"}],
+        "gpt_prompt_outline": ["仅使用用户目标中的证据"]
+      },
+      "expected": {
+        "outcome": "rejected",
+        "mapped_capabilities": [],
+        "required_capabilities": [],
+        "optional_capabilities": [],
+        "preferred_time_window_kind": "recent",
+        "require_clarification": false,
+        "error_code": "EVIDENCE_NOT_GROUNDED",
+        "notes_scope_status": "not_selected"
+      },
+      "labels": ["evidence", "safety", "holdout"]
+    }
+  ]
+}

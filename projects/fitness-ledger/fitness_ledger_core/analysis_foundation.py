@@ -39,6 +39,11 @@ ERRORS = {
     "PACKAGE_INVALID": ("contract", "GPT 分析包不符合 Foundation Contract。", False),
     "TRACE_INVALID_TRANSITION": ("state", "分析候选状态变化不被允许。", False),
     "HUMAN_DECISION_INVALID": ("state", "人工修正决定无效。", False),
+    "EVALUATION_DATASET_INVALID": ("evaluation", "匿名评估数据集不符合合约。", False),
+    "EVALUATION_DATA_LEAKAGE": ("evaluation", "评估数据集存在 Golden/Holdout 泄漏。", False),
+    "EVALUATION_PRIVACY_VIOLATION": ("evaluation", "评估数据集包含被禁止的隐私或正式数据标识。", False),
+    "EVALUATION_CASE_INVALID": ("evaluation", "评估案例不符合合约。", False),
+    "EVALUATION_CANDIDATE_MISSING": ("evaluation", "评估案例缺少候选需求。", False),
 }
 
 
