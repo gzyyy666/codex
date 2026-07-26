@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .data_catalog import DataCatalogBuilder, MovementResolver
+from .analysis_registry import AnalysisOperation, IntentASTParser
 from .intent_compiler import DeterministicRequestFacts, IntentCompiler
 from .intelligent_export_models import MovementMention
 
@@ -26,7 +27,7 @@ UNSUPPORTED_REQUEST = "UNSUPPORTED_REQUEST"
 
 # These are policy categories, not a second natural-language parser.  The
 # existing command parser remains authoritative for read scopes and dates.
-_PLAN_ACTION_TERMS = ("制定计划", "安排训练", "训练计划", "训练安排", "program", "workout plan")
+_PLAN_ACTION_TERMS = ("制定计划", "安排训练", "训练计划", "program", "workout plan")
 _WRITE_ACTION_TERMS = ("删除", "删掉", "修改", "更新", "写入", "保存", "录入", "新增", "添加", "同步", "上传", "发布", "清空", "delete", "update", "save", "sync")
 
 
@@ -57,6 +58,7 @@ class RequestGateDecision:
     facts: DeterministicRequestFacts | None
     movement_candidates: list[dict[str, Any]]
     confirmation_requirements: list[str]
+    intent_ast: dict[str, Any] | None = None
     schema_version: str = REQUEST_GATE_SCHEMA_VERSION
 
     def to_dict(self) -> dict[str, Any]:
@@ -69,6 +71,7 @@ class RequestGateDecision:
             "facts": facts,
             "movement_candidates": [dict(item) for item in self.movement_candidates],
             "confirmation_requirements": list(self.confirmation_requirements),
+            "intent_ast": dict(self.intent_ast or {}),
         }
 
 
@@ -122,15 +125,20 @@ class RequestGate:
         text = str(request or "").strip()[:2000]
         if not text:
             return RequestGateDecision(CLARIFICATION_REQUIRED, text, ["EMPTY_REQUEST"], None, [], ["analysis_target"])
+        ast = IntentASTParser.parse(text)
+        if ast.operation == AnalysisOperation.RAW_READ.value:
+            return RequestGateDecision(RAW_PERMISSION_REQUIRED, text, ["RAW_PERMISSION_REQUIRED"], None, [], ["raw_permission"], ast.to_dict())
+        if ast.operation in {AnalysisOperation.DELETE.value, AnalysisOperation.WRITE.value, AnalysisOperation.SYNC.value}:
+            return RequestGateDecision(UNSUPPORTED_WRITE_OPERATION, text, ["UNSUPPORTED_OPERATION"], None, [], [], ast.to_dict())
         if self._plan_action(text) or any(term.casefold() in text.casefold() for term in _WRITE_ACTION_TERMS):
             reason = "UNSUPPORTED_PLANNING_OPERATION" if self._plan_action(text) else "UNSUPPORTED_OPERATION"
-            return RequestGateDecision(UNSUPPORTED_WRITE_OPERATION, text, [reason], None, [], [])
+            return RequestGateDecision(UNSUPPORTED_WRITE_OPERATION, text, [reason], None, [], [], ast.to_dict())
         try:
             facts = self.compiler.prepare(text, self.catalog)
         except Exception:
             # The gate is fail-closed.  Keep parser failures out of the model
             # boundary and ask the user for a supported read target.
-            return RequestGateDecision(UNSUPPORTED_REQUEST, text, ["REQUEST_CLASSIFICATION_FAILED"], None, [], ["analysis_target"])
+            return RequestGateDecision(UNSUPPORTED_REQUEST, text, ["REQUEST_CLASSIFICATION_FAILED"], None, [], ["analysis_target"], ast.to_dict())
 
         status, reasons, confirmations = self._status_for_facts(facts)
         if status == ANALYSIS_REQUEST and self._plan_action(text):
@@ -143,4 +151,5 @@ class RequestGate:
             facts,
             self._movement_candidates(facts) if status == MOVEMENT_RESOLUTION_REQUIRED else [],
             confirmations,
+            ast.to_dict(),
         )
