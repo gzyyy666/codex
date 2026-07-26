@@ -1,14 +1,13 @@
 {
-  "request_version": "1",
+  "request_version": "1.1",
   "purpose": "Review the latest three chest training sessions.",
   "datasets": [{
+    "dataset_id": "training_chest_recent",
     "type": "training",
     "time_range": {"mode": "latest_matching_sessions", "sessions": 3},
     "filters": {"body_part": "chest"},
-    "fields": ["date", "split", "standardized_summary"],
-    "include_notes": false
+    "fields": ["date", "split", "standardized_summary"]
   }],
-  "notes_scope": [],
   "raw": false,
   "output": {"formats": ["json", "markdown"]}
 }

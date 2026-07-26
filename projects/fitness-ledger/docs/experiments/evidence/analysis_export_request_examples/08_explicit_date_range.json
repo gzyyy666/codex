@@ -1,11 +1,10 @@
 {
-  "request_version": "1",
+  "request_version": "1.1",
   "purpose": "Review body and diet records in the explicitly supplied date range.",
   "datasets": [
-    {"type": "body", "time_range": {"mode": "explicit_range", "start": "2026-01-01", "end": "2026-01-28"}, "filters": {}, "fields": ["date", "weight_kg"], "include_notes": false},
-    {"type": "diet", "time_range": {"mode": "explicit_range", "start": "2026-01-01", "end": "2026-01-28"}, "filters": {}, "fields": ["date", "calories_kcal"], "include_notes": false}
+    {"dataset_id": "body_range", "type": "body", "time_range": {"mode": "explicit_range", "start": "2026-01-01", "end": "2026-01-28"}, "filters": {}, "fields": ["date", "weight_kg"]},
+    {"dataset_id": "diet_range", "type": "diet", "time_range": {"mode": "explicit_range", "start": "2026-01-01", "end": "2026-01-28"}, "filters": {}, "fields": ["date", "calories_kcal"]}
   ],
-  "notes_scope": [],
   "raw": false,
   "output": {"formats": ["json"]}
 }

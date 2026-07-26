@@ -1,14 +1,13 @@
 {
-  "request_version": "1",
+  "request_version": "1.1",
   "purpose": "Review body-weight trend over the latest 28 days.",
   "datasets": [{
+    "dataset_id": "body_recent",
     "type": "body",
     "time_range": {"mode": "recent_days", "days": 28},
     "filters": {},
-    "fields": ["date", "weight_kg"],
-    "include_notes": false
+    "fields": ["date", "weight_kg"]
   }],
-  "notes_scope": [],
   "raw": false,
   "output": {"formats": ["json", "markdown"]}
 }

@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "fitness-ledger://schemas/analysis-export-bundle-v1",
-  "title": "Fitness Ledger Analysis Export Bundle v1",
+  "$id": "fitness-ledger://schemas/analysis-export-bundle-v1.1",
+  "title": "Fitness Ledger Analysis Export Bundle v1.1",
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "bundle_version": { "const": "1" },
+    "bundle_version": { "const": "1.1" },
     "request": { "$ref": "analysis_export_request_v1.schema.json" },
     "manifest": { "$ref": "#/$defs/manifest" },
     "selected_datasets": { "type": "array", "items": { "$ref": "#/$defs/selected_dataset" } },
@@ -19,34 +19,9 @@
   },
   "required": ["bundle_version", "request", "manifest", "selected_datasets", "records", "field_definitions", "quality_profile", "missing_information", "warnings", "provenance", "safety_flags"],
   "$defs": {
-    "manifest": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "bundle_id": { "type": "string" },
-        "generated_at": { "type": "string", "format": "date-time" },
-        "source_snapshot_id": { "type": "string" },
-        "record_count": { "type": "integer", "minimum": 0 }
-      },
-      "required": ["bundle_id", "generated_at", "source_snapshot_id", "record_count"]
-    },
-    "selected_dataset": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": { "type": { "type": "string" }, "time_range": { "type": "object" }, "filters": { "type": "object" }, "fields": { "type": "array", "items": { "type": "string" } }, "include_notes": { "type": "boolean" } },
-      "required": ["type", "time_range", "filters", "fields", "include_notes"]
-    },
-    "field_definition": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": { "field_id": { "type": "string" }, "label": { "type": "string" }, "type": { "type": "string" }, "nullable": { "type": "boolean" } },
-      "required": ["field_id", "label", "type", "nullable"]
-    },
-    "safety_flags": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": { "raw_included": { "const": false }, "executor_called": { "const": false }, "formal_data_written": { "const": false } },
-      "required": ["raw_included", "executor_called", "formal_data_written"]
-    }
+    "manifest": { "type": "object", "additionalProperties": false, "properties": { "bundle_id": { "type": "string" }, "generated_at": { "type": "string", "format": "date-time" }, "source_snapshot_id": { "type": "string" }, "record_count": { "type": "integer", "minimum": 0 } }, "required": ["bundle_id", "generated_at", "source_snapshot_id", "record_count"] },
+    "selected_dataset": { "type": "object", "additionalProperties": false, "properties": { "dataset_id": { "$ref": "analysis_export_request_v1.schema.json#/$defs/dataset_id" }, "type": { "type": "string" }, "time_range": { "type": "object" }, "filters": { "type": "object" }, "fields": { "type": "array", "items": { "type": "string" } }, "notes_scope": { "type": "string" }, "set_roles": { "type": "array", "items": { "type": "string" } } }, "required": ["dataset_id", "type", "time_range", "filters", "fields"] },
+    "field_definition": { "type": "object", "additionalProperties": false, "properties": { "field_id": { "type": "string" }, "label": { "type": "string" }, "type": { "type": "string" }, "nullable": { "type": "boolean" } }, "required": ["field_id", "label", "type", "nullable"] },
+    "safety_flags": { "type": "object", "additionalProperties": false, "properties": { "raw_included": { "const": false }, "executor_called": { "const": false }, "formal_data_written": { "const": false } }, "required": ["raw_included", "executor_called", "formal_data_written"] }
   }
 }
