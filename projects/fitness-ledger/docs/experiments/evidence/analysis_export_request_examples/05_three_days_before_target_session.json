@@ -1,0 +1,14 @@
+{
+  "request_version": "1",
+  "purpose": "Inspect diet records in the three days before the target training session.",
+  "datasets": [{
+    "type": "diet",
+    "time_range": {"mode": "days_before_target_session", "days_before": 3},
+    "filters": {},
+    "fields": ["date", "protein_g", "carbs_g", "fat_g"],
+    "include_notes": false
+  }],
+  "notes_scope": [],
+  "raw": false,
+  "output": {"formats": ["json"]}
+}

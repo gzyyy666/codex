@@ -1,0 +1,14 @@
+{
+  "request_version": "1",
+  "purpose": "Request movement progress for the movement referred to as 推胸; resolve identity before export.",
+  "datasets": [{
+    "type": "movement_progress",
+    "time_range": {"mode": "latest_matching_sessions", "sessions": 3},
+    "filters": {"movement_name": "推胸"},
+    "fields": ["date", "movement_id", "movement_name", "body_part", "sets"],
+    "include_notes": false
+  }],
+  "notes_scope": [],
+  "raw": false,
+  "output": {"formats": ["json"]}
+}

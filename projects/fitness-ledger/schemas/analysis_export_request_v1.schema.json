@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fitness-ledger://schemas/analysis-export-request-v1",
+  "title": "Fitness Ledger Analysis Export Request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "request_version": { "const": "1" },
+    "purpose": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "datasets": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": { "$ref": "#/$defs/dataset" }
+    },
+    "notes_scope": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["daily", "diet", "training", "movement"] }
+    },
+    "raw": { "const": false },
+    "output": { "$ref": "#/$defs/output" }
+  },
+  "required": ["request_version", "purpose", "datasets", "notes_scope", "raw", "output"],
+  "$defs": {
+    "dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["body", "diet", "training", "movement_progress"] },
+        "time_range": { "$ref": "#/$defs/time_range" },
+        "filters": { "$ref": "#/$defs/filters" },
+        "fields": { "type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 80 } },
+        "include_notes": { "type": "boolean" }
+      },
+      "required": ["type", "time_range", "filters", "fields", "include_notes"]
+    },
+    "time_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "properties": { "mode": { "const": "recent_days" }, "days": { "type": "integer", "minimum": 1, "maximum": 3650 } },
+          "required": ["mode", "days"]
+        },
+        {
+          "properties": { "mode": { "const": "explicit_range" }, "start": { "type": "string", "format": "date" }, "end": { "type": "string", "format": "date" } },
+          "required": ["mode", "start", "end"]
+        },
+        {
+          "properties": { "mode": { "const": "latest_matching_sessions" }, "sessions": { "type": "integer", "minimum": 1, "maximum": 20 } },
+          "required": ["mode", "sessions"]
+        },
+        {
+          "properties": { "mode": { "const": "days_before_target_session" }, "days_before": { "type": "integer", "minimum": 1, "maximum": 30 } },
+          "required": ["mode", "days_before"]
+        }
+      ]
+    },
+    "filters": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "body_part": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "movement_name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "movement_id": { "type": "string", "minLength": 1, "maxLength": 120, "pattern": "^[A-Za-z0-9_.:-]+$" },
+        "split": { "type": "string", "minLength": 1, "maxLength": 80 }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "formats": { "type": "array", "minItems": 1, "maxItems": 2, "uniqueItems": true, "items": { "enum": ["json", "markdown"] } }
+      },
+      "required": ["formats"]
+    }
+  }
+}

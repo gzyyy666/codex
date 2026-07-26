@@ -1,0 +1,11 @@
+{
+  "request_version": "1",
+  "purpose": "Provide diet and training records for a combined comparison.",
+  "datasets": [
+    {"type": "diet", "time_range": {"mode": "recent_days", "days": 28}, "filters": {}, "fields": ["date", "calories_kcal", "protein_g", "carbs_g", "fat_g"], "include_notes": false},
+    {"type": "training", "time_range": {"mode": "recent_days", "days": 28}, "filters": {}, "fields": ["date", "split"], "include_notes": false}
+  ],
+  "notes_scope": [],
+  "raw": false,
+  "output": {"formats": ["json", "markdown"]}
+}

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fitness Ledger · Analysis Export Request Preview</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <p class="eyebrow">READ-ONLY PROTOCOL PREVIEW</p>
+      <h1>Analysis Export Request v1</h1>
+      <p class="lede">Validate the data request GPT would send. This page does not read records, call a model, or execute an export.</p>
+    </header>
+    <section class="toolbar">
+      <label>Anonymous example
+        <select id="exampleSelect"><option>Loading examples…</option></select>
+      </label>
+      <button id="loadExample" type="button">Load example</button>
+      <button id="validate" type="button" class="primary">Validate</button>
+    </section>
+    <section class="grid">
+      <label class="panel">Request JSON
+        <textarea id="requestInput" spellcheck="false"></textarea>
+      </label>
+      <div class="panel">
+        <h2>Validation result</h2>
+        <div id="status" class="status neutral">Not validated</div>
+        <pre id="result">Paste a request or load an example, then click Validate.</pre>
+      </div>
+    </section>
+    <footer>Raw is fixed to <code>false</code>. Preview only. No formal data, Raw, model, or Executor access.</footer>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

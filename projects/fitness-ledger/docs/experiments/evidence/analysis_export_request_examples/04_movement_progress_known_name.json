@@ -1,0 +1,14 @@
+{
+  "request_version": "1",
+  "purpose": "Compare the progress history of the known bench press movement.",
+  "datasets": [{
+    "type": "movement_progress",
+    "time_range": {"mode": "latest_matching_sessions", "sessions": 3},
+    "filters": {"movement_name": "卧推"},
+    "fields": ["date", "movement_id", "movement_name", "variant", "sets"],
+    "include_notes": false
+  }],
+  "notes_scope": [],
+  "raw": false,
+  "output": {"formats": ["json", "markdown"]}
+}
