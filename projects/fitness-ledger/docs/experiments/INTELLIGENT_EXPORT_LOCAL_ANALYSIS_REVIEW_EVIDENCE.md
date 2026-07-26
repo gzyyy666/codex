@@ -246,3 +246,15 @@ Preview Service 本身没有必须补的结构缺口；正式 Web/正式导出�
 3. 确认四类边界请求均为 `planner.status=not_run`，且 `executor_called=false`。
 4. 查看基线失败是否接受为旧 deterministic 输出契约不一致；不要通过恢复 Legacy Planner 或修改 Frozen Core 解决。
 5. 如果 Review 通过，下一步才是单独规划 Web Preview endpoint、确认状态存储和前端确认 UI；本 Commit 不包含这些变更。
+
+## 10. 本地人工测试 UI
+
+在 `projects/fitness-ledger` 下运行：
+
+```powershell
+python tools/analysis_preview_review_ui.py --port 8788
+```
+
+然后打开 `http://127.0.0.1:8788/`。页面使用匿名临时 fixture，输入目标后可以查看 Gate、Planner 原始结构化输出、AnalysisRequirementSpec、Validation、范围、Mapping 和 GPT Package 摘要；填写人工期望能力后点击“导出匿名案例”，即可得到可提交 Review 的 JSON。
+
+UI 只监听本机，默认使用当前 `qwen3:4b` transport；Ollama 不可用时显示 `model_unavailable`。页面没有正式数据路径、Executor、Cloud 或原 Web 页面连接。
