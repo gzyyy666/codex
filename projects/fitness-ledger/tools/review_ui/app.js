@@ -19,6 +19,8 @@ function render(value) {
     `Gate: ${value.gate?.status || '-'}`,
     `Planner: ${value.planner?.status || '-'} / ${value.planner?.latency_ms || 0}ms`,
     `Validation: ${value.validation?.status || '-'}`,
+    `Evidence: ${value.analysis_evaluation?.status || '-'}`,
+    `Claims: ${value.analysis_evaluation?.allowed_claim_mode || '-'}`,
     `Executor: ${value.execution?.executor_called === false ? 'not called' : 'check required'}`,
     `Raw: ${value.gpt_analysis_package_preview?.raw_included === false ? 'not included' : 'not packaged'}`
   ].join(' · ');

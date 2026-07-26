@@ -53,6 +53,8 @@ def _package_summary(value: dict[str, Any] | None) -> dict[str, Any] | None:
         "capability_ids": list(value.get("capability_ids", [])),
         "preferred_time_window": value.get("preferred_time_window", {}),
         "confirmed_time_window": value.get("confirmed_time_window"),
+        "derived_metrics_count": len(value.get("derived_metrics", [])),
+        "gpt_prompt_outline_count": len(value.get("gpt_prompt_outline", [])),
         "data_block_count": len(value.get("data_blocks", [])),
         "raw_included": value.get("raw_included", False),
         "notes_scope": value.get("notes_scope"),
@@ -90,6 +92,7 @@ def _case_record(case_id: str, request: str, response: dict[str, Any], transport
         },
         "analysis_requirement_spec": trace.get("parsed_requirement"),
         "validation": response.get("validation", {}),
+        "analysis_evaluation": response.get("analysis_evaluation"),
         "date_movement_capability_resolution": response.get("resolution", {}),
         "mapping_preview": mapping,
         "gpt_analysis_package_preview_summary": _package_summary(response.get("gpt_analysis_package_preview")),
@@ -139,6 +142,13 @@ def generate() -> dict[str, Any]:
             "latency_p95_ms": sorted_latencies[p95_index] if sorted_latencies else 0,
             "latency_max_ms": max(latencies) if latencies else 0,
             "planner_call_count_total": sum(item["planner"]["call_count"] for item in results),
+            "analysis_status_counts": dict(
+                __import__("collections").Counter(
+                    item.get("analysis_evaluation", {}).get("status")
+                    for item in results
+                    if item.get("analysis_evaluation")
+                )
+            ),
         },
     }
 

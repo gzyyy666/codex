@@ -17,8 +17,10 @@ from .analysis_foundation import (
     FoundationError,
     GPTAnalysisPackage,
     PackageDataBlock,
+    PreferredTimeWindow,
     RequirementMapper,
 )
+from .analysis_evidence import compile_and_evaluate
 from .candidate_cards import CandidatePackage
 from .data_catalog import DataCatalogBuilder
 from .export_plan_validator import ExportPlanValidator, PlanValidationError
@@ -91,6 +93,28 @@ def _catalog_data_blocks(package: CandidatePackage, mapping: Any) -> list[Packag
         ]
         blocks.append(PackageDataBlock(mapped.capability_id, source, facts))
     return blocks
+
+
+def _package_safe_requirement(requirement: AnalysisRequirementSpecV1) -> AnalysisRequirementSpecV1:
+    """Remove model-authored executable-looking details before packaging.
+
+    The original requirement remains in the trace for audit.  The future GPT
+    package receives only a symbolic time preference and no free-text metrics
+    or model-generated procedural outline; registered task IDs live in the
+    deterministic ``analysis_evaluation`` object instead.
+    """
+
+    safe_labels = {
+        "unspecified": "",
+        "recent": "最近",
+        "last_week": "最近一周",
+        "recent_months": "最近几个月",
+        "all_available": "全部可用记录",
+        "explicit_user_phrase": "用户指定日期范围",
+    }
+    window_kind = requirement.preferred_time_window.kind
+    safe_window = PreferredTimeWindow(window_kind, safe_labels[window_kind])
+    return replace(requirement, preferred_time_window=safe_window, derived_metrics=[], gpt_prompt_outline=[])
 
 
 class AnalysisIntentPlanner:
@@ -190,6 +214,7 @@ class AnalysisPreviewService:
             "resolution": {"status": "not_run"},
             "mapping_preview": None,
             "gpt_analysis_package_preview": None,
+            "analysis_evaluation": None,
             "review": {"required": True, "editable_fields": ["questions_to_answer", "optional_capabilities", "preferred_time_window"]},
             "execution": {"allowed": False, "mode": "preview_only", "executor_called": False},
             "trace": {
@@ -291,9 +316,20 @@ class AnalysisPreviewService:
             "notes_selection_count": len(validated_plan.notes_selection),
         }
         response["mapping_preview"] = {**mapping.to_dict(), "deterministic_plan_preview": validated_plan.to_dict()}
+        analysis_evaluation = compile_and_evaluate(
+            requirement,
+            gate.request,
+            gate.facts,
+            self.catalog,
+            validated_plan,
+            mapping,
+        )
+        response["analysis_evaluation"] = analysis_evaluation.to_dict()
+        response["review"]["analysis_status"] = analysis_evaluation.status
+        response["review"]["answerability"] = analysis_evaluation.answerability
         try:
             package = GPTAnalysisPackage.build(
-                requirement,
+                _package_safe_requirement(requirement),
                 mapping,
                 gate.request,
                 self.catalog.source_snapshot_id,

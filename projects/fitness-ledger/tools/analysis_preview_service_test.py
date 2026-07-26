@@ -88,6 +88,10 @@ def test_legal_preview_reuses_core_without_execution() -> None:
         assert body["mapping_preview"]["mapped_capabilities"][0]["capability_id"] == "body_history"
         assert body["gpt_analysis_package_preview"]["raw_included"] is False
         assert body["gpt_analysis_package_preview"]["notes_scope"] is None
+        assert body["gpt_analysis_package_preview"]["derived_metrics"] == []
+        assert body["gpt_analysis_package_preview"]["gpt_prompt_outline"] == []
+        assert body["analysis_evaluation"]["evidence_requirements"]["analysis_task_ids"] == ["weight_trend", "body_record_coverage"]
+        assert body["analysis_evaluation"]["status"] == "ready_with_limits"
         assert "private raw" not in json.dumps(body, ensure_ascii=False)
 
         combined = service.preview("分析最近饮食和训练")

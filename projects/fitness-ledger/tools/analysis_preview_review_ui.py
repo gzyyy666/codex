@@ -92,6 +92,7 @@ def safe_ui_response(response: dict[str, Any]) -> dict[str, Any]:
         "validation": response.get("validation", {}),
         "resolution": response.get("resolution", {}),
         "mapping_preview": _safe_mapping(response.get("mapping_preview")),
+        "analysis_evaluation": response.get("analysis_evaluation"),
         "gpt_analysis_package_preview": _package_summary(response.get("gpt_analysis_package_preview")),
         "review": response.get("review", {}),
         "execution": response.get("execution", {}),

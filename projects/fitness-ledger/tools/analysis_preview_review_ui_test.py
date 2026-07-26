@@ -44,6 +44,8 @@ def main() -> None:
         assert result["status"] == "ready", result
         assert result["execution"]["executor_called"] is False
         assert result["gpt_analysis_package_preview"]["raw_included"] is False
+        assert result["analysis_evaluation"]["status"] == "ready_with_limits"
+        assert result["analysis_evaluation"]["answerability"] == "ready_with_limits"
         assert result["mapping_preview"]["deterministic_plan_preview"]["selected_modules"] == ["body"]
         assert "candidate_record_ids" not in json.dumps(result, ensure_ascii=False)
 
