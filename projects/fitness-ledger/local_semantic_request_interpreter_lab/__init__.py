@@ -4,6 +4,7 @@ from .core import compile_request_draft, interpret_request, validate_request_dra
 from .deterministic import DeterministicIntent, parse_chinese_number, parse_deterministic_intent
 from .inference import InferenceProvider
 from .runtime_config import ModelProfile, RuntimeBundle, RuntimeConfig, load_runtime_bundle
+from .semantic_hint import SemanticCandidate, SemanticHint, SemanticHintError, SemanticHintRequest, assemble_semantic_hint, validate_semantic_hint
 
 __all__ = [
     "compile_request_draft",
@@ -17,4 +18,10 @@ __all__ = [
     "RuntimeConfig",
     "RuntimeBundle",
     "load_runtime_bundle",
+    "SemanticCandidate",
+    "SemanticHint",
+    "SemanticHintError",
+    "SemanticHintRequest",
+    "assemble_semantic_hint",
+    "validate_semantic_hint",
 ]

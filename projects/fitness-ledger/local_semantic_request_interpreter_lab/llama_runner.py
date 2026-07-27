@@ -21,6 +21,7 @@ from .inference import (
     ProviderConfigurationError,
 )
 from .runtime_config import ModelProfile, RuntimeBundle, RuntimeConfig
+from .semantic_hint import SemanticHintRequest, build_semantic_hint_prompt
 
 
 class LlamaCppCliProvider(InferenceProvider):
@@ -31,16 +32,18 @@ class LlamaCppCliProvider(InferenceProvider):
         self.runtime_config = runtime_config
         self.schema_path = Path(schema_path)
         self.prompt_path = Path(__file__).with_name("prompt_v1.txt")
+        self.hint_prompt_path = Path(__file__).with_name("prompt_semantic_hint_v1.txt")
         self.catalog_path = self.schema_path.parent.parent / "data" / "capability_catalog.json"
+        self.hint_schema_path = self.schema_path.parent / "semantic_hint_v1.schema.json"
         if not self.schema_path.is_file():
             raise ProviderConfigurationError(f"SCHEMA_NOT_FOUND:{self.schema_path}")
-        if not self.prompt_path.is_file() or not self.catalog_path.is_file():
+        if not self.prompt_path.is_file() or not self.hint_prompt_path.is_file() or not self.catalog_path.is_file() or not self.hint_schema_path.is_file():
             raise ProviderConfigurationError("PROVIDER_PACKAGE_FILES_NOT_FOUND")
 
-    def _build_grammar(self) -> Path:
+    def _build_grammar(self, schema_path: Path, prefix: str) -> Path:
         try:
             generated = subprocess.check_output(
-                [sys.executable, str(self.runtime_config.effective_grammar_tool_path), str(self.schema_path)],
+                [sys.executable, str(self.runtime_config.effective_grammar_tool_path), str(schema_path)],
                 text=True,
                 encoding="utf-8",
             )
@@ -51,7 +54,7 @@ class LlamaCppCliProvider(InferenceProvider):
         runtime_dir = self.runtime_config.effective_runtime_directory
         try:
             runtime_dir.mkdir(parents=True, exist_ok=True)
-            handle, name = tempfile.mkstemp(prefix="request-draft-", suffix=".gbnf", dir=runtime_dir)
+            handle, name = tempfile.mkstemp(prefix=prefix, suffix=".gbnf", dir=runtime_dir)
             os.close(handle)
             grammar_path = Path(name)
             grammar_path.write_text(generated, encoding="utf-8", newline="\n")
@@ -105,7 +108,7 @@ class LlamaCppCliProvider(InferenceProvider):
             prompt = self.build_prompt(user_text, catalog, schema)
         except (OSError, json.JSONDecodeError) as exc:
             raise ProviderConfigurationError("PROVIDER_PACKAGE_FILES_INVALID") from exc
-        grammar_path = self._build_grammar()
+        grammar_path = self._build_grammar(self.schema_path, "request-draft-")
         command = self.build_command(prompt, grammar_path)
         started = time.perf_counter()
         try:
@@ -126,6 +129,51 @@ class LlamaCppCliProvider(InferenceProvider):
         finally:
             grammar_path.unlink(missing_ok=True)
         _ = round((time.perf_counter() - started) * 1000, 2)
+        if completed.returncode != 0:
+            raise ProcessExitError(str(completed.returncode))
+        return self._extract_json(completed.stdout or "")
+
+    def infer_semantic_hint(self, request: SemanticHintRequest) -> str:
+        try:
+            template = self.hint_prompt_path.read_text(encoding="utf-8")
+            prompt = build_semantic_hint_prompt(request, template)
+        except OSError as exc:
+            raise ProviderConfigurationError("SEMANTIC_HINT_PROMPT_INVALID") from exc
+        runtime_dir = self.runtime_config.effective_runtime_directory
+        dynamic_schema_path: Path | None = None
+        try:
+            runtime_dir.mkdir(parents=True, exist_ok=True)
+            handle, name = tempfile.mkstemp(prefix="semantic-hint-schema-", suffix=".json", dir=runtime_dir)
+            os.close(handle)
+            dynamic_schema_path = Path(name)
+            # The bundled Windows grammar helper opens schema files with the system code page.
+            # ASCII JSON keeps escaped Chinese evidence portable without changing its value.
+            dynamic_schema_path.write_text(json.dumps(request.to_json_schema(), ensure_ascii=True), encoding="ascii", newline="\n")
+        except OSError as exc:
+            raise ProcessStartError("SEMANTIC_HINT_SCHEMA_CREATE_FAILED") from exc
+        grammar_path: Path | None = None
+        try:
+            grammar_path = self._build_grammar(dynamic_schema_path, "semantic-hint-")
+            command = self.build_command(prompt, grammar_path)
+            try:
+                completed = subprocess.run(
+                    command,
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=self.runtime_config.timeout_seconds,
+                    check=False,
+                )
+            except subprocess.TimeoutExpired as exc:
+                raise ProcessTimeoutError(f"{self.runtime_config.timeout_seconds}s") from exc
+            except OSError as exc:
+                raise ProcessStartError(type(exc).__name__) from exc
+        finally:
+            if grammar_path is not None:
+                grammar_path.unlink(missing_ok=True)
+            if dynamic_schema_path is not None:
+                dynamic_schema_path.unlink(missing_ok=True)
         if completed.returncode != 0:
             raise ProcessExitError(str(completed.returncode))
         return self._extract_json(completed.stdout or "")

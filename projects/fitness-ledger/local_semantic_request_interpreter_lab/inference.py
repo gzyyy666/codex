@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .semantic_hint import SemanticHintRequest
 
 
 class InferenceError(RuntimeError):
@@ -63,6 +67,10 @@ class InferenceProvider(ABC):
     @abstractmethod
     def infer(self, user_text: str) -> str:
         """Return one raw model response for one user request."""
+
+    def infer_semantic_hint(self, request: "SemanticHintRequest") -> str:
+        """Return a narrow hint; legacy providers must opt into this task explicitly."""
+        raise ProviderConfigurationError("SEMANTIC_HINT_PROVIDER_UNSUPPORTED")
 
     def __call__(self, user_text: str) -> str:
         return self.infer(user_text)

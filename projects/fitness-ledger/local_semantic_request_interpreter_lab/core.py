@@ -9,6 +9,7 @@ from typing import Any, Callable
 
 from .deterministic import parse_deterministic_intent
 from .inference import InferenceProvider, ModelUnavailable, ProviderConfigurationError, ProviderOutputError, ProviderRuntimeError
+from .semantic_hint import SemanticHintError, assemble_semantic_hint, validate_semantic_hint
 
 SCHEMA_VERSION = "fitness-ledger-request-draft-v1"
 RESULT_VERSION = "fitness-ledger-request-interpreter-result-v1"
@@ -258,7 +259,8 @@ def validate_request_grounding(draft: dict[str, Any], user_text: str) -> dict[st
                 raise DraftError(f"ungrounded session count: {count}")
         elif time_type == "recent_days":
             days = time_intent.get("days")
-            if not (str(days) in user_text or any(term in user_text for term in NUMBER_TERMS.get(days, ()) )):
+            month_phrase = days == 30 and any(term in user_text for term in ("最近一个月", "最近一月"))
+            if not (str(days) in user_text or any(term in user_text for term in NUMBER_TERMS.get(days, ()) ) or month_phrase):
                 raise DraftError(f"ungrounded day count: {days}")
         elif time_type == "before_each_target_event":
             days_before = time_intent.get("days_before")
@@ -295,10 +297,11 @@ def interpret_request(
         if intent.route == "deterministic":
             draft = intent.to_draft()
         else:
-            if runner is None:
+            if runner is None or not isinstance(runner, InferenceProvider) or intent.hint_request is None:
                 return {"result_version": RESULT_VERSION, "status": "model_unavailable", "draft": None, "errors": ["MODEL_UNAVAILABLE"], "warnings": []}
-            raw = runner.infer(user_text) if isinstance(runner, InferenceProvider) else runner(user_text)
-            draft = parse_json_strict(raw)
+            raw = runner.infer_semantic_hint(intent.hint_request)
+            hint = validate_semantic_hint(parse_json_strict(raw), intent.hint_request)
+            draft = assemble_semantic_hint(intent, intent.hint_request, hint)
         checked = validate_request_draft(draft, capability_catalog)
         validate_request_grounding(checked, user_text)
         return {"result_version": RESULT_VERSION, "status": checked["status"], "draft": checked, "errors": [], "warnings": checked["warnings"]}
@@ -307,4 +310,6 @@ def interpret_request(
     except (ProviderRuntimeError, ProviderConfigurationError) as exc:
         return {"result_version": RESULT_VERSION, "status": "model_unavailable", "draft": None, "errors": [str(exc)], "warnings": []}
     except DraftError as exc:
+        return {"result_version": RESULT_VERSION, "status": "invalid_model_output", "draft": None, "errors": [str(exc)], "warnings": []}
+    except SemanticHintError as exc:
         return {"result_version": RESULT_VERSION, "status": "invalid_model_output", "draft": None, "errors": [str(exc)], "warnings": []}

@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any, Literal
 
+from .semantic_hint import SemanticHintRequest, build_comparative_hint_request
+
 SCHEMA_VERSION = "fitness-ledger-request-draft-v1"
 
 Route = Literal["deterministic", "provider"]
@@ -24,6 +26,7 @@ class DeterministicIntent:
     missing_confirmations: tuple[str, ...]
     warnings: tuple[str, ...]
     reason: str = ""
+    hint_request: SemanticHintRequest | None = None
 
     def to_draft(self) -> dict[str, Any]:
         if self.route != "deterministic" or self.status is None:
@@ -326,6 +329,8 @@ def _id_for(kind: str, text: str, scope: dict[str, str], fields: list[str], time
         return {"legs": "leg", "shoulders": "shoulder"}.get(scope["body_part"], scope["body_part"]) + "_training"
     if "split" in scope:
         return f"{scope['split']}_training"
+    if time_intent and time_intent.get("type") == "recent_days" and time_intent.get("days") == 30:
+        return f"{kind}_month"
     return "training_history"
 
 
@@ -374,7 +379,7 @@ def parse_deterministic_intent(user_text: str, capability_catalog: dict[str, Any
         and ("最近一个月" in text or "最近一月" in text)
         and not any(term in text for terms in FIELD_TERMS["training"].values() for term in terms)
     ):
-        return DeterministicIntent("provider", None, "analysis_field_selection", (), (), (), (), "semantic_hint_required")
+        return DeterministicIntent("provider", None, "analysis_field_selection", (), (), (), (), "semantic_hint_required", build_comparative_hint_request(text, capability_catalog))
 
     missing = _needs_confirmation(text, positions)
     if missing:

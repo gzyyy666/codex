@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fitness-ledger://schemas/semantic-hint-v1",
+  "title": "Fitness Ledger Grounded Semantic Hint v1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "candidates": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "dimension": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "canonical_value": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "evidence": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        },
+        "required": ["dimension", "canonical_value", "evidence", "confidence"]
+      }
+    },
+    "ambiguities": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "dimension": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "reason": { "type": "string", "minLength": 1, "maxLength": 160 },
+          "evidence": { "type": "string", "minLength": 1, "maxLength": 80 }
+        },
+        "required": ["dimension", "reason", "evidence"]
+      }
+    }
+  },
+  "required": ["candidates", "ambiguities"]
+}

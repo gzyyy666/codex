@@ -13,6 +13,7 @@ from local_semantic_request_interpreter_lab.evaluate import run_evaluation
 from local_semantic_request_interpreter_lab.inference import EmptyOutputError, InferenceProvider, InvalidModelOutputError, ProcessExitError, ProcessStartError, ProcessTimeoutError, ProviderConfigurationError
 from local_semantic_request_interpreter_lab.llama_runner import LlamaCppCliProvider, LlamaJsonRunner
 from local_semantic_request_interpreter_lab.runtime_config import ModelProfile, RuntimeConfig, load_runtime_bundle
+from local_semantic_request_interpreter_lab.semantic_hint import SemanticHintError, build_comparative_hint_request, rank_candidates, validate_semantic_hint
 
 
 ROOT = Path(__file__).parents[1]
@@ -35,6 +36,32 @@ def good_draft() -> dict:
 
 
 class LabTests(unittest.TestCase):
+    G20_TEXT = "我想让GPT比较最近一个月训练和饮食，请导出需要的数据。"
+
+    def _good_hint(self) -> str:
+        return json.dumps({
+            "candidates": [
+                *({"dimension": "requested_information.training", "canonical_value": value, "evidence": "训练", "confidence": 0.95} for value in ("date", "session", "movements", "sets")),
+                *({"dimension": "requested_information.diet", "canonical_value": value, "evidence": "饮食", "confidence": 0.95} for value in ("date", "energy", "protein", "carbohydrate", "fat")),
+            ],
+            "ambiguities": [],
+        }, ensure_ascii=False)
+
+    def _hint_provider(self, *, output: str | None = None):
+        parent = self
+
+        class HintProvider(InferenceProvider):
+            def __init__(self):
+                self.calls = 0
+
+            def infer(self, user_text: str) -> str:
+                raise AssertionError("Stage B must not call the complete Draft interface")
+
+            def infer_semantic_hint(self, request):
+                self.calls += 1
+                return parent._good_hint() if output is None else output
+
+        return HintProvider()
     def _runtime_files(self, root: Path, *, cuda: bool = False) -> tuple[Path, Path]:
         runtime_root = root / "runtime root with spaces"
         bin_dir = runtime_root / ("llama-cuda" if cuda else "llama")
@@ -152,40 +179,30 @@ class LabTests(unittest.TestCase):
         self.assertEqual(sum(route == "provider" for route in routes.values()), 1)
 
     def test_inference_provider_contract_and_core_failure_close(self):
-        class StubProvider(InferenceProvider):
-            def __init__(self):
-                self.calls = 0
-
-            def infer(self, user_text: str) -> str:
-                self.calls += 1
-                return json.dumps({
-                    "schema_version": "fitness-ledger-request-draft-v1",
-                    "status": "unsupported",
-                    "purpose": "test",
-                    "datasets": [],
-                    "relations": [],
-                    "missing_confirmations": [],
-                    "warnings": [],
-                })
-
-        provider = StubProvider()
-        result = interpret_request("导出最近饮食", CATALOG, provider)
-        self.assertEqual(result["status"], "unsupported")
+        provider = self._hint_provider()
+        result = interpret_request(self.G20_TEXT, CATALOG, provider)
+        self.assertEqual(result["status"], "ready")
         self.assertEqual(provider.calls, 1)
 
         class FailedProvider(InferenceProvider):
             def infer(self, user_text: str) -> str:
+                raise AssertionError("complete Draft interface must not be called")
+
+            def infer_semantic_hint(self, request) -> str:
                 raise ProcessTimeoutError("3s")
 
-        failed = interpret_request("导出最近饮食", CATALOG, FailedProvider())
+        failed = interpret_request(self.G20_TEXT, CATALOG, FailedProvider())
         self.assertEqual(failed["status"], "model_unavailable")
         self.assertIsNone(failed["draft"])
 
         class InvalidProvider(InferenceProvider):
             def infer(self, user_text: str) -> str:
+                raise AssertionError("complete Draft interface must not be called")
+
+            def infer_semantic_hint(self, request) -> str:
                 return "not json"
 
-        invalid = interpret_request("导出最近饮食", CATALOG, InvalidProvider())
+        invalid = interpret_request(self.G20_TEXT, CATALOG, InvalidProvider())
         self.assertEqual(invalid["status"], "invalid_model_output")
         self.assertIsNone(invalid["draft"])
 
@@ -244,6 +261,19 @@ class LabTests(unittest.TestCase):
             with mock.patch("local_semantic_request_interpreter_lab.llama_runner.subprocess.run", return_value=completed):
                 self.assertEqual(provider.infer("test"), '{"status":"ready"}')
 
+    @mock.patch("local_semantic_request_interpreter_lab.llama_runner.subprocess.check_output", return_value='root ::= "x"')
+    def test_semantic_hint_provider_success_and_timeout(self, _grammar):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            provider = self._provider(root)
+            request = build_comparative_hint_request(self.G20_TEXT, CATALOG)
+            completed = subprocess.CompletedProcess([], 0, stdout=self._good_hint(), stderr="")
+            with mock.patch("local_semantic_request_interpreter_lab.llama_runner.subprocess.run", return_value=completed):
+                self.assertEqual(json.loads(provider.infer_semantic_hint(request))["ambiguities"], [])
+            with mock.patch("local_semantic_request_interpreter_lab.llama_runner.subprocess.run", side_effect=subprocess.TimeoutExpired(["llama-cli"], 1)):
+                with self.assertRaises(ProcessTimeoutError):
+                    provider.infer_semantic_hint(request)
+
     def test_provider_process_failure_categories(self):
         scenarios = [
             (OSError("missing"), ProcessStartError),
@@ -271,22 +301,64 @@ class LabTests(unittest.TestCase):
                         provider.infer("test")
 
     def test_evaluator_accepts_provider_contract(self):
-        class UnsupportedProvider(InferenceProvider):
+        class HintProvider(InferenceProvider):
             def infer(self, user_text: str) -> str:
-                return json.dumps({
-                    "schema_version": "fitness-ledger-request-draft-v1",
-                    "status": "unsupported",
-                    "purpose": "test",
-                    "datasets": [],
-                    "relations": [],
-                    "missing_confirmations": [],
-                    "warnings": [],
-                })
+                raise AssertionError("complete Draft interface must not be called")
 
-        case = {"case_id": "T1", "text": "导出最近饮食", "status": "unsupported", "datasets": []}
-        report = run_evaluation(UnsupportedProvider(), CATALOG, [case])
+            def infer_semantic_hint(self, request) -> str:
+                return self_outer._good_hint()
+
+        self_outer = self
+        case = json.loads((ROOT / "data" / "gold_cases.json").read_text(encoding="utf-8"))[19]
+        report = run_evaluation(HintProvider(), CATALOG, [case])
         self.assertEqual(report["cases"], 1)
         self.assertEqual(report["metrics"]["status"], 1.0)
+
+    def test_semantic_hint_contract_and_g20_assembly(self):
+        request = build_comparative_hint_request(self.G20_TEXT, CATALOG)
+        hint = validate_semantic_hint(json.loads(self._good_hint()), request)
+        self.assertEqual(set(json.loads(self._good_hint())), {"candidates", "ambiguities"})
+        self.assertEqual([item.canonical_value for item in rank_candidates(hint, "requested_information.training")], ["date", "movements", "session", "sets"])
+        result = interpret_request(self.G20_TEXT, CATALOG, self._hint_provider())
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(result["draft"]["datasets"][0]["requested_information"], ["date", "session", "movements", "sets"])
+        self.assertEqual(result["draft"]["datasets"][1]["requested_information"], ["date", "energy", "protein", "carbohydrate", "fat"])
+
+    def test_semantic_hint_rejects_untrusted_or_protected_values(self):
+        request = build_comparative_hint_request(self.G20_TEXT, CATALOG)
+        valid = json.loads(self._good_hint())
+        invalid_cases = [
+            {**valid, "candidates": [*valid["candidates"], {"dimension": "time_intent", "canonical_value": "recent_days", "evidence": "最近一个月", "confidence": 1}]},
+            {**valid, "candidates": [*valid["candidates"], {"dimension": "requested_information.training", "canonical_value": "load", "evidence": "训练", "confidence": 1}]},
+            {**valid, "candidates": [*valid["candidates"], {"dimension": "requested_information.training", "canonical_value": "date", "evidence": "不存在", "confidence": 1}]},
+            {**valid, "candidates": [*valid["candidates"], valid["candidates"][0]]},
+            {**valid, "status": "ready"},
+        ]
+        for value in invalid_cases:
+            with self.subTest(value=value):
+                with self.assertRaises(SemanticHintError):
+                    validate_semantic_hint(value, request)
+
+    def test_semantic_hint_ambiguity_and_low_confidence_fail_closed(self):
+        request = build_comparative_hint_request(self.G20_TEXT, CATALOG)
+        ambiguous = {"candidates": [], "ambiguities": [{"dimension": "requested_information.training", "reason": "字段不明确", "evidence": "训练"}]}
+        provider = self._hint_provider(output=json.dumps(ambiguous, ensure_ascii=False))
+        result = interpret_request(self.G20_TEXT, CATALOG, provider)
+        self.assertEqual(result["status"], "needs_confirmation")
+        self.assertEqual(result["draft"]["datasets"], [])
+
+    def test_complete_candidates_keep_model_ambiguity_from_setting_status(self):
+        value = json.loads(self._good_hint())
+        value["ambiguities"] = [{"dimension": "requested_information.training", "reason": "模型附带说明", "evidence": "训练"}]
+        provider = self._hint_provider(output=json.dumps(value, ensure_ascii=False))
+        result = interpret_request(self.G20_TEXT, CATALOG, provider)
+        self.assertEqual(result["status"], "ready")
+        low = json.loads(self._good_hint())
+        low["candidates"][0]["confidence"] = 0.2
+        provider = self._hint_provider(output=json.dumps(low, ensure_ascii=False))
+        result = interpret_request(self.G20_TEXT, CATALOG, provider)
+        self.assertEqual(result["status"], "needs_confirmation")
+        self.assertEqual(result["draft"]["datasets"], [])
 
 
 if __name__ == "__main__":
