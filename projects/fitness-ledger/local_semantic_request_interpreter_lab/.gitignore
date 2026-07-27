@@ -1,0 +1,10 @@
+.runtime/
+models/
+runs/
+*.gguf
+*.bin
+*.exe
+*.dll
+*.zip
+__pycache__/
+*.pyc

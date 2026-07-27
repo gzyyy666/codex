@@ -1,0 +1,1 @@
+Return the JSON object with status ready and count 1. JSON only.
