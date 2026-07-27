@@ -1,0 +1,50 @@
+{
+  "dispatch_version": "1",
+  "protocol": {
+    "name": "AnalysisExportRequest",
+    "version": "1.1",
+    "accepted_commit": "0af0914f001c01d8f1e1dc1931e685a459fb04c",
+    "status": "accepted_frozen"
+  },
+  "current_task": {
+    "name": "protocol_freeze_and_gpt_handoff",
+    "branch": "feat/analysis-export-request-mvp",
+    "commit": "91edfba775feb9e46f479e6a7aafa7bc187cd6ef",
+    "complete": true
+  },
+  "conversation_decision": {
+    "current_json_conversation": "archive_after_completion",
+    "open_gpt_analysis_conversation": true,
+    "open_new_codex_conversation": true,
+    "open_formal_readonly_conversation_now": false,
+    "open_web_conversation_now": false
+  },
+  "next_codex_task": {
+    "name": "anonymous_deterministic_materialization",
+    "branch": "feat/analysis-export-anonymous-materialization",
+    "worktree": "C:\\Users\\26087\\Documents\\github-memory-worktrees\\fl-analysis-export-anonymous-materialization",
+    "baseline_commit": "91edfba775feb9e46f479e6a7aafa7bc187cd6ef",
+    "handoff_document": "docs/experiments/ANALYSIS_EXPORT_ANONYMOUS_MATERIALIZATION_HANDOFF.md",
+    "create_in_new_conversation": true
+  },
+  "future_gates": [
+    "anonymous_materialization_review",
+    "formal_readonly_validation",
+    "web_integration_review",
+    "release_review"
+  ],
+  "local_model_lab": {
+    "independent": true,
+    "blocking": false,
+    "future_interface": "LocalSemanticModelProvider",
+    "must_pass_validator": true
+  },
+  "safety": {
+    "formal_data_read": false,
+    "raw_read": false,
+    "model_called": false,
+    "executor_called": false,
+    "web_started": false,
+    "push_merge_tag": false
+  }
+}
