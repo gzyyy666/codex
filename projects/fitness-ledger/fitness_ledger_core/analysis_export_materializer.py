@@ -16,7 +16,7 @@ from .analysis_export_request import validate_request
 
 
 BUNDLE_VERSION = "1.1"
-MATERIALIZER_VERSION = "anonymous-materializer-1.0.0"
+MATERIALIZER_VERSION = "anonymous-materializer-1.1.0"
 DEFAULT_FIXTURE = Path(__file__).resolve().parents[1] / "tools" / "fixtures" / "analysis_export_anonymous" / "fixture.json"
 _NOTE_FIELD = {
     "daily": "daily_notes",
@@ -50,9 +50,18 @@ _FIELD_TYPES = {
 class MaterializationError(ValueError):
     """Raised when a request is invalid or a fixture cannot be materialized."""
 
-    def __init__(self, message: str, *, validation: Any = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        validation: Any = None,
+        code: str = "MATERIALIZATION_ERROR",
+        candidates: list[dict[str, Any]] | None = None,
+    ) -> None:
         super().__init__(message)
         self.validation = validation
+        self.code = code
+        self.candidates = candidates or []
 
 
 def _canonical(value: Any) -> str:
@@ -111,21 +120,25 @@ class AnonymousFixtureMaterializer:
             raise MaterializationError(f"Fixture dataset {dataset_type} must contain objects")
         return values
 
-    def _movement_ids(self, selector: dict[str, str]) -> set[str]:
+    def _movement_matches(self, selector: dict[str, str]) -> list[dict[str, Any]]:
         kind, value = selector["kind"], selector["value"]
         if kind == "movement_id":
-            return {value} if any(str(item.get("movement_id")) == value for item in self.movement_catalog) else set()
+            return [
+                item for item in self.movement_catalog
+                if str(item.get("movement_id")) == value
+            ]
         if kind == "movement_name":
-            return {
-                str(item.get("movement_id"))
+            return [
+                item
                 for item in self.movement_catalog
                 if _casefold(item.get("movement_name")) == _casefold(value)
-            }
-        return {
-            str(item.get("movement_id"))
+                or any(_casefold(alias) == _casefold(value) for alias in item.get("aliases", []))
+            ]
+        return [
+            item
             for item in self.movement_catalog
             if _casefold(item.get("body_part")) == _casefold(value)
-        }
+        ]
 
     def _apply_static_filters(self, dataset: dict[str, Any], rows: list[dict[str, Any]], warnings: list[str]) -> list[dict[str, Any]]:
         filters = dataset.get("filters", {})
@@ -135,7 +148,22 @@ class AnonymousFixtureMaterializer:
                     rows = [row for row in rows if _casefold(row.get(key)) == _casefold(filters[key])]
         elif dataset["type"] == "movement_progress" and "movement_selector" in filters:
             selector = filters["movement_selector"]
-            movement_ids = self._movement_ids(selector)
+            matches = self._movement_matches(selector)
+            if selector["kind"] == "movement_name" and len(matches) > 1:
+                candidates = [
+                    {
+                        "movement_id": str(item.get("movement_id")),
+                        "movement_name": item.get("movement_name"),
+                        "body_part": item.get("body_part"),
+                    }
+                    for item in matches
+                ]
+                raise MaterializationError(
+                    f"Movement name {selector['value']} has multiple anonymous candidates",
+                    code="MOVEMENT_RESOLUTION_REQUIRED",
+                    candidates=candidates,
+                )
+            movement_ids = {str(item.get("movement_id")) for item in matches}
             if not movement_ids:
                 warnings.append(
                     f"{dataset['dataset_id']}: movement selector {selector['kind']}={selector['value']} did not resolve in the anonymous catalog"
@@ -174,6 +202,7 @@ class AnonymousFixtureMaterializer:
         resolving.add(dataset_id)
         source_rows = self._rows(dataset["type"])
         rows = self._apply_static_filters(dataset, list(source_rows), warnings)
+        self._stage_counts[dataset_id] = {"candidate_record_count": len(rows)}
         time_range = dataset["time_range"]
         if time_range["mode"] != "days_before_target_session":
             rows = self._time_filter(dataset, rows)
@@ -210,16 +239,27 @@ class AnonymousFixtureMaterializer:
             if not target_dates:
                 warnings.append(f"{dataset_id}: no target sessions were available for the diet window")
         rows.sort(key=lambda row: (_iso(row.get("date")), _canonical(row.get("_relation", {}))))
+        self._stage_counts[dataset_id]["resolved_record_count"] = len(rows)
         resolved[dataset_id] = rows
         resolving.remove(dataset_id)
         return rows
 
-    def _project_rows(self, dataset: dict[str, Any], rows: list[dict[str, Any]], missing: list[str]) -> list[dict[str, Any]]:
+    def _project_rows(
+        self,
+        dataset: dict[str, Any],
+        rows: list[dict[str, Any]],
+        missing: list[str],
+        warnings: list[str],
+    ) -> list[dict[str, Any]]:
         fields = dataset["fields"]
         note_scope = dataset.get("notes_scope")
         note_field = _NOTE_FIELD.get(note_scope or "")
         roles = set(dataset.get("set_roles", []))
         output: list[dict[str, Any]] = []
+        if note_field and not any(note_field in source for source in self._rows(dataset["type"])):
+            warnings.append(
+                f"{dataset['dataset_id']}: Notes scope {note_scope} is unavailable in the anonymous fixture"
+            )
         for source in rows:
             record: dict[str, Any] = {"dataset_id": dataset["dataset_id"], "type": dataset["type"]}
             for field in fields:
@@ -234,7 +274,6 @@ class AnonymousFixtureMaterializer:
             if note_scope:
                 if note_field not in source:
                     record["notes"] = None
-                    missing.append(f"{dataset['dataset_id']}: Notes scope {note_scope} missing on {_iso(source.get('date'))}")
                 else:
                     record["notes"] = deepcopy(source[note_field])
             if "_relation" in source:
@@ -251,6 +290,7 @@ class AnonymousFixtureMaterializer:
             raise MaterializationError(f"Request rejected by AnalysisExportRequest v1.1 Validator: {errors}", validation=validation)
         normalized = validation.normalized_request
         self._requested_datasets = normalized["datasets"]
+        self._stage_counts: dict[str, dict[str, int]] = {}
         resolved: dict[str, list[dict[str, Any]]] = {}
         warnings: list[str] = []
         missing: list[str] = []
@@ -259,16 +299,16 @@ class AnonymousFixtureMaterializer:
         field_definitions: list[dict[str, Any]] = []
         for dataset in normalized["datasets"]:
             rows = self._resolve_dataset(dataset, resolved, warnings, missing, set())
-            projected_rows = self._project_rows(dataset, rows, missing)
+            projected_rows = self._project_rows(dataset, rows, missing, warnings)
             projected.extend(projected_rows)
             if not projected_rows:
                 warnings.append(f"{dataset['dataset_id']}: empty selection is reported explicitly")
             quality_datasets.append({
                 "dataset_id": dataset["dataset_id"],
                 "type": dataset["type"],
-                "candidate_count": len(self._rows(dataset["type"])),
-                "selected_count": len(rows),
-                "materialized_count": len(projected_rows),
+                "candidate_record_count": self._stage_counts[dataset["dataset_id"]]["candidate_record_count"],
+                "resolved_record_count": self._stage_counts[dataset["dataset_id"]]["resolved_record_count"],
+                "materialized_record_count": len(projected_rows),
                 "missing_fields": sorted({item.split(": field ", 1)[1].split(" missing on ", 1)[0] for item in missing if item.startswith(dataset["dataset_id"] + ": field ")}),
             })
             field_definitions.extend(_field_definition(dataset["dataset_id"], field) for field in dataset["fields"])
@@ -277,10 +317,11 @@ class AnonymousFixtureMaterializer:
 
         projected.sort(key=lambda row: (row["dataset_id"], _iso(row.get("date")), _canonical(row.get("relation", {}))))
         counts = {
-            "candidate_count": sum(item["candidate_count"] for item in quality_datasets),
-            "validated_count": 1,
-            "materialized_count": len(projected),
-            "exported_count": len(normalized["output"]["formats"]),
+            "validated_request_count": 1,
+            "candidate_record_count": sum(item["candidate_record_count"] for item in quality_datasets),
+            "resolved_record_count": sum(item["resolved_record_count"] for item in quality_datasets),
+            "materialized_record_count": len(projected),
+            "exported_artifact_count": len(normalized["output"]["formats"]),
         }
         bundle_seed = {
             "request": normalized,

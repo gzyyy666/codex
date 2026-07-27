@@ -16,7 +16,7 @@ FIXTURE_DIR = ROOT / "tools" / "fixtures" / "analysis_export_anonymous"
 DEFAULT_OUTPUT = Path(r"C:\Users\26087\Documents\github-memory\analysis-export-anonymous-materialization-review") / datetime.now(timezone.utc).strftime("anonymous-materialization-%Y%m%dT%H%M%SZ")
 sys.path.insert(0, str(ROOT))
 
-from fitness_ledger_core.analysis_export_materializer import AnonymousFixtureMaterializer  # noqa: E402
+from fitness_ledger_core.analysis_export_materializer import AnonymousFixtureMaterializer, MaterializationError  # noqa: E402
 from fitness_ledger_core.analysis_export_request import validate_request  # noqa: E402
 
 
@@ -63,6 +63,7 @@ def main() -> None:
 
     requests = json.loads((FIXTURE_DIR / "requests.json").read_text(encoding="utf-8"))
     rejected = json.loads((FIXTURE_DIR / "rejected_requests.json").read_text(encoding="utf-8"))
+    resolution_requests = json.loads((FIXTURE_DIR / "resolution_requests.json").read_text(encoding="utf-8"))
     materializer = AnonymousFixtureMaterializer(FIXTURE_DIR / "fixture.json")
     matrix = []
     for name, request in requests.items():
@@ -91,9 +92,51 @@ def main() -> None:
         write_json(case_dir / "request.json", request)
         write_json(case_dir / "standardized_request.json", validation.normalized_request)
         write_json(case_dir / "rejection.json", {"valid": validation.valid, "errors": [error.to_dict() for error in validation.errors], "materialized": False})
-        counts = {"candidate_count": 0, "validated_count": 0, "materialized_count": 0, "exported_count": 0}
+        counts = {
+            "validated_request_count": 0,
+            "candidate_record_count": 0,
+            "resolved_record_count": 0,
+            "materialized_record_count": 0,
+            "exported_artifact_count": 0,
+        }
         write_json(case_dir / "counts.json", counts)
         matrix.append({"case": name, "status": "rejected_before_materialization", "counts": counts, "errors": [error.to_dict() for error in validation.errors], "safety_flags": {"raw_included": False, "executor_called": False, "formal_data_written": False}})
+
+    for name, request in resolution_requests.items():
+        case_dir = output / "cases" / name
+        case_dir.mkdir(parents=True, exist_ok=True)
+        validation = validate_request(request)
+        write_json(case_dir / "request.json", request)
+        write_json(case_dir / "standardized_request.json", validation.normalized_request)
+        assert validation.valid and validation.normalized_request is not None
+        try:
+            materializer.materialize(request)
+        except MaterializationError as error:
+            assert error.code == "MOVEMENT_RESOLUTION_REQUIRED"
+            counts = {
+                "validated_request_count": 1,
+                "candidate_record_count": 0,
+                "resolved_record_count": 0,
+                "materialized_record_count": 0,
+                "exported_artifact_count": 0,
+            }
+            write_json(case_dir / "resolution_required.json", {
+                "status": error.code,
+                "message": str(error),
+                "candidates": error.candidates,
+                "bundle_generated": False,
+                "exports_generated": False,
+            })
+            write_json(case_dir / "counts.json", counts)
+            matrix.append({
+                "case": name,
+                "status": "movement_resolution_required",
+                "counts": counts,
+                "candidates": error.candidates,
+                "safety_flags": {"raw_included": False, "executor_called": False, "formal_data_written": False},
+            })
+        else:
+            raise AssertionError(f"{name} was silently materialized")
 
     write_json(output / "case_matrix.json", matrix)
     (output / "case_matrix.md").write_text("# Case Matrix\n\n" + "\n".join(
@@ -104,9 +147,10 @@ def main() -> None:
         "# Gap Report\n\n"
         "- This stage materializes only the frozen v1.1 request contract against one committed synthetic fixture.\n"
         "- It does not produce professional analysis conclusions, recommendations, claims, or an ExportPlan.\n"
-        "- Missing values remain JSON null and are listed in `missing_information`; empty selections are explicit.\n"
+        "- Missing formal fields remain JSON null and are listed in `missing_information`; optional Notes absent on a day remain null without a missing-data warning.\n"
         "- Bundle counts are recorded under `provenance.counts` because the frozen Bundle manifest is closed by schema.\n"
-        "- Movement-name resolution is fixture-catalog-only and has no formal dictionary fallback.\n",
+        "- Count units are fixed as `validated_request_count`, `candidate_record_count`, `resolved_record_count`, `materialized_record_count`, and `exported_artifact_count` in Bundle, case matrix, and exports.\n"
+        "- Movement-name resolution is fixture-catalog-only, has no formal dictionary fallback, and stops with `MOVEMENT_RESOLUTION_REQUIRED` when multiple candidates match.\n",
         encoding="utf-8",
     )
     write_json(output / "commands.json", command_results)
@@ -115,6 +159,7 @@ def main() -> None:
         f"Generated at: `{datetime.now(timezone.utc).isoformat()}`\n\n"
         f"Repository: `{ROOT}`\n\n"
         "All valid cases passed the frozen AnalysisExportRequest v1.1 Validator before materialization. Rejected Raw and unsupported-operation cases have no Bundle.\n\n"
+        "The review set contains 11 materialized legal cases, 2 validator-rejected cases, and 1 movement-resolution-required case with no Bundle.\n\n"
         "## Safety proof\n\n"
         "- Fixture source is `tools/fixtures/analysis_export_anonymous/fixture.json`, visibly synthetic and committed.\n"
         "- `analysis_export_materializer.py` opens only the anonymous fixture path; it has no formal tracker/dictionary, Raw, model, Ollama, Executor, ExportPlan, Web, Cloud, or Mini Program integration.\n"

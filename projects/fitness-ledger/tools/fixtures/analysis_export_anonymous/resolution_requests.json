@@ -1,0 +1,9 @@
+{
+  "movement_name_ambiguous": {
+    "request_version": "1.1",
+    "purpose": "Resolve an intentionally ambiguous synthetic movement name",
+    "datasets": [{"dataset_id": "ambiguous_progress", "type": "movement_progress", "time_range": {"mode": "latest_matching_sessions", "sessions": 3}, "filters": {"movement_selector": {"kind": "movement_name", "value": "Synthetic Press Ambiguous"}}, "fields": ["date", "movement_id", "movement_name", "sets"]}],
+    "raw": false,
+    "output": {"formats": ["json", "markdown"]}
+  }
+}

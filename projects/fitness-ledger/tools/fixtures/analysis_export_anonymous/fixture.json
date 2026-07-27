@@ -4,6 +4,8 @@
   "generated_at": "2099-12-31T00:00:00Z",
   "movement_catalog": [
     {"movement_id": "m_synthetic_press", "movement_name": "Synthetic Press", "body_part": "chest"},
+    {"movement_id": "m_synthetic_press_alt", "movement_name": "Synthetic Press Alt", "aliases": ["Synthetic Press Ambiguous"], "body_part": "chest"},
+    {"movement_id": "m_synthetic_press_variant", "movement_name": "Synthetic Press Variant", "aliases": ["Synthetic Press Ambiguous"], "body_part": "chest"},
     {"movement_id": "m_synthetic_fly", "movement_name": "Synthetic Fly", "body_part": "chest"},
     {"movement_id": "m_synthetic_row", "movement_name": "Synthetic Row", "body_part": "back"}
   ],

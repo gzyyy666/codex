@@ -73,6 +73,23 @@ def test_rejected_raw_and_unsupported_operation_fail_before_materialization() ->
             raise AssertionError(f"{name} was materialized")
 
 
+def test_movement_name_ambiguity_requires_resolution() -> None:
+    materializer = AnonymousFixtureMaterializer(FIXTURE_DIR / "fixture.json")
+    request = load_json("resolution_requests.json")["movement_name_ambiguous"]
+    validation = validate_request(request)
+    assert validation.valid
+    try:
+        materializer.materialize(request)
+    except MaterializationError as error:
+        assert error.code == "MOVEMENT_RESOLUTION_REQUIRED"
+        assert {item["movement_id"] for item in error.candidates} == {
+            "m_synthetic_press_alt",
+            "m_synthetic_press_variant",
+        }
+    else:
+        raise AssertionError("Ambiguous movement name was silently materialized")
+
+
 def test_four_time_modes_and_relation_are_deterministic() -> None:
     materializer = AnonymousFixtureMaterializer(FIXTURE_DIR / "fixture.json")
     requests = load_json("requests.json")
@@ -104,6 +121,9 @@ def test_selectors_set_roles_notes_and_missing_values() -> None:
     assert record["weight_kg"] is None and record["cardio_summary"] is None
     assert any("weight_kg" in item for item in missing["missing_information"])
     assert any("cardio_summary" in item for item in missing["missing_information"])
+    diet = materializer.materialize(requests["diet_recent_14"])
+    assert any(record.get("notes") is None for record in diet["records"])
+    assert not any("Notes scope" in item for item in diet["missing_information"])
     empty = materializer.materialize(requests["empty_intersection"])
     assert empty["records"] == []
     assert empty["quality_profile"]["status"] == "empty_selection"
@@ -124,7 +144,10 @@ def test_combo_bundle_schema_exports_and_safety_are_reproducible() -> None:
     assert bundle_one["provenance"]["request_schema_version"] == "1.1"
     assert bundle_one["provenance"]["materializer_version"]
     assert bundle_one["provenance"]["fixture_version"] == "anonymous-fixture-v1"
-    assert bundle_one["provenance"]["counts"]["validated_count"] == 1
+    assert bundle_one["provenance"]["counts"]["validated_request_count"] == 1
+    assert bundle_one["provenance"]["counts"]["candidate_record_count"] >= bundle_one["provenance"]["counts"]["resolved_record_count"]
+    assert bundle_one["provenance"]["counts"]["materialized_record_count"] == len(bundle_one["records"])
+    assert bundle_one["provenance"]["counts"]["exported_artifact_count"] == 2
     assert bundle_one["safety_flags"] == {"raw_included": False, "executor_called": False, "formal_data_written": False}
     assert bundle_one["request"]["raw"] is False
 
@@ -132,6 +155,7 @@ def test_combo_bundle_schema_exports_and_safety_are_reproducible() -> None:
 def main() -> None:
     test_all_valid_request_fixtures_pass_frozen_validator()
     test_rejected_raw_and_unsupported_operation_fail_before_materialization()
+    test_movement_name_ambiguity_requires_resolution()
     test_four_time_modes_and_relation_are_deterministic()
     test_selectors_set_roles_notes_and_missing_values()
     test_combo_bundle_schema_exports_and_safety_are_reproducible()
