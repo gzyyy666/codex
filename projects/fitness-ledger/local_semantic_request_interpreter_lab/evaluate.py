@@ -7,10 +7,12 @@ import json
 import statistics
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .core import DraftError, interpret_request
-from .llama_runner import LlamaJsonRunner
+from .inference import InferenceProvider, ProviderConfigurationError
+from .provider_factory import create_inference_provider
+from .runtime_config import load_runtime_bundle
 
 
 def _get(draft: dict[str, Any] | None, *path: str) -> Any:
@@ -70,7 +72,7 @@ def score_case(result: dict[str, Any], expected: dict[str, Any]) -> dict[str, An
     return {"case_id": expected["case_id"], "scores": scores, "result_status": result.get("status"), "errors": result.get("errors", [])}
 
 
-def run_evaluation(runner: Any, catalog: dict[str, Any], cases: list[dict[str, Any]], repeat: int = 1) -> dict[str, Any]:
+def run_evaluation(runner: InferenceProvider | Callable[[str], str], catalog: dict[str, Any], cases: list[dict[str, Any]], repeat: int = 1) -> dict[str, Any]:
     rows = []
     durations = []
     for case in cases:
@@ -96,17 +98,23 @@ def run_evaluation(runner: Any, catalog: dict[str, Any], cases: list[dict[str, A
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", required=True)
-    parser.add_argument("--llama-cli", required=True)
+    parser.add_argument("--runtime-config", help="JSON file containing model_profile and runtime_config")
+    parser.add_argument("--model")
+    parser.add_argument("--llama-cli")
+    parser.add_argument("--backend", choices=["cpu", "cuda"])
     parser.add_argument("--repeat", type=int, default=1)
-    parser.add_argument("--gpu-layers", type=int, default=0)
-    parser.add_argument("--timeout", type=int, default=180)
+    parser.add_argument("--gpu-layers", type=int)
+    parser.add_argument("--timeout", type=int)
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
     root = Path(__file__).parent
     catalog = json.loads((root / "data" / "capability_catalog.json").read_text(encoding="utf-8"))
     cases = json.loads((root / "data" / "gold_cases.json").read_text(encoding="utf-8"))
-    runner = LlamaJsonRunner(args.llama_cli, args.model, root / "schema" / "request_draft_v1.schema.json", timeout_seconds=args.timeout, gpu_layers=args.gpu_layers)
+    try:
+        bundle = load_runtime_bundle(args.runtime_config, model_path=args.model, executable_path=args.llama_cli, backend=args.backend, gpu_layers=args.gpu_layers, timeout_seconds=args.timeout)
+        runner = create_inference_provider(bundle, root / "schema" / "request_draft_v1.schema.json")
+    except ProviderConfigurationError as exc:
+        parser.error(str(exc))
     report = run_evaluation(runner, catalog, cases, args.repeat)
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     Path(args.output).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")

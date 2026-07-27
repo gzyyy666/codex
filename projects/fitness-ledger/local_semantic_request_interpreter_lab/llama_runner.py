@@ -1,4 +1,4 @@
-"""Isolated llama.cpp runner with bounded, single-request subprocesses."""
+"""llama.cpp CLI InferenceProvider and the legacy runner compatibility facade."""
 
 from __future__ import annotations
 
@@ -9,93 +9,138 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from typing import Any
 
-from .core import ModelUnavailable
+from .inference import (
+    EmptyOutputError,
+    InferenceProvider,
+    InvalidModelOutputError,
+    ProcessExitError,
+    ProcessStartError,
+    ProcessTimeoutError,
+    ProviderConfigurationError,
+)
+from .runtime_config import ModelProfile, RuntimeBundle, RuntimeConfig
 
 
-class LlamaJsonRunner:
-    def __init__(self, executable: str | Path, model: str | Path, schema_path: str | Path, timeout_seconds: int = 90, gpu_layers: int = 0):
-        self.executable = Path(executable)
-        self.model = Path(model)
+class LlamaCppCliProvider(InferenceProvider):
+    """One-request llama.cpp CLI provider with validated external config."""
+
+    def __init__(self, model_profile: ModelProfile, runtime_config: RuntimeConfig, schema_path: str | Path):
+        self.model_profile = model_profile
+        self.runtime_config = runtime_config
         self.schema_path = Path(schema_path)
-        self.timeout_seconds = timeout_seconds
-        self.gpu_layers = gpu_layers
+        self.prompt_path = Path(__file__).with_name("prompt_v1.txt")
+        self.catalog_path = self.schema_path.parent.parent / "data" / "capability_catalog.json"
+        if not self.schema_path.is_file():
+            raise ProviderConfigurationError(f"SCHEMA_NOT_FOUND:{self.schema_path}")
+        if not self.prompt_path.is_file() or not self.catalog_path.is_file():
+            raise ProviderConfigurationError("PROVIDER_PACKAGE_FILES_NOT_FOUND")
 
     def _build_grammar(self) -> Path:
-        script = self.executable.parent.parent / "json_schema_to_grammar.py"
-        if not script.is_file():
-            raise ModelUnavailable("JSON_SCHEMA_GRAMMAR_TOOL_NOT_FOUND")
         try:
-            generated = subprocess.check_output([sys.executable, str(script), str(self.schema_path)], text=True, encoding="utf-8")
+            generated = subprocess.check_output(
+                [sys.executable, str(self.runtime_config.effective_grammar_tool_path), str(self.schema_path)],
+                text=True,
+                encoding="utf-8",
+            )
         except (OSError, subprocess.CalledProcessError) as exc:
-            raise ModelUnavailable("JSON_SCHEMA_GRAMMAR_GENERATION_FAILED") from exc
-        runtime_dir = self.executable.parent.parent / "runs"
-        runtime_dir.mkdir(parents=True, exist_ok=True)
-        handle, name = tempfile.mkstemp(prefix="request-draft-", suffix=".gbnf", dir=runtime_dir)
-        os.close(handle)
-        Path(name).write_text(generated, encoding="utf-8", newline="\n")
-        return Path(name)
+            raise ProcessStartError("GRAMMAR_GENERATION_FAILED") from exc
+        if not generated.strip():
+            raise ProcessStartError("GRAMMAR_GENERATION_EMPTY")
+        runtime_dir = self.runtime_config.effective_runtime_directory
+        try:
+            runtime_dir.mkdir(parents=True, exist_ok=True)
+            handle, name = tempfile.mkstemp(prefix="request-draft-", suffix=".gbnf", dir=runtime_dir)
+            os.close(handle)
+            grammar_path = Path(name)
+            grammar_path.write_text(generated, encoding="utf-8", newline="\n")
+            return grammar_path
+        except OSError as exc:
+            raise ProcessStartError("GRAMMAR_FILE_CREATE_FAILED") from exc
 
-    def build_prompt(self, user_text: str, catalog: dict, schema: dict) -> str:
-        template = (Path(__file__).with_name("prompt_v1.txt")).read_text(encoding="utf-8")
-        # The runtime receives the full schema through --json-schema. Repeating
-        # it in the prompt needlessly consumes context and slows small models.
+    def build_prompt(self, user_text: str, catalog: dict[str, Any], schema: dict[str, Any]) -> str:
+        template = self.prompt_path.read_text(encoding="utf-8")
         schema_hint = "The llama.cpp runtime enforces the RequestDraft JSON Schema separately; emit only the JSON object."
         return template.replace("{{CAPABILITY_CATALOG}}", json.dumps(catalog, ensure_ascii=False, separators=(",", ":"))).replace("{{REQUEST_DRAFT_SCHEMA}}", schema_hint).replace("{{USER_TEXT}}", user_text)
 
-    def __call__(self, user_text: str) -> str:
-        if not self.executable.is_file() or not self.model.is_file() or not self.schema_path.is_file():
-            raise ModelUnavailable("MODEL_RUNTIME_NOT_FOUND")
-        catalog_path = self.schema_path.parent.parent / "data" / "capability_catalog.json"
-        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
-        schema = json.loads(self.schema_path.read_text(encoding="utf-8"))
-        prompt = self.build_prompt(user_text, catalog, schema)
-        grammar_path = self._build_grammar()
+    def build_command(self, prompt: str, grammar_path: str | Path) -> list[str]:
+        """Build argv as a list so Windows paths containing spaces stay intact."""
+        config = self.runtime_config
         command = [
-            str(self.executable),
-            "--model", str(self.model),
+            str(config.executable_path),
+            "--model", str(self.model_profile.model_path),
             "--grammar-file", str(grammar_path),
             "--prompt", prompt,
-            "--n-predict", "640",
-            "--ctx-size", "4096",
-            "--threads", "2",
-            "--threads-batch", "2",
-            "--temp", "0",
-            "--top-k", "1",
+            "--n-predict", str(config.n_predict),
+            "--ctx-size", str(config.ctx_size),
+            "--threads", str(config.threads),
+            "--threads-batch", str(config.threads_batch),
+            "--temp", str(config.temperature),
+            "--top-k", str(config.top_k),
             "--no-display-prompt",
             "--no-conversation",
             "--single-turn",
             "--simple-io",
         ]
-        if self.gpu_layers > 0:
-            command.extend(["--n-gpu-layers", str(self.gpu_layers)])
-        started = time.perf_counter()
-        try:
-            completed = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=self.timeout_seconds, check=False)
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            raise ModelUnavailable(f"MODEL_RUNTIME_FAILURE:{type(exc).__name__}") from exc
-        finally:
-            grammar_path.unlink(missing_ok=True)
-        elapsed_ms = round((time.perf_counter() - started) * 1000, 2)
-        if completed.returncode != 0:
-            raise ModelUnavailable(f"MODEL_RUNTIME_EXIT:{completed.returncode}")
-        output = completed.stdout.strip()
-        if not output:
-            raise ModelUnavailable("MODEL_EMPTY_OUTPUT")
-        # llama-cli may print its startup banner to stdout even with
-        # --no-display-prompt. Keep strict JSON parsing downstream by
-        # extracting only the outer JSON object; malformed output still fails
-        # closed in core.parse_json_strict.
+        if config.backend == "cuda":
+            command.extend(["--n-gpu-layers", str(config.gpu_layers)])
+        return command
+
+    @staticmethod
+    def _extract_json(output: str) -> str:
+        if not output.strip():
+            raise EmptyOutputError()
         start = output.find("{")
         end = output.rfind("}")
         if start >= 0 and end > start:
             return output[start : end + 1]
         preview = " ".join(output.split())[:240]
-        raise ModelUnavailable(f"MODEL_NO_JSON:{preview}")
+        raise InvalidModelOutputError(f"NO_JSON:{preview}")
+
+    def infer(self, user_text: str) -> str:
+        try:
+            catalog = json.loads(self.catalog_path.read_text(encoding="utf-8"))
+            schema = json.loads(self.schema_path.read_text(encoding="utf-8"))
+            prompt = self.build_prompt(user_text, catalog, schema)
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ProviderConfigurationError("PROVIDER_PACKAGE_FILES_INVALID") from exc
+        grammar_path = self._build_grammar()
+        command = self.build_command(prompt, grammar_path)
+        started = time.perf_counter()
+        try:
+            try:
+                completed = subprocess.run(
+                    command,
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=self.runtime_config.timeout_seconds,
+                    check=False,
+                )
+            except subprocess.TimeoutExpired as exc:
+                raise ProcessTimeoutError(f"{self.runtime_config.timeout_seconds}s") from exc
+            except OSError as exc:
+                raise ProcessStartError(type(exc).__name__) from exc
+        finally:
+            grammar_path.unlink(missing_ok=True)
+        _ = round((time.perf_counter() - started) * 1000, 2)
+        if completed.returncode != 0:
+            raise ProcessExitError(str(completed.returncode))
+        return self._extract_json(completed.stdout or "")
 
 
-def run_once(executable: str, model: str, schema_path: str, user_text: str, timeout_seconds: int = 90) -> tuple[str, float]:
+class LlamaJsonRunner(LlamaCppCliProvider):
+    """Compatibility facade for the pre-plugin ``LlamaJsonRunner`` constructor."""
+
+    def __init__(self, executable: str | Path, model: str | Path, schema_path: str | Path, timeout_seconds: int = 180, gpu_layers: int = 0):
+        bundle = RuntimeBundle.from_legacy_args(executable, model, gpu_layers=gpu_layers, timeout_seconds=timeout_seconds)
+        super().__init__(bundle.model_profile, bundle.runtime_config, schema_path)
+
+
+def run_once(executable: str, model: str, schema_path: str, user_text: str, timeout_seconds: int = 180) -> tuple[str, float]:
     runner = LlamaJsonRunner(executable, model, schema_path, timeout_seconds)
     started = time.perf_counter()
-    output = runner(user_text)
+    output = runner.infer(user_text)
     return output, round((time.perf_counter() - started) * 1000, 2)

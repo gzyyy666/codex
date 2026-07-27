@@ -7,6 +7,8 @@ import re
 from datetime import date
 from typing import Any, Callable
 
+from .inference import InferenceProvider, ModelUnavailable, ProviderConfigurationError, ProviderOutputError, ProviderRuntimeError
+
 SCHEMA_VERSION = "fitness-ledger-request-draft-v1"
 RESULT_VERSION = "fitness-ledger-request-interpreter-result-v1"
 DATASET_KINDS = {"body", "diet", "training", "movement_progress"}
@@ -282,7 +284,7 @@ def compile_request_draft(draft: dict[str, Any], capability_catalog: dict[str, A
 def interpret_request(
     user_text: str,
     capability_catalog: dict[str, Any],
-    runner: Callable[[str], str] | None = None,
+    runner: InferenceProvider | Callable[[str], str] | None = None,
 ) -> dict[str, Any]:
     """Interpret one request through an injectable model runner and fail closed."""
     if not isinstance(user_text, str) or not user_text.strip():
@@ -290,12 +292,14 @@ def interpret_request(
     if runner is None:
         return {"result_version": RESULT_VERSION, "status": "model_unavailable", "draft": None, "errors": ["MODEL_UNAVAILABLE"], "warnings": []}
     try:
-        raw = runner(user_text)
+        raw = runner.infer(user_text) if isinstance(runner, InferenceProvider) else runner(user_text)
         draft = parse_json_strict(raw)
         checked = validate_request_draft(draft, capability_catalog)
         validate_request_grounding(checked, user_text)
         return {"result_version": RESULT_VERSION, "status": checked["status"], "draft": checked, "errors": [], "warnings": checked["warnings"]}
-    except ModelUnavailable as exc:
+    except ProviderOutputError as exc:
+        return {"result_version": RESULT_VERSION, "status": "invalid_model_output", "draft": None, "errors": [str(exc)], "warnings": []}
+    except (ProviderRuntimeError, ProviderConfigurationError) as exc:
         return {"result_version": RESULT_VERSION, "status": "model_unavailable", "draft": None, "errors": [str(exc)], "warnings": []}
     except DraftError as exc:
         return {"result_version": RESULT_VERSION, "status": "invalid_model_output", "draft": None, "errors": [str(exc)], "warnings": []}
