@@ -11,7 +11,7 @@ HINT_ROOT_KEYS = {"candidates", "ambiguities"}
 CANDIDATE_KEYS = {"dimension", "canonical_value", "evidence", "confidence"}
 AMBIGUITY_KEYS = {"dimension", "reason", "evidence"}
 REQUESTED_INFORMATION_PREFIX = "requested_information."
-MIN_READY_CONFIDENCE = 0.70
+MIN_READY_CONFIDENCE = 0.60
 
 
 class SemanticHintError(ValueError):
@@ -27,11 +27,13 @@ class SemanticHintRequest:
     candidate_pool: Mapping[str, tuple[str, ...]]
     evidence_options: Mapping[str, tuple[str, ...]]
     required_dimensions: tuple[str, ...]
+    fixed_relations: tuple[dict[str, Any], ...] = ()
 
     def to_prompt_payload(self) -> dict[str, Any]:
         return {
             "user_text": self.user_text,
             "fixed_constraints": [dict(item) for item in self.fixed_constraints],
+            "fixed_relations": [dict(item) for item in self.fixed_relations],
             "candidate_pool": {key: list(values) for key, values in self.candidate_pool.items()},
             "evidence_options": {key: list(values) for key, values in self.evidence_options.items()},
             "allowed_dimensions": list(self.candidate_pool),
@@ -89,6 +91,20 @@ class SemanticCandidate:
 class SemanticHint:
     candidates: tuple[SemanticCandidate, ...]
     ambiguities: tuple[dict[str, str], ...]
+
+    def to_summary(self) -> dict[str, Any]:
+        return {
+            "candidates": [
+                {
+                    "dimension": item.dimension,
+                    "canonical_value": item.canonical_value,
+                    "evidence": item.evidence,
+                    "confidence": item.confidence,
+                }
+                for item in self.candidates
+            ],
+            "ambiguities": [dict(item) for item in self.ambiguities],
+        }
 
 
 def _strict_dict(value: Any, label: str, keys: set[str]) -> dict[str, Any]:
@@ -165,49 +181,10 @@ def rank_candidates(hint: SemanticHint, dimension: str) -> tuple[SemanticCandida
 
 
 def assemble_semantic_hint(intent: Any, request: SemanticHintRequest, hint: SemanticHint) -> dict[str, Any]:
-    """Merge hint-selected requested fields into immutable deterministic constraints."""
-    datasets: list[dict[str, Any]] = []
-    if hint.ambiguities and any(not rank_candidates(hint, dimension) for dimension in request.required_dimensions):
-        reasons = "; ".join(item["reason"] for item in hint.ambiguities)
-        return {
-            "schema_version": "fitness-ledger-request-draft-v1",
-            "status": "needs_confirmation",
-            "purpose": intent.purpose,
-            "datasets": [],
-            "relations": [],
-            "missing_confirmations": [f"请确认 requested information：{reasons}"],
-            "warnings": [],
-        }
-    for fixed in request.fixed_constraints:
-        dataset = json.loads(json.dumps(fixed, ensure_ascii=False))
-        dimension = f"{REQUESTED_INFORMATION_PREFIX}{dataset['kind']}"
-        selected = rank_candidates(hint, dimension)
-        if not selected:
-            raise SemanticHintError(f"missing candidates for required dimension: {dimension}")
-        if any(item.confidence < MIN_READY_CONFIDENCE for item in selected):
-            return {
-                "schema_version": "fitness-ledger-request-draft-v1",
-                "status": "needs_confirmation",
-                "purpose": intent.purpose,
-                "datasets": [],
-                "relations": [],
-                "missing_confirmations": [f"请确认 {dimension} 的候选字段"],
-                "warnings": [],
-            }
-        allowed_order = request.candidate_pool[dimension]
-        dataset["requested_information"] = [value for value in allowed_order if any(item.canonical_value == value for item in selected)]
-        if not dataset["requested_information"]:
-            raise SemanticHintError(f"empty selected candidates: {dimension}")
-        datasets.append(dataset)
-    return {
-        "schema_version": "fitness-ledger-request-draft-v1",
-        "status": "ready",
-        "purpose": intent.purpose,
-        "datasets": datasets,
-        "relations": [],
-        "missing_confirmations": [],
-        "warnings": [],
-    }
+    """Compatibility wrapper; the active assembler lives in draft_assembler.py."""
+    from .draft_assembler import assemble_request_draft
+
+    return assemble_request_draft(intent, semantic_hint=hint, hint_request=request)
 
 
 def build_comparative_hint_request(user_text: str, capability_catalog: dict[str, Any]) -> SemanticHintRequest:

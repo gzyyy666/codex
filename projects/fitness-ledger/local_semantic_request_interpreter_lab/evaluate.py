@@ -6,10 +6,11 @@ import argparse
 import json
 import statistics
 import time
+from collections import Counter
 from pathlib import Path
 from typing import Any, Callable
 
-from .core import DraftError, interpret_request
+from .core import DraftError, compile_request_draft, interpret_request
 from .inference import InferenceProvider, ProviderConfigurationError
 from .provider_factory import create_inference_provider
 from .runtime_config import load_runtime_bundle
@@ -24,7 +25,28 @@ def _get(draft: dict[str, Any] | None, *path: str) -> Any:
     return value
 
 
-def score_case(result: dict[str, Any], expected: dict[str, Any]) -> dict[str, Any]:
+def _error_code(value: str) -> str:
+    return value.split(":", 1)[0]
+
+
+def _execution_summary(result: dict[str, Any], catalog: dict[str, Any]) -> dict[str, Any]:
+    draft = result.get("draft")
+    if result.get("status") == "ready" and isinstance(draft, dict):
+        try:
+            return compile_request_draft(draft, catalog)["execution"]
+        except DraftError as exc:
+            return {
+                "allowed": False,
+                "mode": "preview_only",
+                "executor_called": False,
+                "write_allowed": False,
+                "raw": False,
+                "compile_error": _error_code(str(exc)),
+            }
+    return {"allowed": False, "mode": "preview_only", "executor_called": False, "write_allowed": False, "raw": False}
+
+
+def score_case(result: dict[str, Any], expected: dict[str, Any], catalog: dict[str, Any]) -> dict[str, Any]:
     draft = result.get("draft")
     expected_status = expected["status"]
     scores = {
@@ -69,7 +91,21 @@ def score_case(result: dict[str, Any], expected: dict[str, Any]) -> dict[str, An
             scores["relation"] = draft.get("relations", []) == expected.get("relations", [])
         serialized = json.dumps(draft, ensure_ascii=False)
         scores["raw_overreach"] = '"raw"' not in serialized.lower() and '"write"' not in serialized.lower() and '"executor"' not in serialized.lower()
-    return {"case_id": expected["case_id"], "scores": scores, "result_status": result.get("status"), "errors": result.get("errors", [])}
+    audit = result.get("audit") or {}
+    errors = [_error_code(value) for value in result.get("errors", [])]
+    return {
+        "case_id": expected["case_id"],
+        "expected_status": expected_status,
+        "scores": scores,
+        "route_kind": audit.get("route_kind"),
+        "provider_called": bool(audit.get("provider_called")),
+        "deterministic_intent": audit.get("deterministic_intent"),
+        "semantic_hint": audit.get("semantic_hint"),
+        "final_draft": audit.get("final_draft"),
+        "result_status": result.get("status"),
+        "validation_errors": errors,
+        "execution": _execution_summary(result, catalog),
+    }
 
 
 def run_evaluation(runner: InferenceProvider | Callable[[str], str], catalog: dict[str, Any], cases: list[dict[str, Any]], repeat: int = 1) -> dict[str, Any]:
@@ -81,16 +117,32 @@ def run_evaluation(runner: InferenceProvider | Callable[[str], str], catalog: di
             result = interpret_request(case["text"], catalog, runner)
             elapsed = round((time.perf_counter() - started) * 1000, 2)
             durations.append(elapsed)
-            row = score_case(result, case)
+            row = score_case(result, case, catalog)
             row["repetition"] = repetition + 1
             row["latency_ms"] = elapsed
             rows.append(row)
     metric_names = sorted(rows[0]["scores"]) if rows else []
     metrics = {name: round(sum(bool(row["scores"][name]) for row in rows) / len(rows), 4) for name in metric_names} if rows else {}
+    route_counts = Counter(row["route_kind"] for row in rows)
+    provider_calls = sum(bool(row["provider_called"]) for row in rows)
+    status_counts = Counter(row["result_status"] for row in rows)
+    field_names = ("dataset_selection", "requested_information", "time_intent", "scope", "relation", "notes_scope", "confirmation")
+    ready_rows = [row for row in rows if row["expected_status"] == "ready"]
+    ready_metrics = {name: round(sum(bool(row["scores"][name]) for row in ready_rows) / len(ready_rows), 4) if ready_rows else None for name in field_names}
     return {
         "cases": len(cases),
         "repetitions": repeat,
         "metrics": metrics,
+        "ready_case_metrics": ready_metrics,
+        "route_counts": dict(route_counts),
+        "provider_calls": provider_calls,
+        "status_counts": dict(status_counts),
+        "safety_counts": {
+            "raw_overreach": sum(not bool(row["execution"].get("raw")) for row in rows),
+            "executor_called": sum(bool(row["execution"].get("executor_called")) for row in rows),
+            "write_allowed": sum(bool(row["execution"].get("write_allowed")) for row in rows),
+            "formal_data_access": 0,
+        },
         "latency_ms": {"mean": round(statistics.mean(durations), 2) if durations else None, "p95": round(sorted(durations)[max(0, int(len(durations) * 0.95) - 1)], 2) if durations else None},
         "rows": rows,
     }

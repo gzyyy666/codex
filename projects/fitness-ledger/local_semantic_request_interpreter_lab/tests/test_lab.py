@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest import mock
 
 from local_semantic_request_interpreter_lab.core import DraftError, compile_request_draft, interpret_request, parse_json_strict, validate_request_draft, validate_request_grounding
+from local_semantic_request_interpreter_lab.draft_assembler import DraftAssemblyError, UserConfirmation, assemble_request_draft
 from local_semantic_request_interpreter_lab.deterministic import parse_chinese_number, parse_deterministic_intent
 from local_semantic_request_interpreter_lab.evaluate import run_evaluation
 from local_semantic_request_interpreter_lab.inference import EmptyOutputError, InferenceProvider, InvalidModelOutputError, ProcessExitError, ProcessStartError, ProcessTimeoutError, ProviderConfigurationError
@@ -346,6 +347,12 @@ class LabTests(unittest.TestCase):
         result = interpret_request(self.G20_TEXT, CATALOG, provider)
         self.assertEqual(result["status"], "needs_confirmation")
         self.assertEqual(result["draft"]["datasets"], [])
+        low = json.loads(self._good_hint())
+        low["candidates"][0]["confidence"] = 0.2
+        provider = self._hint_provider(output=json.dumps(low, ensure_ascii=False))
+        result = interpret_request(self.G20_TEXT, CATALOG, provider)
+        self.assertEqual(result["status"], "needs_confirmation")
+        self.assertEqual(result["draft"]["datasets"], [])
 
     def test_complete_candidates_keep_model_ambiguity_from_setting_status(self):
         value = json.loads(self._good_hint())
@@ -353,12 +360,59 @@ class LabTests(unittest.TestCase):
         provider = self._hint_provider(output=json.dumps(value, ensure_ascii=False))
         result = interpret_request(self.G20_TEXT, CATALOG, provider)
         self.assertEqual(result["status"], "ready")
-        low = json.loads(self._good_hint())
-        low["candidates"][0]["confidence"] = 0.2
-        provider = self._hint_provider(output=json.dumps(low, ensure_ascii=False))
-        result = interpret_request(self.G20_TEXT, CATALOG, provider)
-        self.assertEqual(result["status"], "needs_confirmation")
-        self.assertEqual(result["draft"]["datasets"], [])
+
+    def test_unified_assembler_confirmation_and_hint_boundary(self):
+        ready_intent = parse_deterministic_intent("导出最近三次胸训的训练、动作和组数。", CATALOG)
+        assembled = assemble_request_draft(ready_intent)
+        self.assertEqual(assembled["status"], "ready")
+        incomplete = parse_deterministic_intent("导出最近几次训练，但我没说要哪几次。", CATALOG)
+        declined = assemble_request_draft(incomplete, confirmation={"approved": False, "resolved_intent": None})
+        self.assertEqual(declined["status"], "needs_confirmation")
+        approved = assemble_request_draft(incomplete, confirmation=UserConfirmation(True, ready_intent))
+        self.assertEqual(approved["status"], "ready")
+        request = build_comparative_hint_request(self.G20_TEXT, CATALOG)
+        hint = validate_semantic_hint(json.loads(self._good_hint()), request)
+        with self.assertRaises(DraftAssemblyError):
+            assemble_request_draft(ready_intent, semantic_hint=hint, hint_request=request)
+        with self.assertRaises(DraftAssemblyError):
+            assemble_request_draft(parse_deterministic_intent(self.G20_TEXT, CATALOG))
+
+    def test_sealed_candidate_pool_prevents_valid_hint_omission(self):
+        value = json.loads(self._good_hint())
+        value["candidates"] = [
+            item for item in value["candidates"]
+            if item["canonical_value"] not in {"date", "sets", "fat"}
+        ]
+        result = interpret_request(self.G20_TEXT, CATALOG, self._hint_provider(output=json.dumps(value, ensure_ascii=False)))
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(result["draft"]["datasets"][0]["requested_information"], ["date", "session", "movements", "sets"])
+        self.assertEqual(result["draft"]["datasets"][1]["requested_information"], ["date", "energy", "protein", "carbohydrate", "fat"])
+
+    def test_legacy_complete_infer_is_not_reachable_from_active_core_path(self):
+        class LegacyOnly(InferenceProvider):
+            def __init__(self):
+                self.calls = 0
+
+            def infer(self, user_text: str) -> str:
+                self.calls += 1
+                return self._good_hint()
+
+        legacy = LegacyOnly()
+        result = interpret_request(self.G20_TEXT, CATALOG, legacy)
+        self.assertEqual(result["status"], "model_unavailable")
+        self.assertEqual(legacy.calls, 0)
+        self.assertIsNone(result["draft"])
+        self.assertIsNone(result["audit"]["final_draft"])
+
+    def test_audit_summary_is_structural_and_contains_no_raw_prompt_or_stdout(self):
+        result = interpret_request("导出最近三次胸训的训练、动作和组数。", CATALOG)
+        serialized = json.dumps(result["audit"], ensure_ascii=False).lower()
+        self.assertEqual(result["audit"]["route_kind"], "deterministic")
+        self.assertFalse(result["audit"]["provider_called"])
+        self.assertNotIn("user_text", serialized)
+        self.assertNotIn("prompt", serialized)
+        self.assertNotIn("stdout", serialized)
+        self.assertIsNotNone(result["audit"]["final_draft"])
 
 
 if __name__ == "__main__":

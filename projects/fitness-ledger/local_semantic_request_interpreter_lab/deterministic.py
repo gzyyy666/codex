@@ -28,6 +28,28 @@ class DeterministicIntent:
     reason: str = ""
     hint_request: SemanticHintRequest | None = None
 
+    def to_summary(self) -> dict[str, Any]:
+        return {
+            "route_kind": self.route,
+            "status": self.status,
+            "purpose": self.purpose,
+            "datasets": [
+                {
+                    "draft_id": item.get("draft_id"),
+                    "kind": item.get("kind"),
+                    "scope": item.get("scope"),
+                    "time_intent": item.get("time_intent"),
+                    "requested_information": item.get("requested_information"),
+                    "notes": item.get("notes"),
+                }
+                for item in self.datasets
+            ],
+            "relations": [dict(item) for item in self.relations],
+            "missing_confirmations": list(self.missing_confirmations),
+            "warnings": list(self.warnings),
+            "reason": self.reason,
+        }
+
     def to_draft(self) -> dict[str, Any]:
         if self.route != "deterministic" or self.status is None:
             raise ValueError("deterministic intent is not complete")

@@ -7,9 +7,10 @@ import re
 from datetime import date
 from typing import Any, Callable
 
+from .draft_assembler import assemble_request_draft, summarize_draft
 from .deterministic import parse_deterministic_intent
 from .inference import InferenceProvider, ModelUnavailable, ProviderConfigurationError, ProviderOutputError, ProviderRuntimeError
-from .semantic_hint import SemanticHintError, assemble_semantic_hint, validate_semantic_hint
+from .semantic_hint import SemanticHintError, validate_semantic_hint
 
 SCHEMA_VERSION = "fitness-ledger-request-draft-v1"
 RESULT_VERSION = "fitness-ledger-request-interpreter-result-v1"
@@ -284,6 +285,21 @@ def compile_request_draft(draft: dict[str, Any], capability_catalog: dict[str, A
     }
 
 
+def _error_code(value: str) -> str:
+    return value.split(":", 1)[0]
+
+
+def _audit_summary(intent: Any = None, *, provider_called: bool = False, semantic_hint: Any = None, draft: dict[str, Any] | None = None, errors: list[str] | None = None) -> dict[str, Any]:
+    return {
+        "route_kind": "unknown" if intent is None else intent.route,
+        "provider_called": provider_called,
+        "deterministic_intent": None if intent is None else intent.to_summary(),
+        "semantic_hint": None if semantic_hint is None else semantic_hint.to_summary(),
+        "final_draft": summarize_draft(draft),
+        "validation_errors": [_error_code(item) for item in (errors or [])],
+    }
+
+
 def interpret_request(
     user_text: str,
     capability_catalog: dict[str, Any],
@@ -291,25 +307,49 @@ def interpret_request(
 ) -> dict[str, Any]:
     """Interpret one request through an injectable model runner and fail closed."""
     if not isinstance(user_text, str) or not user_text.strip():
-        return {"result_version": RESULT_VERSION, "status": "needs_confirmation", "draft": None, "errors": ["EMPTY_REQUEST"], "warnings": []}
+        return {
+            "result_version": RESULT_VERSION,
+            "status": "needs_confirmation",
+            "draft": None,
+            "errors": ["EMPTY_REQUEST"],
+            "warnings": [],
+            "audit": _audit_summary(errors=["EMPTY_REQUEST"]),
+        }
+    intent = None
+    semantic_hint = None
+    provider_called = False
+    draft = None
     try:
         intent = parse_deterministic_intent(user_text, capability_catalog)
         if intent.route == "deterministic":
-            draft = intent.to_draft()
+            draft = assemble_request_draft(intent)
         else:
             if runner is None or not isinstance(runner, InferenceProvider) or intent.hint_request is None:
-                return {"result_version": RESULT_VERSION, "status": "model_unavailable", "draft": None, "errors": ["MODEL_UNAVAILABLE"], "warnings": []}
+                errors = ["MODEL_UNAVAILABLE"]
+                return {"result_version": RESULT_VERSION, "status": "model_unavailable", "draft": None, "errors": errors, "warnings": [], "audit": _audit_summary(intent, errors=errors)}
+            provider_called = True
             raw = runner.infer_semantic_hint(intent.hint_request)
-            hint = validate_semantic_hint(parse_json_strict(raw), intent.hint_request)
-            draft = assemble_semantic_hint(intent, intent.hint_request, hint)
+            semantic_hint = validate_semantic_hint(parse_json_strict(raw), intent.hint_request)
+            draft = assemble_request_draft(intent, semantic_hint=semantic_hint, hint_request=intent.hint_request)
         checked = validate_request_draft(draft, capability_catalog)
         validate_request_grounding(checked, user_text)
-        return {"result_version": RESULT_VERSION, "status": checked["status"], "draft": checked, "errors": [], "warnings": checked["warnings"]}
+        return {
+            "result_version": RESULT_VERSION,
+            "status": checked["status"],
+            "draft": checked,
+            "errors": [],
+            "warnings": checked["warnings"],
+            "audit": _audit_summary(intent, provider_called=provider_called, semantic_hint=semantic_hint, draft=checked),
+        }
     except ProviderOutputError as exc:
-        return {"result_version": RESULT_VERSION, "status": "invalid_model_output", "draft": None, "errors": [str(exc)], "warnings": []}
+        errors = [str(exc)]
+        return {"result_version": RESULT_VERSION, "status": "invalid_model_output", "draft": None, "errors": errors, "warnings": [], "audit": _audit_summary(intent, provider_called=provider_called, semantic_hint=semantic_hint, errors=errors)}
     except (ProviderRuntimeError, ProviderConfigurationError) as exc:
-        return {"result_version": RESULT_VERSION, "status": "model_unavailable", "draft": None, "errors": [str(exc)], "warnings": []}
+        errors = [str(exc)]
+        return {"result_version": RESULT_VERSION, "status": "model_unavailable", "draft": None, "errors": errors, "warnings": [], "audit": _audit_summary(intent, provider_called=provider_called, semantic_hint=semantic_hint, errors=errors)}
     except DraftError as exc:
-        return {"result_version": RESULT_VERSION, "status": "invalid_model_output", "draft": None, "errors": [str(exc)], "warnings": []}
+        errors = [str(exc)]
+        return {"result_version": RESULT_VERSION, "status": "invalid_model_output", "draft": None, "errors": errors, "warnings": [], "audit": _audit_summary(intent, provider_called=provider_called, semantic_hint=semantic_hint, errors=errors)}
     except SemanticHintError as exc:
-        return {"result_version": RESULT_VERSION, "status": "invalid_model_output", "draft": None, "errors": [str(exc)], "warnings": []}
+        errors = [str(exc)]
+        return {"result_version": RESULT_VERSION, "status": "invalid_model_output", "draft": None, "errors": errors, "warnings": [], "audit": _audit_summary(intent, provider_called=provider_called, semantic_hint=semantic_hint, errors=errors)}
