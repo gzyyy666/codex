@@ -1,6 +1,8 @@
 {
   "protocol_version": "1.1",
   "validation_rule": "Every non-null request in valid_requests must pass the Fitness Ledger v1.1 Validator.",
+  "required_dataset_properties": ["dataset_id", "type", "time_range", "filters", "fields"],
+  "empty_filter_rule": "Every Dataset must include filters; body and diet use filters: {}.",
   "valid_requests": [
     {
       "id": "weight_trend_28d",

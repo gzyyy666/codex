@@ -15,6 +15,10 @@
 Every Dataset has `dataset_id`, `type`, `time_range`, `filters`, and `fields`.
 `dataset_id` values are unique within one Request.
 
+`filters` is always required. Use `"filters": {}` when the Dataset type has
+no filters; never omit the property. GPT must output the complete Request, not
+a diff or a partial object for local completion.
+
 ## Dataset matrix
 
 | Type | Fields | Filters | Time modes | Notes |

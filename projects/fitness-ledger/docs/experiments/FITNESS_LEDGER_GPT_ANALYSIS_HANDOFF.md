@@ -42,6 +42,17 @@ Validator, or claim to have seen a Bundle before receiving one.
 4. Wait for a validated Bundle.
 5. Analyze only the Bundle contents, report missing information, and do not silently treat missing values as zero.
 
+## Machine-complete Request rule
+
+Every Dataset must explicitly contain all five structural properties:
+`dataset_id`, `type`, `time_range`, `filters`, and `fields`. This applies even
+when a Dataset has no filters. In that case GPT must emit exactly
+`"filters": {}`; it must not omit the empty object.
+
+GPT must return one complete Request, never a diff, patch, or instruction to
+locally fill missing properties. All request examples in this handoff are
+checked against the current v1.1 Validator.
+
 ## Boundary examples and tests
 
 The handoff includes eight valid request examples, movement ambiguity, Raw

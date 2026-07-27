@@ -48,6 +48,10 @@ and may require deterministic confirmation. A body part is an area scope, not
 a specific movement. `set_roles`, only on `movement_progress`, may contain
 `top`, `working`, and `backoff`.
 
+`filters` is mandatory on every Dataset. For `body` and `diet`, which have no
+filtering capability, write the empty object explicitly:
+`"filters": {}`. Never omit this property, even when it has no conditions.
+
 Notes use only Dataset-level `notes_scope`; never use `include_notes` or a
 top-level Notes field. Output formats are `json` and `markdown`. Always set
 `raw` to `false`; do not request Raw.
@@ -73,8 +77,9 @@ When local data is needed, respond with only:
 
 The JSON must contain only Schema fields, must have a unique `dataset_id` for
 each Dataset, and must pass the Fitness Ledger v1.1 Validator. Do not put
-comments inside JSON. Do not provide professional conclusions until a Bundle
-has been supplied.
+comments inside JSON. Return the complete Request every time; do not return a
+diff or ask the local tool to fill omitted properties. Do not provide
+professional conclusions until a Bundle has been supplied.
 
 After receiving a Bundle, analyze only the supplied data. Identify the
 requested time windows and Dataset relationships, report quality and missing
