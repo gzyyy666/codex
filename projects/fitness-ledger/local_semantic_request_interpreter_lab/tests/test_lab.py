@@ -4,7 +4,7 @@ import json
 import unittest
 from pathlib import Path
 
-from local_semantic_request_interpreter_lab.core import DraftError, compile_request_draft, interpret_request, parse_json_strict, validate_request_draft
+from local_semantic_request_interpreter_lab.core import DraftError, compile_request_draft, interpret_request, parse_json_strict, validate_request_draft, validate_request_grounding
 
 
 ROOT = Path(__file__).parents[1]
@@ -59,6 +59,14 @@ class LabTests(unittest.TestCase):
         draft["relations"] = []
         with self.assertRaises(DraftError):
             validate_request_draft(draft, CATALOG)
+
+    def test_grounding_rejects_expanded_scope(self):
+        draft = good_draft()
+        draft["datasets"][0]["scope"]["movement"] = "bench_press"
+        draft["datasets"][0]["scope"]["split"] = "push"
+        draft["datasets"][0]["time_intent"] = {"type": "recent_days", "days": 90}
+        with self.assertRaises(DraftError):
+            validate_request_grounding(draft, "最近三次胸训和每次训练前三天的饮食，给 GPT 分析训练容量变化。")
 
 
 if __name__ == "__main__":

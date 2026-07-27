@@ -32,25 +32,79 @@
   "required": ["schema_version", "status", "purpose", "datasets", "relations", "missing_confirmations", "warnings"],
   "$defs": {
     "dataset": {
+      "oneOf": [
+        { "$ref": "#/$defs/body_dataset" },
+        { "$ref": "#/$defs/diet_dataset" },
+        { "$ref": "#/$defs/training_dataset" },
+        { "$ref": "#/$defs/movement_progress_dataset" }
+      ]
+    },
+    "body_dataset": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "draft_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,48}$" },
-        "kind": { "enum": ["body", "diet", "training", "movement_progress"] },
-        "scope": { "$ref": "#/$defs/scope" },
+        "kind": { "const": "body" },
+        "scope": { "$ref": "#/$defs/empty_scope" },
         "time_intent": { "$ref": "#/$defs/time_intent" },
-        "requested_information": {
-          "type": "array",
-          "minItems": 1,
-          "maxItems": 12,
-          "uniqueItems": true,
-          "items": { "type": "string", "minLength": 1, "maxLength": 60 }
-        },
+        "requested_information": { "type": "array", "minItems": 1, "maxItems": 12, "uniqueItems": true, "items": { "enum": ["date", "weight", "bowel_movement", "training_label", "cardio_summary"] } },
+        "notes": { "$ref": "#/$defs/notes" }
+      },
+      "required": ["draft_id", "kind", "scope", "time_intent", "requested_information", "notes"]
+    },
+    "diet_dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "draft_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,48}$" },
+        "kind": { "const": "diet" },
+        "scope": { "$ref": "#/$defs/empty_scope" },
+        "time_intent": { "$ref": "#/$defs/time_intent" },
+        "requested_information": { "type": "array", "minItems": 1, "maxItems": 12, "uniqueItems": true, "items": { "enum": ["date", "energy", "protein", "carbohydrate", "fat", "food_summary"] } },
+        "notes": { "$ref": "#/$defs/notes" }
+      },
+      "required": ["draft_id", "kind", "scope", "time_intent", "requested_information", "notes"]
+    },
+    "training_dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "draft_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,48}$" },
+        "kind": { "const": "training" },
+        "scope": { "$ref": "#/$defs/training_scope" },
+        "time_intent": { "$ref": "#/$defs/time_intent" },
+        "requested_information": { "type": "array", "minItems": 1, "maxItems": 12, "uniqueItems": true, "items": { "enum": ["date", "session", "split", "movements", "sets", "training_notes"] } },
+        "notes": { "$ref": "#/$defs/notes" }
+      },
+      "required": ["draft_id", "kind", "scope", "time_intent", "requested_information", "notes"]
+    },
+    "movement_progress_dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "draft_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,48}$" },
+        "kind": { "const": "movement_progress" },
+        "scope": { "$ref": "#/$defs/training_scope" },
+        "time_intent": { "$ref": "#/$defs/time_intent" },
+        "requested_information": { "type": "array", "minItems": 1, "maxItems": 12, "uniqueItems": true, "items": { "enum": ["date", "movement", "body_part", "variant", "order", "sets", "load", "repetitions", "movement_notes"] } },
         "notes": { "$ref": "#/$defs/notes" }
       },
       "required": ["draft_id", "kind", "scope", "time_intent", "requested_information", "notes"]
     },
     "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "body_part": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "movement": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "split": { "type": "string", "minLength": 1, "maxLength": 80 }
+      }
+    },
+    "empty_scope": {
+      "type": "object",
+      "additionalProperties": false
+    },
+    "training_scope": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -86,13 +140,20 @@
       ]
     },
     "notes": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "requested": { "type": "boolean" },
-        "scopes": { "type": "array", "uniqueItems": true, "items": { "enum": ["daily", "diet", "training", "movement"] } }
-      },
-      "required": ["requested", "scopes"]
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "requested": { "const": false }, "scopes": { "const": [] } },
+          "required": ["requested", "scopes"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "requested": { "const": true }, "scopes": { "type": "array", "minItems": 1, "maxItems": 4, "uniqueItems": true, "items": { "enum": ["daily", "diet", "training", "movement"] } } },
+          "required": ["requested", "scopes"]
+        }
+      ]
     },
     "relation": {
       "type": "object",

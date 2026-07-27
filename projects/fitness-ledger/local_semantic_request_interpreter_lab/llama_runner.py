@@ -14,11 +14,12 @@ from .core import ModelUnavailable
 
 
 class LlamaJsonRunner:
-    def __init__(self, executable: str | Path, model: str | Path, schema_path: str | Path, timeout_seconds: int = 90):
+    def __init__(self, executable: str | Path, model: str | Path, schema_path: str | Path, timeout_seconds: int = 90, gpu_layers: int = 0):
         self.executable = Path(executable)
         self.model = Path(model)
         self.schema_path = Path(schema_path)
         self.timeout_seconds = timeout_seconds
+        self.gpu_layers = gpu_layers
 
     def _build_grammar(self) -> Path:
         script = self.executable.parent.parent / "json_schema_to_grammar.py"
@@ -66,6 +67,8 @@ class LlamaJsonRunner:
             "--single-turn",
             "--simple-io",
         ]
+        if self.gpu_layers > 0:
+            command.extend(["--n-gpu-layers", str(self.gpu_layers)])
         started = time.perf_counter()
         try:
             completed = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=self.timeout_seconds, check=False)

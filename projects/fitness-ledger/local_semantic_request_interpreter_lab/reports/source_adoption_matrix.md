@@ -10,6 +10,7 @@
 | jxnl/instructor | https://github.com/instructor-ai/instructor | MIT | 活跃；官方文档持续维护 | Pydantic 结构化提取、验证和重试，多供应商封装 | 读取官方 Ollama/本地模型支持说明；它主要提供 provider wrapper 和 validation retry，不能替代当前所需的本地 constrained decoding | 暂不采用；Validator 思路保留但不引入 provider 依赖 |
 | Qwen/Qwen2.5-0.5B-Instruct-GGUF | https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF | Apache-2.0 | 官方仓库最后修改 2024-09-20 | 中文轻量本地指令模型 | 491,400,032 bytes；SHA-256 `74A4DA8C9FDBCD15BD1F6D01D621410D31C6FC00986F5EB687824E7B93D7A9DB`；30 Gold 语义闭环 0/30 | 放弃作为正式模型；仅保留基线 |
 | Qwen/Qwen2.5-1.5B-Instruct-GGUF | https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF | Apache-2.0 | 官方仓库最后修改 2024-09-20 | 更强的中文本地指令模型候选 | 1,117,320,736 bytes；SHA-256 `6A1A2EB6D15622BF3C96857206351BA97E1AF16C30D7A74EE38970E434E9407E`；目标和简单请求均被 Validator 拒绝 | 暂不采用；需要更强模型或调校证据 |
+| Qwen/Qwen2.5-7B-Instruct-GGUF | https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF | Apache-2.0 | 官方仓库最后修改 2024-09-20；官方分片 GGUF | 中文本地指令模型，适合更复杂的结构化语义 | Q4_K_M 两分片共 4,683,073,632 bytes；官方 llama.cpp CUDA 12.4；`--n-gpu-layers 99`；目标请求通过 RequestDraft Validator；固定 Gold 全语义闭环 1/30，Raw 越权 0/30 | 保留为当前可复现主路径，但尚未达到正式可用线 |
 
 ## 选择依据
 

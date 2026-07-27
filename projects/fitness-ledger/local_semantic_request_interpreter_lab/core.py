@@ -18,6 +18,20 @@ SCOPE_KEYS = {"body_part", "movement", "split"}
 TIME_KEYS = {"type", "days", "start", "end", "count", "target_draft_id", "days_before", "include_target_day"}
 NOTE_KEYS = {"requested", "scopes"}
 RELATION_KEYS = {"type", "source_draft_id", "dependent_draft_id"}
+BODY_PART_TERMS = {"chest": "胸", "back": "背", "shoulders": "肩", "legs": "腿", "arms": "臂", "core": "核心"}
+SPLIT_TERMS = {"push": "推", "pull": "拉", "legs": "腿", "upper": "上肢", "lower": "下肢", "full_body": "全身"}
+MOVEMENT_TERMS = {
+    "bench_press": ("卧推",),
+    "incline_dumbbell_press": ("上斜哑铃推",),
+    "barbell_row": ("杠铃划船",),
+    "lat_pulldown": ("高位下拉",),
+    "squat": ("深蹲",),
+    "deadlift": ("硬拉",),
+    "overhead_press": ("肩推", "推举"),
+    "lateral_raise": ("侧平举",),
+    "cable_fly": ("绳索夹胸", "夹胸"),
+}
+NUMBER_TERMS = {0: "零", 1: "一", 2: "二", 3: "三", 4: "四", 5: "五", 6: "六", 7: "七", 8: "八", 9: "九", 10: "十"}
 
 FIELD_RULES = {
     "body": {"date", "weight", "bowel_movement", "training_label", "cardio_summary"},
@@ -212,6 +226,44 @@ def validate_request_draft(draft: dict[str, Any], capability_catalog: dict[str, 
     return normalized
 
 
+def validate_request_grounding(draft: dict[str, Any], user_text: str) -> dict[str, Any]:
+    """Reject semantically expanded scope that is absent from the user text."""
+    if not isinstance(user_text, str):
+        raise DraftError("user_text must be a string for grounding")
+    for dataset in draft.get("datasets", []):
+        scope = dataset.get("scope", {})
+        if "body_part" in scope:
+            term = BODY_PART_TERMS.get(scope["body_part"])
+            if term is None or term not in user_text:
+                raise DraftError(f"ungrounded body_part: {scope['body_part']}")
+        if "split" in scope:
+            term = SPLIT_TERMS.get(scope["split"])
+            if term is None or term not in user_text:
+                raise DraftError(f"ungrounded split: {scope['split']}")
+        if "movement" in scope:
+            terms = MOVEMENT_TERMS.get(scope["movement"], ())
+            if not any(term in user_text for term in terms):
+                raise DraftError(f"ungrounded movement: {scope['movement']}")
+        notes = dataset.get("notes", {})
+        if notes.get("requested") and not any(term in user_text.lower() for term in ("笔记", "备注", "notes")):
+            raise DraftError("ungrounded Notes request")
+        time_intent = dataset.get("time_intent", {})
+        time_type = time_intent.get("type")
+        if time_type == "latest_matching_sessions":
+            count = time_intent.get("count")
+            if not (str(count) in user_text or NUMBER_TERMS.get(count, "") in user_text):
+                raise DraftError(f"ungrounded session count: {count}")
+        elif time_type == "recent_days":
+            days = time_intent.get("days")
+            if not (str(days) in user_text or NUMBER_TERMS.get(days, "") in user_text):
+                raise DraftError(f"ungrounded day count: {days}")
+        elif time_type == "before_each_target_event":
+            days_before = time_intent.get("days_before")
+            if not (str(days_before) in user_text or NUMBER_TERMS.get(days_before, "") in user_text):
+                raise DraftError(f"ungrounded preceding-day count: {days_before}")
+    return draft
+
+
 def compile_request_draft(draft: dict[str, Any], capability_catalog: dict[str, Any]) -> dict[str, Any]:
     """Compile only a validated semantic draft into a read-only handoff shape."""
     checked = validate_request_draft(draft, capability_catalog)
@@ -241,6 +293,7 @@ def interpret_request(
         raw = runner(user_text)
         draft = parse_json_strict(raw)
         checked = validate_request_draft(draft, capability_catalog)
+        validate_request_grounding(checked, user_text)
         return {"result_version": RESULT_VERSION, "status": checked["status"], "draft": checked, "errors": [], "warnings": checked["warnings"]}
     except ModelUnavailable as exc:
         return {"result_version": RESULT_VERSION, "status": "model_unavailable", "draft": None, "errors": [str(exc)], "warnings": []}

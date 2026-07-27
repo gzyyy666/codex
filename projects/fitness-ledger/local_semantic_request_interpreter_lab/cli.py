@@ -20,12 +20,13 @@ def main() -> int:
     parser.add_argument("text", nargs="?", default="最近三次胸训和每次训练前三天的饮食，给 GPT 分析训练容量变化。")
     parser.add_argument("--model", required=True)
     parser.add_argument("--llama-cli", required=True)
-    parser.add_argument("--timeout", type=int, default=90)
+    parser.add_argument("--timeout", type=int, default=180)
+    parser.add_argument("--gpu-layers", type=int, default=0)
     args = parser.parse_args()
     root = Path(__file__).parent
     catalog = json.loads((root / "data" / "capability_catalog.json").read_text(encoding="utf-8"))
     schema = root / "schema" / "request_draft_v1.schema.json"
-    result = interpret_request(args.text, catalog, LlamaJsonRunner(args.llama_cli, args.model, schema, args.timeout))
+    result = interpret_request(args.text, catalog, LlamaJsonRunner(args.llama_cli, args.model, schema, args.timeout, args.gpu_layers))
     if result.get("status") == "ready":
         result["compiled"] = compile_request_draft(result["draft"], catalog)
     print(json.dumps(result, ensure_ascii=False, indent=2))

@@ -13,13 +13,13 @@ compile_request_draft(draft: RequestDraftResult) -> CompiledAnalysisExportReques
 
 ## 采用路径
 
-本 Lab 采用官方 `ggml-org/llama.cpp` Windows x64 CPU 发行包的 `json_schema_to_grammar.py` + `llama-cli --grammar-file` 路径。这样避免 Windows 内联 JSON Schema 参数转义问题。运行时和模型位于 D 盘的独立目录，不进入 Git，也不使用共享 Ollama 端口。
+本 Lab 采用官方 `ggml-org/llama.cpp` Windows x64 发行包的 `json_schema_to_grammar.py` + `llama-cli --grammar-file` 路径；最终主模型使用官方 CUDA 12.4 包。这样避免 Windows 内联 JSON Schema 参数转义问题。运行时和模型位于 D 盘的独立目录，不进入 Git，也不使用共享 Ollama 端口。
 
 - 项目：https://github.com/ggml-org/llama.cpp
 - License：MIT
 - 关键官方文档：https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md
 - JSON Schema grammar 示例：https://github.com/ggml-org/llama.cpp/blob/master/examples/json_schema_to_grammar.py
-- 模型来源：https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF
+- 模型来源：https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF
 - 模型 License：Apache-2.0
 
 ## 本地运行
@@ -40,22 +40,25 @@ python -m unittest discover -s local_semantic_request_interpreter_lab/tests -v
 
 ```powershell
 python -m local_semantic_request_interpreter_lab.cli `
-  --llama-cli D:\Codex\fitness-ledger-local-semantic-request-interpreter-lab-runtime\llama\llama-cli.exe `
-  --model D:\Codex\fitness-ledger-local-semantic-request-interpreter-lab-runtime\models\qwen2.5-0.5b-instruct-q4_k_m.gguf
+  --llama-cli D:\Codex\fitness-ledger-local-semantic-request-interpreter-lab-runtime\llama-cuda\llama-cli.exe `
+  --model D:\Codex\fitness-ledger-local-semantic-request-interpreter-lab-runtime\models\qwen2.5-7b\qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf `
+  --gpu-layers 99
 ```
 
 完整固定集评测：
 
 ```powershell
 python -m local_semantic_request_interpreter_lab.evaluate `
-  --llama-cli D:\Codex\fitness-ledger-local-semantic-request-interpreter-lab-runtime\llama\llama-cli.exe `
-  --model D:\Codex\fitness-ledger-local-semantic-request-interpreter-lab-runtime\models\qwen2.5-0.5b-instruct-q4_k_m.gguf `
+  --llama-cli D:\Codex\fitness-ledger-local-semantic-request-interpreter-lab-runtime\llama-cuda\llama-cli.exe `
+  --model D:\Codex\fitness-ledger-local-semantic-request-interpreter-lab-runtime\models\qwen2.5-7b\qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf `
+  --gpu-layers 99 `
+  --timeout 180 `
   --output local_semantic_request_interpreter_lab/runs/baseline.json
 ```
 
 评测输出仅为匿名合成请求和模型结果，`runs/` 被忽略，不得提交模型、缓存或推理输出。
 
-当前实验结论：llama.cpp 的结构化生成最小示例成功；Qwen2.5 0.5B 和 1.5B 的中文语义选择尚未达到可用线。组件默认失败关闭，不能把当前模型当作 Fitness Ledger 正式方案。
+当前实验结论：llama.cpp 的结构化生成最小示例成功；Qwen2.5 7B Q4 + CUDA 已对目标请求生成并通过 RequestDraft Validator。7B 固定 Gold 30 条的完整语义字段闭环为 1/30，说明目标句可行但尚未达到正式可用线；0.5B/1.5B 仅保留为失败对照，不能作为正式模型。
 
 ## 文件边界
 

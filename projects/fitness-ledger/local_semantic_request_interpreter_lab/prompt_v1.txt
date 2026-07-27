@@ -17,6 +17,13 @@ Before emitting JSON, silently map requested information to the exact English to
 
 For a diet-only request, use kind diet, scope {}, and notes {"requested":false,"scopes":[]}; diet scope must never contain split, body_part, or movement. For “最近14天的饮食热量、蛋白质和碳水”, the exact requested_information tokens are ["energy","protein","carbohydrate"] and the exact time_intent is {"type":"recent_days","days":14}.
 
+Never request load or repetitions from a training dataset. Training load/repetition history belongs only to movement_progress; a training dataset may use session, movements, sets, date, split, or training_notes. For the target request about recent chest sessions, use training requested_information ["session","movements","sets"] and diet requested_information ["energy","carbohydrate","protein"] unless the user explicitly asks for another available field.
+
+When using before_each_target_event, the target_draft_id must exactly equal the target dataset's draft_id. The relation must use source_draft_id equal to that same target draft_id and dependent_draft_id equal to the diet dataset draft_id. For the target example, use draft_id target_training for the chest training dataset, draft_id preceding_diet for the diet dataset, time_intent.target_draft_id target_training, and relation {"type":"preceding_event_window","source_draft_id":"target_training","dependent_draft_id":"preceding_diet"}.
+
+The exact target example “最近三次胸训和每次训练前三天的饮食，给 GPT 分析训练容量变化。” is sufficiently specific: return status ready, not needs_confirmation, with missing_confirmations [] and warnings [].
+For that exact target, the training scope must be {"body_part":"chest"} only: do not add movement or split. Its training time_intent must be {"type":"latest_matching_sessions","count":3}; do not convert it to recent_days. Both dataset notes must be {"requested":false,"scopes":[]} because the user did not ask for notes.
+
 Synthetic capability catalog:
 {{CAPABILITY_CATALOG}}
 
