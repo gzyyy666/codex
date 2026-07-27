@@ -1,0 +1,86 @@
+{
+  "body_recent_28": {
+    "request_version": "1.1",
+    "purpose": "Inspect the synthetic recent body window",
+    "datasets": [{"dataset_id": "body_recent", "type": "body", "time_range": {"mode": "recent_days", "days": 28}, "filters": {}, "fields": ["date", "weight_kg", "bowel_movement", "training_label", "cardio_summary"], "notes_scope": "daily"}],
+    "raw": false,
+    "output": {"formats": ["json", "markdown"]}
+  },
+  "diet_recent_14": {
+    "request_version": "1.1",
+    "purpose": "Inspect synthetic recent diet macros",
+    "datasets": [{"dataset_id": "diet_recent", "type": "diet", "time_range": {"mode": "recent_days", "days": 14}, "filters": {}, "fields": ["date", "calories_kcal", "protein_g", "carbs_g", "fat_g", "food_summary"], "notes_scope": "diet"}],
+    "raw": false,
+    "output": {"formats": ["json", "markdown"]}
+  },
+  "training_latest_3_chest": {
+    "request_version": "1.1",
+    "purpose": "Inspect the latest three synthetic chest sessions",
+    "datasets": [{"dataset_id": "chest_sessions", "type": "training", "time_range": {"mode": "latest_matching_sessions", "sessions": 3}, "filters": {"body_part": "chest"}, "fields": ["date", "split", "standardized_summary"], "notes_scope": "training"}],
+    "raw": false,
+    "output": {"formats": ["json", "markdown"]}
+  },
+  "movement_latest_3_id": {
+    "request_version": "1.1",
+    "purpose": "Inspect known synthetic press progression and set roles",
+    "datasets": [{"dataset_id": "press_progress", "type": "movement_progress", "time_range": {"mode": "latest_matching_sessions", "sessions": 3}, "filters": {"movement_selector": {"kind": "movement_id", "value": "m_synthetic_press"}}, "fields": ["date", "movement_id", "movement_name", "body_part", "variant", "order", "sets"], "notes_scope": "movement", "set_roles": ["top", "working", "backoff"]}],
+    "raw": false,
+    "output": {"formats": ["json", "markdown"]}
+  },
+  "diet_before_each_chest": {
+    "request_version": "1.1",
+    "purpose": "Inspect three synthetic diet days before each chest session",
+    "datasets": [
+      {"dataset_id": "chest_targets", "type": "training", "time_range": {"mode": "latest_matching_sessions", "sessions": 3}, "filters": {"body_part": "chest"}, "fields": ["date", "split"]},
+      {"dataset_id": "diet_before_chest", "type": "diet", "time_range": {"mode": "days_before_target_session", "days_before": 3, "target_dataset_id": "chest_targets", "match_mode": "each_matching_session", "include_target_session_day": false}, "filters": {}, "fields": ["date", "calories_kcal", "protein_g", "carbs_g", "fat_g"], "notes_scope": "diet"}
+    ],
+    "raw": false,
+    "output": {"formats": ["json", "markdown"]}
+  },
+  "diet_target_date_include": {
+    "request_version": "1.1",
+    "purpose": "Inspect a target-date diet window including the target day",
+    "datasets": [{"dataset_id": "diet_target_window", "type": "diet", "time_range": {"mode": "days_before_target_session", "days_before": 3, "target_date": "2099-12-24", "match_mode": "single_latest_matching_session", "include_target_session_day": true}, "filters": {}, "fields": ["date", "calories_kcal", "protein_g", "food_summary"], "notes_scope": "diet"}],
+    "raw": false,
+    "output": {"formats": ["json", "markdown"]}
+  },
+  "combo_notes": {
+    "request_version": "1.1",
+    "purpose": "Inspect synthetic body diet and training records with scoped notes",
+    "datasets": [
+      {"dataset_id": "combo_body", "type": "body", "time_range": {"mode": "explicit_range", "start": "2099-12-18", "end": "2099-12-24"}, "filters": {}, "fields": ["date", "weight_kg", "training_label"], "notes_scope": "daily"},
+      {"dataset_id": "combo_diet", "type": "diet", "time_range": {"mode": "explicit_range", "start": "2099-12-18", "end": "2099-12-24"}, "filters": {}, "fields": ["date", "calories_kcal", "protein_g"], "notes_scope": "diet"},
+      {"dataset_id": "combo_training", "type": "training", "time_range": {"mode": "explicit_range", "start": "2099-12-18", "end": "2099-12-24"}, "filters": {"body_part": "chest"}, "fields": ["date", "split", "standardized_summary"], "notes_scope": "training"}
+    ],
+    "raw": false,
+    "output": {"formats": ["json", "markdown"]}
+  },
+  "movement_name_selector": {
+    "request_version": "1.1",
+    "purpose": "Resolve a known synthetic movement name",
+    "datasets": [{"dataset_id": "press_by_name", "type": "movement_progress", "time_range": {"mode": "explicit_range", "start": "2099-12-18", "end": "2099-12-28"}, "filters": {"movement_selector": {"kind": "movement_name", "value": "Synthetic Press"}}, "fields": ["date", "movement_id", "movement_name", "body_part", "sets"], "set_roles": ["working"]}],
+    "raw": false,
+    "output": {"formats": ["json", "markdown"]}
+  },
+  "movement_body_part_selector": {
+    "request_version": "1.1",
+    "purpose": "Resolve synthetic chest movements by body part",
+    "datasets": [{"dataset_id": "chest_movements", "type": "movement_progress", "time_range": {"mode": "latest_matching_sessions", "sessions": 2}, "filters": {"movement_selector": {"kind": "body_part", "value": "chest"}}, "fields": ["date", "movement_id", "movement_name", "body_part"]}],
+    "raw": false,
+    "output": {"formats": ["json", "markdown"]}
+  },
+  "missing_field": {
+    "request_version": "1.1",
+    "purpose": "Expose a synthetic missing body value",
+    "datasets": [{"dataset_id": "body_missing", "type": "body", "time_range": {"mode": "explicit_range", "start": "2099-12-12", "end": "2099-12-12"}, "filters": {}, "fields": ["date", "weight_kg", "cardio_summary"], "notes_scope": "daily"}],
+    "raw": false,
+    "output": {"formats": ["json", "markdown"]}
+  },
+  "empty_intersection": {
+    "request_version": "1.1",
+    "purpose": "Report an explicit empty synthetic selection",
+    "datasets": [{"dataset_id": "empty_training", "type": "training", "time_range": {"mode": "latest_matching_sessions", "sessions": 3}, "filters": {"body_part": "unmatched-synthetic-part"}, "fields": ["date", "split"]}],
+    "raw": false,
+    "output": {"formats": ["json", "markdown"]}
+  }
+}

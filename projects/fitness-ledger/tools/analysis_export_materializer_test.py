@@ -1,0 +1,142 @@
+"""Anonymous-only contract tests for AnalysisExportMaterializer."""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from fitness_ledger_core.analysis_export_materializer import (  # noqa: E402
+    AnonymousFixtureMaterializer,
+    MaterializationError,
+)
+from fitness_ledger_core.analysis_export_request import validate_request  # noqa: E402
+
+
+FIXTURE_DIR = ROOT / "tools" / "fixtures" / "analysis_export_anonymous"
+
+
+def load_json(name: str):
+    return json.loads((FIXTURE_DIR / name).read_text(encoding="utf-8"))
+
+
+def assert_schema(value: dict, name: str) -> None:
+    """Exercise the committed schema's required/closed/constant contract.
+
+    The project runtime intentionally has no third-party JSON Schema package;
+    these assertions use the committed schema as the source of truth for the
+    closed object keys and required fields, then check all v1.1 constants and
+    generated record shapes needed by this stage.
+    """
+    schema = json.loads((ROOT / "schemas" / name).read_text(encoding="utf-8"))
+    assert set(value) == set(schema["required"])
+    if name == "analysis_export_request_v1.schema.json":
+        assert value["request_version"] == schema["properties"]["request_version"]["const"]
+        assert value["raw"] is schema["properties"]["raw"]["const"]
+        assert 1 <= len(value["datasets"]) <= 8
+        for dataset in value["datasets"]:
+            assert set(dataset) <= {"dataset_id", "type", "time_range", "filters", "fields", "notes_scope", "set_roles"}
+            definition = schema["$defs"][{"body": "body_dataset", "diet": "diet_dataset", "training": "training_dataset", "movement_progress": "movement_dataset"}[dataset["type"]]]
+            assert set(dataset) >= set(definition["required"])
+            assert dataset["type"] == definition["properties"]["type"]["const"]
+            assert dataset["fields"]
+        assert value["output"]["formats"] and len(set(value["output"]["formats"])) == len(value["output"]["formats"])
+    else:
+        assert value["bundle_version"] == schema["properties"]["bundle_version"]["const"]
+        manifest_schema = schema["$defs"]["manifest"]
+        assert set(value["manifest"]) == set(manifest_schema["required"])
+        assert set(value["safety_flags"]) == set(schema["$defs"]["safety_flags"]["required"])
+        assert value["safety_flags"] == {"raw_included": False, "executor_called": False, "formal_data_written": False}
+        assert isinstance(value["records"], list)
+
+
+def test_all_valid_request_fixtures_pass_frozen_validator() -> None:
+    for name, request in load_json("requests.json").items():
+        result = validate_request(request)
+        assert result.valid, (name, result.errors)
+        assert result.normalized_request is not None
+        assert_schema(request, "analysis_export_request_v1.schema.json")
+
+
+def test_rejected_raw_and_unsupported_operation_fail_before_materialization() -> None:
+    materializer = AnonymousFixtureMaterializer(FIXTURE_DIR / "fixture.json")
+    for name, request in load_json("rejected_requests.json").items():
+        result = validate_request(request)
+        assert not result.valid, name
+        try:
+            materializer.materialize(request)
+        except MaterializationError as error:
+            assert error.validation is not None
+        else:
+            raise AssertionError(f"{name} was materialized")
+
+
+def test_four_time_modes_and_relation_are_deterministic() -> None:
+    materializer = AnonymousFixtureMaterializer(FIXTURE_DIR / "fixture.json")
+    requests = load_json("requests.json")
+    bundle = materializer.materialize(requests["body_recent_28"])
+    assert bundle["manifest"]["record_count"] == 28
+    assert materializer.materialize(requests["diet_recent_14"])["manifest"]["record_count"] == 14
+    assert materializer.materialize(requests["training_latest_3_chest"])["manifest"]["record_count"] == 3
+    relation = materializer.materialize(requests["diet_before_each_chest"])
+    diet_records = [row for row in relation["records"] if row["dataset_id"] == "diet_before_chest"]
+    assert len(diet_records) == 9
+    assert {row["relation"]["target_session_date"] for row in diet_records} == {"2099-12-18", "2099-12-24", "2099-12-28"}
+    target_day = materializer.materialize(requests["diet_target_date_include"])
+    assert [row["date"] for row in target_day["records"]] == ["2099-12-21", "2099-12-22", "2099-12-23", "2099-12-24"]
+    excluded = {row["date"] for row in diet_records}
+    assert "2099-12-18" not in excluded and "2099-12-24" not in excluded and "2099-12-28" not in excluded
+
+
+def test_selectors_set_roles_notes_and_missing_values() -> None:
+    materializer = AnonymousFixtureMaterializer(FIXTURE_DIR / "fixture.json")
+    requests = load_json("requests.json")
+    movement = materializer.materialize(requests["movement_latest_3_id"])
+    for record in movement["records"]:
+        assert {item["role"] for item in record["sets"]} == {"top", "working", "backoff"}
+        assert record["notes"]
+    assert materializer.materialize(requests["movement_name_selector"])["manifest"]["record_count"] == 3
+    assert materializer.materialize(requests["movement_body_part_selector"])["manifest"]["record_count"] == 3
+    missing = materializer.materialize(requests["missing_field"])
+    record = missing["records"][0]
+    assert record["weight_kg"] is None and record["cardio_summary"] is None
+    assert any("weight_kg" in item for item in missing["missing_information"])
+    assert any("cardio_summary" in item for item in missing["missing_information"])
+    empty = materializer.materialize(requests["empty_intersection"])
+    assert empty["records"] == []
+    assert empty["quality_profile"]["status"] == "empty_selection"
+    assert any("empty selection" in item for item in empty["warnings"])
+
+
+def test_combo_bundle_schema_exports_and_safety_are_reproducible() -> None:
+    materializer = AnonymousFixtureMaterializer(FIXTURE_DIR / "fixture.json")
+    request = load_json("requests.json")["combo_notes"]
+    bundle_one, exports_one = materializer.materialize_with_exports(request)
+    bundle_two, exports_two = materializer.materialize_with_exports(request)
+    assert bundle_one == bundle_two
+    assert exports_one == exports_two
+    assert_schema(bundle_one, "analysis_export_bundle_v1.schema.json")
+    assert set(exports_one) == {"json", "markdown"}
+    assert json.loads(exports_one["json"]) == bundle_one
+    assert "synthetic note body 02" in exports_one["markdown"]
+    assert bundle_one["provenance"]["request_schema_version"] == "1.1"
+    assert bundle_one["provenance"]["materializer_version"]
+    assert bundle_one["provenance"]["fixture_version"] == "anonymous-fixture-v1"
+    assert bundle_one["provenance"]["counts"]["validated_count"] == 1
+    assert bundle_one["safety_flags"] == {"raw_included": False, "executor_called": False, "formal_data_written": False}
+    assert bundle_one["request"]["raw"] is False
+
+
+def main() -> None:
+    test_all_valid_request_fixtures_pass_frozen_validator()
+    test_rejected_raw_and_unsupported_operation_fail_before_materialization()
+    test_four_time_modes_and_relation_are_deterministic()
+    test_selectors_set_roles_notes_and_missing_values()
+    test_combo_bundle_schema_exports_and_safety_are_reproducible()
+    print("FITNESS_LEDGER_ANALYSIS_EXPORT_MATERIALIZER_OK")
+
+
+if __name__ == "__main__":
+    main()

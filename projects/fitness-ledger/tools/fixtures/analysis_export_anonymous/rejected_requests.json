@@ -1,0 +1,17 @@
+{
+  "raw_rejected": {
+    "request_version": "1.1",
+    "purpose": "Synthetic raw rejection",
+    "datasets": [{"dataset_id": "body_raw", "type": "body", "time_range": {"mode": "recent_days", "days": 3}, "filters": {}, "fields": ["date"]}],
+    "raw": true,
+    "output": {"formats": ["json"]}
+  },
+  "unsupported_operation_rejected": {
+    "request_version": "1.1",
+    "purpose": "Synthetic unsupported operation rejection",
+    "operation": "delete",
+    "datasets": [{"dataset_id": "body_operation", "type": "body", "time_range": {"mode": "recent_days", "days": 3}, "filters": {}, "fields": ["date"]}],
+    "raw": false,
+    "output": {"formats": ["json"]}
+  }
+}
