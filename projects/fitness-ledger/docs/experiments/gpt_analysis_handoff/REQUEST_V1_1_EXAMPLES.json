@@ -1,0 +1,114 @@
+{
+  "protocol_version": "1.1",
+  "validation_rule": "Every non-null request in valid_requests must pass the Fitness Ledger v1.1 Validator.",
+  "valid_requests": [
+    {
+      "id": "weight_trend_28d",
+      "user_question": "最近28天体重趋势怎么样？",
+      "request": {
+        "request_version": "1.1",
+        "purpose": "Review body-weight trend over the latest 28 days.",
+        "datasets": [{"dataset_id": "body_recent", "type": "body", "time_range": {"mode": "recent_days", "days": 28}, "filters": {}, "fields": ["date", "weight_kg"]}],
+        "raw": false,
+        "output": {"formats": ["json", "markdown"]}
+      }
+    },
+    {
+      "id": "diet_14d",
+      "user_question": "帮我看看最近14天饮食和宏量营养素。",
+      "request": {
+        "request_version": "1.1",
+        "purpose": "Review diet and recorded macros over the latest 14 days.",
+        "datasets": [{"dataset_id": "diet_recent", "type": "diet", "time_range": {"mode": "recent_days", "days": 14}, "filters": {}, "fields": ["date", "calories_kcal", "protein_g", "carbs_g", "fat_g"]}],
+        "raw": false,
+        "output": {"formats": ["json", "markdown"]}
+      }
+    },
+    {
+      "id": "chest_training_3",
+      "user_question": "分析最近3次胸训。",
+      "request": {
+        "request_version": "1.1",
+        "purpose": "Review the latest three chest training sessions.",
+        "datasets": [{"dataset_id": "chest_training", "type": "training", "time_range": {"mode": "latest_matching_sessions", "sessions": 3}, "filters": {"body_part": "chest"}, "fields": ["date", "split", "standardized_summary"]}],
+        "raw": false,
+        "output": {"formats": ["json", "markdown"]}
+      }
+    },
+    {
+      "id": "bench_progress",
+      "user_question": "看看卧推动作最近有没有进步，重点看top和working组。",
+      "request": {
+        "request_version": "1.1",
+        "purpose": "Review recent progress for the user-named bench press movement.",
+        "datasets": [{"dataset_id": "bench_progress", "type": "movement_progress", "time_range": {"mode": "latest_matching_sessions", "sessions": 5}, "filters": {"movement_selector": {"kind": "movement_name", "value": "卧推"}}, "fields": ["date", "movement_name", "sets"], "set_roles": ["top", "working"]}],
+        "raw": false,
+        "output": {"formats": ["json", "markdown"]}
+      }
+    },
+    {
+      "id": "carbs_before_each_chest",
+      "user_question": "比较每次胸训前3天的碳水。",
+      "request": {
+        "request_version": "1.1",
+        "purpose": "Compare recorded carbohydrate intake during the three days before each matching chest session.",
+        "datasets": [
+          {"dataset_id": "chest_sessions", "type": "training", "time_range": {"mode": "latest_matching_sessions", "sessions": 5}, "filters": {"body_part": "chest"}, "fields": ["date", "split"]},
+          {"dataset_id": "diet_before_chest", "type": "diet", "time_range": {"mode": "days_before_target_session", "days_before": 3, "target_dataset_id": "chest_sessions", "match_mode": "each_matching_session", "include_target_session_day": false}, "filters": {}, "fields": ["date", "carbs_g"]}
+        ],
+        "raw": false,
+        "output": {"formats": ["json", "markdown"]}
+      }
+    },
+    {
+      "id": "bench_top_backoff",
+      "user_question": "卧推top set提高但backoff容量下降，准备比较相关记录。",
+      "request": {
+        "request_version": "1.1",
+        "purpose": "Compare top and backoff set records for the user-named bench press movement.",
+        "datasets": [{"dataset_id": "bench_sets", "type": "movement_progress", "time_range": {"mode": "latest_matching_sessions", "sessions": 6}, "filters": {"movement_selector": {"kind": "movement_name", "value": "卧推"}}, "fields": ["date", "sets"], "set_roles": ["top", "backoff"]}],
+        "raw": false,
+        "output": {"formats": ["json", "markdown"]}
+      }
+    },
+    {
+      "id": "high_calorie_meal_context",
+      "user_question": "我想判断是否适合安排一顿高热量餐，先看需要哪些本地数据。",
+      "request": {
+        "request_version": "1.1",
+        "purpose": "Review recent body, diet, and training context relevant to the user's meal-timing question.",
+        "datasets": [
+          {"dataset_id": "body_context", "type": "body", "time_range": {"mode": "recent_days", "days": 28}, "filters": {}, "fields": ["date", "weight_kg"]},
+          {"dataset_id": "diet_context", "type": "diet", "time_range": {"mode": "recent_days", "days": 14}, "filters": {}, "fields": ["date", "calories_kcal", "protein_g", "carbs_g", "fat_g"]},
+          {"dataset_id": "training_context", "type": "training", "time_range": {"mode": "recent_days", "days": 14}, "filters": {}, "fields": ["date", "split", "standardized_summary"]}
+        ],
+        "raw": false,
+        "output": {"formats": ["json", "markdown"]}
+      }
+    },
+    {
+      "id": "notes_recovery",
+      "user_question": "结合Training Notes和Diet Notes分析最近恢复状态。",
+      "request": {
+        "request_version": "1.1",
+        "purpose": "Review recent training and diet records with their declared Notes scopes for recovery context.",
+        "datasets": [
+          {"dataset_id": "training_notes", "type": "training", "time_range": {"mode": "recent_days", "days": 14}, "filters": {}, "fields": ["date", "split", "standardized_summary"], "notes_scope": "training"},
+          {"dataset_id": "diet_notes", "type": "diet", "time_range": {"mode": "recent_days", "days": 14}, "filters": {}, "fields": ["date", "calories_kcal", "protein_g", "carbs_g", "fat_g"], "notes_scope": "diet"}
+        ],
+        "raw": false,
+        "output": {"formats": ["json", "markdown"]}
+      }
+    }
+  ],
+  "non_request_examples": [
+    {"id": "movement_ambiguous", "user_question": "看看推胸有没有进步。", "response_policy": "Ask which movement or body-part scope is intended if deterministic resolution cannot safely identify one.", "request": null},
+    {"id": "raw_refusal", "user_question": "把Raw原始记录发给我。", "response_policy": "Decline Raw and do not generate a Request because raw is fixed to false.", "request": null},
+    {"id": "no_local_data_needed", "user_question": "一般来说减脂期蛋白质为什么重要？", "response_policy": "Answer from general knowledge or research without generating a local-data Request.", "request": null}
+  ],
+  "bundle_analysis_example": {
+    "bundle_received": true,
+    "required_behavior": "Use only Bundle records and declared quality/missing-information/provenance; do not treat missing values as zero or claim to have seen records outside the Bundle.",
+    "example_language": "The Bundle contains 9 diet days and 5 training sessions; the missing three diet days limit any comparison, so this is an association in the available records rather than a causal conclusion."
+  }
+}

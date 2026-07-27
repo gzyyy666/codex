@@ -1,0 +1,73 @@
+{
+  "catalog_version": "1.1",
+  "schema_file": "schemas/analysis_export_request_v1.schema.json",
+  "request_version": "1.1",
+  "datasets": {
+    "body": {
+      "fields": {
+        "date": "ISO calendar date of the body record.",
+        "weight_kg": "Recorded body weight in kilograms when present.",
+        "bowel_movement": "Recorded bowel-movement status or value when present.",
+        "training_label": "Training label associated with the body record when present.",
+        "cardio_summary": "Recorded cardio summary associated with the body record when present."
+      },
+      "filters": [],
+      "time_modes": ["recent_days", "explicit_range"],
+      "notes_scope": "daily"
+    },
+    "diet": {
+      "fields": {
+        "date": "ISO calendar date of the diet record.",
+        "calories_kcal": "Recorded or stored calorie value in kcal when present.",
+        "protein_g": "Recorded or stored protein value in grams when present.",
+        "carbs_g": "Recorded or stored carbohydrate value in grams when present.",
+        "fat_g": "Recorded or stored fat value in grams when present.",
+        "food_summary": "Stored food summary when present."
+      },
+      "filters": [],
+      "time_modes": ["recent_days", "explicit_range", "days_before_target_session"],
+      "notes_scope": "diet"
+    },
+    "training": {
+      "fields": {
+        "date": "ISO calendar date of the training record.",
+        "split": "Stored training split or session label.",
+        "standardized_summary": "Stored standardized training summary."
+      },
+      "filters": ["body_part", "split"],
+      "time_modes": ["recent_days", "explicit_range", "latest_matching_sessions"],
+      "notes_scope": "training"
+    },
+    "movement_progress": {
+      "fields": {
+        "date": "ISO calendar date of the movement history record.",
+        "movement_id": "Existing canonical movement identifier when present; GPT must not invent it.",
+        "movement_name": "Stored movement name when present.",
+        "body_part": "Stored movement body-part association when present.",
+        "variant": "Stored movement variant when present.",
+        "order": "Stored movement order within a session when present.",
+        "sets": "Stored movement set data when present."
+      },
+      "filters": ["movement_selector"],
+      "movement_selector_kinds": ["movement_id", "movement_name", "body_part"],
+      "set_roles": ["top", "working", "backoff"],
+      "time_modes": ["recent_days", "explicit_range", "latest_matching_sessions"],
+      "notes_scope": "movement"
+    }
+  },
+  "time_ranges": {
+    "recent_days": {"required": ["mode", "days"]},
+    "explicit_range": {"required": ["mode", "start", "end"], "date_format": "YYYY-MM-DD"},
+    "latest_matching_sessions": {"required": ["mode", "sessions"], "datasets": ["training", "movement_progress"]},
+    "days_before_target_session": {
+      "required": ["mode", "days_before", "match_mode", "include_target_session_day"],
+      "datasets": ["diet"],
+      "target_one_of": ["target_dataset_id", "target_date"],
+      "target_dataset_type": "training",
+      "match_modes": ["single_latest_matching_session", "each_matching_session"]
+    }
+  },
+  "output_formats": ["json", "markdown"],
+  "raw": false,
+  "missing_value_policy": "Missing fields remain missing; never convert them to zero."
+}
