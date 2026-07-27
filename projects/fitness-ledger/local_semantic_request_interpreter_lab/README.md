@@ -2,6 +2,14 @@
 
 独立、只读、可替换的本地自然语义辅助组件。它把较明确但未完全结构化的中文数据需求转换为 `RequestDraft v1`，再由确定性 Validator 和 Adapter 处理；它不读取正式数据，不读取文件，不授予 Raw，不调用 Executor，不写入记录，也不生成健身专业结论。
 
+## 冻结状态（2026-07-27）
+
+候选已冻结，不再进行独立模型研究或功能开发。冻结基线为 Commit `3e5126366bf018a24659ba3444942394893f94f0`，分支为 `feat/local-semantic-request-interpreter-lab`。本 Lab 不整体合并或 cherry-pick 到 `main`。
+
+当前性能候选为 Qwen2.5 0.5B GGUF 的窄 `SemanticHint` Provider 配置：CUDA、GPU layers=99、threads=4、threads_batch=2、ctx_size=4096、n_predict=640、temperature=0、top_k=1。连续 5 次 Hint 合法 5/5、Draft exact 5/5，中位延迟 8.35 秒，最大 9.42 秒。模型和 llama.cpp 运行时位于隔离的 D 盘目录，不进入 Git。
+
+后续只允许从候选复用窄 SemanticHint、InferenceProvider/外置运行配置和失败关闭设计。清晰请求走确定性本地规划；复杂请求继续走 GPT JSON Planner。两条路径最终必须收敛到同一正式 JSON Schema、正式 Validator 和正式导出器。等正式 JSON 导出候选完成后，必须从其精确 Commit 新建受控集成分支；不得从本 Lab 分支直接接入正式数据或导出器。
+
 ## 窄接口
 
 ```python
@@ -75,9 +83,7 @@ python -m local_semantic_request_interpreter_lab.evaluate `
 
 评测输出仅为匿名合成请求和模型结果，`runs/` 被忽略，不得提交模型、缓存或推理输出。
 
-评测器与 CLI 使用同一套 `load_runtime_bundle` + Provider 工厂；本轮未重新执行完整 30 条评测。
-
-当前实验结论：llama.cpp 的结构化生成最小示例成功；Qwen2.5 7B Q4 + CUDA 已对目标请求生成并通过 RequestDraft Validator。7B 固定 Gold 30 条的完整语义字段闭环为 1/30，说明目标句可行但尚未达到正式可用线；0.5B/1.5B 仅保留为失败对照，不能作为正式模型。
+评测器与 CLI 使用同一套 `load_runtime_bundle` + Provider 工厂。阶段 E 已完成窄 SemanticHint 的 0.5B 候选验证；冻结后的本分支不再继续调模型、Prompt 或采样参数。
 
 ## 文件边界
 
