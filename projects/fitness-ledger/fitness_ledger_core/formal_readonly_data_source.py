@@ -214,11 +214,13 @@ class FormalReadOnlyDataSource:
         ).hexdigest()[:20]
         provenance = result["provenance"]
         provenance.pop("fixture_version", None)
+        provenance.pop("fixture_path_policy", None)
         provenance.update({
             "source_kind": "formal_local_json_read_only",
             "source_snapshot_id": self.snapshot_id,
             "formal_paths": ["data/tracker.json", "data/movement_dictionary.json"],
             "formal_access": "read_only; structured allowlist projection",
+            "source_path_policy": "explicit formal files opened read-only; structured allowlist projection only",
             "materializer_version": MATERIALIZER_VERSION,
         })
         for dataset in result["request"]["datasets"]:
