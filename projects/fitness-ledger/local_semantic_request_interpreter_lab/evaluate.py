@@ -32,8 +32,11 @@ def _error_code(value: str) -> str:
 def _execution_summary(result: dict[str, Any], catalog: dict[str, Any]) -> dict[str, Any]:
     draft = result.get("draft")
     if result.get("status") == "ready" and isinstance(draft, dict):
+        started = time.perf_counter()
         try:
-            return compile_request_draft(draft, catalog)["execution"]
+            execution = compile_request_draft(draft, catalog)["execution"]
+            execution["compile_ms"] = round((time.perf_counter() - started) * 1000, 2)
+            return execution
         except DraftError as exc:
             return {
                 "allowed": False,
@@ -42,6 +45,7 @@ def _execution_summary(result: dict[str, Any], catalog: dict[str, Any]) -> dict[
                 "write_allowed": False,
                 "raw": False,
                 "compile_error": _error_code(str(exc)),
+                "compile_ms": round((time.perf_counter() - started) * 1000, 2),
             }
     return {"allowed": False, "mode": "preview_only", "executor_called": False, "write_allowed": False, "raw": False}
 
@@ -104,6 +108,7 @@ def score_case(result: dict[str, Any], expected: dict[str, Any], catalog: dict[s
         "final_draft": audit.get("final_draft"),
         "result_status": result.get("status"),
         "validation_errors": errors,
+        "performance": audit.get("performance") or {},
         "execution": _execution_summary(result, catalog),
     }
 
@@ -143,7 +148,13 @@ def run_evaluation(runner: InferenceProvider | Callable[[str], str], catalog: di
             "write_allowed": sum(bool(row["execution"].get("write_allowed")) for row in rows),
             "formal_data_access": 0,
         },
-        "latency_ms": {"mean": round(statistics.mean(durations), 2) if durations else None, "p95": round(sorted(durations)[max(0, int(len(durations) * 0.95) - 1)], 2) if durations else None},
+        "latency_ms": {
+            "min": round(min(durations), 2) if durations else None,
+            "median": round(statistics.median(durations), 2) if durations else None,
+            "mean": round(statistics.mean(durations), 2) if durations else None,
+            "p95": round(statistics.quantiles(durations, n=20, method="inclusive")[18], 2) if len(durations) >= 2 else (round(durations[0], 2) if durations else None),
+            "max": round(max(durations), 2) if durations else None,
+        },
         "rows": rows,
     }
 

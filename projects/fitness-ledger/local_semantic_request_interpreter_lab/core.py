@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from datetime import date
 from typing import Any, Callable
 
@@ -289,7 +290,7 @@ def _error_code(value: str) -> str:
     return value.split(":", 1)[0]
 
 
-def _audit_summary(intent: Any = None, *, provider_called: bool = False, semantic_hint: Any = None, draft: dict[str, Any] | None = None, errors: list[str] | None = None) -> dict[str, Any]:
+def _audit_summary(intent: Any = None, *, provider_called: bool = False, semantic_hint: Any = None, draft: dict[str, Any] | None = None, errors: list[str] | None = None, performance: dict[str, Any] | None = None) -> dict[str, Any]:
     return {
         "route_kind": "unknown" if intent is None else intent.route,
         "provider_called": provider_called,
@@ -297,6 +298,7 @@ def _audit_summary(intent: Any = None, *, provider_called: bool = False, semanti
         "semantic_hint": None if semantic_hint is None else semantic_hint.to_summary(),
         "final_draft": summarize_draft(draft),
         "validation_errors": [_error_code(item) for item in (errors or [])],
+        "performance": performance or {},
     }
 
 
@@ -319,37 +321,53 @@ def interpret_request(
     semantic_hint = None
     provider_called = False
     draft = None
+    performance: dict[str, Any] = {}
     try:
+        deterministic_started = time.perf_counter()
         intent = parse_deterministic_intent(user_text, capability_catalog)
+        performance["deterministic_routing_ms"] = round((time.perf_counter() - deterministic_started) * 1000, 2)
         if intent.route == "deterministic":
+            assembly_started = time.perf_counter()
             draft = assemble_request_draft(intent)
+            performance["draft_assembly_ms"] = round((time.perf_counter() - assembly_started) * 1000, 2)
         else:
             if runner is None or not isinstance(runner, InferenceProvider) or intent.hint_request is None:
                 errors = ["MODEL_UNAVAILABLE"]
                 return {"result_version": RESULT_VERSION, "status": "model_unavailable", "draft": None, "errors": errors, "warnings": [], "audit": _audit_summary(intent, errors=errors)}
             provider_called = True
+            provider_started = time.perf_counter()
             raw = runner.infer_semantic_hint(intent.hint_request)
+            performance["provider_call_wall_ms"] = round((time.perf_counter() - provider_started) * 1000, 2)
+            performance["provider_timing"] = runner.get_last_timing() or {}
+            hint_validation_started = time.perf_counter()
             semantic_hint = validate_semantic_hint(parse_json_strict(raw), intent.hint_request)
+            performance["json_hint_validation_ms"] = round((time.perf_counter() - hint_validation_started) * 1000, 2)
+            assembly_started = time.perf_counter()
             draft = assemble_request_draft(intent, semantic_hint=semantic_hint, hint_request=intent.hint_request)
+            performance["draft_assembly_ms"] = round((time.perf_counter() - assembly_started) * 1000, 2)
+        validation_started = time.perf_counter()
         checked = validate_request_draft(draft, capability_catalog)
         validate_request_grounding(checked, user_text)
+        performance["draft_validator_grounding_ms"] = round((time.perf_counter() - validation_started) * 1000, 2)
         return {
             "result_version": RESULT_VERSION,
             "status": checked["status"],
             "draft": checked,
             "errors": [],
             "warnings": checked["warnings"],
-            "audit": _audit_summary(intent, provider_called=provider_called, semantic_hint=semantic_hint, draft=checked),
+            "audit": _audit_summary(intent, provider_called=provider_called, semantic_hint=semantic_hint, draft=checked, performance=performance),
         }
     except ProviderOutputError as exc:
         errors = [str(exc)]
-        return {"result_version": RESULT_VERSION, "status": "invalid_model_output", "draft": None, "errors": errors, "warnings": [], "audit": _audit_summary(intent, provider_called=provider_called, semantic_hint=semantic_hint, errors=errors)}
+        return {"result_version": RESULT_VERSION, "status": "invalid_model_output", "draft": None, "errors": errors, "warnings": [], "audit": _audit_summary(intent, provider_called=provider_called, semantic_hint=semantic_hint, errors=errors, performance=performance)}
     except (ProviderRuntimeError, ProviderConfigurationError) as exc:
         errors = [str(exc)]
-        return {"result_version": RESULT_VERSION, "status": "model_unavailable", "draft": None, "errors": errors, "warnings": [], "audit": _audit_summary(intent, provider_called=provider_called, semantic_hint=semantic_hint, errors=errors)}
+        if provider_called and isinstance(runner, InferenceProvider):
+            performance["provider_timing"] = runner.get_last_timing() or {}
+        return {"result_version": RESULT_VERSION, "status": "model_unavailable", "draft": None, "errors": errors, "warnings": [], "audit": _audit_summary(intent, provider_called=provider_called, semantic_hint=semantic_hint, errors=errors, performance=performance)}
     except DraftError as exc:
         errors = [str(exc)]
-        return {"result_version": RESULT_VERSION, "status": "invalid_model_output", "draft": None, "errors": errors, "warnings": [], "audit": _audit_summary(intent, provider_called=provider_called, semantic_hint=semantic_hint, errors=errors)}
+        return {"result_version": RESULT_VERSION, "status": "invalid_model_output", "draft": None, "errors": errors, "warnings": [], "audit": _audit_summary(intent, provider_called=provider_called, semantic_hint=semantic_hint, errors=errors, performance=performance)}
     except SemanticHintError as exc:
         errors = [str(exc)]
-        return {"result_version": RESULT_VERSION, "status": "invalid_model_output", "draft": None, "errors": errors, "warnings": [], "audit": _audit_summary(intent, provider_called=provider_called, semantic_hint=semantic_hint, errors=errors)}
+        return {"result_version": RESULT_VERSION, "status": "invalid_model_output", "draft": None, "errors": errors, "warnings": [], "audit": _audit_summary(intent, provider_called=provider_called, semantic_hint=semantic_hint, errors=errors, performance=performance)}

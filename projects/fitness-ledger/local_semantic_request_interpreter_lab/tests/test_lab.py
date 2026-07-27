@@ -275,6 +275,26 @@ class LabTests(unittest.TestCase):
                 with self.assertRaises(ProcessTimeoutError):
                     provider.infer_semantic_hint(request)
 
+    def test_llama_perf_summary_is_numeric_and_anonymous(self):
+        parsed = LlamaCppCliProvider._parse_perf_stderr(
+            "llama_perf_model_load: load time = 1234.50 ms\n"
+            "llama_perf_context_print: prompt eval time = 200.00 ms / 50 tokens\n"
+            "llama_perf_context_print: eval time = 800.00 ms / 80 runs\n"
+        )
+        self.assertEqual(parsed["model_load_ms"], 1234.5)
+        self.assertEqual(parsed["prompt_processing_ms"], 200.0)
+        self.assertEqual(parsed["prompt_tokens"], 50)
+        self.assertEqual(parsed["token_generation_ms"], 800.0)
+        self.assertEqual(parsed["output_tokens"], 80)
+        self.assertNotIn("stdout", json.dumps(parsed, ensure_ascii=False))
+
+    def test_provider_timing_is_exposed_without_model_output(self):
+        with tempfile.TemporaryDirectory() as raw:
+            provider = self._provider(Path(raw))
+            provider._last_timing = {"cli_process_wall_ms": 12.3, "output_chars": 10}
+            self.assertEqual(provider.get_last_timing(), {"cli_process_wall_ms": 12.3, "output_chars": 10})
+            self.assertNotIn("stdout", json.dumps(provider.get_last_timing()))
+
     def test_provider_process_failure_categories(self):
         scenarios = [
             (OSError("missing"), ProcessStartError),

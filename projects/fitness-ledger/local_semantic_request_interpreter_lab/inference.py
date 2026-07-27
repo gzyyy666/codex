@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .semantic_hint import SemanticHintRequest
@@ -71,6 +71,10 @@ class InferenceProvider(ABC):
     def infer_semantic_hint(self, request: "SemanticHintRequest") -> str:
         """Return a narrow hint; legacy providers must opt into this task explicitly."""
         raise ProviderConfigurationError("SEMANTIC_HINT_PROVIDER_UNSUPPORTED")
+
+    def get_last_timing(self) -> dict[str, Any] | None:
+        """Return anonymous timing data for the most recent invocation, when available."""
+        return None
 
     def __call__(self, user_text: str) -> str:
         return self.infer(user_text)
