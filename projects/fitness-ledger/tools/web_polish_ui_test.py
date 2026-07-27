@@ -99,6 +99,7 @@ const thirdMap=Object.fromEntries([...document.querySelectorAll('.body-slip')].m
 const bodyStableAfterInsert=Object.keys(firstMap).every(date=>firstMap[date]===thirdMap[date]);
 const bodyUsesStableClasses=[...document.querySelectorAll('.body-slip')].every(node=>/tone-(feature|training|rest|cardio|purple)/.test(node.className)&&node.className.includes('body-offset-'));
 const bodyUsesMultipleWarmTones=[...document.querySelectorAll('.body-slip')].some(node=>node.classList.contains('tone-feature')||node.classList.contains('tone-training'));
+const bodyAvoidsAdjacentTone=[...document.querySelectorAll('.body-slip')].every((node,index,nodes)=>index===0||!node.classList.contains([...nodes[index-1].classList].find(name=>name.startsWith('tone-'))));
 
 navigate('diet');
 await wait(80);
@@ -106,7 +107,7 @@ const dietReturnedToSlipOffset=[...document.querySelectorAll('.diet-slip')].ever
 
 const report=document.createElement('div');
 report.id='web-polish-report';
-report.dataset.value=encodeURIComponent(JSON.stringify({movementIndexFiltersEmpty,movementCountUsesProgress,bodyStableAfterSort,bodyStableAfterInsert,bodyUsesStableClasses,bodyUsesMultipleWarmTones,dietReturnedToSlipOffset,movementNames,firstMap,secondMap,thirdMap}));
+report.dataset.value=encodeURIComponent(JSON.stringify({movementIndexFiltersEmpty,movementCountUsesProgress,bodyStableAfterSort,bodyStableAfterInsert,bodyUsesStableClasses,bodyUsesMultipleWarmTones,bodyAvoidsAdjacentTone,dietReturnedToSlipOffset,movementNames,firstMap,secondMap,thirdMap}));
 document.body.appendChild(report);
 }catch(error){
   const report=document.createElement('div');
@@ -136,6 +137,7 @@ document.body.appendChild(report);
         "bodyStableAfterInsert",
         "bodyUsesStableClasses",
         "bodyUsesMultipleWarmTones",
+        "bodyAvoidsAdjacentTone",
         "dietReturnedToSlipOffset",
     )), report
 

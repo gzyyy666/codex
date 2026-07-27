@@ -33,6 +33,9 @@ from cloud_sync.build_cloud_payload import main as build_cloud_replica, source_m
 from cloud_sync.sync_to_cloud import sync_payload, validate_payload  # noqa: E402
 from cloud_sync.upload_to_cloudbase import config_status, is_upload_configured, load_sync_config  # noqa: E402
 from web_desktop.backend.build_identity import collect_build_info  # noqa: E402
+from web_desktop.backend.analysis_export_protocol import (  # noqa: E402
+    AnalysisExportProtocolService,
+)
 
 
 def load_stable_module():
@@ -61,6 +64,7 @@ class LedgerWebService:
         backup_dir: Path | None = None,
         build_info_path: Path | None = None,
         build_info_override: dict | None = None,
+        analysis_export_protocol: AnalysisExportProtocolService | None = None,
     ) -> None:
         data_file = data_file or PROJECT_DIR / "data" / "tracker.json"
         dictionary_file = dictionary_file or PROJECT_DIR / "data" / "movement_dictionary.json"
@@ -82,6 +86,7 @@ class LedgerWebService:
         self.server_started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
         self.build_info_path = build_info_path
         self.build_info_override = build_info_override
+        self.analysis_export_protocol = analysis_export_protocol or AnalysisExportProtocolService()
 
     def build_info(self) -> dict:
         if self.build_info_override is not None:
@@ -111,6 +116,8 @@ class LedgerWebService:
             "custom_movement_canonicalization": True,
             "undo": True,
             "data_check_repair": True,
+            "analysis_export_protocol_v1": True,
+            "analysis_export_formal_source": self.analysis_export_protocol.provider.formal_data_available,
             "phase": "shared-platform-services",
         }
 
@@ -142,6 +149,21 @@ class LedgerWebService:
 
     def analysis_export(self, request: dict) -> dict:
         return build_export(self.views, request)
+
+    def analysis_export_v1_validate(self, request: dict) -> dict:
+        return self.analysis_export_protocol.validate(request)
+
+    def analysis_export_v1_preview(self, request: dict) -> dict:
+        return self.analysis_export_protocol.preview(request)
+
+    def analysis_export_v1_resolve(self, request: dict) -> dict:
+        return self.analysis_export_protocol.resolve(request)
+
+    def analysis_export_v1_export(self, request: dict) -> dict:
+        return self.analysis_export_protocol.export(request)
+
+    def analysis_export_v1_artifact(self, artifact_id: str, format_name: str) -> tuple[str, bytes] | None:
+        return self.analysis_export_protocol.artifact(artifact_id, format_name)
 
     def intelligent_export_preview(self, request: dict) -> dict:
         text = str(request.get("request", "") or "").strip()
@@ -741,6 +763,16 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def send_bytes(self, body: bytes, content_type: str, filename: str = "") -> None:
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        if filename:
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self.end_headers()
+        self.wfile.write(body)
+
     def read_json_body(self) -> dict:
         length = int(self.headers.get("Content-Length", "0"))
         if length <= 0 or length > 2_000_000:
@@ -812,6 +844,15 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.data.get_record_detail(query.get("date", [""])[0]))
             elif parsed.path == "/api/search":
                 self.send_json(self.service.data.search_records(query.get("q", [""])[0], query.get("scope", ["30d"])[0]))
+            elif parsed.path.startswith("/api/analysis-export/v1/artifact/"):
+                artifact_id = unquote(parsed.path.rsplit("/", 1)[-1])
+                format_name = query.get("format", [""])[0]
+                artifact = self.service.analysis_export_v1_artifact(artifact_id, format_name)
+                if artifact is None:
+                    self.send_json({"error": "Artifact not found."}, HTTPStatus.NOT_FOUND)
+                else:
+                    content_type, body = artifact
+                    self.send_bytes(body, content_type, f"{artifact_id}.{format_name}")
             elif parsed.path.startswith("/app-assets/"):
                 relative = Path(unquote(parsed.path.removeprefix("/app-assets/"))).name
                 self.send_file(ASSET_DIR / relative)
@@ -847,6 +888,14 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.open_cloud_sync_target(request.get("target", "")))
             elif parsed.path == "/api/analysis-export":
                 self.send_json(self.service.analysis_export(request))
+            elif parsed.path == "/api/analysis-export/v1/validate":
+                self.send_json(self.service.analysis_export_v1_validate(request))
+            elif parsed.path == "/api/analysis-export/v1/preview":
+                self.send_json(self.service.analysis_export_v1_preview(request))
+            elif parsed.path == "/api/analysis-export/v1/resolve":
+                self.send_json(self.service.analysis_export_v1_resolve(request))
+            elif parsed.path == "/api/analysis-export/v1/export":
+                self.send_json(self.service.analysis_export_v1_export(request))
             elif parsed.path == "/api/intelligent-export/preview":
                 self.send_json(self.service.intelligent_export_preview(request))
             elif parsed.path == "/api/save":
