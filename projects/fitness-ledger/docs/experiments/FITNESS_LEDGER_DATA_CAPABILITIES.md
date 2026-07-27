@@ -35,6 +35,13 @@ or body-part selector may still require deterministic resolution before export.
 `working`, and `backoff`. The roles describe which registered set groups to
 select; they do not create a metric or a conclusion.
 
+Progress visibility is controlled by the existing local movement/history state,
+not by GPT. A movement definition marked exclude_from_progress is omitted from
+movement_progress, and a history row with the same flag is omitted only for
+that progress projection. Training/day-level records and the underlying
+archive remain available. Preview and Bundle quality metadata report the
+excluded record and movement counts.
+
 ## Time modes
 
 | Mode | Allowed Dataset types | Required properties |

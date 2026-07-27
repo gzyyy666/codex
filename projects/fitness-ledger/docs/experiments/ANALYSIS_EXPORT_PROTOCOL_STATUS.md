@@ -57,6 +57,26 @@ Dataset through `target_dataset_id`.
 - `raw` is fixed to `false`; Raw is not a requestable Dataset or permission.
 - Missing fields remain missing. They must not be converted to zero or silently inferred.
 
+### Movement progress visibility alignment
+
+The v1.1 materialization path follows the website's distinction between the
+complete training/archive history and the progress-only view:
+
+- a movement definition with exclude_from_progress=true is omitted from
+  movement_progress;
+- a history row with exclude_from_progress=true is omitted only for that
+  progress projection;
+- training/day-level datasets continue to retain those records;
+- missing exclude_from_progress is treated as false;
+- Preview and Bundle quality metadata report excluded record and movement
+  counts before analysis.
+
+This is deterministic local projection state, not a GPT-controlled request
+field. It is applied after movement and time resolution and never deletes,
+alters, or hides the underlying training/archive record. The legacy
+archive-oriented Analysis Export projection remains separate from this
+progress-only Dataset semantics.
+
 ## Authority relationship
 
 `schemas/analysis_export_request_v1.schema.json` is the normative structural

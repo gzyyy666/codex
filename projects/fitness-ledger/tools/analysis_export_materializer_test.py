@@ -130,6 +130,83 @@ def test_selectors_set_roles_notes_and_missing_values() -> None:
     assert any("empty selection" in item for item in empty["warnings"])
 
 
+def test_progress_exclusions_match_website_visibility_without_hiding_training() -> None:
+    fixture = load_json("fixture.json")
+    fixture["movement_catalog"] = [dict(item) for item in fixture["movement_catalog"]]
+    fixture["datasets"] = {key: [dict(row) for row in rows] for key, rows in fixture["datasets"].items()}
+    next(
+        item for item in fixture["movement_catalog"] if item["movement_id"] == "m_synthetic_fly"
+    )["exclude_from_progress"] = True
+    for row in fixture["datasets"]["movement_progress"]:
+        if row["date"] == "2099-12-24" and row["movement_id"] == "m_synthetic_press":
+            row["exclude_from_progress"] = True
+
+    request = {
+        "request_version": "1.1",
+        "purpose": "Verify progress-only exclusion semantics",
+        "datasets": [
+            {
+                "dataset_id": "chest_training",
+                "type": "training",
+                "time_range": {"mode": "explicit_range", "start": "2099-12-10", "end": "2099-12-28"},
+                "filters": {"body_part": "chest"},
+                "fields": ["date", "split", "standardized_summary"],
+                "notes_scope": "training",
+            },
+            {
+                "dataset_id": "chest_progress",
+                "type": "movement_progress",
+                "time_range": {"mode": "explicit_range", "start": "2099-12-10", "end": "2099-12-28"},
+                "filters": {"movement_selector": {"kind": "body_part", "value": "chest"}},
+                "fields": ["date", "movement_id", "movement_name", "sets"],
+                "notes_scope": "movement",
+            },
+        ],
+        "raw": False,
+        "output": {"formats": ["json", "markdown"]},
+    }
+    validation = validate_request(request)
+    assert validation.valid, validation.errors
+    bundle = AnonymousFixtureMaterializer(fixture).materialize(request)
+    training = [row for row in bundle["records"] if row["dataset_id"] == "chest_training"]
+    progress = [row for row in bundle["records"] if row["dataset_id"] == "chest_progress"]
+    assert len(training) == 4
+    assert len(progress) == 3
+    progress_quality = next(item for item in bundle["quality_profile"]["datasets"] if item["dataset_id"] == "chest_progress")
+    assert progress_quality["excluded_record_count"] == 2
+    assert progress_quality["excluded_movement_count"] == 2
+    assert {item["movement_id"] for item in progress_quality["excluded_movements"]} == {
+        "m_synthetic_press",
+        "m_synthetic_fly",
+    }
+    assert bundle["quality_profile"]["progress_exclusions"] == {
+        "excluded_record_count": 2,
+        "excluded_movement_count": 2,
+    }
+    markdown = AnonymousFixtureMaterializer.export_markdown(bundle)
+    assert "Progress exclusions" in markdown
+    assert "training/day-level records remain available" in markdown
+
+    excluded_only_request = {
+        "request_version": "1.1",
+        "purpose": "Verify a fully excluded movement remains distinguishable from missing data",
+        "datasets": [{
+            "dataset_id": "excluded_fly_progress",
+            "type": "movement_progress",
+            "time_range": {"mode": "explicit_range", "start": "2099-12-10", "end": "2099-12-28"},
+            "filters": {"movement_selector": {"kind": "movement_id", "value": "m_synthetic_fly"}},
+            "fields": ["date", "movement_id", "sets"],
+        }],
+        "raw": False,
+        "output": {"formats": ["json"]},
+    }
+    excluded_only = AnonymousFixtureMaterializer(fixture).materialize(excluded_only_request)
+    assert excluded_only["records"] == []
+    assert excluded_only["missing_information"] == []
+    assert excluded_only["warnings"] == []
+    assert excluded_only["quality_profile"]["status"] == "empty_after_progress_exclusion"
+
+
 def test_combo_bundle_schema_exports_and_safety_are_reproducible() -> None:
     materializer = AnonymousFixtureMaterializer(FIXTURE_DIR / "fixture.json")
     request = load_json("requests.json")["combo_notes"]
@@ -158,6 +235,7 @@ def main() -> None:
     test_movement_name_ambiguity_requires_resolution()
     test_four_time_modes_and_relation_are_deterministic()
     test_selectors_set_roles_notes_and_missing_values()
+    test_progress_exclusions_match_website_visibility_without_hiding_training()
     test_combo_bundle_schema_exports_and_safety_are_reproducible()
     print("FITNESS_LEDGER_ANALYSIS_EXPORT_MATERIALIZER_OK")
 

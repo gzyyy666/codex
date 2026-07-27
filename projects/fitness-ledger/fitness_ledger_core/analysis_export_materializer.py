@@ -186,6 +186,42 @@ class AnonymousFixtureMaterializer:
             return [row for row in rows if _iso(row.get("date")) in dates]
         raise MaterializationError("Relation time ranges are resolved separately")
 
+    def _progress_excluded(self, row: dict[str, Any]) -> tuple[bool, str | None]:
+        """Apply the website's progress-only visibility state to one row."""
+        movement_id = str(row.get("movement_id", ""))
+        definition = next(
+            (item for item in self.movement_catalog if str(item.get("movement_id", "")) == movement_id),
+            {},
+        )
+        if bool(definition.get("exclude_from_progress", False)):
+            return True, "movement"
+        if bool(row.get("exclude_from_progress", False)):
+            return True, "history"
+        return False, None
+
+    def _progress_exclusion_summary(self, rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        """Exclude progress rows without removing them from other datasets."""
+        included: list[dict[str, Any]] = []
+        excluded_by_movement: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            excluded, scope = self._progress_excluded(row)
+            if not excluded:
+                included.append(row)
+                continue
+            movement_id = str(row.get("movement_id", ""))
+            item = excluded_by_movement.setdefault(
+                movement_id,
+                {"movement_id": movement_id, "scopes": [], "excluded_record_count": 0},
+            )
+            if scope and scope not in item["scopes"]:
+                item["scopes"].append(scope)
+            item["excluded_record_count"] += 1
+        return included, {
+            "excluded_record_count": len(rows) - len(included),
+            "excluded_movement_count": len(excluded_by_movement),
+            "excluded_movements": [excluded_by_movement[key] for key in sorted(excluded_by_movement)],
+        }
+
     def _resolve_dataset(
         self,
         dataset: dict[str, Any],
@@ -256,6 +292,16 @@ class AnonymousFixtureMaterializer:
         note_field = _NOTE_FIELD.get(note_scope or "")
         roles = set(dataset.get("set_roles", []))
         output: list[dict[str, Any]] = []
+        had_resolved_rows = bool(rows)
+        if dataset["type"] == "movement_progress":
+            rows, exclusion_summary = self._progress_exclusion_summary(rows)
+        else:
+            exclusion_summary = {
+                "excluded_record_count": 0,
+                "excluded_movement_count": 0,
+                "excluded_movements": [],
+            }
+        self._exclusion_summaries[dataset["dataset_id"]] = exclusion_summary
         if note_field and not any(note_field in source for source in self._rows(dataset["type"])):
             warnings.append(
                 f"{dataset['dataset_id']}: Notes scope {note_scope} is unavailable in the anonymous fixture"
@@ -279,7 +325,7 @@ class AnonymousFixtureMaterializer:
             if "_relation" in source:
                 record["relation"] = deepcopy(source["_relation"])
             output.append(record)
-        if not output:
+        if not output and not had_resolved_rows:
             missing.append(f"{dataset['dataset_id']}: no matching records")
         return output
 
@@ -291,6 +337,7 @@ class AnonymousFixtureMaterializer:
         normalized = validation.normalized_request
         self._requested_datasets = normalized["datasets"]
         self._stage_counts: dict[str, dict[str, int]] = {}
+        self._exclusion_summaries: dict[str, dict[str, Any]] = {}
         resolved: dict[str, list[dict[str, Any]]] = {}
         warnings: list[str] = []
         missing: list[str] = []
@@ -301,7 +348,8 @@ class AnonymousFixtureMaterializer:
             rows = self._resolve_dataset(dataset, resolved, warnings, missing, set())
             projected_rows = self._project_rows(dataset, rows, missing, warnings)
             projected.extend(projected_rows)
-            if not projected_rows:
+            exclusion_summary = self._exclusion_summaries[dataset["dataset_id"]]
+            if not projected_rows and not exclusion_summary["excluded_record_count"]:
                 warnings.append(f"{dataset['dataset_id']}: empty selection is reported explicitly")
             quality_datasets.append({
                 "dataset_id": dataset["dataset_id"],
@@ -309,6 +357,9 @@ class AnonymousFixtureMaterializer:
                 "candidate_record_count": self._stage_counts[dataset["dataset_id"]]["candidate_record_count"],
                 "resolved_record_count": self._stage_counts[dataset["dataset_id"]]["resolved_record_count"],
                 "materialized_record_count": len(projected_rows),
+                "excluded_record_count": self._exclusion_summaries[dataset["dataset_id"]]["excluded_record_count"],
+                "excluded_movement_count": self._exclusion_summaries[dataset["dataset_id"]]["excluded_movement_count"],
+                "excluded_movements": self._exclusion_summaries[dataset["dataset_id"]]["excluded_movements"],
                 "missing_fields": sorted({item.split(": field ", 1)[1].split(" missing on ", 1)[0] for item in missing if item.startswith(dataset["dataset_id"] + ": field ")}),
             })
             field_definitions.extend(_field_definition(dataset["dataset_id"], field) for field in dataset["fields"])
@@ -351,9 +402,23 @@ class AnonymousFixtureMaterializer:
             "records": projected,
             "field_definitions": field_definitions,
             "quality_profile": {
-                "status": "empty_selection" if not projected else "materialized",
+                "status": (
+                    "materialized"
+                    if projected
+                    else "empty_after_progress_exclusion"
+                    if any(item["excluded_record_count"] for item in quality_datasets)
+                    else "empty_selection"
+                ),
                 "dataset_count": len(normalized["datasets"]),
                 "record_count": len(projected),
+                "progress_exclusions": {
+                    "excluded_record_count": sum(item["excluded_record_count"] for item in quality_datasets),
+                    "excluded_movement_count": len({
+                        entry["movement_id"]
+                        for item in quality_datasets
+                        for entry in item["excluded_movements"]
+                    }),
+                },
                 "datasets": quality_datasets,
             },
             "missing_information": sorted(set(missing)),
@@ -398,7 +463,18 @@ class AnonymousFixtureMaterializer:
         ]
         for key, value in provenance["counts"].items():
             lines.append(f"- {key}: `{value}`")
-        lines.extend(["", "## Selected datasets", ""])
+        exclusions = bundle["quality_profile"]["progress_exclusions"]
+        lines.extend([
+            "",
+            "## Progress exclusions",
+            "",
+            "Progress-only exclusions apply to movement_progress; training/day-level records remain available.",
+            f"- Excluded records: {exclusions['excluded_record_count']}",
+            f"- Excluded movements: {exclusions['excluded_movement_count']}",
+            "",
+            "## Selected datasets",
+            "",
+        ])
         for dataset in bundle["selected_datasets"]:
             lines.append(f"- `{dataset['dataset_id']}` ({dataset['type']}): {', '.join(dataset['fields'])}")
         lines.extend(["", "## Records", "", "```json", json.dumps(bundle["records"], ensure_ascii=False, indent=2, sort_keys=True), "```", ""])
