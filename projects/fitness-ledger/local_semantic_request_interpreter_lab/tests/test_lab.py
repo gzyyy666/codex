@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest import mock
 
 from local_semantic_request_interpreter_lab.core import DraftError, compile_request_draft, interpret_request, parse_json_strict, validate_request_draft, validate_request_grounding
+from local_semantic_request_interpreter_lab.deterministic import parse_chinese_number, parse_deterministic_intent
 from local_semantic_request_interpreter_lab.evaluate import run_evaluation
 from local_semantic_request_interpreter_lab.inference import EmptyOutputError, InferenceProvider, InvalidModelOutputError, ProcessExitError, ProcessStartError, ProcessTimeoutError, ProviderConfigurationError
 from local_semantic_request_interpreter_lab.llama_runner import LlamaCppCliProvider, LlamaJsonRunner
@@ -94,21 +95,89 @@ class LabTests(unittest.TestCase):
         with self.assertRaises(DraftError):
             validate_request_grounding(draft, "最近三次胸训和每次训练前三天的饮食，给 GPT 分析训练容量变化。")
 
+    def test_chinese_and_arabic_number_canonicalization(self):
+        self.assertEqual(parse_chinese_number("一"), 1)
+        self.assertEqual(parse_chinese_number("两"), 2)
+        self.assertEqual(parse_chinese_number("三"), 3)
+        self.assertEqual(parse_chinese_number("十四"), 14)
+        self.assertEqual(parse_chinese_number("28"), 28)
+
+    def test_deterministic_ready_gold_subset_is_exact(self):
+        cases = json.loads((ROOT / "data" / "gold_cases.json").read_text(encoding="utf-8"))
+        for case in cases[:19]:
+            with self.subTest(case_id=case["case_id"]):
+                intent = parse_deterministic_intent(case["text"], CATALOG)
+                self.assertEqual(intent.route, "deterministic")
+                draft = validate_request_draft(intent.to_draft(), CATALOG)
+                validate_request_grounding(draft, case["text"])
+                self.assertEqual(draft["status"], case["status"])
+                self.assertEqual([item["kind"] for item in draft["datasets"]], [item["kind"] for item in case["datasets"]])
+                for expected in case["datasets"]:
+                    actual = next(item for item in draft["datasets"] if item["draft_id"] == expected["draft_id"])
+                    for field in ("scope", "time_intent", "requested_information", "notes"):
+                        self.assertEqual(actual[field], expected[field], field)
+                self.assertEqual(draft["relations"], case["relations"])
+
+    def test_deterministic_unsupported_and_confirmation_routes(self):
+        cases = json.loads((ROOT / "data" / "gold_cases.json").read_text(encoding="utf-8"))
+        for case in cases[20:]:
+            with self.subTest(case_id=case["case_id"]):
+                intent = parse_deterministic_intent(case["text"], CATALOG)
+                self.assertEqual(intent.route, "deterministic")
+                self.assertEqual(intent.status, case["status"])
+                if case["status"] == "needs_confirmation":
+                    self.assertTrue(intent.missing_confirmations)
+
+    def test_deterministic_success_skips_provider(self):
+        class MustNotRun(InferenceProvider):
+            def infer(self, user_text: str) -> str:
+                raise AssertionError("deterministic request called provider")
+
+        result = interpret_request("导出最近三次胸训的训练、动作和组数。", CATALOG, MustNotRun())
+        self.assertEqual(result["status"], "ready")
+
+    def test_incomplete_intent_does_not_guess(self):
+        class MustNotRun(InferenceProvider):
+            def infer(self, user_text: str) -> str:
+                raise AssertionError("incomplete request called provider")
+
+        result = interpret_request("导出最近几次训练，但我没说要哪几次。", CATALOG, MustNotRun())
+        self.assertEqual(result["status"], "needs_confirmation")
+        self.assertEqual(result["draft"]["status"], "needs_confirmation")
+
+    def test_semantic_hint_case_is_the_only_gold_provider_route(self):
+        cases = json.loads((ROOT / "data" / "gold_cases.json").read_text(encoding="utf-8"))
+        routes = {case["case_id"]: parse_deterministic_intent(case["text"], CATALOG).route for case in cases}
+        self.assertEqual(sum(route == "deterministic" for route in routes.values()), 29)
+        self.assertEqual(sum(route == "provider" for route in routes.values()), 1)
+
     def test_inference_provider_contract_and_core_failure_close(self):
         class StubProvider(InferenceProvider):
+            def __init__(self):
+                self.calls = 0
+
             def infer(self, user_text: str) -> str:
-                return json.dumps(good_draft(), ensure_ascii=False)
+                self.calls += 1
+                return json.dumps({
+                    "schema_version": "fitness-ledger-request-draft-v1",
+                    "status": "unsupported",
+                    "purpose": "test",
+                    "datasets": [],
+                    "relations": [],
+                    "missing_confirmations": [],
+                    "warnings": [],
+                })
 
         provider = StubProvider()
-        self.assertEqual(provider("test"), json.dumps(good_draft(), ensure_ascii=False))
-        result = interpret_request("最近三次胸训和每次训练前三天的饮食", CATALOG, provider)
-        self.assertEqual(result["status"], "ready")
+        result = interpret_request("导出最近饮食", CATALOG, provider)
+        self.assertEqual(result["status"], "unsupported")
+        self.assertEqual(provider.calls, 1)
 
         class FailedProvider(InferenceProvider):
             def infer(self, user_text: str) -> str:
                 raise ProcessTimeoutError("3s")
 
-        failed = interpret_request("最近三次胸训", CATALOG, FailedProvider())
+        failed = interpret_request("导出最近饮食", CATALOG, FailedProvider())
         self.assertEqual(failed["status"], "model_unavailable")
         self.assertIsNone(failed["draft"])
 
@@ -116,7 +185,7 @@ class LabTests(unittest.TestCase):
             def infer(self, user_text: str) -> str:
                 return "not json"
 
-        invalid = interpret_request("最近三次胸训", CATALOG, InvalidProvider())
+        invalid = interpret_request("导出最近饮食", CATALOG, InvalidProvider())
         self.assertEqual(invalid["status"], "invalid_model_output")
         self.assertIsNone(invalid["draft"])
 
@@ -214,7 +283,7 @@ class LabTests(unittest.TestCase):
                     "warnings": [],
                 })
 
-        case = {"case_id": "T1", "text": "无法识别的请求", "status": "unsupported", "datasets": []}
+        case = {"case_id": "T1", "text": "导出最近饮食", "status": "unsupported", "datasets": []}
         report = run_evaluation(UnsupportedProvider(), CATALOG, [case])
         self.assertEqual(report["cases"], 1)
         self.assertEqual(report["metrics"]["status"], 1.0)

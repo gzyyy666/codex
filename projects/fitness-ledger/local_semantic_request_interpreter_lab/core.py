@@ -7,6 +7,7 @@ import re
 from datetime import date
 from typing import Any, Callable
 
+from .deterministic import parse_deterministic_intent
 from .inference import InferenceProvider, ModelUnavailable, ProviderConfigurationError, ProviderOutputError, ProviderRuntimeError
 
 SCHEMA_VERSION = "fitness-ledger-request-draft-v1"
@@ -33,7 +34,7 @@ MOVEMENT_TERMS = {
     "lateral_raise": ("侧平举",),
     "cable_fly": ("绳索夹胸", "夹胸"),
 }
-NUMBER_TERMS = {0: "零", 1: "一", 2: "二", 3: "三", 4: "四", 5: "五", 6: "六", 7: "七", 8: "八", 9: "九", 10: "十"}
+NUMBER_TERMS = {0: ("零",), 1: ("一",), 2: ("二", "两"), 3: ("三",), 4: ("四",), 5: ("五",), 6: ("六",), 7: ("七",), 8: ("八",), 9: ("九",), 10: ("十",)}
 
 FIELD_RULES = {
     "body": {"date", "weight", "bowel_movement", "training_label", "cardio_summary"},
@@ -253,15 +254,15 @@ def validate_request_grounding(draft: dict[str, Any], user_text: str) -> dict[st
         time_type = time_intent.get("type")
         if time_type == "latest_matching_sessions":
             count = time_intent.get("count")
-            if not (str(count) in user_text or NUMBER_TERMS.get(count, "") in user_text):
+            if not (str(count) in user_text or any(term in user_text for term in NUMBER_TERMS.get(count, ()) )):
                 raise DraftError(f"ungrounded session count: {count}")
         elif time_type == "recent_days":
             days = time_intent.get("days")
-            if not (str(days) in user_text or NUMBER_TERMS.get(days, "") in user_text):
+            if not (str(days) in user_text or any(term in user_text for term in NUMBER_TERMS.get(days, ()) )):
                 raise DraftError(f"ungrounded day count: {days}")
         elif time_type == "before_each_target_event":
             days_before = time_intent.get("days_before")
-            if not (str(days_before) in user_text or NUMBER_TERMS.get(days_before, "") in user_text):
+            if not (str(days_before) in user_text or any(term in user_text for term in NUMBER_TERMS.get(days_before, ()) )):
                 raise DraftError(f"ungrounded preceding-day count: {days_before}")
     return draft
 
@@ -289,11 +290,15 @@ def interpret_request(
     """Interpret one request through an injectable model runner and fail closed."""
     if not isinstance(user_text, str) or not user_text.strip():
         return {"result_version": RESULT_VERSION, "status": "needs_confirmation", "draft": None, "errors": ["EMPTY_REQUEST"], "warnings": []}
-    if runner is None:
-        return {"result_version": RESULT_VERSION, "status": "model_unavailable", "draft": None, "errors": ["MODEL_UNAVAILABLE"], "warnings": []}
     try:
-        raw = runner.infer(user_text) if isinstance(runner, InferenceProvider) else runner(user_text)
-        draft = parse_json_strict(raw)
+        intent = parse_deterministic_intent(user_text, capability_catalog)
+        if intent.route == "deterministic":
+            draft = intent.to_draft()
+        else:
+            if runner is None:
+                return {"result_version": RESULT_VERSION, "status": "model_unavailable", "draft": None, "errors": ["MODEL_UNAVAILABLE"], "warnings": []}
+            raw = runner.infer(user_text) if isinstance(runner, InferenceProvider) else runner(user_text)
+            draft = parse_json_strict(raw)
         checked = validate_request_draft(draft, capability_catalog)
         validate_request_grounding(checked, user_text)
         return {"result_version": RESULT_VERSION, "status": checked["status"], "draft": checked, "errors": [], "warnings": checked["warnings"]}
