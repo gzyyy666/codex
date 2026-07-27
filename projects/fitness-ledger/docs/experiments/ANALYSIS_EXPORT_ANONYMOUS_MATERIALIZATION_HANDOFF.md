@@ -13,7 +13,7 @@ Deterministic Materialization`.
 - Exact baseline Commit: `91edfba775feb9e46f479e6a7aafa7bc187cd6ef`
 - Current protocol branch (reference only): `feat/analysis-export-request-mvp`
 - Current protocol Worktree (read-only reference only): `C:\Users\26087\Documents\github-memory-worktrees\fl-intelligent-export-local-analysis-pipeline`
-- Accepted protocol Commit: `0af0914f001c01d8f1e1dc1931e685a459fb04c`
+- Accepted protocol Commit: `0af0914f001c01d8f1e1dc1931e685a4591fb04c`
 - Protocol freeze/GPT handoff Commit: `91edfba775feb9e46f479e6a7aafa7bc187cd6ef`
 - `main`: `0a189162d42cb2b95903d64e9a1d614df00cfe16`
 - `origin/main`: `0a189162d42cb2b95903d64e9a1d614df00cfe16`

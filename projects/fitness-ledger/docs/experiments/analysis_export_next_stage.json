@@ -3,7 +3,7 @@
   "protocol": {
     "name": "AnalysisExportRequest",
     "version": "1.1",
-    "accepted_commit": "0af0914f001c01d8f1e1dc1931e685a459fb04c",
+    "accepted_commit": "0af0914f001c01d8f1e1dc1931e685a4591fb04c",
     "status": "accepted_frozen"
   },
   "current_task": {
