@@ -110,7 +110,7 @@ await loadMovementFocus('MOV_A');
 await wait(80);
 const movementProgressChartLabelCount=document.querySelectorAll('.movement-progress-panel .chart-labels text').length;
 const movementProgressChartFiltered=movementProgressChartLabelCount===1;
-const movementProgressChartUsesSessionGrammar=Boolean(document.querySelector('.movement-progress-panel .session-guides')&&document.querySelector('.movement-progress-panel .workload-stems')&&document.querySelector('.movement-progress-panel .chart-footnote')?.textContent.includes('FOCUSED'));
+const movementProgressChartUsesSessionGrammar=Boolean(document.querySelector('.movement-progress-panel .barcode-field')&&document.querySelectorAll('.movement-progress-panel .barcode-lollipops g').length===1&&document.querySelector('.movement-progress-panel .chart-footnote')?.textContent.includes('BARCODE LOLLIPOP'));
 const movementProgressChartIsAccessible=Boolean(document.querySelector('.movement-progress-panel .progress-chart')?.getAttribute('aria-label')?.includes('effective sessions'));
 const movementTrajectoryEntries=[...document.querySelectorAll('.trajectory-entry')];
 const movementTrajectoryKeepsFullHistory=movementTrajectoryEntries.length===2&&movementTrajectoryEntries.some(row=>row.textContent.includes('100kg x 8 x 3'))&&movementTrajectoryEntries.some(row=>row.textContent.includes('60kg x 12 x 2'));

@@ -166,7 +166,7 @@ Body-area color leads each panel without becoming bright or toy-like: shoulder m
 ### Movement Detail
 
 The progression chart and recent records are primary. The title/illustration banner is compact and auxiliary.
-The recent progression chart uses an editorial session grammar: one point equals one effective training session, the primary hairline represents maximum load or total repetitions, and restrained vertical stems with small terminal marks may express relative workload. Workload marks must remain secondary to the main line but visibly legible without hover. A focused line-chart scale is allowed only when its real minimum, midpoint, maximum, and range are visibly labeled. The chart may reveal once on entry, with a reduced-motion fallback; it must not loop. Do not use a filled area, broken bar axis, decorative interpolation, or excluded history to manufacture a stronger trend.
+The recent progression chart uses the Lupi Editorial `L3 Barcode Lollipop` session grammar: one lollipop equals one effective training session, its dot position represents maximum load or total repetitions, and the downward stem length represents relative workload. Faint full-height rails establish the session field, while peak and latest dots may receive restrained emphasis. A focused scale is allowed only when its real minimum, midpoint, maximum, and range are visibly labeled. The chart may reveal once on entry, with a reduced-motion fallback; it must not loop. Do not connect sessions with a decorative line, use a filled area, break the scale, interpolate missing values, or include excluded history to manufacture a stronger trend.
 
 ### Data Check
 
