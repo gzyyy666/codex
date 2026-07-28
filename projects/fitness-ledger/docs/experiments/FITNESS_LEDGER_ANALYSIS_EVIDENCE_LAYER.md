@@ -1,5 +1,13 @@
 # Fitness Ledger Analysis Evidence Layer
 
+Current-status note (2026-07-28): this document describes the evidence-layer
+experiment and its historical pre-Web boundary. The Web UI is now published
+according to the product owner; do not use the old “do not connect Web” wording
+as the current delivery status. The evidence layer still does not grant Raw,
+write, delete, sync, or Executor authority. Read
+`INTELLIGENT_EXPORT_CURRENT_STATUS.md` for the current handoff and algorithm
+optimization rules.
+
 ## 目的
 
 本层把“能力映射成功”和“拿到的数据足以回答问题”分开。它是确定性 Preview 层，不调用模型、不创建 ExportPlan、不读取 Raw、不选择 Notes scope、不调用 Executor，也不写入正式数据。

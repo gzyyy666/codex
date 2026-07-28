@@ -9,6 +9,14 @@
 - **Lab source:** design was selectively reimplemented; the frozen Lab branch was not
   merged or cherry-picked.
 
+> Historical-status note (2026-07-28): the pre-Web wording above describes the
+> original adapter checkpoint. The adapter and Web preview routes are now
+> represented in the current local `main`, and the product owner has confirmed
+> that the UI is published. The remaining work is internal algorithm validation
+> and optimization; the frozen v1.1 protocol and deterministic safety boundaries
+> remain unchanged. See
+> `docs/experiments/INTELLIGENT_EXPORT_CURRENT_STATUS.md` before making changes.
+
 ## Boundary
 
 The candidate ends at a validated, read-only Request preview:

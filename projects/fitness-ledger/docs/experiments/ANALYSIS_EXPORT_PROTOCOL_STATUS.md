@@ -2,6 +2,13 @@
 
 Status: `ACCEPTED / FROZEN`
 
+> Current delivery note (2026-07-28): the v1.1 protocol remains frozen and
+> authoritative. The Web UI and local SemanticHint preview path are present in
+> the current local `main`; the product owner has confirmed the UI is published.
+> This document records the historical protocol freeze and must be read with
+> `INTELLIGENT_EXPORT_CURRENT_STATUS.md` for current delivery and optimization
+> status.
+
 ## Accepted baseline
 
 - Protocol: `AnalysisExportRequest`
