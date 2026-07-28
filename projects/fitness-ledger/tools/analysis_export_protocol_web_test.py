@@ -111,6 +111,11 @@ def test_frontend_uses_only_v1_protocol_controls() -> None:
     assert "/api/analysis-export/v1/preview" in app
     assert "/api/analysis-export/v1/export" in app
     assert "data-analysis-export-confirm" in app
+    assert 'data-analysis-export-mode="json"' in app
+    assert 'data-analysis-export-mode="guided"' in app
+    assert "analysis-export-scope-digest" in app
+    assert "protocol-composer-tools" in app
+    assert "???" not in app
 
 
 def main() -> None:
