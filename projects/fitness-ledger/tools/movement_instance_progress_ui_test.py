@@ -108,9 +108,9 @@ await wait(180);
 state.movementSelection='MOV_A';
 await loadMovementFocus('MOV_A');
 await wait(80);
-const movementProgressChartLabelCount=document.querySelectorAll('.movement-progress-panel .session-fan-spoke').length;
+const movementProgressChartLabelCount=document.querySelectorAll('.movement-progress-panel .session-plumb-point').length;
 const movementProgressChartFiltered=movementProgressChartLabelCount===1;
-const movementProgressChartUsesSessionGrammar=Boolean(document.querySelector('.movement-progress-panel .session-fan-guides')&&document.querySelectorAll('.movement-progress-panel .session-fan-spoke').length===1&&document.querySelector('.movement-progress-panel .chart-footnote')?.textContent.includes('LAUNCH FAN')&&document.querySelector('.movement-progress-panel [data-chart-replay]'));
+const movementProgressChartUsesSessionGrammar=Boolean(document.querySelector('.movement-progress-panel .session-plumb-guides')&&document.querySelector('.movement-progress-panel .plumb-stem')&&document.querySelectorAll('.movement-progress-panel .session-plumb-point').length===1&&document.querySelector('.movement-progress-panel .chart-footnote')?.textContent.includes('PLUMB SCATTER')&&document.querySelector('.movement-progress-panel [data-chart-replay]'));
 const movementProgressChartIsAccessible=Boolean(document.querySelector('.movement-progress-panel .progress-chart')?.getAttribute('aria-label')?.includes('effective sessions'));
 const movementProgressChartNodeIsInteractive=Boolean(document.querySelector('.movement-progress-panel [data-chart-date][data-chart-movement-id][data-chart-unit][role="button"][tabindex="0"]'));
 const movementProgressChartHoverReadout=document.querySelector('.movement-progress-panel [data-chart-date]');if(movementProgressChartHoverReadout)setChartHoverReadout(movementProgressChartHoverReadout);
@@ -118,6 +118,7 @@ const movementProgressChartHoverText=document.querySelector('.movement-progress-
 const movementProgressChartHoverIsConcrete=movementProgressChartHoverText.includes('2099-01-05');
 const movementTrajectoryEntries=[...document.querySelectorAll('.trajectory-entry')];
 const movementTrajectoryKeepsFullHistory=movementTrajectoryEntries.length===2&&movementTrajectoryEntries.some(row=>row.textContent.includes('100kg x 8 x 3'))&&movementTrajectoryEntries.some(row=>row.textContent.includes('60kg x 12 x 2'));
+const movementSparseStateLabel=Boolean(document.querySelector('.movement-progress-panel .plumb-state-label'));
 document.querySelector('[data-movement-history-edit]')?.click();
 await wait(40);
 const editToggle=document.querySelector('#movement-history-form [name="exclude_from_progress"]');
@@ -127,10 +128,12 @@ await wait(160);
 const historyEditUsesStableIds=updateRequests.some(row=>row.history_id==='history-main'&&row.values?.exclude_from_progress===true);
 bodyPage();
 await wait(80);
-const bodyTrendVisible=Boolean(document.querySelector('.body-trend-panel .body-weight-barcode')&&document.querySelectorAll('.body-weight-lollipops g').length===3&&document.querySelector('.body-trend-panel [data-chart-replay]'));
-const bodyTrendCalendarHonest=document.querySelectorAll('.body-chart-calendar line').length===5&&document.querySelector('.body-chart-footnote')?.textContent.includes('MISSING DAYS REMAIN EMPTY');
+const bodyTrendVisible=Boolean(document.querySelector('.body-trend-panel .body-weight-calendar')&&document.querySelectorAll('.body-weight-calendar-day').length===3&&document.querySelector('.body-trend-panel [data-chart-replay]'));
+const bodyTrendCalendarHonest=document.querySelectorAll('.body-calendar-slot').length>=90&&document.querySelector('.body-chart-footnote')?.textContent.includes('CALENDAR FIELD');
+const bodyTrendHasMonthMarkers=Boolean(document.querySelector('.body-calendar-months'));
+const bodyTrendColorSystem=Boolean(document.querySelector('.body-weight-calendar-day.is-up,.body-weight-calendar-day.is-down,.body-weight-calendar-day.is-flat'));
 const bodyTrendNodesAreInteractive=Boolean(document.querySelector('.body-trend-panel [data-chart-date][data-chart-detail-kind="body"][data-chart-detail-index][role="button"][tabindex="0"]'));
-const report=document.createElement('div');report.id='movement-instance-report';report.dataset.value=encodeURIComponent(JSON.stringify({reviewHasTwoIndependentToggles,unknownIsSeparated,saveCarriesInstanceState,archiveKeepsBoth,archiveEditUsesStableIds,editControlVisible,historyEditUsesStableIds,movementProgressChartFiltered,movementProgressChartUsesSessionGrammar,movementProgressChartIsAccessible,movementProgressChartNodeIsInteractive,movementProgressChartHoverIsConcrete,movementProgressChartHoverText,movementTrajectoryKeepsFullHistory,movementProgressChartLabelCount,bodyTrendVisible,bodyTrendCalendarHonest,bodyTrendNodesAreInteractive,updateRequests}));document.body.appendChild(report);
+const report=document.createElement('div');report.id='movement-instance-report';report.dataset.value=encodeURIComponent(JSON.stringify({reviewHasTwoIndependentToggles,unknownIsSeparated,saveCarriesInstanceState,archiveKeepsBoth,archiveEditUsesStableIds,editControlVisible,historyEditUsesStableIds,movementProgressChartFiltered,movementProgressChartUsesSessionGrammar,movementProgressChartIsAccessible,movementProgressChartNodeIsInteractive,movementProgressChartHoverIsConcrete,movementProgressChartHoverText,movementTrajectoryKeepsFullHistory,movementProgressChartLabelCount,bodyTrendVisible,bodyTrendCalendarHonest,bodyTrendHasMonthMarkers,bodyTrendColorSystem,movementSparseStateLabel,bodyTrendNodesAreInteractive,updateRequests}));document.body.appendChild(report);
 """
     with tempfile.TemporaryDirectory(prefix="fitness-ledger-instance-progress-browser-") as temp:
         page = Path(temp) / "index.html"
@@ -151,7 +154,8 @@ const report=document.createElement('div');report.id='movement-instance-report';
         "archiveKeepsBoth", "archiveEditUsesStableIds", "editControlVisible", "historyEditUsesStableIds",
          "movementProgressChartFiltered", "movementProgressChartUsesSessionGrammar",
          "movementProgressChartIsAccessible", "movementProgressChartNodeIsInteractive",
-         "movementTrajectoryKeepsFullHistory", "bodyTrendVisible", "bodyTrendCalendarHonest", "bodyTrendNodesAreInteractive",
+         "movementTrajectoryKeepsFullHistory", "bodyTrendVisible", "bodyTrendCalendarHonest", "bodyTrendHasMonthMarkers", "bodyTrendColorSystem",
+         "movementSparseStateLabel", "bodyTrendNodesAreInteractive",
     )), report
 
 
