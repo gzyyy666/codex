@@ -30,17 +30,13 @@ def browser_contract() -> None:
     assert index.count(script) == 1
     harness = r"""
 const emptyState=()=>({
-  today:{date:'2099-01-05'},recent:[],body:[
-    {Date:'2099-01-01','Weight (kg)':70.0,Training:'Chest',Cardio:'none',Notes:'first'},
-    {Date:'2099-01-03','Weight (kg)':69.7,Training:'Rest',Cardio:'walk',Notes:'second'},
-    {Date:'2099-01-05','Weight (kg)':69.9,Training:'Back',Cardio:'none',Notes:'latest'}
-  ],diet:[],
+  today:{date:'2099-01-05'},recent:[],body:[],diet:[],
   training:[],dictionary:[],movements:[{movement_id:'MOV_A',display_name:'Bench Press',english_name:'Bench Press',muscle_group:'Chest',active:true}],
   movementGroups:['Chest'],sync:{sync_status:'SYNCED'},build:{status:'PREVIEW',short_sha:'instance-test'}
 });
 let savedReview=null,updateRequests=[],archiveRefs=[
-  {history_id:'history-main',movement_id:'MOV_A',display_name:'Bench Press',english_name:'Bench Press',muscle_group:'Chest',date:'2099-01-05',is_linkable:true,order:1,sets_lines:['100kg x 8 x 3'],notes:'main',exclude_from_progress:false,has_structured_sets:true},
-  {history_id:'history-volume',movement_id:'MOV_A',display_name:'Bench Press',english_name:'Bench Press',muscle_group:'Chest',date:'2099-01-05',is_linkable:true,order:2,sets_lines:['60kg x 12 x 2'],notes:'volume',exclude_from_progress:true,has_structured_sets:true}
+  {history_id:'history-main',movement_id:'MOV_A',display_name:'Bench Press',english_name:'Bench Press',muscle_group:'Chest',is_linkable:true,order:1,sets_lines:['100kg x 8 x 3'],notes:'main',exclude_from_progress:false,has_structured_sets:true},
+  {history_id:'history-volume',movement_id:'MOV_A',display_name:'Bench Press',english_name:'Bench Press',muscle_group:'Chest',is_linkable:true,order:2,sets_lines:['60kg x 12 x 2'],notes:'volume',exclude_from_progress:true,has_structured_sets:true}
 ];
 const parsePayload={review_id:'review-instance-1',review:{id:'review-instance-1',date:'2099-01-05',raw:'training: Bench Press',body:{},diet:{},training:{split:'Chest',standardized_summary:'Bench Press',notes:'',movements:[
   {name:'Bench Press',display_name:'Bench Press',movement_id:'MOV_A',order:1,sets:[{weight:100,reps:8,sets:3}],notes:'main',_review_action:'use',exclude_from_progress:false},
@@ -108,17 +104,10 @@ await wait(180);
 state.movementSelection='MOV_A';
 await loadMovementFocus('MOV_A');
 await wait(80);
-const movementProgressChartLabelCount=document.querySelectorAll('.movement-progress-panel .session-plumb-point').length;
+const movementProgressChartLabelCount=document.querySelectorAll('.movement-progress-panel .chart-labels text').length;
 const movementProgressChartFiltered=movementProgressChartLabelCount===1;
-const movementProgressChartUsesSessionGrammar=Boolean(document.querySelector('.movement-progress-panel .session-plumb-guides')&&document.querySelector('.movement-progress-panel .plumb-stem')&&document.querySelectorAll('.movement-progress-panel .session-plumb-point').length===1&&document.querySelector('.movement-progress-panel .chart-footnote')?.textContent.includes('NODE FIELD')&&document.querySelector('.movement-progress-panel [data-chart-replay]'));
-const movementProgressChartIsAccessible=Boolean(document.querySelector('.movement-progress-panel .progress-chart')?.getAttribute('aria-label')?.includes('effective sessions'));
-const movementProgressChartNodeIsInteractive=Boolean(document.querySelector('.movement-progress-panel [data-chart-date][data-chart-movement-id][data-chart-unit][role="button"][tabindex="0"]'));
-const movementProgressChartHoverReadout=document.querySelector('.movement-progress-panel [data-chart-date]');if(movementProgressChartHoverReadout)setChartHoverReadout(movementProgressChartHoverReadout);
-const movementProgressChartHoverText=document.querySelector('.movement-progress-panel [data-chart-hover-readout]')?.textContent||'';
-const movementProgressChartHoverIsConcrete=movementProgressChartHoverText.includes('2099-01-05');
 const movementTrajectoryEntries=[...document.querySelectorAll('.trajectory-entry')];
 const movementTrajectoryKeepsFullHistory=movementTrajectoryEntries.length===2&&movementTrajectoryEntries.some(row=>row.textContent.includes('100kg x 8 x 3'))&&movementTrajectoryEntries.some(row=>row.textContent.includes('60kg x 12 x 2'));
-const movementSparseStateLabel=Boolean(document.querySelector('.movement-progress-panel .plumb-state-label'));
 document.querySelector('[data-movement-history-edit]')?.click();
 await wait(40);
 const editToggle=document.querySelector('#movement-history-form [name="exclude_from_progress"]');
@@ -126,14 +115,7 @@ const editControlVisible=Boolean(editToggle);
 if(editToggle){editToggle.checked=false;await saveMovementHistory();}
 await wait(160);
 const historyEditUsesStableIds=updateRequests.some(row=>row.history_id==='history-main'&&row.values?.exclude_from_progress===true);
-bodyPage();
-await wait(80);
-const bodyTrendVisible=Boolean(document.querySelector('.body-trend-panel .body-weight-field')&&document.querySelectorAll('.body-weight-point').length===3&&document.querySelector('.body-trend-panel [data-chart-replay]'));
-const bodyTrendCalendarHonest=document.querySelectorAll('.body-weight-rail').length>=10&&document.querySelector('.body-chart-footnote')?.textContent.includes('DATE IS CONTINUOUS');
-const bodyTrendHasMonthMarkers=Boolean(document.querySelector('.body-weight-guides'));
-const bodyTrendColorSystem=Boolean(document.querySelector('.body-weight-point.is-up,.body-weight-point.is-down,.body-weight-point.is-flat'));
-const bodyTrendNodesAreInteractive=Boolean(document.querySelector('.body-trend-panel [data-chart-date][data-chart-detail-kind="body"][data-chart-detail-index][role="button"][tabindex="0"]'));
-const report=document.createElement('div');report.id='movement-instance-report';report.dataset.value=encodeURIComponent(JSON.stringify({reviewHasTwoIndependentToggles,unknownIsSeparated,saveCarriesInstanceState,archiveKeepsBoth,archiveEditUsesStableIds,editControlVisible,historyEditUsesStableIds,movementProgressChartFiltered,movementProgressChartUsesSessionGrammar,movementProgressChartIsAccessible,movementProgressChartNodeIsInteractive,movementProgressChartHoverIsConcrete,movementProgressChartHoverText,movementTrajectoryKeepsFullHistory,movementProgressChartLabelCount,bodyTrendVisible,bodyTrendCalendarHonest,bodyTrendHasMonthMarkers,bodyTrendColorSystem,movementSparseStateLabel,bodyTrendNodesAreInteractive,updateRequests}));document.body.appendChild(report);
+const report=document.createElement('div');report.id='movement-instance-report';report.dataset.value=encodeURIComponent(JSON.stringify({reviewHasTwoIndependentToggles,unknownIsSeparated,saveCarriesInstanceState,archiveKeepsBoth,archiveEditUsesStableIds,editControlVisible,historyEditUsesStableIds,movementProgressChartFiltered,movementTrajectoryKeepsFullHistory,movementProgressChartLabelCount,updateRequests}));document.body.appendChild(report);
 """
     with tempfile.TemporaryDirectory(prefix="fitness-ledger-instance-progress-browser-") as temp:
         page = Path(temp) / "index.html"
@@ -151,11 +133,7 @@ const report=document.createElement('div');report.id='movement-instance-report';
     report = json.loads(unquote(match.group(1)))
     assert all(report[key] is True for key in (
         "reviewHasTwoIndependentToggles", "unknownIsSeparated", "saveCarriesInstanceState",
-        "archiveKeepsBoth", "archiveEditUsesStableIds", "editControlVisible", "historyEditUsesStableIds",
-         "movementProgressChartFiltered", "movementProgressChartUsesSessionGrammar",
-         "movementProgressChartIsAccessible", "movementProgressChartNodeIsInteractive",
-         "movementTrajectoryKeepsFullHistory", "bodyTrendVisible", "bodyTrendCalendarHonest", "bodyTrendHasMonthMarkers", "bodyTrendColorSystem",
-         "movementSparseStateLabel", "bodyTrendNodesAreInteractive",
+        "archiveKeepsBoth", "archiveEditUsesStableIds", "editControlVisible", "historyEditUsesStableIds", "movementProgressChartFiltered", "movementTrajectoryKeepsFullHistory",
     )), report
 
 

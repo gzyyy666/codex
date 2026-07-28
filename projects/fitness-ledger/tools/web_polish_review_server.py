@@ -4,6 +4,7 @@ import json
 import sys
 import tempfile
 import threading
+from datetime import date, timedelta
 from pathlib import Path
 
 
@@ -91,55 +92,25 @@ def add_review_rows(tracker: dict, dictionary: dict) -> None:
             "Notes": "Short.",
         },
     ]
+    start = date(2098, 11, 14)
+    weights = [
+        73.4, 73.2, 73.3, 73.0, 72.9, 73.1, 72.8, 72.7, 72.5, 72.6,
+        72.4, 72.2, 72.3, 72.0, 71.9, 72.1, 71.8, 71.7, 71.5, 71.6,
+        71.4, 71.2, 71.3, 71.0, 70.9, 71.1, 70.8, 70.7, 70.5, 70.6,
+        70.4, 70.2, 70.3, 70.0, 69.9, 70.1, 69.8, 69.7, 69.5, 69.6,
+        69.4, 69.2, 69.3, 69.0, 68.9, 69.1, 68.8, 68.7, 68.5, 68.6,
+        68.4, 68.2, 68.3, 68.0, 67.9, 68.1,
+    ]
     tracker["daily_records"] = [
         {
-            "Date": "2099-01-08",
-            "Weight (kg)": 70.8,
+            "Date": (start + timedelta(days=index)).isoformat(),
+            "Weight (kg)": weight,
             "Bowel Movement": "yes",
-            "Training": "Back",
-            "Cardio": "walk 20 min",
-            "Notes": "Newest anonymous body record.",
-        },
-        {
-            "Date": "2099-01-07",
-            "Weight (kg)": 70.6,
-            "Bowel Movement": "yes",
-            "Training": "Chest",
-            "Cardio": "none",
-            "Notes": "Chest day with short notes.",
-        },
-        {
-            "Date": "2099-01-06",
-            "Weight (kg)": 70.5,
-            "Bowel Movement": "yes",
-            "Training": "Legs",
-            "Cardio": "bike 30 min",
-            "Notes": "Leg day body slip.",
-        },
-        {
-            "Date": "2099-01-05",
-            "Weight (kg)": 70.3,
-            "Bowel Movement": "yes",
-            "Training": "Shoulders",
-            "Cardio": "none",
-            "Notes": "Shoulder day body slip.",
-        },
-        {
-            "Date": "2099-01-04",
-            "Weight (kg)": 70.2,
-            "Bowel Movement": "yes",
-            "Training": "Arms",
-            "Cardio": "run 15 min",
-            "Notes": "Arms day body slip.",
-        },
-        {
-            "Date": "2099-01-03",
-            "Weight (kg)": 70.1,
-            "Bowel Movement": "yes",
-            "Training": "Rest",
-            "Cardio": "none",
-            "Notes": "Rest day body slip.",
-        },
+            "Training": ("Rest", "Back", "Chest", "Legs")[index % 4],
+            "Cardio": "walk 20 min" if index % 3 == 0 else "none",
+            "Notes": f"Anonymous review day {index + 1}.",
+        }
+        for index, weight in reversed(list(enumerate(weights)))
     ]
 
 
