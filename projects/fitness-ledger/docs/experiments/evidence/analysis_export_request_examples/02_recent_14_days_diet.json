@@ -1,0 +1,13 @@
+{
+  "request_version": "1.1",
+  "purpose": "Review recorded calories and macros over the latest 14 days.",
+  "datasets": [{
+    "dataset_id": "diet_recent",
+    "type": "diet",
+    "time_range": {"mode": "recent_days", "days": 14},
+    "filters": {},
+    "fields": ["date", "calories_kcal", "protein_g", "carbs_g", "fat_g"]
+  }],
+  "raw": false,
+  "output": {"formats": ["json"]}
+}

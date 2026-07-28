@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fitness-ledger://schemas/analysis-export-request-v1.1",
+  "title": "Fitness Ledger Analysis Export Request v1.1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "request_version": { "const": "1.1" },
+    "purpose": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "datasets": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "oneOf": [{ "$ref": "#/$defs/body_dataset" }, { "$ref": "#/$defs/diet_dataset" }, { "$ref": "#/$defs/training_dataset" }, { "$ref": "#/$defs/movement_dataset" }] } },
+    "raw": { "const": false },
+    "output": { "$ref": "#/$defs/output" }
+  },
+  "required": ["request_version", "purpose", "datasets", "raw", "output"],
+  "$defs": {
+    "dataset_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+    "recent_days": { "type": "object", "additionalProperties": false, "properties": { "mode": { "const": "recent_days" }, "days": { "type": "integer", "minimum": 1, "maximum": 3650 } }, "required": ["mode", "days"] },
+    "explicit_range": { "type": "object", "additionalProperties": false, "properties": { "mode": { "const": "explicit_range" }, "start": { "type": "string", "format": "date" }, "end": { "type": "string", "format": "date" } }, "required": ["mode", "start", "end"] },
+    "latest_matching_sessions": { "type": "object", "additionalProperties": false, "properties": { "mode": { "const": "latest_matching_sessions" }, "sessions": { "type": "integer", "minimum": 1, "maximum": 20 } }, "required": ["mode", "sessions"] },
+    "days_before_target_session": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": { "const": "days_before_target_session" },
+        "days_before": { "type": "integer", "minimum": 1, "maximum": 30 },
+        "target_dataset_id": { "$ref": "#/$defs/dataset_id" },
+        "target_date": { "type": "string", "format": "date" },
+        "match_mode": { "enum": ["single_latest_matching_session", "each_matching_session"] },
+        "include_target_session_day": { "type": "boolean" }
+      },
+      "required": ["mode", "days_before", "match_mode", "include_target_session_day"],
+      "oneOf": [{ "required": ["target_dataset_id"], "not": { "required": ["target_date"] } }, { "required": ["target_date"], "not": { "required": ["target_dataset_id"] } }]
+    },
+    "body_time_range": { "oneOf": [{ "$ref": "#/$defs/recent_days" }, { "$ref": "#/$defs/explicit_range" }] },
+    "diet_time_range": { "oneOf": [{ "$ref": "#/$defs/recent_days" }, { "$ref": "#/$defs/explicit_range" }, { "$ref": "#/$defs/days_before_target_session" }] },
+    "training_time_range": { "oneOf": [{ "$ref": "#/$defs/recent_days" }, { "$ref": "#/$defs/explicit_range" }, { "$ref": "#/$defs/latest_matching_sessions" }] },
+    "movement_time_range": { "oneOf": [{ "$ref": "#/$defs/recent_days" }, { "$ref": "#/$defs/explicit_range" }, { "$ref": "#/$defs/latest_matching_sessions" }] },
+    "empty_filters": { "type": "object", "additionalProperties": false, "properties": {} },
+    "training_filters": { "type": "object", "additionalProperties": false, "properties": { "body_part": { "type": "string", "minLength": 1, "maxLength": 80 }, "split": { "type": "string", "minLength": 1, "maxLength": 80 } } },
+    "movement_selector": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "properties": { "kind": { "const": "movement_id" }, "value": { "type": "string", "minLength": 1, "maxLength": 120, "pattern": "^[A-Za-z0-9_.:-]+$" } }, "required": ["kind", "value"] },
+        { "type": "object", "additionalProperties": false, "properties": { "kind": { "const": "movement_name" }, "value": { "type": "string", "minLength": 1, "maxLength": 120 } }, "required": ["kind", "value"] },
+        { "type": "object", "additionalProperties": false, "properties": { "kind": { "const": "body_part" }, "value": { "type": "string", "minLength": 1, "maxLength": 120 } }, "required": ["kind", "value"] }
+      ]
+    },
+    "movement_filters": { "type": "object", "additionalProperties": false, "properties": { "movement_selector": { "$ref": "#/$defs/movement_selector" } } },
+    "body_dataset": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "dataset_id": { "$ref": "#/$defs/dataset_id" }, "type": { "const": "body" }, "time_range": { "$ref": "#/$defs/body_time_range" }, "filters": { "$ref": "#/$defs/empty_filters" }, "fields": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["date", "weight_kg", "bowel_movement", "training_label", "cardio_summary"] } }, "notes_scope": { "const": "daily" } },
+      "required": ["dataset_id", "type", "time_range", "filters", "fields"]
+    },
+    "diet_dataset": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "dataset_id": { "$ref": "#/$defs/dataset_id" }, "type": { "const": "diet" }, "time_range": { "$ref": "#/$defs/diet_time_range" }, "filters": { "$ref": "#/$defs/empty_filters" }, "fields": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["date", "calories_kcal", "protein_g", "carbs_g", "fat_g", "food_summary"] } }, "notes_scope": { "const": "diet" } },
+      "required": ["dataset_id", "type", "time_range", "filters", "fields"]
+    },
+    "training_dataset": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "dataset_id": { "$ref": "#/$defs/dataset_id" }, "type": { "const": "training" }, "time_range": { "$ref": "#/$defs/training_time_range" }, "filters": { "$ref": "#/$defs/training_filters" }, "fields": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["date", "split", "standardized_summary"] } }, "notes_scope": { "const": "training" } },
+      "required": ["dataset_id", "type", "time_range", "filters", "fields"]
+    },
+    "movement_dataset": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "dataset_id": { "$ref": "#/$defs/dataset_id" }, "type": { "const": "movement_progress" }, "time_range": { "$ref": "#/$defs/movement_time_range" }, "filters": { "$ref": "#/$defs/movement_filters" }, "fields": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["date", "movement_id", "movement_name", "body_part", "variant", "order", "sets"] } }, "notes_scope": { "const": "movement" }, "set_roles": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["top", "working", "backoff"] } } },
+      "required": ["dataset_id", "type", "time_range", "filters", "fields"]
+    },
+    "output": { "type": "object", "additionalProperties": false, "properties": { "formats": { "type": "array", "minItems": 1, "maxItems": 2, "uniqueItems": true, "items": { "enum": ["json", "markdown"] } } }, "required": ["formats"] }
+  }
+}

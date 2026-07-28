@@ -1,0 +1,1550 @@
+{
+  "schema_version": "fitness-ledger-analysis-preview-review-evidence-v1",
+  "anonymous_fixture": true,
+  "model": "qwen3:4b",
+  "model_digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+  "cases": [
+    {
+      "case_id": "body_recent",
+      "user_input": "分析最近体重变化",
+      "transport": "qwen3:4b",
+      "request_gate": {
+        "schema_version": "fitness-ledger-request-gate-v1",
+        "status": "ANALYSIS_REQUEST",
+        "request": "分析最近体重变化",
+        "reason_codes": [],
+        "facts": {
+          "scope": {
+            "only": false,
+            "include": false,
+            "exclude": false,
+            "excluded_dimensions": [],
+            "only_dimensions": []
+          },
+          "recognized_entities": {
+            "body_parts": [],
+            "movement_mentions": [],
+            "movement_unique": false,
+            "movement_ambiguous": false,
+            "notes_requested": false,
+            "notes_scopes": [],
+            "raw_requested": false
+          },
+          "deterministic_dimensions": [
+            "body_state"
+          ],
+          "command": {
+            "request_kind": "analysis_export",
+            "domains": [
+              "body"
+            ],
+            "layers": [
+              "structured"
+            ],
+            "status": "resolved",
+            "errors": [],
+            "date_kind": "calendar_relative"
+          }
+        },
+        "movement_candidates": [],
+        "confirmation_requirements": []
+      },
+      "planner": {
+        "called": true,
+        "call_count": 2,
+        "status": "planned",
+        "model": "qwen3:4b",
+        "model_digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+        "prompt_version": "qwen3-shadow-planner-two-stage-v2",
+        "latency_ms": 11526,
+        "raw_output": "{\"stage1_capability_selection\": \"{\\n  \\\"schema_version\\\": \\\"fitness-ledger-shadow-capability-selection-v1\\\",\\n  \\\"abstain\\\": false,\\n  \\\"required_capabilities\\\": [\\n    {\\n      \\\"capability_id\\\": \\\"body_history\\\",\\n      \\\"reason\\\": \\\"用户目标'分析最近体重变化'直接匹配body_history的user_expression_examples['最近体重变化']，且analysis_questions['体重随时间如何变化？']与用户目标完全一致。该能力提供体重历史数据，无需其他能力支持。\\\"\\n    }\\n  ],\\n  \\\"optional_capabilities\\\": [],\\n  \\\"missing_information\\\": [],\\n  \\\"clarifications\\\": []\\n}\", \"stage2_analysis_details\": \"{\\n  \\\"schema_version\\\": \\\"fitness-ledger-shadow-analysis-details-v1\\\",\\n  \\\"analysis_goal\\\": \\\"分析最近体重变化\\\",\\n  \\\"questions_to_answer\\\": [\\n    \\\"体重随时间如何变化？\\\",\\n    \\\"记录覆盖是否足够回答体重趋势？\\\"\\n  ],\\n  \\\"preferred_time_window\\\": {\\n    \\\"kind\\\": \\\"recent\\\",\\n    \\\"label\\\": \\\"最近\\\"\\n  },\\n  \\\"derived_metrics\\\": [\\n    {\\n      \\\"name\\\": \\\"体重趋势\\\",\\n      \\\"reason\\\": \\\"反映近期体重变化模式\\\"\\n    },\\n    {\\n      \\\"name\\\": \\\"记录完整性\\\",\\n      \\\"reason\\\": \\\"评估历史数据覆盖度\\\"\\n    }\\n  ],\\n  \\\"gpt_prompt_outline\\\": [\\n    \\\"1. 从 body_history 模块提取最近体重记录\\\",\\n    \\\"2. 按时间排序并计算体重趋势\\\",\\n    \\\"3. 检查记录覆盖度以确定趋势可靠性\\\"\\n  ]\\n  }\"}",
+        "stage_results": {
+          "capability_selection": {
+            "passed": true,
+            "latency_ms": 4869,
+            "retry": 0,
+            "parsed": {
+              "schema_version": "fitness-ledger-shadow-capability-selection-v1",
+              "abstain": false,
+              "required_capabilities": [
+                {
+                  "capability_id": "body_history",
+                  "reason": "用户目标'分析最近体重变化'直接匹配body_history的user_expression_examples['最近体重变化']，且analysis_questions['体重随时间如何变化？']与用户目标完全一致。该能力提供体重历史数据，无需其他能力支持。"
+                }
+              ],
+              "optional_capabilities": [],
+              "missing_information": [],
+              "clarifications": []
+            }
+          },
+          "analysis_details": {
+            "passed": true,
+            "latency_ms": 6657,
+            "retry": 0,
+            "parsed": {
+              "schema_version": "fitness-ledger-shadow-analysis-details-v1",
+              "analysis_goal": "分析最近体重变化",
+              "questions_to_answer": [
+                "体重随时间如何变化？",
+                "记录覆盖是否足够回答体重趋势？"
+              ],
+              "preferred_time_window": {
+                "kind": "recent",
+                "label": "最近"
+              },
+              "derived_metrics": [
+                {
+                  "name": "体重趋势",
+                  "reason": "反映近期体重变化模式"
+                },
+                {
+                  "name": "记录完整性",
+                  "reason": "评估历史数据覆盖度"
+                }
+              ],
+              "gpt_prompt_outline": [
+                "1. 从 body_history 模块提取最近体重记录",
+                "2. 按时间排序并计算体重趋势",
+                "3. 检查记录覆盖度以确定趋势可靠性"
+              ]
+            }
+          },
+          "assembly_mapping": {
+            "passed": true,
+            "capabilities": [
+              "body_history"
+            ]
+          }
+        }
+      },
+      "analysis_requirement_spec": {
+        "schema_version": "fitness-ledger-analysis-requirement-v1",
+        "analysis_goal": "分析最近体重变化",
+        "questions_to_answer": [
+          "体重随时间如何变化？",
+          "记录覆盖是否足够回答体重趋势？"
+        ],
+        "required_capabilities": [
+          {
+            "capability_id": "body_history",
+            "reason": "用户目标'分析最近体重变化'直接匹配body_history的user_expression_examples['最近体重变化']，且analysis_questions['体重随时间如何变化？']与用户目标完全一致。该能力提供体重历史数据，无需其他能力支持。"
+          }
+        ],
+        "optional_capabilities": [],
+        "preferred_time_window": {
+          "kind": "recent",
+          "label": "最近"
+        },
+        "derived_metrics": [
+          {
+            "name": "体重趋势",
+            "reason": "反映近期体重变化模式"
+          },
+          {
+            "name": "记录完整性",
+            "reason": "评估历史数据覆盖度"
+          }
+        ],
+        "missing_information": [],
+        "clarifications": [],
+        "evidence": [],
+        "gpt_prompt_outline": [
+          "1. 从 body_history 模块提取最近体重记录",
+          "2. 按时间排序并计算体重趋势",
+          "3. 检查记录覆盖度以确定趋势可靠性"
+        ]
+      },
+      "validation": {
+        "status": "passed",
+        "error_code": "",
+        "scope_locked_by": "deterministic_core"
+      },
+      "date_movement_capability_resolution": {
+        "status": "resolved",
+        "window": {
+          "window_id": "window:2026-06-18..2026-07-15:2026-07-01..2026-07-15",
+          "requested_start": "2026-06-18",
+          "requested_end": "2026-07-15",
+          "resolved_start": "2026-07-01",
+          "resolved_end": "2026-07-15",
+          "anchor": "relative",
+          "modules": [
+            "body",
+            "diet",
+            "training",
+            "movement_history",
+            "raw_entries"
+          ],
+          "record_count": 0,
+          "missing_data_warnings": [
+            "requested range partly falls outside available data; only the real intersection is used"
+          ]
+        },
+        "movement_ids": [],
+        "notes_selection_count": 0
+      },
+      "mapping_preview": {
+        "schema_version": "fitness-ledger-requirement-mapping-v1",
+        "mapped_capabilities": [
+          {
+            "capability_id": "body_history",
+            "requirement_kind": "required",
+            "reason": "用户目标'分析最近体重变化'直接匹配body_history的user_expression_examples['最近体重变化']，且analysis_questions['体重随时间如何变化？']与用户目标完全一致。该能力提供体重历史数据，无需其他能力支持。",
+            "source_contracts": [
+              "DataCatalogBuilder.module:body",
+              "AnalysisExportCommandParser.domain:body",
+              "IntentCompiler.dimension:body_state"
+            ],
+            "status": "available",
+            "requires_user_confirmation": false
+          }
+        ],
+        "unresolved_capabilities": [],
+        "date_resolution_status": "deferred_to_date_range_resolver_and_user_confirmation",
+        "notes_scope_status": "not_selected",
+        "raw_permission_status": "not_granted",
+        "deterministic_plan_preview": {
+          "plan_id": "plan:e9a80b803dbd0d1d30595895",
+          "catalog_id": "ae56a9f1dcdb5a75e1545b72e79336ef32f572a331eae086544fdfc0116c9ebd",
+          "source_snapshot_id": "a6286a3e9965e96acaa480ebc277a2a473da94212e2a41866f009bd2af3b73b3",
+          "original_request": "分析最近体重变化",
+          "interpreted_goal": "分析最近体重变化",
+          "analysis_dimensions": [
+            "body_state"
+          ],
+          "date_range": {
+            "window_id": "window:2026-06-18..2026-07-15:2026-07-01..2026-07-15",
+            "requested_start": "2026-06-18",
+            "requested_end": "2026-07-15",
+            "resolved_start": "2026-07-01",
+            "resolved_end": "2026-07-15",
+            "anchor": "relative",
+            "modules": [
+              "body",
+              "diet",
+              "training",
+              "movement_history",
+              "raw_entries"
+            ],
+            "record_count": 0,
+            "missing_data_warnings": [
+              "requested range partly falls outside available data; only the real intersection is used"
+            ]
+          },
+          "selected_modules": [
+            "body"
+          ],
+          "selected_fields": {
+            "body": [
+              "Date",
+              "Weight (kg)"
+            ]
+          },
+          "selected_movements": [],
+          "notes_selection": [],
+          "candidate_record_ids": [
+            "body:body-1",
+            "body:body-2",
+            "body:body-3"
+          ],
+          "training_detail_level": "summary",
+          "movement_detail_level": "summary",
+          "include_raw_entries": false,
+          "include_excluded_history": false,
+          "excluded_history_usage": "none",
+          "use_progress_history_for_metrics": true,
+          "inclusion_reasons": {
+            "body": "deterministic grounded scope"
+          },
+          "exclusion_reasons": {},
+          "missing_data_warnings": [
+            "requested range partly falls outside available data; only the real intersection is used"
+          ],
+          "estimated_record_count": 3,
+          "estimated_output_size": 1340,
+          "planner_confidence": 1.0,
+          "planning_decision": "ready",
+          "fallback_reason_codes": [],
+          "model_trace_id": "preview:b78f004ad3b07a66ffaef195",
+          "generated_at": "2026-07-26T08:19:49",
+          "trimmed": false
+        }
+      },
+      "gpt_analysis_package_preview_summary": {
+        "schema_version": "fitness-ledger-gpt-analysis-package-v1",
+        "package_id": "306875fa7b7647843c8764491cb2af30e78ae99975097d36445bf718acfe5e32",
+        "capability_ids": [
+          "body_history"
+        ],
+        "preferred_time_window": {
+          "kind": "recent",
+          "label": "最近"
+        },
+        "confirmed_time_window": null,
+        "data_block_count": 1,
+        "raw_included": false,
+        "notes_scope": null
+      },
+      "service_status": "ready",
+      "executor_called": false,
+      "raw_read": false,
+      "formal_data_written": false,
+      "failure_category": ""
+    },
+    {
+      "case_id": "diet_recent",
+      "user_input": "分析最近饮食",
+      "transport": "qwen3:4b",
+      "request_gate": {
+        "schema_version": "fitness-ledger-request-gate-v1",
+        "status": "ANALYSIS_REQUEST",
+        "request": "分析最近饮食",
+        "reason_codes": [],
+        "facts": {
+          "scope": {
+            "only": false,
+            "include": false,
+            "exclude": false,
+            "excluded_dimensions": [],
+            "only_dimensions": []
+          },
+          "recognized_entities": {
+            "body_parts": [],
+            "movement_mentions": [],
+            "movement_unique": false,
+            "movement_ambiguous": false,
+            "notes_requested": false,
+            "notes_scopes": [],
+            "raw_requested": false
+          },
+          "deterministic_dimensions": [
+            "diet_macros"
+          ],
+          "command": {
+            "request_kind": "analysis_export",
+            "domains": [
+              "diet"
+            ],
+            "layers": [
+              "structured"
+            ],
+            "status": "resolved",
+            "errors": [],
+            "date_kind": "calendar_relative"
+          }
+        },
+        "movement_candidates": [],
+        "confirmation_requirements": []
+      },
+      "planner": {
+        "called": true,
+        "call_count": 2,
+        "status": "planned",
+        "model": "qwen3:4b",
+        "model_digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+        "prompt_version": "qwen3-shadow-planner-two-stage-v2",
+        "latency_ms": 12418,
+        "raw_output": "{\"stage1_capability_selection\": \"{\\n  \\\"schema_version\\\": \\\"fitness-ledger-shadow-capability-selection-v1\\\",\\n  \\\"abstain\\\": false,\\n  \\\"required_capabilities\\\": [\\n    {\\n      \\\"capability_id\\\": \\\"diet_macros\\\",\\n     \\\"reason\\\": \\\"用户目标'分析最近饮食'直接匹配diet_macros的用户表达示例（如'最近饮食情况'）和分析问题（如'热量和宏量营养素趋势如何？'）。该能力提供饮食宏量营养素历史数据，是分析最近饮食的最小直接需求。\\\"\\n    }\\n  ],\\n  \\\"optional_capabilities\\\": [],\\n  \\\"missing_information\\\": [],\\n  \\\"clarifications\\\": []\\n}\", \"stage2_analysis_details\": \"{\\n  \\\"schema_version\\\": \\\"fitness-ledger-shadow-analysis-details-v1\\\",\\n  \\\"analysis_goal\\\": \\\"分析最近饮食\\\",\\n  \\\"questions_to_answer\\\": [\\n    \\\"热量和宏量营养素趋势如何？\\\",\\n    \\\"饮食记录是否支持回答热量问题？\\\"\\n  ],\\n  \\\"preferred_time_window\\\": {\\n    \\\"kind\\\": \\\"recent\\\",\\n    \\\"label\\\": \\\"最近\\\"\\n  },\\n  \\\"derived_metrics\\\": [\\n    {\\n      \\\"name\\\": \\\"热量趋势\\\",\\n      \\\"reason\\\": \\\"基于最近饮食记录的热量变化分析\\\"\\n    },\\n    {\\n      \\\"name\\\": \\\"宏量营养素分布\\\",\\n      \\\"reason\\\": \\\"蛋白质、碳水、脂肪的占比趋势\\\"\\n    }\\n  ],\\n  \\\"gpt_prompt_outline\\\": [\\n    \\\"1. 从 diet_macros 模块提取最近日期的饮食记录\\\",\\n    \\\"2. 计算热量和宏量营养素的平均值与趋势\\\",\\n    \\\"3. 评估记录是否足够回答热量相关问题\\\"\\n  ]\\n}\"}",
+        "stage_results": {
+          "capability_selection": {
+            "passed": true,
+            "latency_ms": 5554,
+            "retry": 0,
+            "parsed": {
+              "schema_version": "fitness-ledger-shadow-capability-selection-v1",
+              "abstain": false,
+              "required_capabilities": [
+                {
+                  "capability_id": "diet_macros",
+                  "reason": "用户目标'分析最近饮食'直接匹配diet_macros的用户表达示例（如'最近饮食情况'）和分析问题（如'热量和宏量营养素趋势如何？'）。该能力提供饮食宏量营养素历史数据，是分析最近饮食的最小直接需求。"
+                }
+              ],
+              "optional_capabilities": [],
+              "missing_information": [],
+              "clarifications": []
+            }
+          },
+          "analysis_details": {
+            "passed": true,
+            "latency_ms": 6864,
+            "retry": 0,
+            "parsed": {
+              "schema_version": "fitness-ledger-shadow-analysis-details-v1",
+              "analysis_goal": "分析最近饮食",
+              "questions_to_answer": [
+                "热量和宏量营养素趋势如何？",
+                "饮食记录是否支持回答热量问题？"
+              ],
+              "preferred_time_window": {
+                "kind": "recent",
+                "label": "最近"
+              },
+              "derived_metrics": [
+                {
+                  "name": "热量趋势",
+                  "reason": "基于最近饮食记录的热量变化分析"
+                },
+                {
+                  "name": "宏量营养素分布",
+                  "reason": "蛋白质、碳水、脂肪的占比趋势"
+                }
+              ],
+              "gpt_prompt_outline": [
+                "1. 从 diet_macros 模块提取最近日期的饮食记录",
+                "2. 计算热量和宏量营养素的平均值与趋势",
+                "3. 评估记录是否足够回答热量相关问题"
+              ]
+            }
+          },
+          "assembly_mapping": {
+            "passed": true,
+            "capabilities": [
+              "diet_macros"
+            ]
+          }
+        }
+      },
+      "analysis_requirement_spec": {
+        "schema_version": "fitness-ledger-analysis-requirement-v1",
+        "analysis_goal": "分析最近饮食",
+        "questions_to_answer": [
+          "热量和宏量营养素趋势如何？",
+          "饮食记录是否支持回答热量问题？"
+        ],
+        "required_capabilities": [
+          {
+            "capability_id": "diet_macros",
+            "reason": "用户目标'分析最近饮食'直接匹配diet_macros的用户表达示例（如'最近饮食情况'）和分析问题（如'热量和宏量营养素趋势如何？'）。该能力提供饮食宏量营养素历史数据，是分析最近饮食的最小直接需求。"
+          }
+        ],
+        "optional_capabilities": [],
+        "preferred_time_window": {
+          "kind": "recent",
+          "label": "最近"
+        },
+        "derived_metrics": [
+          {
+            "name": "热量趋势",
+            "reason": "基于最近饮食记录的热量变化分析"
+          },
+          {
+            "name": "宏量营养素分布",
+            "reason": "蛋白质、碳水、脂肪的占比趋势"
+          }
+        ],
+        "missing_information": [],
+        "clarifications": [],
+        "evidence": [],
+        "gpt_prompt_outline": [
+          "1. 从 diet_macros 模块提取最近日期的饮食记录",
+          "2. 计算热量和宏量营养素的平均值与趋势",
+          "3. 评估记录是否足够回答热量相关问题"
+        ]
+      },
+      "validation": {
+        "status": "passed",
+        "error_code": "",
+        "scope_locked_by": "deterministic_core"
+      },
+      "date_movement_capability_resolution": {
+        "status": "resolved",
+        "window": {
+          "window_id": "window:2026-06-18..2026-07-15:2026-07-01..2026-07-15",
+          "requested_start": "2026-06-18",
+          "requested_end": "2026-07-15",
+          "resolved_start": "2026-07-01",
+          "resolved_end": "2026-07-15",
+          "anchor": "relative",
+          "modules": [
+            "body",
+            "diet",
+            "training",
+            "movement_history",
+            "raw_entries"
+          ],
+          "record_count": 0,
+          "missing_data_warnings": [
+            "requested range partly falls outside available data; only the real intersection is used"
+          ]
+        },
+        "movement_ids": [],
+        "notes_selection_count": 0
+      },
+      "mapping_preview": {
+        "schema_version": "fitness-ledger-requirement-mapping-v1",
+        "mapped_capabilities": [
+          {
+            "capability_id": "diet_macros",
+            "requirement_kind": "required",
+            "reason": "用户目标'分析最近饮食'直接匹配diet_macros的用户表达示例（如'最近饮食情况'）和分析问题（如'热量和宏量营养素趋势如何？'）。该能力提供饮食宏量营养素历史数据，是分析最近饮食的最小直接需求。",
+            "source_contracts": [
+              "DataCatalogBuilder.module:diet",
+              "AnalysisExportCommandParser.domain:diet",
+              "IntentCompiler.dimension:diet_macros"
+            ],
+            "status": "available",
+            "requires_user_confirmation": false
+          }
+        ],
+        "unresolved_capabilities": [],
+        "date_resolution_status": "deferred_to_date_range_resolver_and_user_confirmation",
+        "notes_scope_status": "not_selected",
+        "raw_permission_status": "not_granted",
+        "deterministic_plan_preview": {
+          "plan_id": "plan:8a675dfbce280f6a2f5348c2",
+          "catalog_id": "ae56a9f1dcdb5a75e1545b72e79336ef32f572a331eae086544fdfc0116c9ebd",
+          "source_snapshot_id": "a6286a3e9965e96acaa480ebc277a2a473da94212e2a41866f009bd2af3b73b3",
+          "original_request": "分析最近饮食",
+          "interpreted_goal": "分析最近饮食",
+          "analysis_dimensions": [
+            "diet_macros"
+          ],
+          "date_range": {
+            "window_id": "window:2026-06-18..2026-07-15:2026-07-01..2026-07-15",
+            "requested_start": "2026-06-18",
+            "requested_end": "2026-07-15",
+            "resolved_start": "2026-07-01",
+            "resolved_end": "2026-07-15",
+            "anchor": "relative",
+            "modules": [
+              "body",
+              "diet",
+              "training",
+              "movement_history",
+              "raw_entries"
+            ],
+            "record_count": 0,
+            "missing_data_warnings": [
+              "requested range partly falls outside available data; only the real intersection is used"
+            ]
+          },
+          "selected_modules": [
+            "diet"
+          ],
+          "selected_fields": {
+            "diet": [
+              "Date",
+              "Calories (kcal)",
+              "Protein (g)",
+              "Carbs (g)",
+              "Fat (g)"
+            ]
+          },
+          "selected_movements": [],
+          "notes_selection": [],
+          "candidate_record_ids": [
+            "diet:diet-1",
+            "diet:diet-2"
+          ],
+          "training_detail_level": "summary",
+          "movement_detail_level": "summary",
+          "include_raw_entries": false,
+          "include_excluded_history": false,
+          "excluded_history_usage": "none",
+          "use_progress_history_for_metrics": true,
+          "inclusion_reasons": {
+            "diet": "deterministic grounded scope"
+          },
+          "exclusion_reasons": {},
+          "missing_data_warnings": [
+            "requested range partly falls outside available data; only the real intersection is used"
+          ],
+          "estimated_record_count": 2,
+          "estimated_output_size": 1160,
+          "planner_confidence": 1.0,
+          "planning_decision": "ready",
+          "fallback_reason_codes": [],
+          "model_trace_id": "preview:4e467fe258e1ecefaac7e7a1",
+          "generated_at": "2026-07-26T08:20:02",
+          "trimmed": false
+        }
+      },
+      "gpt_analysis_package_preview_summary": {
+        "schema_version": "fitness-ledger-gpt-analysis-package-v1",
+        "package_id": "ee1b02cb047ba212e82069add13df337d52f07b684189f5e41f266bac028ebb2",
+        "capability_ids": [
+          "diet_macros"
+        ],
+        "preferred_time_window": {
+          "kind": "recent",
+          "label": "最近"
+        },
+        "confirmed_time_window": null,
+        "data_block_count": 1,
+        "raw_included": false,
+        "notes_scope": null
+      },
+      "service_status": "ready",
+      "executor_called": false,
+      "raw_read": false,
+      "formal_data_written": false,
+      "failure_category": ""
+    },
+    {
+      "case_id": "training_recent",
+      "user_input": "分析最近训练",
+      "transport": "qwen3:4b",
+      "request_gate": {
+        "schema_version": "fitness-ledger-request-gate-v1",
+        "status": "ANALYSIS_REQUEST",
+        "request": "分析最近训练",
+        "reason_codes": [],
+        "facts": {
+          "scope": {
+            "only": false,
+            "include": false,
+            "exclude": false,
+            "excluded_dimensions": [],
+            "only_dimensions": []
+          },
+          "recognized_entities": {
+            "body_parts": [],
+            "movement_mentions": [],
+            "movement_unique": false,
+            "movement_ambiguous": false,
+            "notes_requested": false,
+            "notes_scopes": [],
+            "raw_requested": false
+          },
+          "deterministic_dimensions": [
+            "training_context"
+          ],
+          "command": {
+            "request_kind": "analysis_export",
+            "domains": [
+              "training"
+            ],
+            "layers": [
+              "structured"
+            ],
+            "status": "resolved",
+            "errors": [],
+            "date_kind": "calendar_relative"
+          }
+        },
+        "movement_candidates": [],
+        "confirmation_requirements": []
+      },
+      "planner": {
+        "called": true,
+        "call_count": 2,
+        "status": "planned",
+        "model": "qwen3:4b",
+        "model_digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+        "prompt_version": "qwen3-shadow-planner-two-stage-v2",
+        "latency_ms": 12125,
+        "raw_output": "{\"stage1_capability_selection\": \"{\\n  \\\"schema_version\\\": \\\"fitness-ledger-shadow-capability-selection-v1\\\",\\n  \\\"abstain\\\": false,\\n  \\\"required_capabilities\\\": [\\n    {\\n      \\\"capability_id\\\": \\\"training_context\\\",\\n      \\\"reason\\\": \\\"用户目标'分析最近训练'直接要求分析训练模块中的Date、No.、Split与训练上下文，且training_context能力明确支持分析训练日和训练上下文变化、训练记录是否支持回答表现问题等，符合用户表达'最近训练表现'、'训练状态'等需求。\\\"\\n    }\\n  ],\\n  \\\"optional_capabilities\\\": [],\\n  \\\"missing_information\\\": [],\\n  \\\"clarifications\\\": []\\n}\", \"stage2_analysis_details\": \"{\\n  \\\"schema_version\\\": \\\"fitness-ledger-shadow-analysis-details-v1\\\",\\n  \\\"analysis_goal\\\": \\\"分析最近训练\\\",\\n  \\\"questions_to_answer\\\": [\\n    \\\"训练日和训练上下文如何变化？\\\",\\n    \\\"训练记录是否支持回答表现问题？\\\"\\n  ],\\n  \\\"preferred_time_window\\\": {\\n    \\\"kind\\\": \\\"recent\\\",\\n    \\\"label\\\": \\\"最近训练\\\"\\n  },\\n  \\\"derived_metrics\\\": [\\n    {\\n      \\\"name\\\": \\\"训练日变化趋势\\\",\\n      \\\"reason\\\": \\\"分析训练日和训练上下文的变化模式\\\"\\n    },\\n    {\\n      \\\"name\\\": \\\"训练记录完整性\\\",\\n      \\\"reason\\\": \\\"评估训练记录是否支持表现问题的回答\\\"\\n    }\\n  ],\\n  \\\"gpt_prompt_outline\\\": [\\n    \\\"1. 从训练模块中提取最近训练的日期、训练编号、Split 及上下文信息\\\",\\n    \\\"2. 检查训练日和训练上下文的时序变化模式\\\",\\n    \\\"3. 评估训练记录是否完整且可回答表现问题\\\"\\n  ]\\n}\"}",
+        "stage_results": {
+          "capability_selection": {
+            "passed": true,
+            "latency_ms": 5514,
+            "retry": 0,
+            "parsed": {
+              "schema_version": "fitness-ledger-shadow-capability-selection-v1",
+              "abstain": false,
+              "required_capabilities": [
+                {
+                  "capability_id": "training_context",
+                  "reason": "用户目标'分析最近训练'直接要求分析训练模块中的Date、No.、Split与训练上下文，且training_context能力明确支持分析训练日和训练上下文变化、训练记录是否支持回答表现问题等，符合用户表达'最近训练表现'、'训练状态'等需求。"
+                }
+              ],
+              "optional_capabilities": [],
+              "missing_information": [],
+              "clarifications": []
+            }
+          },
+          "analysis_details": {
+            "passed": true,
+            "latency_ms": 6611,
+            "retry": 0,
+            "parsed": {
+              "schema_version": "fitness-ledger-shadow-analysis-details-v1",
+              "analysis_goal": "分析最近训练",
+              "questions_to_answer": [
+                "训练日和训练上下文如何变化？",
+                "训练记录是否支持回答表现问题？"
+              ],
+              "preferred_time_window": {
+                "kind": "recent",
+                "label": "最近训练"
+              },
+              "derived_metrics": [
+                {
+                  "name": "训练日变化趋势",
+                  "reason": "分析训练日和训练上下文的变化模式"
+                },
+                {
+                  "name": "训练记录完整性",
+                  "reason": "评估训练记录是否支持表现问题的回答"
+                }
+              ],
+              "gpt_prompt_outline": [
+                "1. 从训练模块中提取最近训练的日期、训练编号、Split 及上下文信息",
+                "2. 检查训练日和训练上下文的时序变化模式",
+                "3. 评估训练记录是否完整且可回答表现问题"
+              ]
+            }
+          },
+          "assembly_mapping": {
+            "passed": true,
+            "capabilities": [
+              "training_context"
+            ]
+          }
+        }
+      },
+      "analysis_requirement_spec": {
+        "schema_version": "fitness-ledger-analysis-requirement-v1",
+        "analysis_goal": "分析最近训练",
+        "questions_to_answer": [
+          "训练日和训练上下文如何变化？",
+          "训练记录是否支持回答表现问题？"
+        ],
+        "required_capabilities": [
+          {
+            "capability_id": "training_context",
+            "reason": "用户目标'分析最近训练'直接要求分析训练模块中的Date、No.、Split与训练上下文，且training_context能力明确支持分析训练日和训练上下文变化、训练记录是否支持回答表现问题等，符合用户表达'最近训练表现'、'训练状态'等需求。"
+          }
+        ],
+        "optional_capabilities": [],
+        "preferred_time_window": {
+          "kind": "recent",
+          "label": "最近训练"
+        },
+        "derived_metrics": [
+          {
+            "name": "训练日变化趋势",
+            "reason": "分析训练日和训练上下文的变化模式"
+          },
+          {
+            "name": "训练记录完整性",
+            "reason": "评估训练记录是否支持表现问题的回答"
+          }
+        ],
+        "missing_information": [],
+        "clarifications": [],
+        "evidence": [],
+        "gpt_prompt_outline": [
+          "1. 从训练模块中提取最近训练的日期、训练编号、Split 及上下文信息",
+          "2. 检查训练日和训练上下文的时序变化模式",
+          "3. 评估训练记录是否完整且可回答表现问题"
+        ]
+      },
+      "validation": {
+        "status": "passed",
+        "error_code": "",
+        "scope_locked_by": "deterministic_core"
+      },
+      "date_movement_capability_resolution": {
+        "status": "resolved",
+        "window": {
+          "window_id": "window:2026-06-18..2026-07-15:2026-07-01..2026-07-15",
+          "requested_start": "2026-06-18",
+          "requested_end": "2026-07-15",
+          "resolved_start": "2026-07-01",
+          "resolved_end": "2026-07-15",
+          "anchor": "relative",
+          "modules": [
+            "body",
+            "diet",
+            "training",
+            "movement_history",
+            "raw_entries"
+          ],
+          "record_count": 0,
+          "missing_data_warnings": [
+            "requested range partly falls outside available data; only the real intersection is used"
+          ]
+        },
+        "movement_ids": [],
+        "notes_selection_count": 0
+      },
+      "mapping_preview": {
+        "schema_version": "fitness-ledger-requirement-mapping-v1",
+        "mapped_capabilities": [
+          {
+            "capability_id": "training_context",
+            "requirement_kind": "required",
+            "reason": "用户目标'分析最近训练'直接要求分析训练模块中的Date、No.、Split与训练上下文，且training_context能力明确支持分析训练日和训练上下文变化、训练记录是否支持回答表现问题等，符合用户表达'最近训练表现'、'训练状态'等需求。",
+            "source_contracts": [
+              "DataCatalogBuilder.module:training",
+              "AnalysisExportCommandParser.domain:training",
+              "IntentCompiler.dimension:training_context"
+            ],
+            "status": "available",
+            "requires_user_confirmation": false
+          }
+        ],
+        "unresolved_capabilities": [],
+        "date_resolution_status": "deferred_to_date_range_resolver_and_user_confirmation",
+        "notes_scope_status": "not_selected",
+        "raw_permission_status": "not_granted",
+        "deterministic_plan_preview": {
+          "plan_id": "plan:4e7b8beb35fd607babe6cc41",
+          "catalog_id": "ae56a9f1dcdb5a75e1545b72e79336ef32f572a331eae086544fdfc0116c9ebd",
+          "source_snapshot_id": "a6286a3e9965e96acaa480ebc277a2a473da94212e2a41866f009bd2af3b73b3",
+          "original_request": "分析最近训练",
+          "interpreted_goal": "分析最近训练",
+          "analysis_dimensions": [
+            "training_context"
+          ],
+          "date_range": {
+            "window_id": "window:2026-06-18..2026-07-15:2026-07-01..2026-07-15",
+            "requested_start": "2026-06-18",
+            "requested_end": "2026-07-15",
+            "resolved_start": "2026-07-01",
+            "resolved_end": "2026-07-15",
+            "anchor": "relative",
+            "modules": [
+              "body",
+              "diet",
+              "training",
+              "movement_history",
+              "raw_entries"
+            ],
+            "record_count": 0,
+            "missing_data_warnings": [
+              "requested range partly falls outside available data; only the real intersection is used"
+            ]
+          },
+          "selected_modules": [
+            "training"
+          ],
+          "selected_fields": {
+            "training": [
+              "Date",
+              "Split",
+              "Standardized Summary"
+            ]
+          },
+          "selected_movements": [],
+          "notes_selection": [],
+          "candidate_record_ids": [
+            "training:training-1",
+            "training:training-2",
+            "training:training-3"
+          ],
+          "training_detail_level": "summary",
+          "movement_detail_level": "summary",
+          "include_raw_entries": false,
+          "include_excluded_history": false,
+          "excluded_history_usage": "none",
+          "use_progress_history_for_metrics": true,
+          "inclusion_reasons": {
+            "training": "deterministic grounded scope"
+          },
+          "exclusion_reasons": {},
+          "missing_data_warnings": [
+            "requested range partly falls outside available data; only the real intersection is used"
+          ],
+          "estimated_record_count": 3,
+          "estimated_output_size": 1340,
+          "planner_confidence": 1.0,
+          "planning_decision": "ready",
+          "fallback_reason_codes": [],
+          "model_trace_id": "preview:f16d60e45cee82daf13fea48",
+          "generated_at": "2026-07-26T08:20:14",
+          "trimmed": false
+        }
+      },
+      "gpt_analysis_package_preview_summary": {
+        "schema_version": "fitness-ledger-gpt-analysis-package-v1",
+        "package_id": "e107039f6722aabf68a188aa1d9b2c4ea56cebb7ac905d9516c67ab069bc6463",
+        "capability_ids": [
+          "training_context"
+        ],
+        "preferred_time_window": {
+          "kind": "recent",
+          "label": "最近训练"
+        },
+        "confirmed_time_window": null,
+        "data_block_count": 1,
+        "raw_included": false,
+        "notes_scope": null
+      },
+      "service_status": "ready",
+      "executor_called": false,
+      "raw_read": false,
+      "formal_data_written": false,
+      "failure_category": ""
+    },
+    {
+      "case_id": "diet_training_impact",
+      "user_input": "分析饮食是否影响训练",
+      "transport": "qwen3:4b",
+      "request_gate": {
+        "schema_version": "fitness-ledger-request-gate-v1",
+        "status": "ANALYSIS_REQUEST",
+        "request": "分析饮食是否影响训练",
+        "reason_codes": [],
+        "facts": {
+          "scope": {
+            "only": false,
+            "include": false,
+            "exclude": false,
+            "excluded_dimensions": [],
+            "only_dimensions": []
+          },
+          "recognized_entities": {
+            "body_parts": [],
+            "movement_mentions": [],
+            "movement_unique": false,
+            "movement_ambiguous": false,
+            "notes_requested": false,
+            "notes_scopes": [],
+            "raw_requested": false
+          },
+          "deterministic_dimensions": [
+            "diet_macros",
+            "training_context"
+          ],
+          "command": {
+            "request_kind": "analysis_export",
+            "domains": [
+              "diet",
+              "training"
+            ],
+            "layers": [
+              "structured"
+            ],
+            "status": "resolved",
+            "errors": [],
+            "date_kind": "none"
+          }
+        },
+        "movement_candidates": [],
+        "confirmation_requirements": []
+      },
+      "planner": {
+        "called": true,
+        "call_count": 2,
+        "status": "planned",
+        "model": "qwen3:4b",
+        "model_digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+        "prompt_version": "qwen3-shadow-planner-two-stage-v2",
+        "latency_ms": 14071,
+        "raw_output": "{\"stage1_capability_selection\": \"{\\n  \\\"schema_version\\\": \\\"fitness-ledger-shadow-capability-selection-v1\\\",\\n  \\\"abstain\\\": false,\\n  \\\"required_capabilities\\\": [\\n    {\\n      \\\"capability_id\\\": \\\"diet_macros\\\",\\n      \\\"reason\\\": \\\"用户目标'分析饮食是否影响训练'直接需要饮食宏量数据（热量、蛋白质、碳:水、脂肪）来评估饮食对训练的影响。\\\"\\n    },\\n    {\\n      \\\"capability_id\\\": \\\"training_context\\\",\\n      \\\"reason\\\": \\\"用户目标需要训练上下文（训练日期、类型、表现）来对比饮食数据，分析训练是否受饮食影响。\\\"\\n    }\\n  ],\\n  \\\"optional_capabilities\\\": [],\\n  \\\"missing_information\\\": [\\n    \\\"用户未指定具体训练类型或饮食时间范围，但根据分析目标，已通过确定的维度（diet_macros 和 training_context）覆盖核心需求\\\"\\n  ],\\n  \\\"clarifications\\\": []\\n}\", \"stage2_analysis_details\": \"{\\n  \\\"schema_version\\\": \\\"fitness-ledger-shadow-analysis-details-v1\\\",\\n  \\\"analysis_goal\\\": \\\"分析饮食是否影响训练\\\",\\n  \\\"questions_to_answer\\\": [\\n    \\\"饮食宏量营养素（热量、蛋白质、碳水、脂肪）与训练表现之间的相关性如何？\\\",\\n    \\\"饮食记录是否足够支持评估训练效果？\\\"\\n  ],\\n  \\\"preferred_time_window\\\": {\\n    \\\"kind\\\": \\\"recent\\\",\\n    \\\"label\\\": \\\"最近 30 天\\\"\\n  },\\n  \\\"derived_metrics\\\": [\\n    {\\n      \\\"name\\\": \\\"饮食-训练相关性指数\\\",\\n      \\\"reason\\\": \\\"量化饮食宏量营养素变化对训练表现的影响程度\\\"\\n    },\\n    {\\n      \\\"name\\\": \\\"饮食记录完整性评分\\\",\\n      \\\"reason\\\": \\\"评估饮食记录是否覆盖训练周期的关键指标\\\"\\n    }\\n  ],\\n  \\\"gpt_prompt_outline\\\": [\\n    \\\"1. 从 diet_macros 模块提取最近 30 天的饮食记录（热量、蛋白质、碳水、脂肪）\\\",\\n    \\\"2. 从 training_context 模块提取最近 30 天的训练记录（训练日、训练类型、表现指标）\\\",\\n    \\\"3. 对齐饮食与训练日期，计算饮食宏量营养素与训练表现的统计相关性\\\",\\n    \\\"4. 评估饮食记录是否覆盖训练周期的完整周期（如训练日是否均有对应饮食记录）\\\",\\n    \\\"5. 生成饮食-训练相关性指数和饮食记录完整性评分\\\"\\n  ]\\n}\"}",
+        "stage_results": {
+          "capability_selection": {
+            "passed": true,
+            "latency_ms": 6176,
+            "retry": 0,
+            "parsed": {
+              "schema_version": "fitness-ledger-shadow-capability-selection-v1",
+              "abstain": false,
+              "required_capabilities": [
+                {
+                  "capability_id": "diet_macros",
+                  "reason": "用户目标'分析饮食是否影响训练'直接需要饮食宏量数据（热量、蛋白质、碳:水、脂肪）来评估饮食对训练的影响。"
+                },
+                {
+                  "capability_id": "training_context",
+                  "reason": "用户目标需要训练上下文（训练日期、类型、表现）来对比饮食数据，分析训练是否受饮食影响。"
+                }
+              ],
+              "optional_capabilities": [],
+              "missing_information": [
+                "用户未指定具体训练类型或饮食时间范围，但根据分析目标，已通过确定的维度（diet_macros 和 training_context）覆盖核心需求"
+              ],
+              "clarifications": []
+            }
+          },
+          "analysis_details": {
+            "passed": true,
+            "latency_ms": 7895,
+            "retry": 0,
+            "parsed": {
+              "schema_version": "fitness-ledger-shadow-analysis-details-v1",
+              "analysis_goal": "分析饮食是否影响训练",
+              "questions_to_answer": [
+                "饮食宏量营养素（热量、蛋白质、碳水、脂肪）与训练表现之间的相关性如何？",
+                "饮食记录是否足够支持评估训练效果？"
+              ],
+              "preferred_time_window": {
+                "kind": "recent",
+                "label": "最近 30 天"
+              },
+              "derived_metrics": [
+                {
+                  "name": "饮食-训练相关性指数",
+                  "reason": "量化饮食宏量营养素变化对训练表现的影响程度"
+                },
+                {
+                  "name": "饮食记录完整性评分",
+                  "reason": "评估饮食记录是否覆盖训练周期的关键指标"
+                }
+              ],
+              "gpt_prompt_outline": [
+                "1. 从 diet_macros 模块提取最近 30 天的饮食记录（热量、蛋白质、碳水、脂肪）",
+                "2. 从 training_context 模块提取最近 30 天的训练记录（训练日、训练类型、表现指标）",
+                "3. 对齐饮食与训练日期，计算饮食宏量营养素与训练表现的统计相关性",
+                "4. 评估饮食记录是否覆盖训练周期的完整周期（如训练日是否均有对应饮食记录）",
+                "5. 生成饮食-训练相关性指数和饮食记录完整性评分"
+              ]
+            }
+          },
+          "assembly_mapping": {
+            "passed": true,
+            "capabilities": [
+              "diet_macros",
+              "training_context"
+            ]
+          }
+        }
+      },
+      "analysis_requirement_spec": {
+        "schema_version": "fitness-ledger-analysis-requirement-v1",
+        "analysis_goal": "分析饮食是否影响训练",
+        "questions_to_answer": [
+          "饮食宏量营养素（热量、蛋白质、碳水、脂肪）与训练表现之间的相关性如何？",
+          "饮食记录是否足够支持评估训练效果？"
+        ],
+        "required_capabilities": [
+          {
+            "capability_id": "diet_macros",
+            "reason": "用户目标'分析饮食是否影响训练'直接需要饮食宏量数据（热量、蛋白质、碳:水、脂肪）来评估饮食对训练的影响。"
+          },
+          {
+            "capability_id": "training_context",
+            "reason": "用户目标需要训练上下文（训练日期、类型、表现）来对比饮食数据，分析训练是否受饮食影响。"
+          }
+        ],
+        "optional_capabilities": [],
+        "preferred_time_window": {
+          "kind": "recent",
+          "label": "最近 30 天"
+        },
+        "derived_metrics": [
+          {
+            "name": "饮食-训练相关性指数",
+            "reason": "量化饮食宏量营养素变化对训练表现的影响程度"
+          },
+          {
+            "name": "饮食记录完整性评分",
+            "reason": "评估饮食记录是否覆盖训练周期的关键指标"
+          }
+        ],
+        "missing_information": [
+          "用户未指定具体训练类型或饮食时间范围，但根据分析目标，已通过确定的维度（diet_macros 和 training_context）覆盖核心需求"
+        ],
+        "clarifications": [],
+        "evidence": [],
+        "gpt_prompt_outline": [
+          "1. 从 diet_macros 模块提取最近 30 天的饮食记录（热量、蛋白质、碳水、脂肪）",
+          "2. 从 training_context 模块提取最近 30 天的训练记录（训练日、训练类型、表现指标）",
+          "3. 对齐饮食与训练日期，计算饮食宏量营养素与训练表现的统计相关性",
+          "4. 评估饮食记录是否覆盖训练周期的完整周期（如训练日是否均有对应饮食记录）",
+          "5. 生成饮食-训练相关性指数和饮食记录完整性评分"
+        ]
+      },
+      "validation": {
+        "status": "passed",
+        "error_code": "",
+        "scope_locked_by": "deterministic_core"
+      },
+      "date_movement_capability_resolution": {
+        "status": "resolved",
+        "window": {
+          "window_id": "window:2026-06-18..2026-07-15:2026-07-01..2026-07-15",
+          "requested_start": "2026-06-18",
+          "requested_end": "2026-07-15",
+          "resolved_start": "2026-07-01",
+          "resolved_end": "2026-07-15",
+          "anchor": "safe_default_recent_28d",
+          "modules": [
+            "body",
+            "diet",
+            "training",
+            "movement_history",
+            "raw_entries"
+          ],
+          "record_count": 0,
+          "missing_data_warnings": [
+            "requested range partly falls outside available data; only the real intersection is used"
+          ]
+        },
+        "movement_ids": [],
+        "notes_selection_count": 0
+      },
+      "mapping_preview": {
+        "schema_version": "fitness-ledger-requirement-mapping-v1",
+        "mapped_capabilities": [
+          {
+            "capability_id": "diet_macros",
+            "requirement_kind": "required",
+            "reason": "用户目标'分析饮食是否影响训练'直接需要饮食宏量数据（热量、蛋白质、碳:水、脂肪）来评估饮食对训练的影响。",
+            "source_contracts": [
+              "DataCatalogBuilder.module:diet",
+              "AnalysisExportCommandParser.domain:diet",
+              "IntentCompiler.dimension:diet_macros"
+            ],
+            "status": "available",
+            "requires_user_confirmation": false
+          },
+          {
+            "capability_id": "training_context",
+            "requirement_kind": "required",
+            "reason": "用户目标需要训练上下文（训练日期、类型、表现）来对比饮食数据，分析训练是否受饮食影响。",
+            "source_contracts": [
+              "DataCatalogBuilder.module:training",
+              "AnalysisExportCommandParser.domain:training",
+              "IntentCompiler.dimension:training_context"
+            ],
+            "status": "available",
+            "requires_user_confirmation": false
+          }
+        ],
+        "unresolved_capabilities": [],
+        "date_resolution_status": "deferred_to_date_range_resolver_and_user_confirmation",
+        "notes_scope_status": "not_selected",
+        "raw_permission_status": "not_granted",
+        "deterministic_plan_preview": {
+          "plan_id": "plan:15eab7c765296ebecbc39438",
+          "catalog_id": "ae56a9f1dcdb5a75e1545b72e79336ef32f572a331eae086544fdfc0116c9ebd",
+          "source_snapshot_id": "a6286a3e9965e96acaa480ebc277a2a473da94212e2a41866f009bd2af3b73b3",
+          "original_request": "分析饮食是否影响训练",
+          "interpreted_goal": "分析饮食是否影响训练",
+          "analysis_dimensions": [
+            "diet_macros",
+            "training_context"
+          ],
+          "date_range": {
+            "window_id": "window:2026-06-18..2026-07-15:2026-07-01..2026-07-15",
+            "requested_start": "2026-06-18",
+            "requested_end": "2026-07-15",
+            "resolved_start": "2026-07-01",
+            "resolved_end": "2026-07-15",
+            "anchor": "safe_default_recent_28d",
+            "modules": [
+              "body",
+              "diet",
+              "training",
+              "movement_history",
+              "raw_entries"
+            ],
+            "record_count": 0,
+            "missing_data_warnings": [
+              "requested range partly falls outside available data; only the real intersection is used"
+            ]
+          },
+          "selected_modules": [
+            "diet",
+            "training"
+          ],
+          "selected_fields": {
+            "diet": [
+              "Date",
+              "Calories (kcal)",
+              "Protein (g)",
+              "Carbs (g)",
+              "Fat (g)"
+            ],
+            "training": [
+              "Date",
+              "Split",
+              "Standardized Summary"
+            ]
+          },
+          "selected_movements": [],
+          "notes_selection": [],
+          "candidate_record_ids": [
+            "diet:diet-1",
+            "diet:diet-2",
+            "training:training-1",
+            "training:training-2",
+            "training:training-3"
+          ],
+          "training_detail_level": "summary",
+          "movement_detail_level": "summary",
+          "include_raw_entries": false,
+          "include_excluded_history": false,
+          "excluded_history_usage": "none",
+          "use_progress_history_for_metrics": true,
+          "inclusion_reasons": {
+            "diet": "deterministic grounded scope",
+            "training": "deterministic grounded scope"
+          },
+          "exclusion_reasons": {},
+          "missing_data_warnings": [
+            "requested range partly falls outside available data; only the real intersection is used"
+          ],
+          "estimated_record_count": 5,
+          "estimated_output_size": 1700,
+          "planner_confidence": 1.0,
+          "planning_decision": "ready",
+          "fallback_reason_codes": [],
+          "model_trace_id": "preview:92d42ee841918e87523e9aa6",
+          "generated_at": "2026-07-26T08:20:28",
+          "trimmed": false
+        }
+      },
+      "gpt_analysis_package_preview_summary": {
+        "schema_version": "fitness-ledger-gpt-analysis-package-v1",
+        "package_id": "c8cf862ec97f62c8094cb8f7b4f8a1a5e4c89b8a516601813ed3a13735d7a678",
+        "capability_ids": [
+          "diet_macros",
+          "training_context"
+        ],
+        "preferred_time_window": {
+          "kind": "recent",
+          "label": "最近 30 天"
+        },
+        "confirmed_time_window": null,
+        "data_block_count": 2,
+        "raw_included": false,
+        "notes_scope": null
+      },
+      "service_status": "ready",
+      "executor_called": false,
+      "raw_read": false,
+      "formal_data_written": false,
+      "failure_category": ""
+    },
+    {
+      "case_id": "delete_diet",
+      "user_input": "删除最近饮食记录",
+      "transport": "gate_only",
+      "request_gate": {
+        "schema_version": "fitness-ledger-request-gate-v1",
+        "status": "UNSUPPORTED_WRITE_OPERATION",
+        "request": "删除最近饮食记录",
+        "reason_codes": [
+          "UNSUPPORTED_OPERATION"
+        ],
+        "facts": {},
+        "movement_candidates": [],
+        "confirmation_requirements": []
+      },
+      "planner": {
+        "called": false,
+        "call_count": 0,
+        "status": "not_run",
+        "model": "",
+        "model_digest": "",
+        "prompt_version": "",
+        "latency_ms": 0,
+        "raw_output": "",
+        "stage_results": {}
+      },
+      "analysis_requirement_spec": null,
+      "validation": {
+        "status": "not_run"
+      },
+      "date_movement_capability_resolution": {
+        "status": "not_run"
+      },
+      "mapping_preview": {},
+      "gpt_analysis_package_preview_summary": null,
+      "service_status": "unsupported_operation",
+      "executor_called": false,
+      "raw_read": false,
+      "formal_data_written": false,
+      "failure_category": "REQUEST_GATE"
+    },
+    {
+      "case_id": "raw_trace",
+      "user_input": "查看 Raw 原始记录",
+      "transport": "gate_only",
+      "request_gate": {
+        "schema_version": "fitness-ledger-request-gate-v1",
+        "status": "RAW_PERMISSION_REQUIRED",
+        "request": "查看 Raw 原始记录",
+        "reason_codes": [
+          "RAW_PERMISSION_REQUIRED"
+        ],
+        "facts": {
+          "scope": {
+            "only": false,
+            "include": false,
+            "exclude": false,
+            "excluded_dimensions": [],
+            "only_dimensions": []
+          },
+          "recognized_entities": {
+            "body_parts": [],
+            "movement_mentions": [],
+            "movement_unique": false,
+            "movement_ambiguous": false,
+            "notes_requested": false,
+            "notes_scopes": [],
+            "raw_requested": true
+          },
+          "deterministic_dimensions": [],
+          "command": {
+            "request_kind": "raw_trace",
+            "domains": [],
+            "layers": [
+              "raw"
+            ],
+            "status": "resolved",
+            "errors": [],
+            "date_kind": "none"
+          }
+        },
+        "movement_candidates": [],
+        "confirmation_requirements": [
+          "raw_permission"
+        ]
+      },
+      "planner": {
+        "called": false,
+        "call_count": 0,
+        "status": "not_run",
+        "model": "",
+        "model_digest": "",
+        "prompt_version": "",
+        "latency_ms": 0,
+        "raw_output": "",
+        "stage_results": {}
+      },
+      "analysis_requirement_spec": null,
+      "validation": {
+        "status": "not_run"
+      },
+      "date_movement_capability_resolution": {
+        "status": "not_run"
+      },
+      "mapping_preview": {},
+      "gpt_analysis_package_preview_summary": null,
+      "service_status": "raw_permission_required",
+      "executor_called": false,
+      "raw_read": false,
+      "formal_data_written": false,
+      "failure_category": "REQUEST_GATE"
+    },
+    {
+      "case_id": "ambiguous_target",
+      "user_input": "看看最近情况",
+      "transport": "gate_only",
+      "request_gate": {
+        "schema_version": "fitness-ledger-request-gate-v1",
+        "status": "CLARIFICATION_REQUIRED",
+        "request": "看看最近情况",
+        "reason_codes": [
+          "EMPTY_SCOPE"
+        ],
+        "facts": {
+          "scope": {
+            "only": false,
+            "include": false,
+            "exclude": false,
+            "excluded_dimensions": [],
+            "only_dimensions": []
+          },
+          "recognized_entities": {
+            "body_parts": [],
+            "movement_mentions": [],
+            "movement_unique": false,
+            "movement_ambiguous": false,
+            "notes_requested": false,
+            "notes_scopes": [],
+            "raw_requested": false
+          },
+          "deterministic_dimensions": [],
+          "command": {
+            "request_kind": "analysis_export",
+            "domains": [],
+            "layers": [],
+            "status": "clarification_required",
+            "errors": [
+              "EMPTY_SCOPE"
+            ],
+            "date_kind": "calendar_relative"
+          }
+        },
+        "movement_candidates": [],
+        "confirmation_requirements": [
+          "analysis_target"
+        ]
+      },
+      "planner": {
+        "called": false,
+        "call_count": 0,
+        "status": "not_run",
+        "model": "",
+        "model_digest": "",
+        "prompt_version": "",
+        "latency_ms": 0,
+        "raw_output": "",
+        "stage_results": {}
+      },
+      "analysis_requirement_spec": null,
+      "validation": {
+        "status": "not_run"
+      },
+      "date_movement_capability_resolution": {
+        "status": "not_run"
+      },
+      "mapping_preview": {},
+      "gpt_analysis_package_preview_summary": null,
+      "service_status": "clarification_required",
+      "executor_called": false,
+      "raw_read": false,
+      "formal_data_written": false,
+      "failure_category": "REQUEST_GATE"
+    },
+    {
+      "case_id": "ambiguous_movement",
+      "user_input": "看看推胸有没有进步",
+      "transport": "gate_only",
+      "request_gate": {
+        "schema_version": "fitness-ledger-request-gate-v1",
+        "status": "MOVEMENT_RESOLUTION_REQUIRED",
+        "request": "看看推胸有没有进步",
+        "reason_codes": [
+          "MOVEMENT_REQUIRES_CLARIFICATION"
+        ],
+        "facts": {
+          "scope": {
+            "only": false,
+            "include": false,
+            "exclude": false,
+            "excluded_dimensions": [],
+            "only_dimensions": []
+          },
+          "recognized_entities": {
+            "body_parts": [
+              "CHEST"
+            ],
+            "movement_mentions": [],
+            "movement_unique": false,
+            "movement_ambiguous": false,
+            "notes_requested": false,
+            "notes_scopes": [],
+            "raw_requested": false
+          },
+          "deterministic_dimensions": [
+            "movement_progress"
+          ],
+          "command": {
+            "request_kind": "analysis_export",
+            "domains": [
+              "movement"
+            ],
+            "layers": [
+              "structured"
+            ],
+            "status": "clarification_required",
+            "errors": [
+              "MOVEMENT_REQUIRES_CLARIFICATION"
+            ],
+            "date_kind": "none"
+          }
+        },
+        "movement_candidates": [],
+        "confirmation_requirements": [
+          "movement_identity"
+        ]
+      },
+      "planner": {
+        "called": false,
+        "call_count": 0,
+        "status": "not_run",
+        "model": "",
+        "model_digest": "",
+        "prompt_version": "",
+        "latency_ms": 0,
+        "raw_output": "",
+        "stage_results": {}
+      },
+      "analysis_requirement_spec": null,
+      "validation": {
+        "status": "not_run"
+      },
+      "date_movement_capability_resolution": {
+        "status": "not_run"
+      },
+      "mapping_preview": {},
+      "gpt_analysis_package_preview_summary": null,
+      "service_status": "movement_resolution_required",
+      "executor_called": false,
+      "raw_read": false,
+      "formal_data_written": false,
+      "failure_category": "REQUEST_GATE"
+    },
+    {
+      "case_id": "ollama_unavailable",
+      "user_input": "分析最近体重变化",
+      "transport": "unavailable",
+      "request_gate": {
+        "schema_version": "fitness-ledger-request-gate-v1",
+        "status": "ANALYSIS_REQUEST",
+        "request": "分析最近体重变化",
+        "reason_codes": [],
+        "facts": {
+          "scope": {
+            "only": false,
+            "include": false,
+            "exclude": false,
+            "excluded_dimensions": [],
+            "only_dimensions": []
+          },
+          "recognized_entities": {
+            "body_parts": [],
+            "movement_mentions": [],
+            "movement_unique": false,
+            "movement_ambiguous": false,
+            "notes_requested": false,
+            "notes_scopes": [],
+            "raw_requested": false
+          },
+          "deterministic_dimensions": [
+            "body_state"
+          ],
+          "command": {
+            "request_kind": "analysis_export",
+            "domains": [
+              "body"
+            ],
+            "layers": [
+              "structured"
+            ],
+            "status": "resolved",
+            "errors": [],
+            "date_kind": "calendar_relative"
+          }
+        },
+        "movement_candidates": [],
+        "confirmation_requirements": []
+      },
+      "planner": {
+        "called": false,
+        "call_count": 0,
+        "status": "model_unavailable",
+        "model": "qwen3:4b",
+        "model_digest": "",
+        "prompt_version": "",
+        "latency_ms": 0,
+        "raw_output": "",
+        "stage_results": {}
+      },
+      "analysis_requirement_spec": null,
+      "validation": {
+        "status": "not_run"
+      },
+      "date_movement_capability_resolution": {
+        "status": "not_run"
+      },
+      "mapping_preview": {},
+      "gpt_analysis_package_preview_summary": null,
+      "service_status": "model_unavailable",
+      "executor_called": false,
+      "raw_read": false,
+      "formal_data_written": false,
+      "failure_category": "MODEL_UNAVAILABLE"
+    }
+  ],
+  "summary": {
+    "case_count": 9,
+    "ready_count": 4,
+    "gate_only_count": 5,
+    "executor_called_count": 0,
+    "raw_read_count": 0,
+    "formal_data_written_count": 0,
+    "latency_count": 4,
+    "latency_average_ms": 12535,
+    "latency_p95_ms": 14071,
+    "latency_max_ms": 14071,
+    "planner_call_count_total": 8
+  }
+}

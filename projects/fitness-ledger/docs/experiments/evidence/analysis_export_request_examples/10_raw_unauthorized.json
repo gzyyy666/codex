@@ -1,0 +1,13 @@
+{
+  "request_version": "1.1",
+  "purpose": "Read the raw original records.",
+  "datasets": [{
+    "dataset_id": "body_raw_attempt",
+    "type": "body",
+    "time_range": {"mode": "recent_days", "days": 7},
+    "filters": {},
+    "fields": ["date", "weight_kg"]
+  }],
+  "raw": true,
+  "output": {"formats": ["json"]}
+}

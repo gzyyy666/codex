@@ -991,6 +991,16 @@ Cloud policy: local JSON remains authoritative; no automatic network upload or t
 
 Tests: Python compile, JavaScript syntax checks, regression, smoke, payload build, dry-run validation, service-level fl_meta verification.
 
+## 2026-07-27 - Analysis Export Request Protocol v1.1 Frozen
+
+Documentation-only closure for the accepted `AnalysisExportRequest v1.1`
+contract. Recorded the accepted Commit, protocol status, GPT analysis handoff,
+and the next-stage boundary. No formal data, Raw data, model, Executor, Web
+integration, or Cloud behavior changed.
+
+Tests and evidence: 40 protocol cases PASS; seven closure cases PASS; P0/P1/P2
+0/0/0; `REQUEST_PROTOCOL_ACCEPTED`.
+
 ## 2026-07-07 - Cloud Maintenance Workbench, Focus Rank, And Training-Day Views
 
 Modified areas:

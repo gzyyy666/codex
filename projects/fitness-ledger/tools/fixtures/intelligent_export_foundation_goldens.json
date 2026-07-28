@@ -1,0 +1,59 @@
+[
+  {
+    "name": "body_and_diet_recent",
+    "user_goal": "分析最近体重变化和饮食宏量，看看减脂趋势。",
+    "requirement": {
+      "schema_version": "fitness-ledger-analysis-requirement-v1",
+      "analysis_goal": "评估最近体重与饮食宏量的减脂趋势",
+      "questions_to_answer": ["体重趋势如何？", "饮食宏量是否与目标一致？"],
+      "required_capabilities": [
+        {"capability_id": "body_history", "reason": "用户明确提到体重变化"},
+        {"capability_id": "diet_macros", "reason": "用户明确提到饮食宏量"}
+      ],
+      "optional_capabilities": [],
+      "preferred_time_window": {"kind": "recent", "label": "最近"},
+      "derived_metrics": [{"name": "体重变化趋势", "reason": "帮助回答体重趋势问题"}],
+      "missing_information": [],
+      "clarifications": [],
+      "evidence": [{"text": "最近体重变化和饮食宏量", "source": "user_goal"}],
+      "gpt_prompt_outline": ["先概括数据覆盖", "分别回答体重与宏量问题", "区分事实与不确定性"]
+    },
+    "expected_capabilities": ["body_history", "diet_macros"]
+  },
+  {
+    "name": "movement_progress_with_body_part_context",
+    "user_goal": "看看肩部训练最近有没有进步，重点关注动作表现。",
+    "requirement": {
+      "schema_version": "fitness-ledger-analysis-requirement-v1",
+      "analysis_goal": "评估肩部训练动作表现的近期变化",
+      "questions_to_answer": ["肩部训练表现是否有进步？"],
+      "required_capabilities": [{"capability_id": "movement_progress", "reason": "用户明确要求查看动作表现"}],
+      "optional_capabilities": [{"capability_id": "training_context", "reason": "训练背景可能帮助解释动作变化"}],
+      "preferred_time_window": {"kind": "recent", "label": "最近"},
+      "derived_metrics": [{"name": "动作表现变化", "reason": "帮助比较已记录的动作表现"}],
+      "missing_information": ["尚未指定单一动作"],
+      "clarifications": ["如需单动作结论，请确认具体动作"],
+      "evidence": [{"text": "肩部训练最近有没有进步", "source": "user_goal"}],
+      "gpt_prompt_outline": ["仅使用已解析的动作候选", "标记动作身份不确定性"]
+    },
+    "expected_capabilities": ["movement_progress", "training_context"]
+  },
+  {
+    "name": "notes_requires_confirmation",
+    "user_goal": "总结最近训练备注里反复出现的问题。",
+    "requirement": {
+      "schema_version": "fitness-ledger-analysis-requirement-v1",
+      "analysis_goal": "总结最近训练备注中的重复问题",
+      "questions_to_answer": ["训练备注中有哪些重复问题？"],
+      "required_capabilities": [{"capability_id": "notes_context", "reason": "用户明确要求查看训练备注"}],
+      "optional_capabilities": [],
+      "preferred_time_window": {"kind": "recent", "label": "最近"},
+      "derived_metrics": [],
+      "missing_information": ["Notes 作用域需要确定性确认"],
+      "clarifications": ["请确认只分析训练 Notes"],
+      "evidence": [{"text": "训练备注里反复出现的问题", "source": "user_goal"}],
+      "gpt_prompt_outline": ["先等待 Notes 作用域确认", "不要把 Notes 当作结构化训练字段"]
+    },
+    "expected_capabilities": ["notes_context"]
+  }
+]

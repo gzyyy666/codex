@@ -13,6 +13,7 @@ if str(PROJECT) not in sys.path:
     sys.path.insert(0, str(PROJECT))
 
 from tools.archive_navigation_test import fixture  # noqa: E402
+from web_desktop.backend.analysis_export_protocol import AnonymousFixtureProvider, AnalysisExportProtocolService  # noqa: E402
 from web_desktop.backend.server import LedgerWebService, create_server  # noqa: E402
 
 
@@ -121,12 +122,17 @@ def main() -> None:
     add_review_rows(tracker, dictionary)
     (root / "tracker.json").write_text(json.dumps(tracker, ensure_ascii=False), encoding="utf-8")
     (root / "movement_dictionary.json").write_text(json.dumps(dictionary, ensure_ascii=False), encoding="utf-8")
-    service = LedgerWebService(root / "tracker.json", root / "movement_dictionary.json", root / "backups")
+    service = LedgerWebService(
+        root / "tracker.json",
+        root / "movement_dictionary.json",
+        root / "backups",
+        analysis_export_protocol=AnalysisExportProtocolService(AnonymousFixtureProvider()),
+    )
     server = create_server(port=0, service=service)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     print(f"Fitness Ledger anonymous Web Polish review: http://127.0.0.1:{server.server_port}/#movements", flush=True)
-    print("Review paths: #movements, #training, #diet. Formal data is not loaded.", flush=True)
+    print("Review paths: #body, #movements, #tools?panel=export. Formal data is not loaded.", flush=True)
     try:
         thread.join()
     except KeyboardInterrupt:

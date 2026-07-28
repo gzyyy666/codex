@@ -1,0 +1,21 @@
+{
+  "model_profile": {
+    "name": "qwen2.5-0.5b-instruct-q4_k_m",
+    "model_path": "D:\\Codex\\fitness-ledger-local-semantic-request-interpreter-lab-runtime\\models\\qwen2.5-0.5b-instruct-q4_k_m.gguf",
+    "format": "gguf"
+  },
+  "runtime_config": {
+    "executable_path": "D:\\Codex\\fitness-ledger-local-semantic-request-interpreter-lab-runtime\\llama-cuda\\llama-cli.exe",
+    "grammar_tool_path": "D:\\Codex\\fitness-ledger-local-semantic-request-interpreter-lab-runtime\\json_schema_to_grammar.py",
+    "runtime_directory": "D:\\Codex\\fitness-ledger-local-semantic-request-interpreter-lab-runtime\\tmp\\formal-adapter",
+    "backend": "cuda",
+    "gpu_layers": 99,
+    "timeout_seconds": 60,
+    "n_predict": 640,
+    "ctx_size": 4096,
+    "threads": 4,
+    "threads_batch": 2,
+    "temperature": 0.0,
+    "top_k": 1
+  }
+}

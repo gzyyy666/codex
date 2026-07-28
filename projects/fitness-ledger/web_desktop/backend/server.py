@@ -26,11 +26,19 @@ from mobile_viewer.data_access import LedgerDataAccess  # noqa: E402
 from ledger_commands import DuplicateDateError, LedgerCommandError, LedgerCommandService  # noqa: E402
 from fitness_ledger_core.data_quality_view import SilentHealthCheck, acknowledge_issue, collect_issues  # noqa: E402
 from fitness_ledger_core.analysis_export import build_export  # noqa: E402
+from fitness_ledger_core.intelligent_export import IntelligentExportService  # noqa: E402
+from fitness_ledger_core.local_model_adapter import FakeLocalModelAdapter  # noqa: E402
 from fitness_ledger_core.shared_view_models import LedgerViewModels  # noqa: E402
 from cloud_sync.build_cloud_payload import main as build_cloud_replica, source_metadata  # noqa: E402
 from cloud_sync.sync_to_cloud import sync_payload, validate_payload  # noqa: E402
 from cloud_sync.upload_to_cloudbase import config_status, is_upload_configured, load_sync_config  # noqa: E402
 from web_desktop.backend.build_identity import collect_build_info  # noqa: E402
+from web_desktop.backend.analysis_export_protocol import (  # noqa: E402
+    AnalysisExportProtocolService,
+)
+from fitness_ledger_core.formal_analysis_request_preview_service import (  # noqa: E402
+    FormalAnalysisRequestPreviewService,
+)
 
 
 def load_stable_module():
@@ -59,6 +67,7 @@ class LedgerWebService:
         backup_dir: Path | None = None,
         build_info_path: Path | None = None,
         build_info_override: dict | None = None,
+        analysis_export_protocol: AnalysisExportProtocolService | None = None,
     ) -> None:
         data_file = data_file or PROJECT_DIR / "data" / "tracker.json"
         dictionary_file = dictionary_file or PROJECT_DIR / "data" / "movement_dictionary.json"
@@ -73,9 +82,20 @@ class LedgerWebService:
         )
         self.pending_reviews: dict[str, dict] = {}
         self.pending_lock = threading.RLock()
+        # The Web candidate exposes the deterministic Core only.  The adapter
+        # is injected for the Core contract but ``IntelligentExportService.run``
+        # deliberately performs zero model calls in this phase.
+        self.intelligent_export = IntelligentExportService(self.views, FakeLocalModelAdapter())
         self.server_started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
         self.build_info_path = build_info_path
         self.build_info_override = build_info_override
+        self.analysis_export_protocol = (
+            analysis_export_protocol
+            if analysis_export_protocol is not None
+            else AnalysisExportProtocolService.from_environment()
+        )
+        semantic_config = os.environ.get("FITNESS_LEDGER_SEMANTIC_HINT_CONFIG", "").strip()
+        self.formal_analysis_preview = FormalAnalysisRequestPreviewService.from_runtime_config(semantic_config) if semantic_config else FormalAnalysisRequestPreviewService.from_runtime_config(Path("__missing_formal_semantic_hint_config__.json"))
 
     def build_info(self) -> dict:
         if self.build_info_override is not None:
@@ -105,6 +125,13 @@ class LedgerWebService:
             "custom_movement_canonicalization": True,
             "undo": True,
             "data_check_repair": True,
+            "analysis_export_protocol_v1": True,
+            "analysis_export_formal_source": self.analysis_export_protocol.provider.formal_data_available,
+            "analysis_export_formal_source_status": getattr(
+                self.analysis_export_protocol.provider,
+                "availability_status",
+                "ready",
+            ),
             "phase": "shared-platform-services",
         }
 
@@ -136,6 +163,43 @@ class LedgerWebService:
 
     def analysis_export(self, request: dict) -> dict:
         return build_export(self.views, request)
+
+    def analysis_export_v1_validate(self, request: dict) -> dict:
+        return self.analysis_export_protocol.validate(request)
+
+    def analysis_export_v1_preview(self, request: dict) -> dict:
+        return self.analysis_export_protocol.preview(request)
+
+    def analysis_export_v1_resolve(self, request: dict) -> dict:
+        return self.analysis_export_protocol.resolve(request)
+
+    def analysis_export_v1_export(self, request: dict) -> dict:
+        return self.analysis_export_protocol.export(request)
+
+    def analysis_export_v1_artifact(self, artifact_id: str, format_name: str) -> tuple[str, bytes] | None:
+        return self.analysis_export_protocol.artifact(artifact_id, format_name)
+
+    def analysis_export_natural_language_preview(self, request: dict) -> dict:
+        text = request.get("text")
+        if not isinstance(text, str):
+            return {"status": "invalid_request", "errors": [{"code": "TEXT_MUST_BE_STRING", "path": "$.text", "message": "text must be a string."}], "execution": {"allowed": False, "executor_called": False, "formal_data_written": False, "raw_allowed": False}}
+        text = text.strip()
+        if not text:
+            return {"status": "invalid_request", "errors": [{"code": "TEXT_REQUIRED", "path": "$.text", "message": "请先描述需要分析或导出的内容。"}], "execution": {"allowed": False, "executor_called": False, "formal_data_written": False, "raw_allowed": False}}
+        if len(text) > 500:
+            return {"status": "invalid_request", "errors": [{"code": "TEXT_TOO_LONG", "path": "$.text", "message": "自然语言请求最多 500 个字符。"}], "execution": {"allowed": False, "executor_called": False, "formal_data_written": False, "raw_allowed": False}}
+        try:
+            result = self.formal_analysis_preview.preview(text)
+        except Exception:
+            return {"status": "error", "errors": [{"code": "PREVIEW_UNAVAILABLE", "path": "$", "message": "自然语言预览暂时不可用，请修改请求或使用 JSON Contract。"}], "execution": {"allowed": False, "executor_called": False, "formal_data_written": False, "raw_allowed": False}}
+        return result
+
+    def intelligent_export_preview(self, request: dict) -> dict:
+        text = str(request.get("request", "") or "").strip()
+        if not text:
+            raise LedgerCommandError("请输入分析或导出需求。")
+        result = self.intelligent_export.run(text, str(request.get("budget_mode", "standard") or "standard"))
+        return {"request": text, "deterministic": True, "model_calls": 0, **result}
 
     def acknowledge_data_issue(self, request: dict) -> dict:
         key = str(request.get("issue_key", "")).strip()
@@ -721,10 +785,22 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
             return
         body = path.read_bytes()
         content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        if content_type.startswith("text/") or path.suffix in {".js", ".mjs"}:
+            content_type = f"{content_type}; charset=utf-8"
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def send_bytes(self, body: bytes, content_type: str, filename: str = "") -> None:
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        if filename:
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
         self.end_headers()
         self.wfile.write(body)
 
@@ -799,6 +875,15 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.data.get_record_detail(query.get("date", [""])[0]))
             elif parsed.path == "/api/search":
                 self.send_json(self.service.data.search_records(query.get("q", [""])[0], query.get("scope", ["30d"])[0]))
+            elif parsed.path.startswith("/api/analysis-export/v1/artifact/"):
+                artifact_id = unquote(parsed.path.rsplit("/", 1)[-1])
+                format_name = query.get("format", [""])[0]
+                artifact = self.service.analysis_export_v1_artifact(artifact_id, format_name)
+                if artifact is None:
+                    self.send_json({"error": "Artifact not found."}, HTTPStatus.NOT_FOUND)
+                else:
+                    content_type, body = artifact
+                    self.send_bytes(body, content_type, f"{artifact_id}.{format_name}")
             elif parsed.path.startswith("/app-assets/"):
                 relative = Path(unquote(parsed.path.removeprefix("/app-assets/"))).name
                 self.send_file(ASSET_DIR / relative)
@@ -834,6 +919,18 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.open_cloud_sync_target(request.get("target", "")))
             elif parsed.path == "/api/analysis-export":
                 self.send_json(self.service.analysis_export(request))
+            elif parsed.path == "/api/analysis-export/v1/validate":
+                self.send_json(self.service.analysis_export_v1_validate(request))
+            elif parsed.path == "/api/analysis-export/v1/preview":
+                self.send_json(self.service.analysis_export_v1_preview(request))
+            elif parsed.path == "/api/analysis-export/v1/resolve":
+                self.send_json(self.service.analysis_export_v1_resolve(request))
+            elif parsed.path == "/api/analysis-export/v1/export":
+                self.send_json(self.service.analysis_export_v1_export(request))
+            elif parsed.path == "/api/analysis-export/v1/natural-language/preview":
+                self.send_json(self.service.analysis_export_natural_language_preview(request))
+            elif parsed.path == "/api/intelligent-export/preview":
+                self.send_json(self.service.intelligent_export_preview(request))
             elif parsed.path == "/api/save":
                 self.send_json(self.service.save_review(request))
             elif parsed.path == "/api/dictionary/create":

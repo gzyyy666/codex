@@ -1,0 +1,14 @@
+{
+  "request_version": "1.1",
+  "purpose": "Review explicitly scoped Training Notes alongside training sessions.",
+  "datasets": [{
+    "dataset_id": "training_with_notes",
+    "type": "training",
+    "time_range": {"mode": "recent_days", "days": 28},
+    "filters": {},
+    "fields": ["date", "split"],
+    "notes_scope": "training"
+  }],
+  "raw": false,
+  "output": {"formats": ["json", "markdown"]}
+}

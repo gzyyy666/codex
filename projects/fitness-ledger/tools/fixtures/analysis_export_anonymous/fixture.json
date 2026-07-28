@@ -1,0 +1,79 @@
+{
+  "fixture_version": "anonymous-fixture-v1",
+  "anchor_date": "2099-12-31",
+  "generated_at": "2099-12-31T00:00:00Z",
+  "movement_catalog": [
+    {"movement_id": "m_synthetic_press", "movement_name": "Synthetic Press", "body_part": "chest"},
+    {"movement_id": "m_synthetic_press_alt", "movement_name": "Synthetic Press Alt", "aliases": ["Synthetic Press Ambiguous"], "body_part": "chest"},
+    {"movement_id": "m_synthetic_press_variant", "movement_name": "Synthetic Press Variant", "aliases": ["Synthetic Press Ambiguous"], "body_part": "chest"},
+    {"movement_id": "m_synthetic_fly", "movement_name": "Synthetic Fly", "body_part": "chest"},
+    {"movement_id": "m_synthetic_row", "movement_name": "Synthetic Row", "body_part": "back"}
+  ],
+  "datasets": {
+    "body": [
+      {"date": "2099-12-04", "weight_kg": 72.4, "bowel_movement": "yes", "training_label": "rest", "cardio_summary": "walk-01"},
+      {"date": "2099-12-05", "weight_kg": 72.2, "bowel_movement": "no", "training_label": "rest", "cardio_summary": "walk-02"},
+      {"date": "2099-12-06", "weight_kg": 72.5, "bowel_movement": "yes", "training_label": "rest", "cardio_summary": "walk-03"},
+      {"date": "2099-12-07", "weight_kg": 72.0, "bowel_movement": "yes", "training_label": "rest", "cardio_summary": "walk-04"},
+      {"date": "2099-12-08", "weight_kg": 71.9, "bowel_movement": "no", "training_label": "rest", "cardio_summary": "walk-05"},
+      {"date": "2099-12-09", "weight_kg": 72.1, "bowel_movement": "yes", "training_label": "rest", "cardio_summary": "walk-06"},
+      {"date": "2099-12-10", "weight_kg": 71.8, "bowel_movement": "yes", "training_label": "chest_a", "cardio_summary": "walk-07", "daily_notes": "synthetic note body 01"},
+      {"date": "2099-12-11", "weight_kg": 71.7, "bowel_movement": "no", "training_label": "rest", "cardio_summary": "walk-08"},
+      {"date": "2099-12-12", "bowel_movement": "yes", "training_label": "rest", "daily_notes": "synthetic note body missing weight"},
+      {"date": "2099-12-13", "weight_kg": 71.6, "bowel_movement": "yes", "training_label": "rest", "cardio_summary": "walk-10"},
+      {"date": "2099-12-14", "weight_kg": 71.5, "bowel_movement": "yes", "training_label": "back_a", "cardio_summary": "walk-11"},
+      {"date": "2099-12-15", "weight_kg": 71.4, "bowel_movement": "no", "training_label": "rest", "cardio_summary": "walk-12"},
+      {"date": "2099-12-16", "weight_kg": 71.8, "bowel_movement": "yes", "training_label": "rest", "cardio_summary": "walk-13"},
+      {"date": "2099-12-17", "weight_kg": 71.3, "bowel_movement": "yes", "training_label": "rest", "cardio_summary": "walk-14"},
+      {"date": "2099-12-18", "weight_kg": 71.2, "bowel_movement": "yes", "training_label": "chest_b", "cardio_summary": "walk-15"},
+      {"date": "2099-12-19", "weight_kg": 71.0, "bowel_movement": "no", "training_label": "rest", "cardio_summary": "walk-16"},
+      {"date": "2099-12-20", "weight_kg": 71.1, "bowel_movement": "yes", "training_label": "rest", "cardio_summary": "walk-17"},
+      {"date": "2099-12-21", "weight_kg": 70.9, "bowel_movement": "yes", "training_label": "rest", "cardio_summary": "walk-18"},
+      {"date": "2099-12-22", "weight_kg": 70.8, "bowel_movement": "yes", "training_label": "legs_a", "cardio_summary": "walk-19"},
+      {"date": "2099-12-23", "weight_kg": 70.7, "bowel_movement": "no", "training_label": "rest", "cardio_summary": "walk-20"},
+      {"date": "2099-12-24", "weight_kg": 70.6, "bowel_movement": "yes", "training_label": "chest_c", "cardio_summary": "walk-21", "daily_notes": "synthetic note body 02"},
+      {"date": "2099-12-25", "weight_kg": 70.5, "bowel_movement": "yes", "training_label": "rest", "cardio_summary": "walk-22"},
+      {"date": "2099-12-26", "weight_kg": 70.4, "bowel_movement": "no", "training_label": "rest", "cardio_summary": "walk-23"},
+      {"date": "2099-12-27", "weight_kg": 70.3, "bowel_movement": "yes", "training_label": "rest", "cardio_summary": "walk-24"},
+      {"date": "2099-12-28", "weight_kg": 70.1, "bowel_movement": "yes", "training_label": "chest_d", "cardio_summary": "walk-25"},
+      {"date": "2099-12-29", "weight_kg": 70.2, "bowel_movement": "no", "training_label": "rest", "cardio_summary": "walk-26"},
+      {"date": "2099-12-30", "weight_kg": 70.0, "bowel_movement": "yes", "training_label": "rest", "cardio_summary": "walk-27"},
+      {"date": "2099-12-31", "weight_kg": 69.9, "bowel_movement": "yes", "training_label": "rest", "cardio_summary": "walk-28"}
+    ],
+    "diet": [
+      {"date": "2099-12-15", "calories_kcal": 2010, "protein_g": 141, "carbs_g": 214, "fat_g": 61, "food_summary": "synthetic meal set 01"},
+      {"date": "2099-12-16", "calories_kcal": 1980, "protein_g": 139, "carbs_g": 205, "fat_g": 60, "food_summary": "synthetic meal set 02"},
+      {"date": "2099-12-17", "calories_kcal": 2050, "protein_g": 145, "carbs_g": 221, "fat_g": 62, "food_summary": "synthetic meal set 03"},
+      {"date": "2099-12-18", "calories_kcal": 2200, "protein_g": 152, "carbs_g": 252, "fat_g": 64, "food_summary": "synthetic meal set 04", "diet_notes": "synthetic diet note 01"},
+      {"date": "2099-12-19", "calories_kcal": 1960, "protein_g": 138, "carbs_g": 198, "fat_g": 59, "food_summary": "synthetic meal set 05"},
+      {"date": "2099-12-20", "calories_kcal": 1990, "protein_g": 140, "carbs_g": 204, "fat_g": 60, "food_summary": "synthetic meal set 06"},
+      {"date": "2099-12-21", "calories_kcal": 2030, "protein_g": 143, "carbs_g": 215, "fat_g": 61, "food_summary": "synthetic meal set 07"},
+      {"date": "2099-12-22", "calories_kcal": 2180, "protein_g": 150, "carbs_g": 246, "food_summary": "synthetic meal set 08"},
+      {"date": "2099-12-23", "calories_kcal": 1970, "protein_g": 137, "carbs_g": 201, "fat_g": 58, "food_summary": "synthetic meal set 09"},
+      {"date": "2099-12-24", "calories_kcal": 2240, "protein_g": 154, "carbs_g": 260, "fat_g": 65, "food_summary": "synthetic meal set 10", "diet_notes": "synthetic target-day note"},
+      {"date": "2099-12-25", "calories_kcal": 2100, "protein_g": 146, "carbs_g": 230, "fat_g": 63, "food_summary": "synthetic meal set 11"},
+      {"date": "2099-12-26", "calories_kcal": 2010, "protein_g": 142, "carbs_g": 210, "fat_g": 60, "food_summary": "synthetic meal set 12"},
+      {"date": "2099-12-27", "calories_kcal": 1990, "protein_g": 140, "carbs_g": 207, "fat_g": 59, "food_summary": "synthetic meal set 13"},
+      {"date": "2099-12-28", "calories_kcal": 2220, "protein_g": 153, "carbs_g": 255, "fat_g": 64, "food_summary": "synthetic meal set 14", "diet_notes": "synthetic diet note 02"},
+      {"date": "2099-12-29", "calories_kcal": 1980, "protein_g": 139, "carbs_g": 203, "fat_g": 59, "food_summary": "synthetic meal set 15"},
+      {"date": "2099-12-30", "calories_kcal": 2000, "protein_g": 141, "carbs_g": 208, "fat_g": 60, "food_summary": "synthetic meal set 16"},
+      {"date": "2099-12-31", "calories_kcal": 2020, "protein_g": 144, "carbs_g": 212, "fat_g": 61, "food_summary": "synthetic meal set 17"}
+    ],
+    "training": [
+      {"date": "2099-12-10", "split": "chest", "body_part": "chest", "standardized_summary": "synthetic chest session A", "training_notes": "synthetic training note 01"},
+      {"date": "2099-12-14", "split": "back", "body_part": "back", "standardized_summary": "synthetic back session A"},
+      {"date": "2099-12-18", "split": "chest", "body_part": "chest", "standardized_summary": "synthetic chest session B", "training_notes": "synthetic training note 02"},
+      {"date": "2099-12-22", "split": "legs", "body_part": "legs", "standardized_summary": "synthetic legs session A"},
+      {"date": "2099-12-24", "split": "chest", "body_part": "chest", "standardized_summary": "synthetic chest session C"},
+      {"date": "2099-12-28", "split": "chest", "body_part": "chest", "standardized_summary": "synthetic chest session D", "training_notes": "synthetic training note 03"}
+    ],
+    "movement_progress": [
+      {"date": "2099-12-10", "movement_id": "m_synthetic_press", "movement_name": "Synthetic Press", "body_part": "chest", "variant": "standard", "order": 1, "sets": [{"role": "top", "weight_kg": 42, "reps": 5}, {"role": "working", "weight_kg": 36, "reps": 8}, {"role": "backoff", "weight_kg": 30, "reps": 12}], "movement_notes": "synthetic movement note 01"},
+      {"date": "2099-12-18", "movement_id": "m_synthetic_press", "movement_name": "Synthetic Press", "body_part": "chest", "variant": "standard", "order": 1, "sets": [{"role": "top", "weight_kg": 44, "reps": 5}, {"role": "working", "weight_kg": 38, "reps": 8}, {"role": "backoff", "weight_kg": 32, "reps": 12}], "movement_notes": "synthetic movement note 02"},
+      {"date": "2099-12-24", "movement_id": "m_synthetic_press", "movement_name": "Synthetic Press", "body_part": "chest", "variant": "paused", "order": 1, "sets": [{"role": "top", "weight_kg": 45, "reps": 4}, {"role": "working", "weight_kg": 39, "reps": 8}, {"role": "backoff", "weight_kg": 33, "reps": 10}], "movement_notes": "synthetic movement note 03"},
+      {"date": "2099-12-24", "movement_id": "m_synthetic_fly", "movement_name": "Synthetic Fly", "body_part": "chest", "variant": "cable", "order": 2, "sets": [{"role": "working", "weight_kg": 18, "reps": 12}], "movement_notes": "synthetic movement note 04"},
+      {"date": "2099-12-28", "movement_id": "m_synthetic_press", "movement_name": "Synthetic Press", "body_part": "chest", "variant": "standard", "order": 1, "sets": [{"role": "top", "weight_kg": 46, "reps": 4}, {"role": "working", "weight_kg": 40, "reps": 8}, {"role": "backoff", "weight_kg": 34, "reps": 10}], "movement_notes": "synthetic movement note 05"},
+      {"date": "2099-12-14", "movement_id": "m_synthetic_row", "movement_name": "Synthetic Row", "body_part": "back", "variant": "standard", "order": 1, "sets": [{"role": "working", "weight_kg": 50, "reps": 8}]}
+    ]
+  }
+}
