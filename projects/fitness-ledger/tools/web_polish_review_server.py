@@ -93,15 +93,9 @@ def add_review_rows(tracker: dict, dictionary: dict) -> None:
             "Notes": "Short.",
         },
     ]
-    start = date(2098, 11, 14)
-    weights = [
-        73.4, 73.2, 73.3, 73.0, 72.9, 73.1, 72.8, 72.7, 72.5, 72.6,
-        72.4, 72.2, 72.3, 72.0, 71.9, 72.1, 71.8, 71.7, 71.5, 71.6,
-        71.4, 71.2, 71.3, 71.0, 70.9, 71.1, 70.8, 70.7, 70.5, 70.6,
-        70.4, 70.2, 70.3, 70.0, 69.9, 70.1, 69.8, 69.7, 69.5, 69.6,
-        69.4, 69.2, 69.3, 69.0, 68.9, 69.1, 68.8, 68.7, 68.5, 68.6,
-        68.4, 68.2, 68.3, 68.0, 67.9, 68.1,
-    ]
+    start = date(2098, 9, 19)
+    fluctuation = (0.10, -0.04, 0.06, -0.12, 0.03, -0.08, 0.05)
+    weights = [round(73.8 - index * 0.045 + fluctuation[index % len(fluctuation)], 1) for index in range(112)]
     tracker["daily_records"] = [
         {
             "Date": (start + timedelta(days=index)).isoformat(),

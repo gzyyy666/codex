@@ -702,22 +702,24 @@ function bodyWeightMicroBars(){
   const records=state.body
     .map(record=>({record,index:state.body.indexOf(record),date:dateOf(record),weight:Number(value(record,'Weight (kg)'))}))
     .filter(item=>item.date&&Number.isFinite(item.weight))
-    .slice(0,56)
+    .slice(0,180)
     .reverse();
   if(records.length<2)return '';
-  const weights=records.map(item=>item.weight),minimum=Math.min(...weights),maximum=Math.max(...weights),range=Math.max(maximum-minimum,.6);
+  const weights=records.map(item=>item.weight),minimum=Math.min(...weights),maximum=Math.max(...weights),axisMinimum=Math.floor(minimum*2)/2,axisMaximum=Math.ceil(maximum*2)/2,range=Math.max(axisMaximum-axisMinimum,.5);
   const bars=records.map((item,index)=>{
     const previous=records[index-1],direction=!previous?'is-neutral':item.weight<previous.weight?'is-down':item.weight>previous.weight?'is-up':'is-neutral';
-    const height=34+((item.weight-minimum)/range)*62;
+    const height=18+((item.weight-axisMinimum)/range)*74;
     return `<button type="button" class="weight-micro-bar ${direction}" style="--bar-height:${height.toFixed(2)}%;--interaction-index:${index}" data-detail="body" data-index="${item.index}" data-weight-tip="${esc(item.date)} · ${item.weight.toFixed(1)} kg" aria-label="打开 ${esc(item.date)} 身体记录，体重 ${item.weight.toFixed(1)} kg"><span></span></button>`;
   }).join('');
-  return `<section class="body-weight-rhythm" style="--bar-count:${records.length}" aria-label="最近 ${records.length} 天体重变化"><header><span class="eyebrow">WEIGHT / RECENT ${records.length}</span><strong>${records.at(-1).weight.toFixed(1)}<small>kg</small></strong></header><div class="weight-micro-array">${bars}</div><div class="weight-micro-dates"><span>${esc(records[0].date.slice(5))}</span><span>${esc(records.at(-1).date.slice(5))}</span></div></section>`;
+  return `<section class="body-weight-rhythm" aria-label="最近 ${records.length} 天体重变化"><header><span class="eyebrow">WEIGHT / RECENT ${records.length}</span><strong>${records.at(-1).weight.toFixed(1)}<small>kg</small></strong></header><div class="weight-micro-plot"><div class="weight-y-axis" aria-hidden="true"><span>${axisMaximum.toFixed(1)}</span><small>kg</small><span>${axisMinimum.toFixed(1)}</span></div><div class="weight-micro-scroll" tabindex="0" aria-label="体重图表，可横向滚动查看更多日期"><div class="weight-micro-track" style="--bar-count:${records.length}"><div class="weight-micro-array">${bars}</div><div class="weight-micro-dates"><span>${esc(records[0].date.slice(5))}</span><span>${esc(records.at(-1).date.slice(5))}</span></div></div></div></div></section>`;
 }
 
 function enhanceOfficialBodyRecords(){
   const rows=$('#body-rows');
   if(rows&&!$('.body-weight-rhythm')){
     rows.insertAdjacentHTML('beforebegin',bodyWeightMicroBars());
+    const viewport=$('.weight-micro-scroll');
+    requestAnimationFrame(()=>{if(viewport)viewport.scrollLeft=viewport.scrollWidth});
   }
   $$('.body-slip').forEach((record,index)=>{
     record.classList.add('has-record-interaction');
@@ -751,6 +753,7 @@ function enhanceOfficialMovementChart(movementId){
     });
   });
   chart.classList.add('has-chart-interactions');
+  chart.querySelector('.load-line')?.classList.add('has-entry-animation');
 }
 const loadMovementFocusWithOfficialInteractions=loadMovementFocus;
 loadMovementFocus=async function(movementId){
