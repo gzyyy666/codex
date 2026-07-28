@@ -111,3 +111,19 @@ The next change should be a separate reviewed commit that:
 Do not expose local filesystem paths or Provider stderr/stdout in Web responses.
 Do not treat this candidate or the independent Lab Gold score as formal product
 acceptance.
+
+## Formal read-only runtime configuration
+
+The Web runtime connects the accepted formal read-only source only when one of
+these explicit configurations is present before process startup:
+
+- `FITNESS_LEDGER_FORMAL_DIR`, pointing to the formal application directory or
+  directly to its `data` directory; or
+- both `FITNESS_LEDGER_FORMAL_TRACKER_PATH` and
+  `FITNESS_LEDGER_FORMAL_MOVEMENT_DICTIONARY_PATH`.
+
+Missing, incomplete, or invalid configuration remains fail-closed and is exposed
+through `/api/capabilities` as `analysis_export_formal_source=false` plus a
+non-sensitive status. Environment changes require a server restart because the
+semantic Preview service and formal read-only snapshot are assembled once at
+process startup.

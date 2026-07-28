@@ -40,6 +40,9 @@ _KNOWN_MOVEMENT_NAMES = (
     "引体向上", "高位下拉", "坐姿划船", "杠铃划船", "肩推", "推举",
     "侧平举", "腿举", "腿屈伸", "腿弯举",
 )
+_MOVEMENT_NAME_CANONICALIZATION = {
+    "杠铃卧推": "卧推",
+}
 _BODY_PARTS = {
     "胸": "Chest", "背": "Back", "肩": "Shoulder", "手臂": "Arms",
     "腿": "Legs", "核心": "Core", "腹": "Core",
@@ -189,7 +192,10 @@ def _parse(text: str) -> _ParsedIntent:
         if movement_name is not None:
             filters["movement_progress"]["movement_selector"] = {
                 "kind": "movement_name",
-                "value": movement_name,
+                "value": _MOVEMENT_NAME_CANONICALIZATION.get(
+                    movement_name,
+                    movement_name,
+                ),
             }
     explicit_fields: dict[str, tuple[str, ...]] = {}
     for kind in datasets:

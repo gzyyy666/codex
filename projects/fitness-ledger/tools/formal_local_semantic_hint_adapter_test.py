@@ -96,7 +96,7 @@ def test_time_relation_notes_and_movement() -> None:
     movement = adapter.preview("导出最近三次杠铃卧推的负重和组数")
     assert movement["status"] == "ready", movement
     selector = movement["request"]["datasets"][0]["filters"]["movement_selector"]
-    assert selector == {"kind": "movement_name", "value": "杠铃卧推"}
+    assert selector == {"kind": "movement_name", "value": "卧推"}
 
 
 def test_confirmation_planner_and_capability_boundaries() -> None:

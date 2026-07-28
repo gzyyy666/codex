@@ -1,20 +1,21 @@
 """Read-only Analysis Export Request v1.1 protocol service.
 
 The service is deliberately separate from the legacy ``/api/analysis-export``
-command.  It validates every request again at each boundary and only exports
-through an injected read-only materializer provider.  The current Web worktree
-has no formal adapter, so the default provider reports that formal data is
-unavailable.  Tests and the anonymous review server may inject the visibly
-synthetic fixture provider.
+command. It validates every request again at each boundary and only exports
+through an injected read-only materializer provider. Formal files are connected
+only through explicit environment configuration; otherwise the service fails
+closed. Tests and the anonymous review server may inject the visibly synthetic
+fixture provider.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
 import json
+import os
 import secrets
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Mapping, Protocol
 
 from fitness_ledger_core.analysis_export_materializer import (
     AnonymousFixtureMaterializer,
@@ -24,6 +25,10 @@ from fitness_ledger_core.analysis_export_request import (
     REQUEST_SCHEMA_VERSION,
     RequestValidationResult,
     validate_request,
+)
+from fitness_ledger_core.formal_readonly_data_source import (
+    FormalReadOnlyDataSource,
+    FormalReadOnlyDataSourceError,
 )
 
 
@@ -69,10 +74,13 @@ class MaterializerProvider(Protocol):
 
 
 class FormalReadOnlyProvider:
-    """Placeholder until the formal read-only adapter is supplied."""
+    """Fail-closed placeholder when formal read-only inputs are not configured."""
 
     source_kind = "formal_read_only"
     formal_data_available = False
+
+    def __init__(self, availability_status: str = "not_configured") -> None:
+        self.availability_status = availability_status
 
     def _unavailable(self) -> None:
         raise AnalysisExportProviderUnavailable(
@@ -124,6 +132,31 @@ class AnalysisExportProtocolService:
         self.provider = provider or FormalReadOnlyProvider()
         self._previews: dict[str, StoredPreview] = {}
         self._artifacts: dict[str, dict[str, Any]] = {}
+
+    @classmethod
+    def from_environment(
+        cls,
+        environment: Mapping[str, str] | None = None,
+    ) -> "AnalysisExportProtocolService":
+        values = os.environ if environment is None else environment
+        tracker = str(values.get("FITNESS_LEDGER_FORMAL_TRACKER_PATH", "")).strip()
+        dictionary = str(
+            values.get("FITNESS_LEDGER_FORMAL_MOVEMENT_DICTIONARY_PATH", "")
+        ).strip()
+        formal_dir = str(values.get("FITNESS_LEDGER_FORMAL_DIR", "")).strip()
+        if formal_dir and not tracker and not dictionary:
+            root = Path(formal_dir).expanduser()
+            data_root = root / "data" if (root / "data").is_dir() else root
+            tracker = str(data_root / "tracker.json")
+            dictionary = str(data_root / "movement_dictionary.json")
+        if not tracker and not dictionary:
+            return cls(FormalReadOnlyProvider("not_configured"))
+        if not tracker or not dictionary:
+            return cls(FormalReadOnlyProvider("incomplete_configuration"))
+        try:
+            return cls(FormalReadOnlyDataSource(tracker, dictionary))
+        except (FormalReadOnlyDataSourceError, OSError):
+            return cls(FormalReadOnlyProvider("invalid_configuration"))
 
     @staticmethod
     def _request(payload: dict[str, Any]) -> dict[str, Any]:
@@ -262,6 +295,11 @@ class AnalysisExportProtocolService:
                 "execution": self._execution(),
             }
         except AnalysisExportProviderUnavailable:
+            availability = getattr(
+                self.provider,
+                "availability_status",
+                "unavailable",
+            )
             return {
                 "status": "formal_data_unavailable",
                 "schema_version": REQUEST_SCHEMA_VERSION,
@@ -270,7 +308,10 @@ class AnalysisExportProtocolService:
                 "preview": {
                     **self._structural_preview(result),
                     "status": "formal_data_unavailable",
-                    "warnings": ["Formal read-only data source is not connected in this Web worktree."],
+                    "warnings": [
+                        "Formal read-only data source is unavailable: "
+                        + availability
+                    ],
                 },
                 "execution": self._execution(),
             }

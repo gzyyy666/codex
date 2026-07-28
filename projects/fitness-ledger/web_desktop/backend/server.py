@@ -89,7 +89,11 @@ class LedgerWebService:
         self.server_started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
         self.build_info_path = build_info_path
         self.build_info_override = build_info_override
-        self.analysis_export_protocol = analysis_export_protocol or AnalysisExportProtocolService()
+        self.analysis_export_protocol = (
+            analysis_export_protocol
+            if analysis_export_protocol is not None
+            else AnalysisExportProtocolService.from_environment()
+        )
         semantic_config = os.environ.get("FITNESS_LEDGER_SEMANTIC_HINT_CONFIG", "").strip()
         self.formal_analysis_preview = FormalAnalysisRequestPreviewService.from_runtime_config(semantic_config) if semantic_config else FormalAnalysisRequestPreviewService.from_runtime_config(Path("__missing_formal_semantic_hint_config__.json"))
 
@@ -123,6 +127,11 @@ class LedgerWebService:
             "data_check_repair": True,
             "analysis_export_protocol_v1": True,
             "analysis_export_formal_source": self.analysis_export_protocol.provider.formal_data_available,
+            "analysis_export_formal_source_status": getattr(
+                self.analysis_export_protocol.provider,
+                "availability_status",
+                "ready",
+            ),
             "phase": "shared-platform-services",
         }
 
