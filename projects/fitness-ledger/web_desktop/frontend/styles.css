@@ -3282,6 +3282,16 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
   position:relative;
   display:block;
 }
+.weight-micro-plot::after{
+  content:"";
+  position:absolute;
+  z-index:0;
+  left:32px;
+  right:8px;
+  top:50%;
+  border-top:1px dashed rgba(16,16,14,.09);
+  pointer-events:none;
+}
 .weight-y-axis{
   position:absolute;
   z-index:3;
@@ -3310,6 +3320,8 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
   text-transform:uppercase;
 }
 .weight-micro-scroll{
+  position:relative;
+  z-index:1;
   width:100%;
   overflow-x:auto;
   overflow-y:hidden;
@@ -3345,6 +3357,7 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
   border-bottom:1px solid rgba(16,16,14,.18);
 }
 .weight-micro-bar{
+  --bar-color:#7d7e79;
   position:relative;
   flex:0 0 11px;
   width:11px;
@@ -3361,15 +3374,27 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
   width:3px;
   height:var(--bar-height);
   border-radius:2px 2px 0 0;
-  background:#8b8a83;
+  background:var(--bar-color);
   transform:translateX(-50%) scaleY(0);
   transform-origin:center bottom;
   animation:weight-micro-enter .42s cubic-bezier(.22,.8,.32,1) forwards;
   animation-delay:calc(var(--interaction-index) * 16ms);
   transition:width .15s ease,filter .15s ease,transform .15s ease;
 }
-.weight-micro-bar.is-down span{background:#5f9276}
-.weight-micro-bar.is-up span{background:#b86159}
+.weight-micro-bar span::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:0;
+  width:5px;
+  height:1px;
+  border-radius:999px;
+  background:var(--bar-color);
+  box-shadow:0 0 5px color-mix(in srgb,var(--bar-color) 38%,transparent);
+  transform:translate(-50%,-50%);
+}
+.weight-micro-bar.is-down{--bar-color:#438c68}
+.weight-micro-bar.is-up{--bar-color:#c45850}
 .weight-micro-bar:hover span,
 .weight-micro-bar:focus-visible span{
   width:5px;
