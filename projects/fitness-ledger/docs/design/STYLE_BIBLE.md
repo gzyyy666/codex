@@ -122,6 +122,7 @@ Use the `Review Scroll` pattern: a narrow sticky chapter index, one continuous w
 Body slips may use controlled high-saturation tones, but foreground contrast must always pass. Color is meaningful or rhythm-driven, never a blind repeating pattern.
 Body filtering stays intentionally small: free-text/date search, a recent-days range, and newest/oldest ordering. Training, bowel, and cardio filter controls do not belong in the primary archive toolbar.
 The Body archive may precede its slips with one low-height Lupi `L3 Barcode Lollipop` weight field. One hairline equals one real calendar day inside the recent 90-day window; only recorded weigh-in days receive a lollipop and value dot, so missing dates stay visibly empty. Dot height follows the real focused weight scale, which must label its range. The field reveals on entry and supports an explicit replay, but never loops or implies an unrecorded trend.
+Chart nodes are quiet controls, not decoration: hover or keyboard focus reveals the concrete date and value, while activating a weigh-in opens the existing Body record detail. Empty calendar rails remain non-interactive.
 
 ### Diet
 
@@ -167,6 +168,7 @@ Body-area color leads each panel without becoming bright or toy-like: shoulder m
 
 The progression chart and recent records are primary. The title/illustration banner is compact and auxiliary.
 The recent progression chart uses the Lupi Editorial `L1 Launch Fan` grammar for its intentionally small sample of recent sessions. One spoke equals one effective training session; radial distance represents maximum load or total repetitions, the main dot area represents relative workload, and every small dot represents one working set. Labeled guide arcs must remain readable without hover, while peak and latest dots receive restrained emphasis. The chart reveals on entry and supports an explicit replay, with a reduced-motion fallback; it must not loop. Do not invent texture dots, connect sessions with a decorative line, break the scale, interpolate missing values, or include excluded history to manufacture a stronger trend.
+Movement session nodes are keyboard-accessible controls. Hover/focus exposes date, focused value, set count and relative workload; activation routes through the existing date + movement_id Training navigation so the chart remains a compact index into the archive rather than a second data source.
 
 ### Data Check
 

@@ -39,8 +39,8 @@ const emptyState=()=>({
   movementGroups:['Chest'],sync:{sync_status:'SYNCED'},build:{status:'PREVIEW',short_sha:'instance-test'}
 });
 let savedReview=null,updateRequests=[],archiveRefs=[
-  {history_id:'history-main',movement_id:'MOV_A',display_name:'Bench Press',english_name:'Bench Press',muscle_group:'Chest',is_linkable:true,order:1,sets_lines:['100kg x 8 x 3'],notes:'main',exclude_from_progress:false,has_structured_sets:true},
-  {history_id:'history-volume',movement_id:'MOV_A',display_name:'Bench Press',english_name:'Bench Press',muscle_group:'Chest',is_linkable:true,order:2,sets_lines:['60kg x 12 x 2'],notes:'volume',exclude_from_progress:true,has_structured_sets:true}
+  {history_id:'history-main',movement_id:'MOV_A',display_name:'Bench Press',english_name:'Bench Press',muscle_group:'Chest',date:'2099-01-05',is_linkable:true,order:1,sets_lines:['100kg x 8 x 3'],notes:'main',exclude_from_progress:false,has_structured_sets:true},
+  {history_id:'history-volume',movement_id:'MOV_A',display_name:'Bench Press',english_name:'Bench Press',muscle_group:'Chest',date:'2099-01-05',is_linkable:true,order:2,sets_lines:['60kg x 12 x 2'],notes:'volume',exclude_from_progress:true,has_structured_sets:true}
 ];
 const parsePayload={review_id:'review-instance-1',review:{id:'review-instance-1',date:'2099-01-05',raw:'training: Bench Press',body:{},diet:{},training:{split:'Chest',standardized_summary:'Bench Press',notes:'',movements:[
   {name:'Bench Press',display_name:'Bench Press',movement_id:'MOV_A',order:1,sets:[{weight:100,reps:8,sets:3}],notes:'main',_review_action:'use',exclude_from_progress:false},
@@ -112,6 +112,10 @@ const movementProgressChartLabelCount=document.querySelectorAll('.movement-progr
 const movementProgressChartFiltered=movementProgressChartLabelCount===1;
 const movementProgressChartUsesSessionGrammar=Boolean(document.querySelector('.movement-progress-panel .session-fan-guides')&&document.querySelectorAll('.movement-progress-panel .session-fan-spoke').length===1&&document.querySelector('.movement-progress-panel .chart-footnote')?.textContent.includes('LAUNCH FAN')&&document.querySelector('.movement-progress-panel [data-chart-replay]'));
 const movementProgressChartIsAccessible=Boolean(document.querySelector('.movement-progress-panel .progress-chart')?.getAttribute('aria-label')?.includes('effective sessions'));
+const movementProgressChartNodeIsInteractive=Boolean(document.querySelector('.movement-progress-panel [data-chart-date][data-chart-movement-id][data-chart-unit][role="button"][tabindex="0"]'));
+const movementProgressChartHoverReadout=document.querySelector('.movement-progress-panel [data-chart-date]');if(movementProgressChartHoverReadout)setChartHoverReadout(movementProgressChartHoverReadout);
+const movementProgressChartHoverText=document.querySelector('.movement-progress-panel [data-chart-hover-readout]')?.textContent||'';
+const movementProgressChartHoverIsConcrete=movementProgressChartHoverText.includes('2099-01-05');
 const movementTrajectoryEntries=[...document.querySelectorAll('.trajectory-entry')];
 const movementTrajectoryKeepsFullHistory=movementTrajectoryEntries.length===2&&movementTrajectoryEntries.some(row=>row.textContent.includes('100kg x 8 x 3'))&&movementTrajectoryEntries.some(row=>row.textContent.includes('60kg x 12 x 2'));
 document.querySelector('[data-movement-history-edit]')?.click();
@@ -125,7 +129,8 @@ bodyPage();
 await wait(80);
 const bodyTrendVisible=Boolean(document.querySelector('.body-trend-panel .body-weight-barcode')&&document.querySelectorAll('.body-weight-lollipops g').length===3&&document.querySelector('.body-trend-panel [data-chart-replay]'));
 const bodyTrendCalendarHonest=document.querySelectorAll('.body-chart-calendar line').length===5&&document.querySelector('.body-chart-footnote')?.textContent.includes('MISSING DAYS REMAIN EMPTY');
-const report=document.createElement('div');report.id='movement-instance-report';report.dataset.value=encodeURIComponent(JSON.stringify({reviewHasTwoIndependentToggles,unknownIsSeparated,saveCarriesInstanceState,archiveKeepsBoth,archiveEditUsesStableIds,editControlVisible,historyEditUsesStableIds,movementProgressChartFiltered,movementProgressChartUsesSessionGrammar,movementProgressChartIsAccessible,movementTrajectoryKeepsFullHistory,movementProgressChartLabelCount,bodyTrendVisible,bodyTrendCalendarHonest,updateRequests}));document.body.appendChild(report);
+const bodyTrendNodesAreInteractive=Boolean(document.querySelector('.body-trend-panel [data-chart-date][data-chart-detail-kind="body"][data-chart-detail-index][role="button"][tabindex="0"]'));
+const report=document.createElement('div');report.id='movement-instance-report';report.dataset.value=encodeURIComponent(JSON.stringify({reviewHasTwoIndependentToggles,unknownIsSeparated,saveCarriesInstanceState,archiveKeepsBoth,archiveEditUsesStableIds,editControlVisible,historyEditUsesStableIds,movementProgressChartFiltered,movementProgressChartUsesSessionGrammar,movementProgressChartIsAccessible,movementProgressChartNodeIsInteractive,movementProgressChartHoverIsConcrete,movementProgressChartHoverText,movementTrajectoryKeepsFullHistory,movementProgressChartLabelCount,bodyTrendVisible,bodyTrendCalendarHonest,bodyTrendNodesAreInteractive,updateRequests}));document.body.appendChild(report);
 """
     with tempfile.TemporaryDirectory(prefix="fitness-ledger-instance-progress-browser-") as temp:
         page = Path(temp) / "index.html"
@@ -144,9 +149,9 @@ const report=document.createElement('div');report.id='movement-instance-report';
     assert all(report[key] is True for key in (
         "reviewHasTwoIndependentToggles", "unknownIsSeparated", "saveCarriesInstanceState",
         "archiveKeepsBoth", "archiveEditUsesStableIds", "editControlVisible", "historyEditUsesStableIds",
-        "movementProgressChartFiltered", "movementProgressChartUsesSessionGrammar",
-        "movementProgressChartIsAccessible", "movementTrajectoryKeepsFullHistory",
-        "bodyTrendVisible", "bodyTrendCalendarHonest",
+         "movementProgressChartFiltered", "movementProgressChartUsesSessionGrammar",
+         "movementProgressChartIsAccessible", "movementProgressChartNodeIsInteractive",
+         "movementTrajectoryKeepsFullHistory", "bodyTrendVisible", "bodyTrendCalendarHonest", "bodyTrendNodesAreInteractive",
     )), report
 
 
