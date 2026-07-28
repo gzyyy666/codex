@@ -110,7 +110,7 @@ await loadMovementFocus('MOV_A');
 await wait(80);
 const movementProgressChartLabelCount=document.querySelectorAll('.movement-progress-panel .session-fan-spoke').length;
 const movementProgressChartFiltered=movementProgressChartLabelCount===1;
-const movementProgressChartUsesSessionGrammar=Boolean(document.querySelector('.movement-progress-panel .session-fan-guides')&&document.querySelectorAll('.movement-progress-panel .session-fan-spoke').length===1&&document.querySelector('.movement-progress-panel .chart-footnote')?.textContent.includes('LAUNCH FAN'));
+const movementProgressChartUsesSessionGrammar=Boolean(document.querySelector('.movement-progress-panel .session-fan-guides')&&document.querySelectorAll('.movement-progress-panel .session-fan-spoke').length===1&&document.querySelector('.movement-progress-panel .chart-footnote')?.textContent.includes('LAUNCH FAN')&&document.querySelector('.movement-progress-panel [data-chart-replay]'));
 const movementProgressChartIsAccessible=Boolean(document.querySelector('.movement-progress-panel .progress-chart')?.getAttribute('aria-label')?.includes('effective sessions'));
 const movementTrajectoryEntries=[...document.querySelectorAll('.trajectory-entry')];
 const movementTrajectoryKeepsFullHistory=movementTrajectoryEntries.length===2&&movementTrajectoryEntries.some(row=>row.textContent.includes('100kg x 8 x 3'))&&movementTrajectoryEntries.some(row=>row.textContent.includes('60kg x 12 x 2'));
@@ -123,7 +123,7 @@ await wait(160);
 const historyEditUsesStableIds=updateRequests.some(row=>row.history_id==='history-main'&&row.values?.exclude_from_progress===true);
 bodyPage();
 await wait(80);
-const bodyTrendVisible=Boolean(document.querySelector('.body-trend-panel .body-weight-line')&&document.querySelectorAll('.body-weight-dots circle').length===3);
+const bodyTrendVisible=Boolean(document.querySelector('.body-trend-panel .body-weight-barcode')&&document.querySelectorAll('.body-weight-lollipops g').length===3&&document.querySelector('.body-trend-panel [data-chart-replay]'));
 const bodyTrendCalendarHonest=document.querySelectorAll('.body-chart-calendar line').length===5&&document.querySelector('.body-chart-footnote')?.textContent.includes('MISSING DAYS REMAIN EMPTY');
 const report=document.createElement('div');report.id='movement-instance-report';report.dataset.value=encodeURIComponent(JSON.stringify({reviewHasTwoIndependentToggles,unknownIsSeparated,saveCarriesInstanceState,archiveKeepsBoth,archiveEditUsesStableIds,editControlVisible,historyEditUsesStableIds,movementProgressChartFiltered,movementProgressChartUsesSessionGrammar,movementProgressChartIsAccessible,movementTrajectoryKeepsFullHistory,movementProgressChartLabelCount,bodyTrendVisible,bodyTrendCalendarHonest,updateRequests}));document.body.appendChild(report);
 """

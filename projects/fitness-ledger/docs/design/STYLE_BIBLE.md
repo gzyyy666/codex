@@ -121,7 +121,7 @@ Use the `Review Scroll` pattern: a narrow sticky chapter index, one continuous w
 
 Body slips may use controlled high-saturation tones, but foreground contrast must always pass. Color is meaningful or rhythm-driven, never a blind repeating pattern.
 Body filtering stays intentionally small: free-text/date search, a recent-days range, and newest/oldest ordering. Training, bowel, and cardio filter controls do not belong in the primary archive toolbar.
-The Body archive may precede its slips with one low-height editorial weight trace. One dot equals one recorded weigh-in, horizontal placement follows the real calendar interval, and missing dates stay empty. The visible focused scale must label its real range; the chart may reveal once when it enters the viewport but must never loop or imply an unrecorded trend.
+The Body archive may precede its slips with one low-height Lupi `L3 Barcode Lollipop` weight field. One hairline equals one real calendar day inside the recent 90-day window; only recorded weigh-in days receive a lollipop and value dot, so missing dates stay visibly empty. Dot height follows the real focused weight scale, which must label its range. The field reveals on entry and supports an explicit replay, but never loops or implies an unrecorded trend.
 
 ### Diet
 
@@ -166,7 +166,7 @@ Body-area color leads each panel without becoming bright or toy-like: shoulder m
 ### Movement Detail
 
 The progression chart and recent records are primary. The title/illustration banner is compact and auxiliary.
-The recent progression chart uses the Lupi Editorial `L1 Launch Fan` grammar for its intentionally small sample of recent sessions. One spoke equals one effective training session; radial distance represents maximum load or total repetitions, the main dot area represents relative workload, and every small dot represents one working set. Faint labeled guide arcs establish the focused scale, while peak and latest dots may receive restrained emphasis. The chart may reveal once on entry, with a reduced-motion fallback; it must not loop. Do not invent texture dots, connect sessions with a decorative line, break the scale, interpolate missing values, or include excluded history to manufacture a stronger trend.
+The recent progression chart uses the Lupi Editorial `L1 Launch Fan` grammar for its intentionally small sample of recent sessions. One spoke equals one effective training session; radial distance represents maximum load or total repetitions, the main dot area represents relative workload, and every small dot represents one working set. Labeled guide arcs must remain readable without hover, while peak and latest dots receive restrained emphasis. The chart reveals on entry and supports an explicit replay, with a reduced-motion fallback; it must not loop. Do not invent texture dots, connect sessions with a decorative line, break the scale, interpolate missing values, or include excluded history to manufacture a stronger trend.
 
 ### Data Check
 

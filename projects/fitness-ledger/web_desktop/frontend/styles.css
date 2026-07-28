@@ -2395,12 +2395,14 @@ table{border-collapse:collapse}thead{background:rgba(18,17,15,.035)}th{font-size
 .body-trend-copy p{margin:0;color:var(--graphite);font-size:10px;line-height:1.65}
 .body-trend-copy small{display:block;margin-top:16px;color:rgba(24,21,16,.48);font-size:8px;font-weight:600;letter-spacing:.13em}
 .body-trend-chart{grid-area:body-chart;width:100%;height:174px;overflow:visible}
-.body-chart-calendar line{stroke:rgba(24,21,16,.055);stroke-width:.65}
+.body-chart-calendar line{stroke:rgba(24,21,16,.105);stroke-width:.7;opacity:0}
 .body-chart-grid line{stroke:rgba(24,21,16,.15);stroke-width:.8;stroke-dasharray:2 5}
-.body-weight-line{fill:none;stroke:var(--ink);stroke-width:1.35;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1}
-.body-weight-dots circle{fill:var(--color-paper-light);stroke:var(--ink);stroke-width:1.25;opacity:0;transform-box:fill-box;transform-origin:center}
-.body-weight-dots circle.is-latest{fill:#e56f49;stroke-width:1.6}
-.body-weight-dots circle.is-peak:not(.is-latest){fill:var(--ink)}
+.body-weight-lollipops g{opacity:0}
+.body-weight-lollipops line{stroke:rgba(24,21,16,.62);stroke-width:1.05}
+.body-weight-lollipops circle{fill:var(--color-paper-light);stroke:var(--ink);stroke-width:1.35;transform-box:fill-box;transform-origin:center}
+.body-weight-lollipops g.is-latest circle{fill:#e56f49;stroke-width:1.7}
+.body-weight-lollipops g.is-peak:not(.is-latest) circle{fill:var(--ink)}
+.body-weight-lollipops text{font:800 8px var(--font);fill:var(--ink);paint-order:stroke;stroke:var(--color-paper-light);stroke-width:3px}
 .body-chart-axis text,.body-chart-dates text{font:600 8px var(--font);fill:rgba(24,21,16,.48);font-variant-numeric:tabular-nums}
 .body-chart-footnote{font:600 7px var(--font);fill:rgba(24,21,16,.36);letter-spacing:.11em}
 .body-trend-signal{grid-area:body-signal;padding-left:18px;border-left:1px solid rgba(24,21,16,.17)}
@@ -2413,6 +2415,10 @@ table{border-collapse:collapse}thead{background:rgba(18,17,15,.035)}th{font-size
 .progress-copy h2{margin:10px 0 8px;font:400 34px/.95 var(--font-editorial)}
 .progress-copy p{margin:0;color:var(--graphite);font-size:11px;line-height:1.6}
 .progress-method{display:block;margin-top:18px;color:rgba(24,21,16,.5);font-size:8px;font-weight:600;letter-spacing:.14em}
+.chart-replay-control{margin-top:12px;padding:0;border:0;border-bottom:1px solid rgba(24,21,16,.28);background:transparent;color:rgba(24,21,16,.62);font:600 8px var(--font);letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+.chart-replay-control:hover,.chart-replay-control:focus-visible{color:var(--ink);border-color:var(--ink)}
+.progress-chart[data-chart-replay-surface],.body-trend-chart[data-chart-replay-surface]{cursor:pointer}
+.progress-chart[data-chart-replay-surface]:focus-visible,.body-trend-chart[data-chart-replay-surface]:focus-visible{outline:1px solid rgba(24,21,16,.5);outline-offset:5px}
 .progress-signal{grid-area:signal;padding-left:18px;border-left:1px solid rgba(24,21,16,.18)}
 .progress-signal span,.progress-signal small{display:block;color:var(--graphite);font-size:10px}
 .progress-signal strong{display:block;margin:5px 0;font:400 25px/1 var(--font-editorial)}
@@ -2420,24 +2426,25 @@ table{border-collapse:collapse}thead{background:rgba(18,17,15,.035)}th{font-size
 .progress-signal em{display:block;margin-top:17px;color:rgba(24,21,16,.62);font-size:9px;font-style:normal;letter-spacing:.07em;text-transform:uppercase}
 .progress-chart{grid-area:chart;width:100%;height:190px;overflow:visible}
 .session-fan-guides g{opacity:0}
-.session-fan-guides path{fill:none;stroke:rgba(24,21,16,.19);stroke-width:.8;stroke-dasharray:2 5}
-.session-fan-guides text{font:600 7px var(--font);fill:rgba(24,21,16,.4);font-variant-numeric:tabular-nums}
+.session-fan-guides path{fill:none;stroke:rgba(24,21,16,.27);stroke-width:.9;stroke-dasharray:2 5}
+.session-fan-guides text{font:700 8px var(--font);fill:rgba(24,21,16,.55);font-variant-numeric:tabular-nums}
 .session-fan-spoke{opacity:0}
-.session-fan-spoke .fan-rail{stroke:rgba(24,21,16,.24);stroke-width:.8;stroke-dasharray:1;stroke-dashoffset:1}
-.session-fan-spoke .fan-set-dot{fill:rgba(24,21,16,.42);transform-box:fill-box;transform-origin:center}
+.session-fan-spoke .fan-rail{stroke:rgba(24,21,16,.4);stroke-width:1;stroke-dasharray:1;stroke-dashoffset:1}
+.session-fan-spoke .fan-set-dot{fill:rgba(24,21,16,.68);transform-box:fill-box;transform-origin:center}
 .session-fan-spoke .fan-session-dot{fill:var(--ink);stroke:var(--color-paper-light);stroke-width:1.4;transform-box:fill-box;transform-origin:center}
 .session-fan-spoke.is-latest .fan-session-dot{fill:var(--sun);stroke:var(--ink);stroke-width:1.6}
 .fan-date-label{font:600 9px var(--font);fill:rgba(24,21,16,.68);letter-spacing:.05em}
 .fan-value-label{font:800 8px var(--font);fill:var(--ink);paint-order:stroke;stroke:var(--color-paper-light);stroke-width:3px}
 .fan-origin{fill:var(--ink)}
 .chart-footnote{font:600 7px var(--font);fill:rgba(24,21,16,.38);letter-spacing:.13em}
-[data-editorial-chart].is-chart-revealed .session-fan-guides g{animation:movement-chart-fade .7s ease forwards;animation-delay:calc(var(--chart-index)*90ms)}
-[data-editorial-chart].is-chart-revealed .session-fan-spoke{animation:movement-chart-fade .42s ease forwards;animation-delay:calc(120ms + var(--chart-index)*80ms)}
-[data-editorial-chart].is-chart-revealed .session-fan-spoke .fan-rail{animation:movement-chart-draw .75s cubic-bezier(.22,1,.36,1) forwards;animation-delay:calc(120ms + var(--chart-index)*80ms)}
-[data-editorial-chart].is-chart-revealed .session-fan-spoke .fan-set-dot{animation:movement-chart-dot .3s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(260ms + var(--chart-index)*80ms + var(--set-index)*28ms)}
-[data-editorial-chart].is-chart-revealed .session-fan-spoke .fan-session-dot{animation:movement-chart-dot .42s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(360ms + var(--chart-index)*90ms)}
-[data-editorial-chart].is-chart-revealed .body-weight-line{animation:movement-chart-draw .9s cubic-bezier(.22,1,.36,1) .16s forwards}
-[data-editorial-chart].is-chart-revealed .body-weight-dots circle{animation:movement-chart-dot .34s cubic-bezier(.22,1,.36,1) forwards;animation-delay:calc(240ms + var(--chart-index)*38ms)}
+[data-editorial-chart].is-chart-revealed .session-fan-guides g{animation:movement-chart-fade .9s ease forwards;animation-delay:calc(var(--chart-index)*130ms)}
+[data-editorial-chart].is-chart-revealed .session-fan-spoke{animation:movement-chart-fade .5s ease forwards;animation-delay:calc(220ms + var(--chart-index)*150ms)}
+[data-editorial-chart].is-chart-revealed .session-fan-spoke .fan-rail{animation:movement-chart-draw 1.15s cubic-bezier(.22,1,.36,1) forwards;animation-delay:calc(180ms + var(--chart-index)*150ms)}
+[data-editorial-chart].is-chart-revealed .session-fan-spoke .fan-set-dot{animation:movement-chart-dot .38s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(420ms + var(--chart-index)*150ms + var(--set-index)*45ms)}
+[data-editorial-chart].is-chart-revealed .session-fan-spoke .fan-session-dot{animation:movement-chart-dot .55s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(650ms + var(--chart-index)*170ms)}
+[data-editorial-chart].is-chart-revealed .body-chart-calendar line{animation:movement-chart-fade .7s ease forwards;animation-delay:calc(var(--chart-index)*12ms)}
+[data-editorial-chart].is-chart-revealed .body-weight-lollipops g{animation:movement-chart-rise .65s cubic-bezier(.22,1,.36,1) forwards;animation-delay:calc(250ms + var(--chart-index)*85ms)}
+[data-editorial-chart].is-chart-revealed .body-weight-lollipops circle{animation:movement-chart-dot .42s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(390ms + var(--chart-index)*85ms)}
 @keyframes movement-chart-draw{to{stroke-dashoffset:0}}
 @keyframes movement-chart-fade{to{opacity:1}}
 @keyframes movement-chart-rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
@@ -2459,7 +2466,7 @@ table{border-collapse:collapse}thead{background:rgba(18,17,15,.035)}th{font-size
   .body-trend-signal{padding:12px 0 0;border-left:0;border-top:1px solid rgba(24,21,16,.17)}
 }
 @media(prefers-reduced-motion:reduce){
-  .session-fan-guides g,.session-fan-spoke,.session-fan-spoke .fan-rail,.session-fan-spoke circle,.body-weight-line,.body-weight-dots circle{animation:none!important;opacity:1;transform:none;stroke-dashoffset:0}
+  .session-fan-guides g,.session-fan-spoke,.session-fan-spoke .fan-rail,.session-fan-spoke circle,.body-chart-calendar line,.body-weight-lollipops g,.body-weight-lollipops circle{animation:none!important;opacity:1;transform:none;stroke-dashoffset:0}
 }
 
 /* Training Records: in-page body-part themes. */
