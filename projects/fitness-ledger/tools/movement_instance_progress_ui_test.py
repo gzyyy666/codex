@@ -30,7 +30,11 @@ def browser_contract() -> None:
     assert index.count(script) == 1
     harness = r"""
 const emptyState=()=>({
-  today:{date:'2099-01-05'},recent:[],body:[],diet:[],
+  today:{date:'2099-01-05'},recent:[],body:[
+    {Date:'2099-01-01','Weight (kg)':70.0,Training:'Chest',Cardio:'none',Notes:'first'},
+    {Date:'2099-01-03','Weight (kg)':69.7,Training:'Rest',Cardio:'walk',Notes:'second'},
+    {Date:'2099-01-05','Weight (kg)':69.9,Training:'Back',Cardio:'none',Notes:'latest'}
+  ],diet:[],
   training:[],dictionary:[],movements:[{movement_id:'MOV_A',display_name:'Bench Press',english_name:'Bench Press',muscle_group:'Chest',active:true}],
   movementGroups:['Chest'],sync:{sync_status:'SYNCED'},build:{status:'PREVIEW',short_sha:'instance-test'}
 });
@@ -117,7 +121,11 @@ const editControlVisible=Boolean(editToggle);
 if(editToggle){editToggle.checked=false;await saveMovementHistory();}
 await wait(160);
 const historyEditUsesStableIds=updateRequests.some(row=>row.history_id==='history-main'&&row.values?.exclude_from_progress===true);
-const report=document.createElement('div');report.id='movement-instance-report';report.dataset.value=encodeURIComponent(JSON.stringify({reviewHasTwoIndependentToggles,unknownIsSeparated,saveCarriesInstanceState,archiveKeepsBoth,archiveEditUsesStableIds,editControlVisible,historyEditUsesStableIds,movementProgressChartFiltered,movementProgressChartUsesSessionGrammar,movementProgressChartIsAccessible,movementTrajectoryKeepsFullHistory,movementProgressChartLabelCount,updateRequests}));document.body.appendChild(report);
+bodyPage();
+await wait(80);
+const bodyTrendVisible=Boolean(document.querySelector('.body-trend-panel .body-weight-line')&&document.querySelectorAll('.body-weight-dots circle').length===3);
+const bodyTrendCalendarHonest=document.querySelectorAll('.body-chart-calendar line').length===5&&document.querySelector('.body-chart-footnote')?.textContent.includes('MISSING DAYS REMAIN EMPTY');
+const report=document.createElement('div');report.id='movement-instance-report';report.dataset.value=encodeURIComponent(JSON.stringify({reviewHasTwoIndependentToggles,unknownIsSeparated,saveCarriesInstanceState,archiveKeepsBoth,archiveEditUsesStableIds,editControlVisible,historyEditUsesStableIds,movementProgressChartFiltered,movementProgressChartUsesSessionGrammar,movementProgressChartIsAccessible,movementTrajectoryKeepsFullHistory,movementProgressChartLabelCount,bodyTrendVisible,bodyTrendCalendarHonest,updateRequests}));document.body.appendChild(report);
 """
     with tempfile.TemporaryDirectory(prefix="fitness-ledger-instance-progress-browser-") as temp:
         page = Path(temp) / "index.html"
@@ -138,6 +146,7 @@ const report=document.createElement('div');report.id='movement-instance-report';
         "archiveKeepsBoth", "archiveEditUsesStableIds", "editControlVisible", "historyEditUsesStableIds",
         "movementProgressChartFiltered", "movementProgressChartUsesSessionGrammar",
         "movementProgressChartIsAccessible", "movementTrajectoryKeepsFullHistory",
+        "bodyTrendVisible", "bodyTrendCalendarHonest",
     )), report
 
 

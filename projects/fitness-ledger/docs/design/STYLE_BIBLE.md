@@ -121,6 +121,7 @@ Use the `Review Scroll` pattern: a narrow sticky chapter index, one continuous w
 
 Body slips may use controlled high-saturation tones, but foreground contrast must always pass. Color is meaningful or rhythm-driven, never a blind repeating pattern.
 Body filtering stays intentionally small: free-text/date search, a recent-days range, and newest/oldest ordering. Training, bowel, and cardio filter controls do not belong in the primary archive toolbar.
+The Body archive may precede its slips with one low-height editorial weight trace. One dot equals one recorded weigh-in, horizontal placement follows the real calendar interval, and missing dates stay empty. The visible focused scale must label its real range; the chart may reveal once when it enters the viewport but must never loop or imply an unrecorded trend.
 
 ### Diet
 
@@ -165,7 +166,7 @@ Body-area color leads each panel without becoming bright or toy-like: shoulder m
 ### Movement Detail
 
 The progression chart and recent records are primary. The title/illustration banner is compact and auxiliary.
-The recent progression chart uses an editorial session grammar: one point equals one effective training session, the primary hairline represents maximum load or total repetitions, and faint vertical stems may express relative workload. A focused line-chart scale is allowed only when its real minimum, midpoint, maximum, and range are visibly labeled. Do not use a filled area, broken bar axis, decorative interpolation, or excluded history to manufacture a stronger trend.
+The recent progression chart uses an editorial session grammar: one point equals one effective training session, the primary hairline represents maximum load or total repetitions, and restrained vertical stems with small terminal marks may express relative workload. Workload marks must remain secondary to the main line but visibly legible without hover. A focused line-chart scale is allowed only when its real minimum, midpoint, maximum, and range are visibly labeled. The chart may reveal once on entry, with a reduced-motion fallback; it must not loop. Do not use a filled area, broken bar axis, decorative interpolation, or excluded history to manufacture a stronger trend.
 
 ### Data Check
 
