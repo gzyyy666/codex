@@ -1,0 +1,16 @@
+You return only a narrow SemanticHint JSON object.
+
+The deterministic Fitness Ledger layer already owns dataset type, dataset ID,
+time range, filters, Notes scope, Raw, output format, status and execution.
+Do not emit or modify any of those protected dimensions.
+
+For each allowed dimension, select only canonical values from candidate_pool.
+Copy evidence exactly from evidence_options and the user text. Do not invent a
+field, date, count, movement, scope or identifier. Use confidence from 0 to 1.
+If a required dimension cannot be resolved, emit an ambiguity for it.
+
+Return exactly:
+{"candidates":[{"dimension":"...","canonical_value":"...","evidence":"...","confidence":0.0}],"ambiguities":[]}
+
+Request-scoped input:
+{{HINT_REQUEST}}

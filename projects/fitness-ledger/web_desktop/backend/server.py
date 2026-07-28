@@ -36,6 +36,9 @@ from web_desktop.backend.build_identity import collect_build_info  # noqa: E402
 from web_desktop.backend.analysis_export_protocol import (  # noqa: E402
     AnalysisExportProtocolService,
 )
+from fitness_ledger_core.formal_analysis_request_preview_service import (  # noqa: E402
+    FormalAnalysisRequestPreviewService,
+)
 
 
 def load_stable_module():
@@ -87,6 +90,8 @@ class LedgerWebService:
         self.build_info_path = build_info_path
         self.build_info_override = build_info_override
         self.analysis_export_protocol = analysis_export_protocol or AnalysisExportProtocolService()
+        semantic_config = os.environ.get("FITNESS_LEDGER_SEMANTIC_HINT_CONFIG", "").strip()
+        self.formal_analysis_preview = FormalAnalysisRequestPreviewService.from_runtime_config(semantic_config) if semantic_config else FormalAnalysisRequestPreviewService.from_runtime_config(Path("__missing_formal_semantic_hint_config__.json"))
 
     def build_info(self) -> dict:
         if self.build_info_override is not None:
@@ -164,6 +169,21 @@ class LedgerWebService:
 
     def analysis_export_v1_artifact(self, artifact_id: str, format_name: str) -> tuple[str, bytes] | None:
         return self.analysis_export_protocol.artifact(artifact_id, format_name)
+
+    def analysis_export_natural_language_preview(self, request: dict) -> dict:
+        text = request.get("text")
+        if not isinstance(text, str):
+            return {"status": "invalid_request", "errors": [{"code": "TEXT_MUST_BE_STRING", "path": "$.text", "message": "text must be a string."}], "execution": {"allowed": False, "executor_called": False, "formal_data_written": False, "raw_allowed": False}}
+        text = text.strip()
+        if not text:
+            return {"status": "invalid_request", "errors": [{"code": "TEXT_REQUIRED", "path": "$.text", "message": "请先描述需要分析或导出的内容。"}], "execution": {"allowed": False, "executor_called": False, "formal_data_written": False, "raw_allowed": False}}
+        if len(text) > 500:
+            return {"status": "invalid_request", "errors": [{"code": "TEXT_TOO_LONG", "path": "$.text", "message": "自然语言请求最多 500 个字符。"}], "execution": {"allowed": False, "executor_called": False, "formal_data_written": False, "raw_allowed": False}}
+        try:
+            result = self.formal_analysis_preview.preview(text)
+        except Exception:
+            return {"status": "error", "errors": [{"code": "PREVIEW_UNAVAILABLE", "path": "$", "message": "自然语言预览暂时不可用，请修改请求或使用 JSON Contract。"}], "execution": {"allowed": False, "executor_called": False, "formal_data_written": False, "raw_allowed": False}}
+        return result
 
     def intelligent_export_preview(self, request: dict) -> dict:
         text = str(request.get("request", "") or "").strip()
@@ -898,6 +918,8 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.analysis_export_v1_resolve(request))
             elif parsed.path == "/api/analysis-export/v1/export":
                 self.send_json(self.service.analysis_export_v1_export(request))
+            elif parsed.path == "/api/analysis-export/v1/natural-language/preview":
+                self.send_json(self.service.analysis_export_natural_language_preview(request))
             elif parsed.path == "/api/intelligent-export/preview":
                 self.send_json(self.service.intelligent_export_preview(request))
             elif parsed.path == "/api/save":
