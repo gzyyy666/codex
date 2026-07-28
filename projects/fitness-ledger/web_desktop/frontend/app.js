@@ -779,7 +779,7 @@ function enhanceOfficialMovementChart(movementId){
       mark.style.setProperty('--interaction-index',index);
       mark.dataset.chartIndex=String(index);
     });
-    const dot=dots[index],bar=bars[index],tip=useLoad?`${record.date} · 最高负重 ${record.maxLoad} kg · 训练容量 ${Math.round(record.volume)} kg`:`${record.date} · 总次数 ${record.totalReps} · 训练容量 ${Math.round(record.volume)}`;
+    const dot=dots[index],bar=bars[index],sets=(record.sets_lines||[]).filter(Boolean),tip=`${record.date} · ${sets.length?sets.join(' / '):useLoad?`${record.maxLoad} kg · ${record.totalReps} reps`:`${record.totalReps} reps`}`;
     const targets=[];
     if(dot){
       const circle=document.createElementNS('http://www.w3.org/2000/svg','circle');
