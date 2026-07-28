@@ -711,7 +711,8 @@ function bodyWeightMicroBars(){
     const height=18+((item.weight-axisMinimum)/range)*74;
     return `<button type="button" class="weight-micro-bar ${direction}" style="--bar-height:${height.toFixed(2)}%;--interaction-index:${index}" data-detail="body" data-index="${item.index}" data-weight-tip="${esc(item.date)} · ${item.weight.toFixed(1)} kg" aria-label="打开 ${esc(item.date)} 身体记录，体重 ${item.weight.toFixed(1)} kg"><span></span></button>`;
   }).join('');
-  return `<section class="body-weight-rhythm" aria-label="最近 ${records.length} 天体重变化"><header><span class="eyebrow">WEIGHT / RECENT ${records.length}</span><strong>${records.at(-1).weight.toFixed(1)}<small>kg</small></strong></header><div class="weight-micro-plot"><div class="weight-y-axis" aria-hidden="true"><span>${axisMaximum.toFixed(1)}</span><small>kg</small><span>${axisMinimum.toFixed(1)}</span></div><div class="weight-micro-scroll" tabindex="0" aria-label="体重图表，可横向滚动查看更多日期"><div class="weight-micro-track" style="--bar-count:${records.length};--track-width:${records.length*11}px"><div class="weight-micro-array">${bars}</div><div class="weight-micro-dates"><span>${esc(records[0].date.slice(5))}</span><span>${esc(records.at(-1).date.slice(5))}</span></div></div></div></div></section>`;
+  const dateIndexes=[0,Math.round((records.length-1)/3),Math.round((records.length-1)*2/3),records.length-1];
+  return `<section class="body-weight-rhythm" aria-label="最近 ${records.length} 天体重变化"><header><span class="eyebrow">WEIGHT / RECENT ${records.length}</span><strong>${records.at(-1).weight.toFixed(1)}<small>kg</small></strong></header><div class="weight-micro-plot"><div class="weight-y-axis" aria-hidden="true"><span>${axisMaximum.toFixed(1)}</span><span>${(axisMinimum+range/2).toFixed(1)}</span><span>${axisMinimum.toFixed(1)}</span><small>kg</small></div><div class="weight-micro-scroll" tabindex="0" aria-label="体重图表，可横向滚动查看更多日期"><div class="weight-micro-track" style="--bar-count:${records.length};--track-width:${records.length*11}px"><div class="weight-micro-array">${bars}</div><div class="weight-micro-dates">${dateIndexes.map(index=>`<span>${esc(records[index].date.slice(5))}</span>`).join('')}</div></div></div></div></section>`;
 }
 
 function enhanceOfficialBodyRecords(){
@@ -727,9 +728,10 @@ function enhanceOfficialBodyRecords(){
         if(!section||!tooltip)return;
         tooltip.textContent=bar.dataset.weightTip||'';
         const barRect=bar.getBoundingClientRect(),sectionRect=section.getBoundingClientRect(),plotRect=$('.weight-micro-plot',section).getBoundingClientRect();
-        tooltip.style.left=`${barRect.left+barRect.width/2-sectionRect.left}px`;
         tooltip.style.top=`${plotRect.top-sectionRect.top+5}px`;
         tooltip.hidden=false;
+        const half=tooltip.offsetWidth/2,desired=barRect.left+barRect.width/2-sectionRect.left;
+        tooltip.style.left=`${Math.max(half+8,Math.min(sectionRect.width-half-8,desired))}px`;
       };
       const hide=()=>{tooltip.hidden=true};
       bar.addEventListener('mouseenter',show);
@@ -764,7 +766,7 @@ function enhanceOfficialMovementChart(movementId){
   tooltip.className='movement-chart-tooltip';
   tooltip.hidden=true;
   panel?.appendChild(tooltip);
-  const hitLayer=document.createElementNS('http://www.w3.org/2000/svg','g'),left=48,right=682,step=records.length>1?(right-left)/(records.length-1):64;
+  const hitLayer=document.createElementNS('http://www.w3.org/2000/svg','g');
   hitLayer.setAttribute('class','chart-hit-zones');
   records.forEach((record,index)=>{
     [bars[index],dots[index]].filter(Boolean).forEach(mark=>{
@@ -777,25 +779,30 @@ function enhanceOfficialMovementChart(movementId){
       mark.style.setProperty('--interaction-index',index);
       mark.dataset.chartIndex=String(index);
     });
-    const zone=document.createElementNS('http://www.w3.org/2000/svg','rect'),x=left+index*step,zoneLeft=Math.max(0,x-step/2),zoneRight=Math.min(730,x+step/2);
-    zone.setAttribute('x',String(zoneLeft));
-    zone.setAttribute('y','34');
-    zone.setAttribute('width',String(Math.max(28,zoneRight-zoneLeft)));
-    zone.setAttribute('height','166');
-    zone.setAttribute('class','chart-hit-zone has-chart-interaction');
-    zone.dataset.trainingDate=String(record.date||'').slice(0,10);
-    zone.dataset.trainingMovementId=String(movementId||'');
-    zone.dataset.chartIndex=String(index);
-    zone.dataset.chartTip=useLoad?`${record.date} · 最高负重 ${record.maxLoad} kg · 训练容量 ${Math.round(record.volume)} kg`:`${record.date} · 总次数 ${record.totalReps} · 训练容量 ${Math.round(record.volume)}`;
-    zone.setAttribute('role','button');
-    zone.setAttribute('tabindex','0');
-    zone.setAttribute('aria-label',`${zone.dataset.chartTip}，点击打开训练记录`);
-    const show=()=>{
+    const dot=dots[index],bar=bars[index],tip=useLoad?`${record.date} · 最高负重 ${record.maxLoad} kg · 训练容量 ${Math.round(record.volume)} kg`:`${record.date} · 总次数 ${record.totalReps} · 训练容量 ${Math.round(record.volume)}`;
+    const targets=[];
+    if(dot){
+      const circle=document.createElementNS('http://www.w3.org/2000/svg','circle');
+      circle.setAttribute('cx',dot.getAttribute('cx'));
+      circle.setAttribute('cy',dot.getAttribute('cy'));
+      circle.setAttribute('r','13');
+      targets.push(circle);
+    }
+    if(bar){
+      const rect=document.createElementNS('http://www.w3.org/2000/svg','rect'),x=Number(bar.getAttribute('x')),y=Number(bar.getAttribute('y')),width=Number(bar.getAttribute('width')),height=Number(bar.getAttribute('height'));
+      rect.setAttribute('x',String(x-3));
+      rect.setAttribute('y',String(y-3));
+      rect.setAttribute('width',String(width+6));
+      rect.setAttribute('height',String(Math.max(12,height+6)));
+      rect.setAttribute('rx','5');
+      targets.push(rect);
+    }
+    const show=target=>{
       [bars[index],dots[index]].filter(Boolean).forEach(mark=>mark.classList.add('is-hovered'));
       if(!tooltip||!panel)return;
-      tooltip.textContent=zone.dataset.chartTip;
-      const zoneRect=zone.getBoundingClientRect(),panelRect=panel.getBoundingClientRect(),chartRect=chart.getBoundingClientRect();
-      tooltip.style.left=`${zoneRect.left+zoneRect.width/2-panelRect.left}px`;
+      tooltip.textContent=tip;
+      const targetRect=target.getBoundingClientRect(),panelRect=panel.getBoundingClientRect(),chartRect=chart.getBoundingClientRect();
+      tooltip.style.left=`${targetRect.left+targetRect.width/2-panelRect.left}px`;
       tooltip.style.top=`${chartRect.top-panelRect.top+5}px`;
       tooltip.hidden=false;
     };
@@ -803,11 +810,22 @@ function enhanceOfficialMovementChart(movementId){
       [bars[index],dots[index]].filter(Boolean).forEach(mark=>mark.classList.remove('is-hovered'));
       if(tooltip)tooltip.hidden=true;
     };
-    zone.addEventListener('mouseenter',show);
-    zone.addEventListener('mouseleave',hide);
-    zone.addEventListener('focus',show);
-    zone.addEventListener('blur',hide);
-    hitLayer.appendChild(zone);
+    targets.forEach((target,targetIndex)=>{
+      target.setAttribute('class','chart-hit-zone has-chart-interaction');
+      target.dataset.trainingDate=String(record.date||'').slice(0,10);
+      target.dataset.trainingMovementId=String(movementId||'');
+      target.dataset.chartIndex=String(index);
+      target.dataset.chartTip=tip;
+      target.setAttribute('role','button');
+      target.setAttribute('tabindex',targetIndex===0?'0':'-1');
+      target.setAttribute('aria-label',`${tip}，点击打开训练记录`);
+      const showTarget=()=>show(target);
+      target.addEventListener('mouseenter',showTarget);
+      target.addEventListener('mouseleave',hide);
+      target.addEventListener('focus',showTarget);
+      target.addEventListener('blur',hide);
+      hitLayer.appendChild(target);
+    });
   });
   chart.appendChild(hitLayer);
   chart.classList.add('has-chart-interactions');

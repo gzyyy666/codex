@@ -3243,7 +3243,7 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
   border:1px solid rgba(16,16,14,.22);
   border-radius:18px;
   background:rgba(250,247,238,.58);
-  overflow:hidden;
+  overflow:visible;
 }
 .body-weight-rhythm header{
   display:flex;
@@ -3271,8 +3271,9 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
   position:absolute;
   z-index:3;
   inset:0 auto auto 2px;
-  display:grid;
-  grid-template-rows:auto 1fr auto;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
   justify-items:end;
   height:88px;
   width:30px;
@@ -3285,7 +3286,10 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
   letter-spacing:.04em;
 }
 .weight-y-axis small{
-  align-self:center;
+  position:absolute;
+  left:16px;
+  top:50%;
+  transform:translateY(-50%);
   font-size:8px;
   letter-spacing:.12em;
   text-transform:uppercase;
@@ -3311,7 +3315,9 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
 .weight-micro-track{
   display:grid;
   justify-items:end;
-  width:max(100%,var(--track-width));
+  box-sizing:border-box;
+  width:max(100%,calc(var(--track-width) + 62px));
+  padding:0 24px 0 38px;
 }
 .weight-micro-array{
   display:flex;
@@ -3358,7 +3364,7 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
 .weight-micro-bar:focus-visible{outline:none}
 .body-weight-tooltip{
   position:absolute;
-  z-index:4;
+  z-index:40;
   padding:5px 8px;
   border-radius:6px;
   background:#161613;
