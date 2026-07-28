@@ -705,7 +705,7 @@ function bodyWeightMicroBars(){
     .slice(0,180)
     .reverse();
   if(records.length<2)return '';
-  const weights=records.map(item=>item.weight),minimum=Math.min(...weights),maximum=Math.max(...weights),axisMinimum=Math.floor(minimum*2)/2,axisMaximum=Math.ceil(maximum*2)/2,range=Math.max(axisMaximum-axisMinimum,.5);
+  const weights=records.map(item=>item.weight),minimum=Math.min(...weights),maximum=Math.max(...weights),axisMinimum=Math.min(60,Math.floor(minimum)),axisMaximum=Math.max(75,Math.ceil(maximum)),range=Math.max(axisMaximum-axisMinimum,.5);
   const bars=records.map((item,index)=>{
     const previous=records[index-1],direction=!previous?'is-neutral':item.weight<previous.weight?'is-down':item.weight>previous.weight?'is-up':'is-neutral';
     const height=18+((item.weight-axisMinimum)/range)*74;
