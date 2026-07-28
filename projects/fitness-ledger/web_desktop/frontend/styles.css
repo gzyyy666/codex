@@ -3329,7 +3329,7 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
 .weight-micro-scroll:focus-visible::-webkit-scrollbar-thumb{background:rgba(16,16,14,.28)}
 .weight-micro-track{
   display:grid;
-  justify-items:end;
+  justify-items:start;
   box-sizing:border-box;
   width:max(100%,calc(var(--track-width) + 48px));
   padding:0 16px 0 32px;
@@ -3341,7 +3341,7 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
   gap:0;
   width:var(--track-width);
   height:49px;
-  margin:0 0 0 auto;
+  margin:0 auto 0 0;
   border-bottom:1px solid rgba(16,16,14,.18);
 }
 .weight-micro-bar{
@@ -3396,7 +3396,7 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
   display:flex;
   justify-content:space-between;
   width:var(--track-width);
-  margin:4px 0 0 auto;
+  margin:4px auto 0 0;
   color:rgba(16,16,14,.52);
   font-size:9px;
   letter-spacing:.08em;
