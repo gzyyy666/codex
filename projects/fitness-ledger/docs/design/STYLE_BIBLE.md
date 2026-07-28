@@ -165,6 +165,7 @@ Body-area color leads each panel without becoming bright or toy-like: shoulder m
 ### Movement Detail
 
 The progression chart and recent records are primary. The title/illustration banner is compact and auxiliary.
+The recent progression chart uses an editorial session grammar: one point equals one effective training session, the primary hairline represents maximum load or total repetitions, and faint vertical stems may express relative workload. A focused line-chart scale is allowed only when its real minimum, midpoint, maximum, and range are visibly labeled. Do not use a filled area, broken bar axis, decorative interpolation, or excluded history to manufacture a stronger trend.
 
 ### Data Check
 
