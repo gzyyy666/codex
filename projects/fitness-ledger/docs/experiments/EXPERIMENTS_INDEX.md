@@ -1,5 +1,15 @@
 # Experiments Index
 
+## Formal Local SemanticHint Adapter
+
+- **Status:** Integration candidate / stop before Web / not released
+- **Base:** `414b28cbf6785e8607cbdbde76df8e9012e0e168`
+- **Design:** `docs/experiments/FORMAL_LOCAL_SEMANTIC_HINT_ADAPTER.md`
+- **Boundary:** Natural language to validated Request v1.1 Preview DTO only; no
+  formal data read, materialization, Executor, write, Raw, Web route, or frontend.
+- **Next step:** Add a separately reviewed preview-only Web backend route and UI
+  wiring after this candidate passes its final regression and is committed.
+
 ## Analysis Export Request Protocol v1.1
 
 - **Status:** Accepted / Frozen / Not released
