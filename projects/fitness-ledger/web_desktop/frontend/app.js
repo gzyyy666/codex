@@ -63,7 +63,7 @@ renderDietRows=function(q=''){const rows=state.diet.filter(r=>JSON.stringify(r).
 /* Secondary-page refinement overrides. Data contracts remain unchanged. */
 quickPage=function(){const t=state.today,b=t.body||{},d=t.diet||{},tr=t.training||{};main.innerHTML=`<section class="page entry-page"><header class="entry-header"><div><span class="eyebrow">02 / DAILY ENTRY</span><h1 class="page-title">Write the day.</h1><p class="page-subtitle">Freeform first. Structure follows after review.</p></div><button class="home-text-link" data-go="home">Back to Home</button></header><div class="entry-spread"><article class="capture"><span class="eyebrow">FREEFORM TO STRUCTURED</span><h2>Raw first. Structure second.</h2><textarea id="raw-entry" placeholder="Write anything about your day..."></textarea><div class="actions"><button class="btn btn-primary" id="parse">Parse & Review</button><button class="btn btn-light" data-mock="Undo remains in the stable desktop app.">Undo last save</button></div><p class="phase">Read-only Web preview. Formal writes remain in the stable desktop app.</p></article><aside class="entry-digest"><div class="entry-digest-head"><span class="eyebrow">TODAY / ${esc(t.date||'NO RECORD')}</span><strong>${esc(value(b,'Weight (kg)'))}<small> kg</small></strong></div><div class="entry-digest-grid"><span><b>${esc(value(d,'Calories (kcal)'))}</b> kcal</span><span><b>${esc(value(tr,'split','Split'))}</b> split</span><span><b>${esc(value(t,'cardio'))}</b> cardio</span><span><b>${esc(value(b,'Bowel Movement'))}</b> bowel</span></div><div class="digest-recent"><span class="eyebrow">RECENT SAVED</span>${state.recent.slice(0,3).map((r,i)=>`<div class="digest-record"><span>0${i+1}</span><strong>${esc(r.date)}</strong><small>${esc(r.weight||'-')} kg / ${esc(r.calories||'-')} kcal</small><button data-record="${esc(r.date)}">Open</button></div>`).join('')}</div></aside></div></section>`}
 
-bodyPage=function(){main.innerHTML=`<section class="page archive-page body-archive"><div class="body-folio">BODY / LOCAL ARCHIVE / PRIVATE</div><div class="archive-heading">${pageHeader('Body Records','Daily measurements as personal body slips, with notes kept readable.')}</div><div class="toolbar body-toolbar"><input class="control search" id="body-search" placeholder="Search notes or date..."><select class="control" id="body-time"><option value="0">All time</option><option value="7">Recent 7 days</option><option value="14">Recent 14 days</option><option value="30">Recent 30 days</option></select><select class="control" id="body-order"><option value="recent">Newest first</option><option value="oldest">Oldest first</option></select></div><div id="body-rows" class="body-ledger"></div>${pager()}</section>`;renderBodyRows()}
+bodyPage=function(){main.innerHTML=`<section class="page archive-page body-archive"><div class="body-folio">BODY / LOCAL ARCHIVE / PRIVATE</div><div class="archive-heading">${pageHeader('Body Records','Daily measurements as personal body slips, with notes kept readable.')}</div><div class="body-controls-row"><div class="toolbar body-toolbar"><input class="control search" id="body-search" placeholder="Search notes or date..."><select class="control" id="body-time"><option value="0">All time</option><option value="7">Recent 7 days</option><option value="14">Recent 14 days</option><option value="30">Recent 30 days</option></select><select class="control" id="body-order"><option value="recent">Newest first</option><option value="oldest">Oldest first</option></select></div><div id="body-weight-slot" class="body-weight-slot"></div></div><div id="body-rows" class="body-ledger"></div>${pager()}</section>`;renderBodyRows()}
 renderBodyRows=function(q=$('#body-search')?.value||''){const days=Number(selectedValue('body-time')||0);let rows=state.body.filter(r=>fuzzyMatch(r,q)).filter(r=>withinDays(r,days,state.body));if(selectedValue('body-order')==='oldest')rows=[...rows].reverse();$('#body-rows').innerHTML=rows.map((r,i)=>{const cardio=String(value(r,'Cardio')).toLowerCase(),training=String(value(r,'Training'));let tone='tone-purple';if(i===0)tone='tone-feature';else if(/back|背/.test(training.toLowerCase()))tone='tone-cardio';else if(/chest|胸|shoulder|肩/.test(training.toLowerCase()))tone='tone-purple';else if(/leg|腿/.test(training.toLowerCase()))tone='tone-training';else if(/none|no cardio|-/.test(cardio))tone='tone-rest';return `<article class="body-slip ${tone}"><div class="body-slip-date"><span>${String(i+1).padStart(2,'0')}</span><strong>${esc(dateOf(r))}</strong></div><div class="body-slip-weight"><b>${esc(value(r,'Weight (kg)'))}</b><small>kg</small></div><div class="body-slip-meta"><span>Bowel <strong>${esc(value(r,'Bowel Movement'))}</strong></span><span>Training <strong>${esc(short(training,24))}</strong></span><span>Cardio <strong>${esc(short(value(r,'Cardio'),24))}</strong></span></div><div class="body-slip-copy"><p>${esc(short(value(r,'Notes'),160))}</p><button class="record-open" data-detail="body" data-index="${state.body.indexOf(r)}">Open record</button></div></article>`}).join('')}
 
 dietPage=function(){main.innerHTML=`<section class="page archive-page diet-archive"><div class="archive-heading">${pageHeader('Diet Records','Energy and macros first. Full meals remain one deliberate click away.')}</div><div class="toolbar diet-toolbar"><input class="control search" id="diet-search" placeholder="Search notes, food or date..."><select class="control" id="diet-order"><option value="recent">Newest first</option><option value="oldest">Oldest first</option></select></div><div id="diet-rows" class="diet-slips"></div>${pager()}</section>`;renderDietRows()}
@@ -718,7 +718,9 @@ function bodyWeightMicroBars(){
 function enhanceOfficialBodyRecords(){
   const rows=$('#body-rows');
   if(rows&&!$('.body-weight-rhythm')){
-    rows.insertAdjacentHTML('beforebegin',bodyWeightMicroBars());
+    const slot=$('#body-weight-slot');
+    if(slot)slot.innerHTML=bodyWeightMicroBars();
+    else rows.insertAdjacentHTML('beforebegin',bodyWeightMicroBars());
     const section=$('.body-weight-rhythm'),tooltip=document.createElement('div');
     tooltip.className='body-weight-tooltip';
     tooltip.hidden=true;
@@ -801,10 +803,16 @@ function enhanceOfficialMovementChart(movementId){
       [bars[index],dots[index]].filter(Boolean).forEach(mark=>mark.classList.add('is-hovered'));
       if(!tooltip||!panel)return;
       tooltip.textContent=tip;
-      const targetRect=target.getBoundingClientRect(),panelRect=panel.getBoundingClientRect(),chartRect=chart.getBoundingClientRect();
-      tooltip.style.left=`${targetRect.left+targetRect.width/2-panelRect.left}px`;
-      tooltip.style.top=`${chartRect.top-panelRect.top+5}px`;
       tooltip.hidden=false;
+      const targetRect=target.getBoundingClientRect(),panelRect=panel.getBoundingClientRect();
+      const tooltipWidth=tooltip.offsetWidth,tooltipHeight=tooltip.offsetHeight,gutter=12;
+      const desiredLeft=targetRect.left+targetRect.width/2-panelRect.left-tooltipWidth/2;
+      const maxLeft=Math.max(gutter,panelRect.width-tooltipWidth-gutter);
+      tooltip.style.left=`${Math.max(gutter,Math.min(maxLeft,desiredLeft))}px`;
+      const targetTop=targetRect.top-panelRect.top,targetBottom=targetRect.bottom-panelRect.top;
+      const above=targetTop-tooltipHeight-10,below=targetBottom+10;
+      const desiredTop=above>=gutter?above:below;
+      tooltip.style.top=`${Math.max(gutter,Math.min(panelRect.height-tooltipHeight-gutter,desiredTop))}px`;
     };
     const hide=()=>{
       [bars[index],dots[index]].filter(Boolean).forEach(mark=>mark.classList.remove('is-hovered'));
