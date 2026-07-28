@@ -711,13 +711,32 @@ function bodyWeightMicroBars(){
     const height=18+((item.weight-axisMinimum)/range)*74;
     return `<button type="button" class="weight-micro-bar ${direction}" style="--bar-height:${height.toFixed(2)}%;--interaction-index:${index}" data-detail="body" data-index="${item.index}" data-weight-tip="${esc(item.date)} · ${item.weight.toFixed(1)} kg" aria-label="打开 ${esc(item.date)} 身体记录，体重 ${item.weight.toFixed(1)} kg"><span></span></button>`;
   }).join('');
-  return `<section class="body-weight-rhythm" aria-label="最近 ${records.length} 天体重变化"><header><span class="eyebrow">WEIGHT / RECENT ${records.length}</span><strong>${records.at(-1).weight.toFixed(1)}<small>kg</small></strong></header><div class="weight-micro-plot"><div class="weight-y-axis" aria-hidden="true"><span>${axisMaximum.toFixed(1)}</span><small>kg</small><span>${axisMinimum.toFixed(1)}</span></div><div class="weight-micro-scroll" tabindex="0" aria-label="体重图表，可横向滚动查看更多日期"><div class="weight-micro-track" style="--bar-count:${records.length}"><div class="weight-micro-array">${bars}</div><div class="weight-micro-dates"><span>${esc(records[0].date.slice(5))}</span><span>${esc(records.at(-1).date.slice(5))}</span></div></div></div></div></section>`;
+  return `<section class="body-weight-rhythm" aria-label="最近 ${records.length} 天体重变化"><header><span class="eyebrow">WEIGHT / RECENT ${records.length}</span><strong>${records.at(-1).weight.toFixed(1)}<small>kg</small></strong></header><div class="weight-micro-plot"><div class="weight-y-axis" aria-hidden="true"><span>${axisMaximum.toFixed(1)}</span><small>kg</small><span>${axisMinimum.toFixed(1)}</span></div><div class="weight-micro-scroll" tabindex="0" aria-label="体重图表，可横向滚动查看更多日期"><div class="weight-micro-track" style="--bar-count:${records.length};--track-width:${records.length*11}px"><div class="weight-micro-array">${bars}</div><div class="weight-micro-dates"><span>${esc(records[0].date.slice(5))}</span><span>${esc(records.at(-1).date.slice(5))}</span></div></div></div></div></section>`;
 }
 
 function enhanceOfficialBodyRecords(){
   const rows=$('#body-rows');
   if(rows&&!$('.body-weight-rhythm')){
     rows.insertAdjacentHTML('beforebegin',bodyWeightMicroBars());
+    const section=$('.body-weight-rhythm'),tooltip=document.createElement('div');
+    tooltip.className='body-weight-tooltip';
+    tooltip.hidden=true;
+    section?.appendChild(tooltip);
+    $$('.weight-micro-bar',section).forEach(bar=>{
+      const show=()=>{
+        if(!section||!tooltip)return;
+        tooltip.textContent=bar.dataset.weightTip||'';
+        const barRect=bar.getBoundingClientRect(),sectionRect=section.getBoundingClientRect(),plotRect=$('.weight-micro-plot',section).getBoundingClientRect();
+        tooltip.style.left=`${barRect.left+barRect.width/2-sectionRect.left}px`;
+        tooltip.style.top=`${plotRect.top-sectionRect.top+5}px`;
+        tooltip.hidden=false;
+      };
+      const hide=()=>{tooltip.hidden=true};
+      bar.addEventListener('mouseenter',show);
+      bar.addEventListener('mouseleave',hide);
+      bar.addEventListener('focus',show);
+      bar.addEventListener('blur',hide);
+    });
     const viewport=$('.weight-micro-scroll');
     requestAnimationFrame(()=>{if(viewport)viewport.scrollLeft=viewport.scrollWidth});
   }
@@ -741,6 +760,12 @@ function enhanceOfficialMovementChart(movementId){
   const useLoad=available.at(-1).maxLoad>0;
   const records=available.filter(record=>useLoad?record.maxLoad>0:record.maxLoad===0);
   const bars=$$('.volume-bars rect',chart),dots=$$('.load-dots circle',chart);
+  const panel=chart.closest('.movement-progress-panel'),tooltip=document.createElement('div');
+  tooltip.className='movement-chart-tooltip';
+  tooltip.hidden=true;
+  panel?.appendChild(tooltip);
+  const hitLayer=document.createElementNS('http://www.w3.org/2000/svg','g'),left=48,right=682,step=records.length>1?(right-left)/(records.length-1):64;
+  hitLayer.setAttribute('class','chart-hit-zones');
   records.forEach((record,index)=>{
     [bars[index],dots[index]].filter(Boolean).forEach(mark=>{
       mark.classList.add('has-chart-interaction');
@@ -750,8 +775,41 @@ function enhanceOfficialMovementChart(movementId){
       mark.setAttribute('tabindex','0');
       mark.setAttribute('aria-label',`打开 ${record.date||''} 训练记录`);
       mark.style.setProperty('--interaction-index',index);
+      mark.dataset.chartIndex=String(index);
     });
+    const zone=document.createElementNS('http://www.w3.org/2000/svg','rect'),x=left+index*step,zoneLeft=Math.max(0,x-step/2),zoneRight=Math.min(730,x+step/2);
+    zone.setAttribute('x',String(zoneLeft));
+    zone.setAttribute('y','34');
+    zone.setAttribute('width',String(Math.max(28,zoneRight-zoneLeft)));
+    zone.setAttribute('height','166');
+    zone.setAttribute('class','chart-hit-zone has-chart-interaction');
+    zone.dataset.trainingDate=String(record.date||'').slice(0,10);
+    zone.dataset.trainingMovementId=String(movementId||'');
+    zone.dataset.chartIndex=String(index);
+    zone.dataset.chartTip=useLoad?`${record.date} · 最高负重 ${record.maxLoad} kg · 训练容量 ${Math.round(record.volume)} kg`:`${record.date} · 总次数 ${record.totalReps} · 训练容量 ${Math.round(record.volume)}`;
+    zone.setAttribute('role','button');
+    zone.setAttribute('tabindex','0');
+    zone.setAttribute('aria-label',`${zone.dataset.chartTip}，点击打开训练记录`);
+    const show=()=>{
+      [bars[index],dots[index]].filter(Boolean).forEach(mark=>mark.classList.add('is-hovered'));
+      if(!tooltip||!panel)return;
+      tooltip.textContent=zone.dataset.chartTip;
+      const zoneRect=zone.getBoundingClientRect(),panelRect=panel.getBoundingClientRect(),chartRect=chart.getBoundingClientRect();
+      tooltip.style.left=`${zoneRect.left+zoneRect.width/2-panelRect.left}px`;
+      tooltip.style.top=`${chartRect.top-panelRect.top+5}px`;
+      tooltip.hidden=false;
+    };
+    const hide=()=>{
+      [bars[index],dots[index]].filter(Boolean).forEach(mark=>mark.classList.remove('is-hovered'));
+      if(tooltip)tooltip.hidden=true;
+    };
+    zone.addEventListener('mouseenter',show);
+    zone.addEventListener('mouseleave',hide);
+    zone.addEventListener('focus',show);
+    zone.addEventListener('blur',hide);
+    hitLayer.appendChild(zone);
   });
+  chart.appendChild(hitLayer);
   chart.classList.add('has-chart-interactions');
   chart.querySelector('.load-line')?.classList.add('has-entry-animation');
 }
