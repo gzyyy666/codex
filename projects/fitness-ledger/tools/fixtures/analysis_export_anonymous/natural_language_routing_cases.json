@@ -1,0 +1,22 @@
+[
+  {"id": "unsupported_delete", "text": "删除最近7天训练", "expected_status": "unsupported"},
+  {"id": "unsupported_modify", "text": "修改昨天的体重", "expected_status": "unsupported"},
+  {"id": "unsupported_write", "text": "写入今天的饮食", "expected_status": "unsupported"},
+  {"id": "unsupported_cross_action", "text": "比较卧推和深蹲的进步", "expected_status": "unsupported"},
+  {"id": "no_export_principle", "text": "蛋白质为什么重要", "expected_status": "NO_EXPORT_REQUIRED"},
+  {"id": "no_export_general_rule", "text": "训练和饮食的一般原则是什么", "expected_status": "NO_EXPORT_REQUIRED"},
+  {"id": "no_export_personal_question", "text": "分析饮食是否影响训练", "expected_status": "NO_EXPORT_REQUIRED"},
+  {"id": "clarification_all_data", "text": "整理所有数据", "expected_status": "NEEDS_CLARIFICATION"},
+  {"id": "clarification_body_diet_all", "text": "我要全部的身体以及饮食数据", "expected_status": "NEEDS_CLARIFICATION"},
+  {"id": "clarification_all_training", "text": "导出全部训练记录", "expected_status": "NEEDS_CLARIFICATION"},
+  {"id": "batch_explicit_count", "text": "导出9个数据集", "expected_status": "BATCH_SPLIT_REQUIRED"},
+  {"id": "batch_over_limit", "text": "导出超过8个数据集的完整报告", "expected_status": "BATCH_SPLIT_REQUIRED"},
+  {"id": "two_stage_chest_actions", "text": "导出最近28天胸部动作", "expected_status": "TWO_STAGE_EXPORT_REQUIRED"},
+  {"id": "two_stage_shoulder_progress", "text": "导出最近三次肩部动作进展", "expected_status": "TWO_STAGE_EXPORT_REQUIRED"},
+  {"id": "resolution_named_press", "text": "导出最近三次杠铃卧推的负重和组数", "expected_status": "PREVIEW_READY_RESOLUTION_REQUIRED"},
+  {"id": "ready_body_phrase", "text": "导出最近28天身体数据", "expected_status": "ready"},
+  {"id": "ready_diet_phrase", "text": "导出最近28天饮食数据", "expected_status": "ready"},
+  {"id": "ready_training", "text": "导出最近三次训练", "expected_status": "ready"},
+  {"id": "resolution_named_squat", "text": "导出最近三次深蹲进展", "expected_status": "PREVIEW_READY_RESOLUTION_REQUIRED"},
+  {"id": "ready_training_diet_relation", "text": "导出最近三次训练和每次训练前三天饮食", "expected_status": "ready"}
+]

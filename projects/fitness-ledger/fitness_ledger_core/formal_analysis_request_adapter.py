@@ -28,13 +28,22 @@ PREVIEW_SCHEMA_VERSION = "fitness-ledger-formal-analysis-request-preview-v1"
 _DIGITS = {"零": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
 _UNITS = {"十": 10, "百": 100, "千": 1000}
 _NUMBER = r"(?:\d+|[零一二两三四五六七八九十百千]+)"
+_MAX_DATASETS_PER_BATCH = 8
 _WRITE_TERMS = ("删除", "修改", "写入", "新增", "保存", "同步", "上传", "合并", "改成")
 _PLAN_TERMS = ("制定训练计划", "安排训练计划", "生成训练计划", "下周训练计划")
 _RAW_TERMS = ("raw", "原始记录", "原始输入", "原始数据", "原文追溯")
-_BODY_TERMS = ("体重", "身体状态", "排便", "有氧")
+_BODY_TERMS = ("体重", "身体状态", "身体数据", "身体记录", "身体", "排便", "有氧")
 _DIET_TERMS = ("饮食", "热量", "卡路里", "蛋白", "碳水", "脂肪", "食物")
 _TRAINING_TERMS = ("训练", "锻炼", "健身", "分化")
-_MOVEMENT_TERMS = ("动作进展", "动作表现", "动作历史", "负重", "组数", "次数", "卧推", "深蹲", "硬拉", "划船", "下拉", "推举", "侧平举", "夹胸")
+_MOVEMENT_TERMS = ("动作进展", "动作表现", "动作历史", "动作", "负重", "组数", "次数", "卧推", "深蹲", "硬拉", "划船", "下拉", "推举", "侧平举", "夹胸")
+_BROAD_SCOPE_TERMS = ("全部", "所有", "全量", "完整历史", "整个历史", "所有记录", "所有数据")
+_NO_EXPORT_QUESTION_TERMS = (
+    "为什么", "什么是", "原理", "原则", "有何作用", "有什么作用", "有什么好处",
+    "一般来说", "通常", "应该", "怎么安排", "如何安排", "怎么做", "如何改善",
+    "怎么改善", "如何提高", "怎么提高", "是否重要", "是否影响",
+)
+_EXPORT_INTENT_TERMS = ("导出", "整理", "汇总", "列出", "查看", "获取", "提取", "下载", "给我", "我要")
+_COMPARISON_TERMS = ("比较", "对比", "跨动作", "动作之间", "不同动作")
 _KNOWN_MOVEMENT_NAMES = (
     "杠铃卧推", "哑铃卧推", "上斜哑铃卧推", "卧推", "深蹲", "硬拉",
     "引体向上", "高位下拉", "坐姿划船", "杠铃划船", "肩推", "推举",
@@ -105,6 +114,48 @@ def _number(text: str) -> int | None:
 def _first_term(text: str, terms: tuple[str, ...]) -> str | None:
     matches = [(text.find(term), term) for term in terms if term in text]
     return min(matches)[1] if matches else None
+
+
+def _has_explicit_date(text: str) -> bool:
+    return bool(re.search(r"\d{4}-\d{2}-\d{2}", text))
+
+
+def _is_no_export_required(text: str) -> bool:
+    """Keep general principle questions away from both export routes."""
+    if not any(term in text for term in _NO_EXPORT_QUESTION_TERMS):
+        return False
+    if any(term in text for term in _EXPORT_INTENT_TERMS):
+        return False
+    return _time_range(text) is None and not _has_explicit_date(text)
+
+
+def _explicit_dataset_count(text: str) -> int | None:
+    """Read only an explicit batch size; never infer a count from data types."""
+    lowered = text.casefold()
+    if re.search(r"(?:超过|多于|大于)\s*(?:8|八)\s*(?:个)?\s*(?:数据集|组数据|datasets?)", lowered):
+        return _MAX_DATASETS_PER_BATCH + 1
+    match = re.search(
+        rf"(?P<number>{_NUMBER})\s*(?:个|组)?\s*(?:数据集|组数据|datasets?)",
+        lowered,
+    )
+    if match:
+        return _number(match["number"])
+    return None
+
+
+def _has_broad_scope(text: str) -> bool:
+    return any(term in text for term in _BROAD_SCOPE_TERMS) and _time_range(text) is None and not _has_explicit_date(text)
+
+
+def _cross_action_comparison(text: str) -> bool:
+    if not any(term in text for term in _COMPARISON_TERMS):
+        return False
+    canonical_names = {
+        _MOVEMENT_NAME_CANONICALIZATION.get(name, name)
+        for name in _KNOWN_MOVEMENT_NAMES
+        if name in text
+    }
+    return len(canonical_names) >= 2 or any(term in text for term in ("跨动作", "动作之间", "不同动作"))
 
 
 def _time_range(text: str) -> dict[str, Any] | None:
@@ -236,6 +287,8 @@ class FormalAnalysisRequestAdapter:
             "confirmations": [],
             "errors": [],
             "semantic_hint": None,
+            "resolution": None,
+            "batch": None,
             "execution": {
                 "allowed": False,
                 "executor_called": False,
@@ -319,6 +372,31 @@ class FormalAnalysisRequestAdapter:
             response["errors"] = [item.code for item in validation.errors]
         return response
 
+    def _movement_resolution_response(
+        self,
+        text: str,
+        intent: _ParsedIntent,
+        selector: dict[str, Any],
+    ) -> dict[str, Any]:
+        response = self._base("PREVIEW_READY_RESOLUTION_REQUIRED", "movement_resolver")
+        request_value = self._assemble(text, intent, self._fields(intent, None))
+        validation = validate_request(request_value)
+        response["validation"] = validation.to_dict()
+        if validation.valid:
+            response["request"] = validation.normalized_request
+        else:
+            response["status"] = "needs_confirmation"
+            response["route"] = "deterministic"
+            response["errors"] = [item.code for item in validation.errors]
+        response["resolution"] = {
+            "status": "required",
+            "kind": "movement_name",
+            "selector": selector,
+            "next": "movement_resolver_or_user_confirmation",
+        }
+        response["confirmations"] = ["动作名称尚未完成正式动作解析，请先由 movement resolver 或人工确认对应动作"]
+        return response
+
     def preview(self, user_text: str) -> dict[str, Any]:
         text = str(user_text or "").strip()
         if not text:
@@ -335,11 +413,62 @@ class FormalAnalysisRequestAdapter:
             response["errors"] = ["UNSUPPORTED_OPERATION"]
             return response
 
+        explicit_dataset_count = _explicit_dataset_count(text)
+        if explicit_dataset_count is not None and explicit_dataset_count > _MAX_DATASETS_PER_BATCH:
+            response = self._base("BATCH_SPLIT_REQUIRED", "deterministic")
+            response["errors"] = ["DATASET_BATCH_LIMIT_EXCEEDED"]
+            response["batch"] = {
+                "requested_dataset_count": explicit_dataset_count,
+                "max_datasets": _MAX_DATASETS_PER_BATCH,
+                "minimum_batches": (explicit_dataset_count + _MAX_DATASETS_PER_BATCH - 1) // _MAX_DATASETS_PER_BATCH,
+            }
+            response["confirmations"] = [
+                f"本次请求包含 {explicit_dataset_count} 个 Dataset，单批最多 {_MAX_DATASETS_PER_BATCH} 个，请拆分后再导出"
+            ]
+            return response
+
+        if _is_no_export_required(text):
+            response = self._base("NO_EXPORT_REQUIRED", "no_export")
+            response["confirmations"] = ["这是一般原理或建议问题，不需要导出本地数据；如需分析个人记录，请补充数据类型和时间范围"]
+            return response
+
         intent = _parse(text)
+        if _has_broad_scope(text):
+            response = self._base("NEEDS_CLARIFICATION", "deterministic")
+            response["errors"] = ["SCOPE_TOO_BROAD"]
+            response["confirmations"] = [
+                "“全部/所有”范围超过单次只读预览边界，请限定 Dataset 和时间范围，例如最近30天身体与饮食数据"
+            ]
+            return response
         if not intent.datasets:
             response = self._base("planner_required", "gpt_json_planner")
             response["confirmations"] = ["普通 GPT JSON Planner 需要明确所需 Dataset"]
             return response
+        if _cross_action_comparison(text):
+            response = self._base("unsupported", "deterministic")
+            response["errors"] = ["UNSUPPORTED_CROSS_ACTION_COMPARISON"]
+            response["confirmations"] = ["暂不支持跨动作比较；请一次选择一个动作，再分别导出其进展数据"]
+            return response
+
+        movement_selector = intent.filters.get("movement_progress", {}).get("movement_selector")
+        if movement_selector and movement_selector.get("kind") == "body_part":
+            response = self._base("TWO_STAGE_EXPORT_REQUIRED", "movement_discovery")
+            response["resolution"] = {
+                "status": "required",
+                "kind": "body_part_action_discovery",
+                "selector": movement_selector,
+                "next": "discover_actions_then_export_one_action",
+            }
+            response["confirmations"] = [
+                "该部位包含多个动作，需要先发现动作列表，再选择一个动作进行补充导出"
+            ]
+            return response
+        if movement_selector and movement_selector.get("kind") == "movement_name":
+            if intent.confirmations:
+                response = self._base("NEEDS_CLARIFICATION", "deterministic")
+                response["confirmations"] = list(intent.confirmations)
+                return response
+            return self._movement_resolution_response(text, intent, movement_selector)
         if intent.planner_required:
             return self._base("planner_required", "gpt_json_planner")
         if intent.confirmations:

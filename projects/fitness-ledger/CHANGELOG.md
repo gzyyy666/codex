@@ -1,5 +1,21 @@
 # Fitness Ledger Changelog
 
+## 2026-07-29 - Intelligent Export routing and direct data-package download
+
+- Added deterministic handling for unsupported operations, general questions
+  that do not require export, broad full-history scope, over-limit batches,
+  body-part movement discovery, and unresolved movement-name requests.
+- Made “全部的身体以及饮食数据” a clear scope clarification instead of
+  silently requiring a fixed 28-day window.
+- Removed the Intelligent Export natural-language `QUICK EXAMPLES` block.
+- Changed the natural-language Export action to perform server-side read-only
+  Preview and final revalidation, then directly download the JSON data package;
+  the user no longer needs to copy a generated Request into JSON Contract.
+- JSON Contract, Schema v1.1, Validator, Materializer, Executor, formal data,
+  and model prompt boundaries remain unchanged.
+- This is a development/review change on
+  `codex/deterministic-export-routing`; it is not merged or deployed.
+
 ## 2026-07-18 - Notes semantic scope Core candidate
 
 - Added deterministic Daily, Diet, Training, and movement-instance Notes parsing with canonical `notes:`, `diet notes:`, `training notes:`, and indented action `notes:` input.

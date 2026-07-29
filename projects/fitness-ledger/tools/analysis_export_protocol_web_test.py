@@ -14,6 +14,7 @@ from web_desktop.backend.analysis_export_protocol import (  # noqa: E402
     AnonymousFixtureProvider,
     FormalReadOnlyProvider,
 )
+from fitness_ledger_core.formal_analysis_request_adapter import FormalAnalysisRequestAdapter  # noqa: E402
 
 
 FIXTURE_DIR = ROOT / "tools" / "fixtures" / "analysis_export_anonymous"
@@ -104,6 +105,26 @@ def test_ambiguous_movement_requires_resolution() -> None:
     assert protocol.resolve({"selector": {"kind": "movement_name", "value": "Synthetic Press Ambiguous"}})["status"] == "movement_resolution_required"
 
 
+def test_natural_language_request_feeds_direct_bundle_export() -> None:
+    cases = json.loads(
+        (FIXTURE_DIR / "natural_language_routing_cases.json").read_text(encoding="utf-8")
+    )
+    case = next(item for item in cases if item["id"] == "ready_body_phrase")
+    natural = FormalAnalysisRequestAdapter().preview(case["text"])
+    assert natural["status"] == "ready", natural
+
+    protocol = service()
+    preview = protocol.preview({"request": natural["request"]})
+    assert preview["status"] == "preview_ready", preview
+    exported = protocol.export({
+        "request": natural["request"],
+        "confirmed": True,
+        "confirmation_token": preview["confirmation_token"],
+    })
+    assert exported["status"] == "bundle_ready", exported
+    assert protocol.artifact(exported["artifact_id"], "json")[1]
+
+
 def test_frontend_uses_only_v1_protocol_controls() -> None:
     app = (ROOT / "web_desktop" / "frontend" / "app.js").read_text(encoding="utf-8")
     assert "analysisExportProtocolPage" in app
@@ -115,6 +136,11 @@ def test_frontend_uses_only_v1_protocol_controls() -> None:
     assert 'data-analysis-export-mode="guided"' in app
     assert "analysis-export-scope-digest" in app
     assert "protocol-composer-tools" in app
+    assert "exportFormalSemanticDataPackage" in app
+    assert "/api/analysis-export/v1/artifact/" in app
+    assert "导出数据包" in app
+    assert "QUICK EXAMPLES" not in app
+    assert "data-analysis-export-natural-use" not in app
     assert "???" not in app
 
 
@@ -123,6 +149,7 @@ def main() -> None:
     test_invalid_boundaries_are_reported_without_provider_calls()
     test_preview_resolution_progress_exclusion_and_confirmation()
     test_ambiguous_movement_requires_resolution()
+    test_natural_language_request_feeds_direct_bundle_export()
     test_frontend_uses_only_v1_protocol_controls()
     print("FITNESS_LEDGER_ANALYSIS_EXPORT_PROTOCOL_WEB_OK")
 

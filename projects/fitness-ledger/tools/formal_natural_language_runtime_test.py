@@ -35,9 +35,10 @@ from web_desktop.backend.server import LedgerWebService, create_server  # noqa: 
 
 CASES = (
     "导出最近28天体重",
-    "导出最近三次杠铃卧推的组数、次数和负重",
+    "导出最近14天饮食",
     "导出最近三次训练和每次训练前三天的饮食",
 )
+MOVEMENT_RESOLUTION_CASE = "导出最近三次杠铃卧推的组数、次数和负重"
 
 
 def _sha256(path: Path) -> str:
@@ -187,6 +188,23 @@ def main() -> None:
                     "formats": exported["formats"],
                 }
             )
+
+        movement_resolution = _post(
+            base_url,
+            "/api/analysis-export/v1/natural-language/preview",
+            {"text": MOVEMENT_RESOLUTION_CASE},
+        )
+        assert movement_resolution["status"] == "PREVIEW_READY_RESOLUTION_REQUIRED", movement_resolution
+        assert movement_resolution["resolution"]["next"] == "movement_resolver_or_user_confirmation"
+        assert movement_resolution["execution"]["executor_called"] is False
+        summaries.append(
+            {
+                "text": MOVEMENT_RESOLUTION_CASE,
+                "natural_status": movement_resolution["status"],
+                "preview_status": "not_started",
+                "export_status": "blocked_until_resolution",
+            }
+        )
     finally:
         server.shutdown()
         server.server_close()

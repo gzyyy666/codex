@@ -1,6 +1,6 @@
 # Intelligent Export Current Status and Handoff
 
-> Last reviewed: 2026-07-28
+> Last reviewed: 2026-07-29
 
 This is the current entry point for any new conversation working on Intelligent
 Export. Read this file first, then follow the linked protocol, source, and test
@@ -13,7 +13,7 @@ commit.
 - The product owner has confirmed that the Intelligent Export UI has been
   published into the formal business application.
 - The current local repository snapshot is `main` at
-  `5f2c8fc048fe1000cd4b59366758242d238c1b75`.
+  `0824933f18c6806977360ed3d7fca60e64102777`.
 - The local main Worktree is
   `C:\Users\26087\Documents\Codex\github-memory` and was clean at the last
   review.
@@ -27,6 +27,29 @@ commit.
 The UI publication status and the algorithm acceptance status are separate:
 the UI is available for product use, while the local semantic algorithm remains
 an optimization and validation track.
+
+## 2026-07-29 deterministic routing and direct-download review
+
+The current formal-business assessment is:
+
+- The bounded read-only export path basically meets the core use case when the
+  user gives a Dataset and a time boundary, such as recent body, diet, or
+  training records. It is safe, revalidated, and does not write formal data.
+- It does not yet behave like an unrestricted “export everything” assistant.
+  Full-history requests, open-ended analysis, ambiguous movement names, body-part
+  movement discovery, and over-limit batches must remain explicit review states.
+- The previous natural-language UI required the user to copy a generated JSON
+  Request into the JSON Contract flow. The review branch now removes that extra
+  handoff: one natural-language Export action performs local routing, formal
+  read-only Preview, final revalidation, and direct JSON Bundle download.
+- The natural-language panel no longer contains `QUICK EXAMPLES`. The JSON
+  Contract remains available as an advanced/debug entry for protocol review.
+
+This work is currently under review on branch
+`codex/deterministic-export-routing`, based on
+`main@0824933f18c6806977360ed3d7fca60e64102777`. It has not been merged into
+`main` or written back to the formal directory. The protected Tracker and
+movement-dictionary fingerprints remain unchanged.
 
 ## Authoritative boundaries
 
@@ -217,7 +240,7 @@ abnormal latency increase.
 
 ## Current decision
 
-`WEB_UI_PUBLISHED_ALGORITHM_OPTIMIZATION_PENDING`
+`DETERMINISTIC_ROUTING_AND_DIRECT_DOWNLOAD_REVIEW_PENDING`
 
 The next responsible action is a fixed anonymous baseline and failure
 classification for the local semantic adapter. It is not a new Schema, a new

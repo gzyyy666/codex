@@ -94,7 +94,8 @@ def test_time_relation_notes_and_movement() -> None:
     assert notes["status"] == "ready", notes
     assert notes["request"]["datasets"][0]["notes_scope"] == "diet"
     movement = adapter.preview("导出最近三次杠铃卧推的负重和组数")
-    assert movement["status"] == "ready", movement
+    assert movement["status"] == "PREVIEW_READY_RESOLUTION_REQUIRED", movement
+    assert movement["resolution"]["next"] == "movement_resolver_or_user_confirmation"
     selector = movement["request"]["datasets"][0]["filters"]["movement_selector"]
     assert selector == {"kind": "movement_name", "value": "卧推"}
 
@@ -103,7 +104,7 @@ def test_confirmation_planner_and_capability_boundaries() -> None:
     adapter = FormalAnalysisRequestAdapter()
     assert adapter.preview("导出体重")["status"] == "needs_confirmation"
     assert adapter.preview("导出最近7天饮食笔记和训练备注")["status"] == "ready"
-    assert adapter.preview("分析饮食是否影响训练")["status"] == "planner_required"
+    assert adapter.preview("分析饮食是否影响训练")["status"] == "NO_EXPORT_REQUIRED"
     for text in (
         "导出最近7天原始数据",
         "删除最近7天训练",
@@ -113,6 +114,37 @@ def test_confirmation_planner_and_capability_boundaries() -> None:
         assert response["status"] == "unsupported", (text, response)
         assert response["provider_called"] is False
         assert response["request"] is None
+
+
+def test_deterministic_routing_regression_cases() -> None:
+    cases_path = ROOT / "tools" / "fixtures" / "analysis_export_anonymous" / "natural_language_routing_cases.json"
+    cases = json.loads(cases_path.read_text(encoding="utf-8"))
+    assert len(cases) == 20
+    adapter = FormalAnalysisRequestAdapter()
+    for case in cases:
+        response = adapter.preview(case["text"])
+        assert response["status"] == case["expected_status"], (case, response)
+        assert response["provider_called"] is False, (case, response)
+        assert response["execution"]["executor_called"] is False, (case, response)
+        assert response["execution"]["formal_data_written"] is False, (case, response)
+
+
+def test_new_routing_states_stop_before_provider() -> None:
+    provider = FakeProvider(valid_hint())
+    adapter = FormalAnalysisRequestAdapter(provider)
+    cases = (
+        ("整理所有数据", "NEEDS_CLARIFICATION"),
+        ("我要全部的身体以及饮食数据", "NEEDS_CLARIFICATION"),
+        ("导出9个数据集", "BATCH_SPLIT_REQUIRED"),
+        ("导出最近28天胸部动作", "TWO_STAGE_EXPORT_REQUIRED"),
+        ("导出最近三次杠铃卧推的负重和组数", "PREVIEW_READY_RESOLUTION_REQUIRED"),
+        ("蛋白质为什么重要", "NO_EXPORT_REQUIRED"),
+    )
+    for text, expected_status in cases:
+        response = adapter.preview(text)
+        assert response["status"] == expected_status, response
+        assert response["provider_called"] is False, response
+    assert provider.calls == 0
 
 
 def test_grounded_hint_path_and_fail_closed() -> None:

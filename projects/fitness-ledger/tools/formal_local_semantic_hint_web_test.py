@@ -41,19 +41,21 @@ def test_deterministic_ready_and_fail_closed() -> None:
     assert service.analysis_export_natural_language_preview({"text": "删除昨天的训练"})["status"] == "unsupported"
 
 
-def test_frontend_wires_preview_only_boundary() -> None:
+def test_frontend_wires_direct_export_boundary() -> None:
     app = (ROOT / "web_desktop" / "frontend" / "app.js").read_text(encoding="utf-8")
     assert "/api/analysis-export/v1/natural-language/preview" in app
     assert "data-analysis-export-natural-preview" in app
-    assert "data-analysis-export-natural-use" in app
-    assert "MODEL PROVIDER CLOSED" in app
-    assert "生成只读数据预览" in app
+    assert "exportFormalSemanticDataPackage" in app
+    assert "/api/analysis-export/v1/artifact/" in app
+    assert "导出数据包" in app
+    assert "QUICK EXAMPLES" not in app
+    assert "data-analysis-export-natural-use" not in app
 
 
 def main() -> None:
     test_input_boundaries()
     test_deterministic_ready_and_fail_closed()
-    test_frontend_wires_preview_only_boundary()
+    test_frontend_wires_direct_export_boundary()
     print("FITNESS_LEDGER_FORMAL_LOCAL_SEMANTIC_HINT_WEB_OK")
 
 
