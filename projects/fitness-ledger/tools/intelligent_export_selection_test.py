@@ -9,7 +9,7 @@ from fitness_ledger_core.export_plan_assembler import ExportPlanAssembler
 from fitness_ledger_core.intelligent_export import IntelligentExportService
 from fitness_ledger_core.intelligent_export_errors import error_info
 from fitness_ledger_core.intelligent_export_models import ContractError, IntentSpec, ModelPlanningSelection, SELECTION_SCHEMA_VERSION, selection_json_schema
-from fitness_ledger_core.local_model_adapter import FakeLocalModelAdapter
+from fitness_ledger_core.local_model_adapter import FakeLocalModelAdapter, LocalModelError
 from fitness_ledger_core.shared_view_models import LedgerViewModels
 from intelligent_export_core_test import fixture, intent
 
@@ -25,6 +25,9 @@ def main() -> None:
         assert draft.date_range["window_id"] == window and draft.selected_fields["body"]
         assert "plan_id" not in selection.to_dict() and "catalog_id" not in selection.to_dict()
         assert "selected_modules" in selection_json_schema()["required"]
+        schema = selection_json_schema()
+        assert "candidate_id" in schema["properties"]["exclusion_decisions"]["items"]["required"]
+        assert schema["properties"]["exclusion_decisions"]["items"]["properties"]["candidate_id"]["minLength"] == 1
         try:
             ModelPlanningSelection.from_dict({**raw, "catalog_id": "forbidden"})
         except ContractError:
@@ -62,6 +65,20 @@ def main() -> None:
         unknown_repair = {**service_selection(), "selected_candidate_record_ids": ["record:not-supplied"]}
         rejected = IntelligentExportService(views, FakeLocalModelAdapter([contradictory, unknown_repair])).run("体重趋势")
         assert rejected["status"] == "basic_fallback_used"
+        # A diet/body-only request must not gain unrelated training or movement
+        # evidence when the model and its Repair both fail.
+        fallback = IntelligentExportService(
+            views,
+            FakeLocalModelAdapter(errors=[LocalModelError("down", "MODEL_UNAVAILABLE"), LocalModelError("down", "MODEL_UNAVAILABLE")]),
+        ).run("分析一下最近的饮食和体重变化")
+        assert fallback["status"] == "basic_fallback_used"
+        assert fallback["selection"]["selected_modules"] == [
+            {"module_id": "body", "priority": 1, "reason": "basic deterministic evidence"},
+            {"module_id": "diet", "priority": 2, "reason": "basic deterministic evidence"},
+        ]
+        assert fallback["selection"]["selected_movements"] == []
+        assert set(item["scope"] for item in fallback["output"]["payload"]["notes"]) == {"daily", "diet"}
+        assert fallback["output"]["payload"]["movements"] == []
     print("FITNESS_LEDGER_INTELLIGENT_EXPORT_SELECTION_OK")
 
 if __name__ == "__main__": main()

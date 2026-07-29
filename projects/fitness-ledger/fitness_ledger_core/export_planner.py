@@ -7,7 +7,7 @@ from .candidate_cards import CandidatePackage
 from .intelligent_export_models import ContractError, SCHEMA_VERSION, SELECTION_SCHEMA_VERSION, ExportPlanDraft, ModelPlanningSelection, ModelSelectionExclusion, ModelSelectionFields, ModelSelectionModule, ModelSelectionMovement, selection_json_schema
 from .local_model_adapter import PLANNING_MODEL_CONFIG, LocalModelAdapter
 
-PROMPT_VERSION = "intelligent-export-prompts-v1"
+PROMPT_VERSION = "intelligent-export-prompts-v2"
 
 
 def parse_json_object(raw_text: str) -> dict:
@@ -17,7 +17,7 @@ def parse_json_object(raw_text: str) -> dict:
     return value
 
 
-PLANNING_SYSTEM_PROMPT = """You are a strict Fitness Ledger export selector. Return only one JSON object matching the supplied selection schema. The application already resolved dates, target body parts, and explicitly named movements deterministically. Use only candidate IDs and fields supplied. EXPLICIT_TARGET and BODY_PART_TARGET directly cover the requested scope; CONTEXT supports it; GENERAL_FALLBACK is representative evidence only. When direct targets exist, retain at least one direct target and do not replace all targets with context. Select only the modules, fields, movements, notes and records needed for a useful export. Use progress history for metrics; excluded history is context_only. Do not output intent fields, dates, catalog IDs, paths, raw text, or prose. Set planning_decision=ready whenever a safe useful selection can be made; otherwise fallback_required with an allowed reason."""
+PLANNING_SYSTEM_PROMPT = """You are a strict Fitness Ledger export selector. Return only one JSON object matching the supplied selection schema. The application already resolved dates, target body parts, and explicitly named movements deterministically. Use only candidate IDs and fields supplied. The module semantic_role and selection_hint explain what evidence each module contains; use the original request and these meanings together, not field names alone. A request about diet, low carbohydrate, calories, macros, food, or dietary support should be evaluated against the diet_and_macros module and diet_note candidates when they are available. If the request is only about diet/body state and does not ask about training, performance, recovery, a body part, or a named movement, do not select movements or movement_history. EXPLICIT_TARGET and BODY_PART_TARGET directly cover the requested scope; CONTEXT supports it; GENERAL_FALLBACK is representative evidence only. When direct targets exist, retain at least one direct target and do not replace all targets with context. Select only the modules, fields, movements, notes and records needed for a useful export. Use progress history for metrics; excluded history is context_only. Do not output intent fields, dates, catalog IDs, paths, raw text, or prose. Set planning_decision=ready whenever a safe useful selection can be made; otherwise fallback_required with an allowed reason."""
 
 
 class ExportPlanner:
@@ -27,15 +27,16 @@ class ExportPlanner:
         self.last_payload = None
 
     def plan(self, request: str, scope, package: CandidatePackage) -> tuple[ModelPlanningSelection, object]:
-        schema = selection_json_schema()
+        schema = selection_json_schema(package.allowed_ids["window_ids"])
+        planning_view = package.to_planning_prompt_dict()
         payload = {
             "original_request": str(request or "")[:2000],
             "query_scope": scope.to_dict() if hasattr(scope, "to_dict") else {},
             "candidate_summary": {
-                "windows": package.to_planning_prompt_dict()["windows"],
-                "modules": package.to_planning_prompt_dict()["modules"],
-                "movements": package.to_planning_prompt_dict()["movements"],
-                "notes": [{"note_candidate_id": item.note_candidate_id, "date": item.date, "note_type": item.note_type, "movement_id": item.movement_id} for item in package.notes],
+                "windows": planning_view["windows"],
+                "modules": planning_view["modules"],
+                "movements": planning_view["movements"],
+                "notes": planning_view["notes"],
                 "records": [{"candidate_record_id": item.candidate_record_id, "module_id": item.module_id, "date": item.date, "record_kind": item.record_kind, "flags": item.flags, "related_movement_ids": item.related_movement_ids} for item in package.candidate_records],
             },
             "allowed_window_ids": package.allowed_ids["window_ids"],

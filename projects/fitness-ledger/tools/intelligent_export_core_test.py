@@ -92,12 +92,23 @@ def main() -> None:
         assert all("private raw" not in json.dumps(call["user_payload"], ensure_ascii=False) for call in adapter.calls)
         assert "完整私人" not in result["output"]["json"]
         assert len(adapter.calls) == 1
+        planning_modules = adapter.calls[0]["user_payload"]["candidate_summary"]["modules"]
+        planning_notes = adapter.calls[0]["user_payload"]["candidate_summary"]["notes"]
+        diet_module = next(item for item in planning_modules if item["module_id"] == "diet")
+        diet_note = next(item for item in planning_notes if item["note_type"] == "diet")
+        assert diet_module["semantic_role"] == "diet_and_macros"
+        assert "碳水" in diet_module["selection_hint"]
+        assert diet_note["short_fragment"] == "训练前碳水较少。"
 
         # Planning validation and one successful Repair.
         repair_adapter = FakeLocalModelAdapter([plan_for(views, invalid=True), good_plan])
         repaired = IntelligentExportService(views, repair_adapter).run("比较肩部训练")
         assert repaired["status"] == "ready" and repaired["trace"]["repaired"] is True
         assert len(repair_adapter.calls) == 2
+        repair_payload = repair_adapter.calls[1]["user_payload"]
+        assert repair_payload["repair_mode"] == "structural_only_preserve_semantics"
+        assert any(item["module_id"] == "diet" for item in repair_payload["candidate_summary"]["modules"])
+        assert any(item["note_type"] == "diet" and item["short_fragment"] for item in repair_payload["candidate_summary"]["notes"])
 
         # Repair failure becomes a safe fallback.
         failing = FakeLocalModelAdapter([plan_for(views, invalid=True), plan_for(views, invalid=True)])

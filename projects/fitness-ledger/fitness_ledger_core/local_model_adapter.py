@@ -37,7 +37,7 @@ class ModelConfig:
     ensure_ascii: bool = False
 
 
-INTENT_MODEL_CONFIG = ModelConfig(0.05, 4096, 800, 30.0)
+INTENT_MODEL_CONFIG = ModelConfig(0.0, 4096, 800, 30.0)
 PLANNING_MODEL_CONFIG = ModelConfig(0.05, 8192, 1600, 60.0)
 REPAIR_MODEL_CONFIG = ModelConfig(0.0, 4096, 1400, 30.0)
 
