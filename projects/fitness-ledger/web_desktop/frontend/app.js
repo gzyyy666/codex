@@ -393,10 +393,65 @@ function analysisExportPage(){
 
 const ANALYSIS_EXPORT_EXAMPLE={request_version:'1.1',purpose:'Review the latest body-weight trend',datasets:[{dataset_id:'body_recent',type:'body',time_range:{mode:'recent_days',days:28},filters:{},fields:['date','weight_kg','training_label'],notes_scope:'daily'}],raw:false,output:{formats:['json','markdown']}};
 
-function analysisExportProtocolPage(){
+function legacyAnalysisExportProtocolPage(){
   const example=JSON.stringify(ANALYSIS_EXPORT_EXAMPLE,null,2);
   main.innerHTML=`<section class="page export-page protocol-export-page"><header class="export-hero"><span class="eyebrow">08 / FORMAL READ-ONLY BUNDLE</span><div><h1>Analysis<br>Export.</h1><p>将精确的 Request 转成可检阅的范围，再生成确定性的只读 Bundle。</p></div><aside class="protocol-guard"><span class="eyebrow">SAFETY CLOSED</span><strong>NO RAW / NO EXECUTOR</strong><small>自然语言只负责草拟 Request，正式预览仍需明确点击。</small></aside></header><section class="protocol-desk"><div class="protocol-desk-head"><div><span class="eyebrow">EXPORT DESK / V1.1</span><strong>Scope first. Evidence next.</strong><p>同一份请求依次经过校验、预览和确认。</p></div><ol class="protocol-step-rail" aria-label="Export steps"><li class="is-current" data-protocol-step="request"><b>01</b><span>Request</span></li><li data-protocol-step="validate"><b>02</b><span>Validate</span></li><li data-protocol-step="preview"><b>03</b><span>Preview</span></li><li data-protocol-step="confirm"><b>04</b><span>Confirm</span></li></ol></div><div class="protocol-mode-bar"><div class="protocol-mode-intro"><span class="eyebrow">INPUT CONTRACT</span><strong>Choose the input contract.</strong><p>JSON Contract 是当前正式入口；Guided Request 只生成受控的 Request 候选，不会自动导出。</p></div><div class="protocol-mode-switch" role="tablist" aria-label="Request input mode"><button type="button" class="is-active" data-analysis-export-mode="json" role="tab" aria-selected="true"><span>JSON Contract</span><small>AVAILABLE NOW</small></button><button type="button" data-analysis-export-mode="guided" role="tab" aria-selected="false"><span>Guided Request</span><small>PREVIEW ONLY</small></button></div></div><div class="protocol-workbench"><article class="protocol-request material-paper"><div class="protocol-json-mode" data-analysis-export-mode-panel="json"><div class="protocol-panel-caption"><span class="eyebrow">REQUEST COMPOSER / 01</span><span class="protocol-chip">SCHEMA V1.1</span></div><div class="protocol-section-head"><h2>Compose the scope.</h2><p>粘贴 JSON Request 文件，在本地格式化，然后通过现有协议提交校验。</p></div><label class="protocol-json-label" for="analysis-export-request"><span>粘贴 AnalysisExportRequest 文件</span><textarea id="analysis-export-request" spellcheck="false">${esc(example)}</textarea></label><input id="analysis-export-file" type="file" accept=".json,application/json,text/plain" hidden><div class="protocol-composer-tools"><button class="btn btn-light" type="button" data-analysis-export-paste>Paste</button><button class="btn btn-light" type="button" data-analysis-export-file>Load file</button><button class="btn btn-light" type="button" data-analysis-export-example>Load example</button><button class="btn btn-light" type="button" data-analysis-export-format>Format</button><button class="btn btn-quiet" type="button" data-analysis-export-clear>Clear</button></div><div class="protocol-editor-meta"><span>UTF-8 / local editor</span><span id="analysis-export-editor-state">EDITING / draft not validated</span></div><div class="protocol-actions"><button class="btn btn-primary" type="button" data-analysis-export-validate>Validate request <span>-></span></button><button class="btn btn-light" type="button" data-analysis-export-preview disabled>Open preview <span>-></span></button></div><p class="protocol-note">正式数据源：当前 Web Worktree 尚未接入；匿名 Fixture 仅用于协议交互检查。</p></div><div class="protocol-guided-mode" data-analysis-export-mode-panel="guided" hidden><div class="protocol-panel-caption"><span class="eyebrow">GUIDED REQUEST / SEMANTIC HINT</span><span class="protocol-chip">PREVIEW ONLY</span></div><div class="protocol-section-head"><h2>Describe the question.</h2><p>用自然语言描述范围。系统只生成 Request 候选，再由同一套 v1.1 Validator 校验；不会自动读取数据或导出。</p></div><label class="protocol-natural-label" for="analysis-export-natural-language"><span>自然语言描述</span><textarea id="analysis-export-natural-language" rows="3" maxlength="500" placeholder="例如：导出最近三次杠铃卧推的组数、次数和负重"></textarea></label><div class="protocol-natural-meta"><span>最多 500 字 · 中文输入法安全</span><span id="analysis-export-natural-count">0 / 500</span></div><div class="protocol-natural-examples"><span class="eyebrow">QUICK EXAMPLES</span>${['最近28天体重','最近14天热量和蛋白质','最近三次胸部训练','最近五次杠铃卧推','训练前三天的饮食'].map((item,index)=>`<button type="button" class="scenario-chip" data-analysis-export-natural-example="${index}">${esc(item)}</button>`).join('')}</div><button class="btn btn-primary" type="button" data-analysis-export-natural-preview>解析请求 <span>→</span></button><small class="protocol-natural-note">MODEL PROVIDER CLOSED · NO DATA ACCESS · NO EXPORT</small><aside id="analysis-export-natural-result" class="protocol-natural-result" data-status="idle"><span class="eyebrow">NATURAL LANGUAGE / WAITING</span><strong>先描述你要看的范围。</strong><p>解析完成后，只有明确点击“生成只读数据预览”才会进入正式 Preview。</p></aside></div></article><aside class="protocol-side"><section id="analysis-export-scope-digest" class="protocol-scope-digest" data-status="idle"><div class="protocol-panel-caption"><span class="eyebrow">SCOPE DIGEST</span><span class="protocol-chip">WAITING</span></div><strong>Waiting for a validated request.</strong><p>这里会展示系统理解到的内容：Dataset、日期、数据域和隐私状态。</p><dl><div><dt>DATASETS</dt><dd>n/a</dd></div><div><dt>TIME RANGE</dt><dd>n/a</dd></div><div><dt>DOMAINS</dt><dd>n/a</dd></div><div><dt>RECORDS</dt><dd>n/a</dd></div><div><dt>RAW</dt><dd>CLOSED</dd></div><div><dt>VALIDATOR</dt><dd>WAITING</dd></div></dl></section><div class="protocol-side-caption"><span class="eyebrow">EVIDENCE PREVIEW</span><span>server-side revalidation</span></div><aside id="analysis-export-protocol-result" class="protocol-result" data-status="idle"><span class="eyebrow">PREVIEW / EMPTY</span><h3>Make the scope visible first.</h3><p>验证 Request 后可查看实际证据、解析结果和隐私状态。</p></aside><section id="analysis-export-protocol-confirm" class="protocol-confirm protocol-confirm-inline material-paper" hidden><div class="protocol-confirm-copy"><span class="eyebrow">04 / CONFIRMATION GATE</span><strong>Confirm this Preview.</strong><p>服务端会重新验证当前范围，并生成只读 JSON / Markdown Bundle，不会写入正式数据。</p></div><label class="protocol-confirm-check"><input id="analysis-export-confirm" type="checkbox"> 我确认当前范围</label><button class="btn btn-primary" type="button" data-analysis-export-confirm disabled>Confirm & Export</button><div id="analysis-export-downloads" class="protocol-downloads"></div></section></aside></div></section></section>`;
   setAnalysisExportProtocolMode('json');
+  setAnalysisExportProtocolStage('request');
+  requestAnimationFrame(()=>$('.export-page')?.classList.add('is-entered'));
+}
+
+function analysisExportProtocolPage(){
+  main.innerHTML=`<section class="page export-page protocol-export-page protocol-export-focused">
+    <header class="export-hero">
+      <span class="eyebrow">08 / FORMAL READ-ONLY BUNDLE</span>
+      <div><h1>Analysis<br>Export.</h1><p>用一句自然语言说明需要的数据，确认范围后直接下载只读文件。</p></div>
+      <aside class="protocol-guard"><span class="eyebrow">LOCAL / READ ONLY</span><strong>RAW CLOSED</strong><small>导出不会修改正式记录，也不会调用 Executor。</small></aside>
+    </header>
+    <section class="protocol-desk protocol-desk-focused">
+      <div class="protocol-desk-head">
+        <div><span class="eyebrow">EXPORT DESK / V1.1</span><strong>Describe. Review. Download.</strong><p>系统会把自然语言转换为受控 Request，并自动交给同一套 Validator 与只读 Preview。</p></div>
+        <ol class="protocol-step-rail" aria-label="导出步骤">
+          <li class="is-current" data-protocol-step="request"><b>01</b><span>输入需求</span></li>
+          <li data-protocol-step="validate"><b>02</b><span>校验范围</span></li>
+          <li data-protocol-step="preview"><b>03</b><span>查看预览</span></li>
+          <li data-protocol-step="confirm"><b>04</b><span>确认导出</span></li>
+        </ol>
+      </div>
+      <div class="protocol-workbench protocol-workbench-focused">
+        <article class="protocol-request protocol-natural-primary material-paper">
+          <div class="protocol-panel-caption"><span class="eyebrow">NATURAL LANGUAGE / PRIMARY</span><span class="protocol-chip">ONE REQUEST</span></div>
+          <div class="protocol-section-head"><h2>Describe the export.</h2><p>直接说明日期、训练动作或需要分析的数据。无需理解 JSON，也无需在两个入口之间复制内容。</p></div>
+          <label class="protocol-natural-label" for="analysis-export-natural-language"><span>导出需求</span><textarea id="analysis-export-natural-language" rows="4" maxlength="500" placeholder="例如：导出最近三次杠铃卧推的组数、次数和负重"></textarea></label>
+          <div class="protocol-natural-meta"><span>最多 500 字 · 支持中文输入</span><span id="analysis-export-natural-count">0 / 500</span></div>
+          <button class="btn btn-primary protocol-natural-submit" type="button" data-analysis-export-natural-preview>生成数据预览 <span>→</span></button>
+          <small class="protocol-natural-note">输入 → Validator → 只读预览；确认前不会生成文件</small>
+          <aside id="analysis-export-natural-result" class="protocol-natural-result" data-status="idle"><span class="eyebrow">REQUEST / WAITING</span><strong>先写下你需要的数据。</strong><p>范围明确后会自动进入正式预览，不需要复制 Request。</p></aside>
+          <details class="protocol-json-advanced">
+            <summary><span>高级入口</span><strong>导入 JSON Request</strong><small>仅供已有 v1.1 Request 文件时使用</small></summary>
+            <div class="protocol-json-mode">
+              <label class="protocol-json-label" for="analysis-export-request"><span>AnalysisExportRequest JSON</span><textarea id="analysis-export-request" spellcheck="false" placeholder="粘贴或载入 JSON Request"></textarea></label>
+              <input id="analysis-export-file" type="file" accept=".json,application/json,text/plain" hidden>
+              <div class="protocol-composer-tools"><button class="btn btn-light" type="button" data-analysis-export-paste>粘贴</button><button class="btn btn-light" type="button" data-analysis-export-file>选择文件</button><button class="btn btn-light" type="button" data-analysis-export-format>格式化</button><button class="btn btn-quiet" type="button" data-analysis-export-clear>清空</button></div>
+              <div class="protocol-editor-meta"><span>UTF-8 / 本地编辑</span><span id="analysis-export-editor-state">尚未校验</span></div>
+              <div class="protocol-actions"><button class="btn btn-primary" type="button" data-analysis-export-validate>校验 Request <span>→</span></button><button class="btn btn-light" type="button" data-analysis-export-preview disabled>生成数据预览 <span>→</span></button></div>
+            </div>
+          </details>
+        </article>
+        <aside class="protocol-side protocol-side-focused">
+          <div class="protocol-side-caption"><span class="eyebrow">DATA PREVIEW</span><span>服务端重新校验</span></div>
+          <aside id="analysis-export-protocol-result" class="protocol-result" data-status="idle"><span class="eyebrow">PREVIEW / EMPTY</span><h3>Scope appears here.</h3><p>生成预览后，这里只保留日期、数据域、记录数量和必要提醒。</p></aside>
+          <section id="analysis-export-protocol-confirm" class="protocol-confirm protocol-confirm-inline material-paper" hidden>
+            <div class="protocol-confirm-copy"><span class="eyebrow">04 / FINAL CHECK</span><strong>确认当前数据范围</strong><p>确认后生成只读 JSON 与 Markdown 文件，不写入正式数据。</p></div>
+            <label class="protocol-confirm-check"><input id="analysis-export-confirm" type="checkbox"> 范围正确，可以生成文件</label>
+            <button class="btn btn-primary" type="button" data-analysis-export-confirm disabled>确认并导出</button>
+            <div id="analysis-export-downloads" class="protocol-downloads"></div>
+          </section>
+        </aside>
+      </div>
+    </section>
+  </section>`;
+  setAnalysisExportProtocolMode('guided');
   setAnalysisExportProtocolStage('request');
   requestAnimationFrame(()=>$('.export-page')?.classList.add('is-entered'));
 }
@@ -440,7 +495,7 @@ function renderAnalysisExportProtocolResult(payload){
 }
 async function validateAnalysisExportProtocol(){const button=$('[data-analysis-export-validate]');setAnalysisExportProtocolStage('validate');try{const request=protocolRequestValue();button.disabled=true;const result=await postApi('/api/analysis-export/v1/validate',{request});renderAnalysisExportProtocolResult(result)}catch(error){renderAnalysisExportProtocolResult({status:'invalid_request',errors:[{path:'$',code:'INVALID_JSON',message:error.message}]})}finally{if(button)button.disabled=false}}
 async function previewAnalysisExportProtocol(){const button=$('[data-analysis-export-preview]');setAnalysisExportProtocolStage('validate');try{const request=protocolRequestValue();button.disabled=true;const result=await postApi('/api/analysis-export/v1/preview',{request});renderAnalysisExportProtocolResult(result)}catch(error){renderAnalysisExportProtocolResult({status:'formal_data_unavailable',preview:{warnings:[error.message]}})}finally{if(button)button.disabled=false}}
-async function exportAnalysisExportProtocol(){const button=$('[data-analysis-export-confirm]'),preview=state.analysisExportProtocolPreview;const check=$('#analysis-export-confirm');if(!preview?.confirmation_token){showToast('请先完成 Preview。');return}if(!check?.checked){showToast('请先确认当前 Preview 范围。');return}try{button.disabled=true;button.textContent='正在重新校验…';const result=await postApi('/api/analysis-export/v1/export',{request:protocolRequestValue(),confirmed:true,confirmation_token:preview.confirmation_token});state.analysisExportProtocolResult=result;const downloads=$('#analysis-export-downloads');if(result.status==='bundle_ready'&&downloads){downloads.innerHTML=`<a class="protocol-download" href="/api/analysis-export/v1/artifact/${encodeURIComponent(result.artifact_id)}?format=json" download>Download JSON <small>${esc(result.record_count)} records</small></a><a class="protocol-download" href="/api/analysis-export/v1/artifact/${encodeURIComponent(result.artifact_id)}?format=markdown" download>Download Markdown <small>deterministic bundle</small></a>`;showToast('只读 Bundle 已准备完成。')}else{renderAnalysisExportProtocolResult(result);showToast(result.status==='formal_data_unavailable'?'正式只读数据源尚未接入。':'导出未通过确认。')}}catch(error){showToast(error.message)}finally{button.disabled=false;button.textContent='Confirm & Export'}}
+async function exportAnalysisExportProtocol(){const button=$('[data-analysis-export-confirm]'),preview=state.analysisExportProtocolPreview;const check=$('#analysis-export-confirm');if(!preview?.confirmation_token){showToast('请先完成数据预览。');return}if(!check?.checked){showToast('请先确认当前数据范围。');return}try{button.disabled=true;button.textContent='正在生成文件…';const result=await postApi('/api/analysis-export/v1/export',{request:protocolRequestValue(),confirmed:true,confirmation_token:preview.confirmation_token});state.analysisExportProtocolResult=result;const downloads=$('#analysis-export-downloads');if(result.status==='bundle_ready'&&downloads){downloads.innerHTML=`<a class="protocol-download" href="/api/analysis-export/v1/artifact/${encodeURIComponent(result.artifact_id)}?format=json" download>下载 JSON <small>${esc(result.record_count)} 条记录</small></a><a class="protocol-download" href="/api/analysis-export/v1/artifact/${encodeURIComponent(result.artifact_id)}?format=markdown" download>下载 Markdown <small>只读数据文件</small></a>`;showToast('只读数据文件已准备完成。')}else{renderAnalysisExportProtocolResult(result);showToast(result.status==='formal_data_unavailable'?'正式只读数据源尚未接入。':'导出未通过确认。')}}catch(error){showToast(error.message)}finally{button.disabled=false;button.textContent='确认并导出'}}
 
 function renderFormalSemanticPreview(payload={}){
   const target=$('#analysis-export-natural-result');if(!target)return;
@@ -448,7 +503,7 @@ function renderFormalSemanticPreview(payload={}){
   target.dataset.status=status;state.formalSemanticPreview=status==='ready'?payload:null;
   if(status==='ready'){
     const datasets=Array.isArray(request.datasets)?request.datasets:[];
-    target.innerHTML=`<span class="eyebrow">READY / REQUEST CANDIDATE</span><strong>范围已识别，可交给正式 Validator。</strong><p>${esc(payload.route||'deterministic')} · Provider ${payload.provider_called?'1':'0'} · Raw CLOSED</p><div class="protocol-natural-summary">${datasets.map(item=>`<div><b>${esc(item.type||'')}</b><span>${esc(protocolTimeRangeSummary([item]))}</span><small>${esc((item.fields||[]).join(' · '))}</small></div>`).join('')||'<span>未形成 Dataset。</span>'}</div><button class="btn btn-primary" type="button" data-analysis-export-natural-use>生成只读数据预览 <span>→</span></button><details class="protocol-details"><summary>查看 Request JSON</summary><pre>${esc(JSON.stringify(request,null,2))}</pre></details>`;
+    target.innerHTML=`<span class="eyebrow">SCOPE RECOGNIZED</span><strong>范围已识别，正在生成正式预览。</strong><p>同一套 Validator 将重新检查日期、字段和只读边界。</p><div class="protocol-natural-summary">${datasets.map(item=>`<div><b>${esc(item.type||'')}</b><span>${esc(protocolTimeRangeSummary([item]))}</span><small>${esc((item.fields||[]).join(' · '))}</small></div>`).join('')||'<span>未形成 Dataset。</span>'}</div>`;
     return;
   }
   const messages=[...confirmations,...errors.map(item=>typeof item==='string'?item:(item.message||item.code||'无法继续'))];
@@ -458,9 +513,9 @@ async function previewFormalSemanticHint(){
   const input=$('#analysis-export-natural-language'),button=$('[data-analysis-export-natural-preview]');if(!input||state.formalSemanticBusy)return;
   const text=input.value.trim();if(!text){renderFormalSemanticPreview({status:'needs_confirmation',confirmations:['请输入需要导出或分析的数据范围。']});return}
   state.formalSemanticBusy=true;if(button){button.disabled=true;button.textContent='解析中…'}
-  try{const result=await postApi('/api/analysis-export/v1/natural-language/preview',{text});renderFormalSemanticPreview(result)}catch(error){renderFormalSemanticPreview({status:'error',errors:[{message:'自然语言预览暂时不可用，请切回 JSON Contract。'}]})}finally{state.formalSemanticBusy=false;if(button){button.disabled=false;button.innerHTML='解析请求 <span>→</span>'}}
+  try{const result=await postApi('/api/analysis-export/v1/natural-language/preview',{text});renderFormalSemanticPreview(result);if(result.status==='ready')await useFormalSemanticRequest()}catch(error){renderFormalSemanticPreview({status:'error',errors:[{message:'自然语言预览暂时不可用，可使用下方高级 JSON 入口。'}]})}finally{state.formalSemanticBusy=false;if(button){button.disabled=false;button.innerHTML='生成数据预览 <span>→</span>'}}
 }
-function useFormalSemanticRequest(){const payload=state.formalSemanticPreview,input=$('#analysis-export-request');if(!payload?.request||!input)return;input.value=JSON.stringify(payload.request,null,2);input.dispatchEvent(new Event('input',{bubbles:true}));setAnalysisExportProtocolMode('json');previewAnalysisExportProtocol()}
+async function useFormalSemanticRequest(){const payload=state.formalSemanticPreview,input=$('#analysis-export-request');if(!payload?.request||!input)return;input.value=JSON.stringify(payload.request,null,2);input.dispatchEvent(new Event('input',{bubbles:true}));await previewAnalysisExportProtocol()}
 
 const INTELLIGENT_REVIEW_SCENARIOS=[
   {label:'分析最近一个月的饮食和体重',short:'饮食 + 体重'},

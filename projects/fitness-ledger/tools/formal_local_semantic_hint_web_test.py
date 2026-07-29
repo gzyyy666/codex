@@ -43,11 +43,16 @@ def test_deterministic_ready_and_fail_closed() -> None:
 
 def test_frontend_wires_preview_only_boundary() -> None:
     app = (ROOT / "web_desktop" / "frontend" / "app.js").read_text(encoding="utf-8")
+    focused_page = app[app.rfind("function analysisExportProtocolPage()") : app.index("function setAnalysisExportProtocolMode")]
     assert "/api/analysis-export/v1/natural-language/preview" in app
     assert "data-analysis-export-natural-preview" in app
-    assert "data-analysis-export-natural-use" in app
-    assert "MODEL PROVIDER CLOSED" in app
-    assert "生成只读数据预览" in app
+    assert "await useFormalSemanticRequest()" in app
+    assert "await previewAnalysisExportProtocol()" in app
+    assert "生成数据预览" in focused_page
+    assert "确认并导出" in focused_page
+    assert "高级入口" in focused_page
+    assert "QUICK EXAMPLES" not in focused_page
+    assert "data-analysis-export-natural-example" not in focused_page
 
 
 def main() -> None:
