@@ -13,8 +13,10 @@
   the user no longer needs to copy a generated Request into JSON Contract.
 - JSON Contract, Schema v1.1, Validator, Materializer, Executor, formal data,
   and model prompt boundaries remain unchanged.
-- This is a development/review change on
-  `codex/deterministic-export-routing`; it is not merged or deployed.
+- Merged into local `main` and published to the formal business directory from
+  runtime Commit `dc78440b682bb08e5625b34c540b884e16f6ad03`.
+- Remote `origin/main` was not pushed; the runtime identity therefore records
+  `push_verified: false`.
 
 ## 2026-07-18 - Notes semantic scope Core candidate
 

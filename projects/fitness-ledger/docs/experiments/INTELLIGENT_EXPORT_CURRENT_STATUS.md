@@ -12,8 +12,8 @@ commit.
 
 - The product owner has confirmed that the Intelligent Export UI has been
   published into the formal business application.
-- The current local repository snapshot is `main` at
-  `0824933f18c6806977360ed3d7fca60e64102777`.
+- The deterministic-routing and direct-download runtime release is `main` at
+  `dc78440b682bb08e5625b34c540b884e16f6ad03`.
 - The local main Worktree is
   `C:\Users\26087\Documents\Codex\github-memory` and was clean at the last
   review.
@@ -28,7 +28,7 @@ The UI publication status and the algorithm acceptance status are separate:
 the UI is available for product use, while the local semantic algorithm remains
 an optimization and validation track.
 
-## 2026-07-29 deterministic routing and direct-download review
+## 2026-07-29 deterministic routing and direct-download publication
 
 The current formal-business assessment is:
 
@@ -39,17 +39,19 @@ The current formal-business assessment is:
   Full-history requests, open-ended analysis, ambiguous movement names, body-part
   movement discovery, and over-limit batches must remain explicit review states.
 - The previous natural-language UI required the user to copy a generated JSON
-  Request into the JSON Contract flow. The review branch now removes that extra
+  Request into the JSON Contract flow. The published runtime removes that extra
   handoff: one natural-language Export action performs local routing, formal
   read-only Preview, final revalidation, and direct JSON Bundle download.
 - The natural-language panel no longer contains `QUICK EXAMPLES`. The JSON
   Contract remains available as an advanced/debug entry for protocol review.
 
-This work is currently under review on branch
-`codex/deterministic-export-routing`, based on
-`main@0824933f18c6806977360ed3d7fca60e64102777`. It has not been merged into
-`main` or written back to the formal directory. The protected Tracker and
-movement-dictionary fingerprints remain unchanged.
+The implementation was fast-forwarded from
+`codex/deterministic-export-routing` into local `main` at
+`dc78440b682bb08e5625b34c540b884e16f6ad03` and written to the formal business
+directory. The formal runtime identity is intentionally marked
+`push_verified: false` because `origin/main` was not pushed. The protected
+Tracker and movement-dictionary fingerprints remained unchanged across
+publication.
 
 ## Authoritative boundaries
 
@@ -240,7 +242,7 @@ abnormal latency increase.
 
 ## Current decision
 
-`DETERMINISTIC_ROUTING_AND_DIRECT_DOWNLOAD_REVIEW_PENDING`
+`DETERMINISTIC_ROUTING_AND_DIRECT_DOWNLOAD_PUBLISHED_LOCAL_FORMAL`
 
 The next responsible action is a fixed anonymous baseline and failure
 classification for the local semantic adapter. It is not a new Schema, a new
