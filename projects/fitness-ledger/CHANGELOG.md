@@ -10,6 +10,9 @@
   protected-data fingerprints, and service state.
 - Archived superseded dirty Intelligent Export experiments on dedicated
   archive branches and moved generated holdout reports outside Git.
+- Converted unique historical experiment tips into pushed archive Tags,
+  removed their obsolete local feature branches, and removed 16 clean legacy
+  project Worktrees without deleting recoverable history.
 - Added a sustainable post-seal Worktree lifecycle and ignored generated
   `tools/test_outputs/`.
 
