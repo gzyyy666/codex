@@ -213,6 +213,35 @@ def write_outputs(state: dict, handoff: bool) -> dict:
     result = {"state_file": str(state_path)}
     if handoff:
         git_state = state["git"]
+        ready_for_git_integration = (
+            git_state["clean"]
+            and git_state["branch"] != "main"
+            and bool(git_state["changed_vs_main"])
+        )
+        already_on_main = (
+            git_state["clean"]
+            and git_state["branch"] == "main"
+            and git_state["head"] == git_state["main"]
+        )
+        if already_on_main:
+            closure_state = (
+                "sealed_on_main"
+                if state["formal"]["deployment"].get("status") == "CURRENT"
+                else "main_requires_formal_deployment"
+            )
+            integration_reason = "already_on_main"
+        elif ready_for_git_integration:
+            closure_state = "review_ready"
+            integration_reason = "clean_task_branch_with_commits"
+        elif not git_state["clean"]:
+            closure_state = "worktree_dirty"
+            integration_reason = "uncommitted_changes"
+        elif git_state["branch"] == "main":
+            closure_state = "main_state"
+            integration_reason = "main_head_mismatch"
+        else:
+            closure_state = "development"
+            integration_reason = "no_committed_changes_vs_main"
         handoff_payload = {
             "schema": 1,
             "generated_at": state["generated_at"],
@@ -222,13 +251,20 @@ def write_outputs(state: dict, handoff: bool) -> dict:
             "origin_main": git_state["origin_main"],
             "clean": git_state["clean"],
             "changed_vs_main": git_state["changed_vs_main"],
+            "main_sync": {
+                "ahead": git_state["main_ahead"],
+                "behind": git_state["main_behind"],
+            },
             "formal_deployment": state["formal"]["deployment"],
+            "formal_data": {
+                "tracker": state["formal"]["tracker"],
+                "movement_dictionary": state["formal"]["movement_dictionary"],
+            },
             "cloud_sync": state["cloud_sync"],
-            "ready_for_git_integration": (
-                git_state["clean"]
-                and git_state["branch"] != "main"
-                and bool(git_state["changed_vs_main"])
-            ),
+            "service": state["service"],
+            "closure_state": closure_state,
+            "integration_reason": integration_reason,
+            "ready_for_git_integration": ready_for_git_integration,
         }
         handoff_path = state_dir / "task-handoff.json"
         handoff_path.write_text(

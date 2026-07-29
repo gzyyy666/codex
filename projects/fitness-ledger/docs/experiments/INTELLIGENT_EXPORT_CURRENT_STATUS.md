@@ -143,22 +143,28 @@ The relevant API route family is:
 Anonymous fixtures are under:
 `tools/fixtures/analysis_export_anonymous/`.
 
-## Current known gaps
+## Current maintenance notes
 
-These are validation/maintenance gaps, not permission to weaken the formal
+These are maintenance facts, not permission to weaken the formal
 boundaries:
 
-1. A formal read-only runtime test has not been run in the current audit because
-   the test requires an explicitly supplied `FITNESS_LEDGER_FORMAL_DIR`. Do not
-   guess this path or silently fall back to production data. Run it only in a
-   separately approved read-only environment and compare Tracker and movement
-   dictionary fingerprints before and after.
-2. Local `main` and `origin/main` must be compared before any remote release
-   statement. A local clean Worktree does not prove that the remote contains the
-   same UI or adapter code.
-3. An older independent WebUI Worktree may contain uncommitted changes. Do not
-   copy or merge its working tree contents. Use the clean `main` snapshot or a
-   reviewed Commit only.
+1. The formal read-only runtime matrix was run during the 2026-07-29
+   publication with an explicitly supplied `FITNESS_LEDGER_FORMAL_DIR`.
+   Bounded body, diet, training/diet, and movement-resolution cases passed;
+   Executor calls and formal writes remained zero, and the Tracker and movement
+   dictionary fingerprints were unchanged.
+2. Local `main` and `origin/main` must still be compared live before every
+   remote release statement. During the 2026-07-29 hygiene audit, the remote
+   tracking branch had no commits absent from the formal local `main`.
+3. Superseded uncommitted experiments were preserved instead of merged:
+   - WebUI preview/confirmation WIP:
+     `archive/formal-local-semantic-hint-web-ui-wip-20260729` at
+     `82ba7ee196fcb98fa4219ac8b9ee9639d483ddc8`.
+   - Legacy local semantic/Planner WIP:
+     `archive/intelligent-export-core-mvp-wip-20260729` at
+     `8504da3c83ffa91ecb03c970acade13def70648d`.
+   These archive branches are historical evidence only and require a fresh
+   compatibility review before reuse.
 4. The repository contains historical Shadow Planner, evidence, and local-model
    experiment assets alongside the formal adapter. Those files are evaluation
    assets unless this document or a newer reviewed document explicitly marks

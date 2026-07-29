@@ -12,6 +12,11 @@ python tools/project_status.py --write --json
 
 Use its live Git, formal-directory, Cloud Sync, service, and deployment results as the authority. Prompt SHAs and old chat summaries are expectations only; report and stop on an unexplained mismatch.
 
+An automatically created Codex Worktree may be detached from an older
+`origin/main`. If its `HEAD` is not the live local `main` reported by the status
+command, do not use it as the development baseline. Create or switch to a
+task-specific `codex/<task-name>` branch from the live local `main` first.
+
 Before starting work that touches an existing module, data structure, or architecture extension, inspect `docs/experiments/EXPERIMENTS_INDEX.md`. Unless the user explicitly resumes an experiment, do not continue, merge, copy, or depend on a paused experiment.
 
 Do not copy formal `data/**` into Git or a Worktree. The status file contains hashes and dates only, never training-record content.
@@ -50,3 +55,22 @@ The task does not need to be handed back to a central Git conversation. A specia
 If the user only asks to modify, fix, develop, or prepare a review, treat it as **Development / review**. Do not infer Push or formal writeback. Stop before any closure action when the user has not authorized that level.
 
 Before claiming a sealed task, confirm in the final report: full Commit SHA, `HEAD/main/origin/main`, clean Worktrees, exact deployment files, formal data SHA/size/mtime before and after, test results, and the handoff path.
+
+## Worktree lifecycle
+
+- A sealed task must not leave an unexplained dirty Worktree.
+- Preserve valuable uncommitted experimental work on a clearly named
+  `archive/<topic>-wip-<date>` branch before cleanup; never merge an archive
+  branch into `main` without a new compatibility review.
+- Keep generated reports, model traces, formal export artifacts, and
+  `tools/test_outputs/` outside Git.
+- Clean Worktrees whose branches are already merged may be removed after
+  confirming that no active Codex task owns them. Removing a Worktree does not
+  require deleting its branch immediately.
+- Clean unmerged experiment branches should keep a status document or Tag
+  before their Worktrees are removed. Paused experiments remain governed by
+  `docs/experiments/EXPERIMENTS_INDEX.md`.
+- Do not manually remove `.codex/worktrees/*` while their owning task may still
+  be active. Let Codex task lifecycle controls retire those Worktrees.
+- After cleanup, run `git worktree list`, verify the remaining Worktrees, and
+  run the project status command again.

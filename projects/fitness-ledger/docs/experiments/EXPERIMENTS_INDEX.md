@@ -3,9 +3,11 @@
 ## Current Intelligent Export Status
 
 - **Authoritative handoff:** `docs/experiments/INTELLIGENT_EXPORT_CURRENT_STATUS.md`
-- **Current local main:** `5f2c8fc048fe1000cd4b59366758242d238c1b75`
-- **Product status:** Web UI published according to the product owner; local
-  semantic algorithm optimization remains pending.
+- **Live baseline authority:** run `python tools/project_status.py --write
+  --json`; do not maintain a hard-coded current-main SHA in this index.
+- **Product status:** deterministic routing and direct data-package download
+  are published in the formal local business application; local semantic model
+  optimization remains a separate experimental track.
 - **Rule:** Read the current status document before using any historical
   Shadow Planner, SemanticHint, or pre-Web handoff document.
 

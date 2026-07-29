@@ -38,7 +38,22 @@ def main() -> None:
         assert state["cloud_sync"]["status"]
         assert isinstance(state["service"]["available"], bool)
         assert Path(state["outputs"]["state_file"]).is_file()
-        assert Path(state["outputs"]["handoff_file"]).is_file()
+        handoff_path = Path(state["outputs"]["handoff_file"])
+        assert handoff_path.is_file()
+        handoff = json.loads(handoff_path.read_text(encoding="utf-8"))
+        assert handoff["closure_state"] in {
+            "sealed_on_main",
+            "main_requires_formal_deployment",
+            "review_ready",
+            "worktree_dirty",
+            "main_state",
+            "development",
+        }
+        assert handoff["integration_reason"]
+        assert set(handoff["main_sync"]) == {"ahead", "behind"}
+        assert "sha256" in handoff["formal_data"]["tracker"]
+        assert "sha256" in handoff["formal_data"]["movement_dictionary"]
+        assert isinstance(handoff["service"]["available"], bool)
     print("FITNESS_LEDGER_PROJECT_STATUS_OK")
 
 

@@ -1,5 +1,18 @@
 # Fitness Ledger Changelog
 
+## 2026-07-29 - Project baseline and Worktree hygiene closeout
+
+- Added repository-root task routing so new conversations reliably discover
+  the Fitness Ledger project rules.
+- Made live `project_status.py` output the baseline authority instead of a
+  hard-coded current-main SHA in the experiment index.
+- Added explicit handoff closure states, integration reasons, main divergence,
+  protected-data fingerprints, and service state.
+- Archived superseded dirty Intelligent Export experiments on dedicated
+  archive branches and moved generated holdout reports outside Git.
+- Added a sustainable post-seal Worktree lifecycle and ignored generated
+  `tools/test_outputs/`.
+
 ## 2026-07-29 - Intelligent Export routing and direct data-package download
 
 - Added deterministic handling for unsupported operations, general questions

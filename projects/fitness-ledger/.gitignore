@@ -27,6 +27,7 @@ __pycache__/
 web_desktop/.edge-profile/
 web_desktop/.qa-edge*/
 web_desktop/runtime_build_info.json
+tools/test_outputs/
 .codex/
 
 # Never commit credential material, reports, payloads, or local state.
