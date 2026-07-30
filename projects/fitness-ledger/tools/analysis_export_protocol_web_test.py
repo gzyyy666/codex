@@ -66,14 +66,15 @@ def test_preview_resolution_progress_exclusion_and_confirmation() -> None:
     movement = load("requests.json")["movement_body_part_selector"]
     movement["datasets"][0]["filters"]["movement_selector"]["value"] = "back"
     protocol = service(fixture)
-    preview = protocol.preview({"request": movement})
+    context_id = "multi-batch-test-context"
+    preview = protocol.preview({"request": movement, "preview_context_id": context_id})
     assert preview["status"] == "preview_ready", preview
     assert preview["preview"]["movement_body_part_resolution"][0]["status"] == "resolved"
     assert preview["preview"]["progress_exclusion_count"] == 0
 
     excluded_request = copy.deepcopy(load("requests.json")["movement_latest_3_id"])
     excluded_request["datasets"][0]["filters"]["movement_selector"]["value"] = "m_synthetic_fly"
-    excluded_preview = protocol.preview({"request": excluded_request})
+    excluded_preview = protocol.preview({"request": excluded_request, "preview_context_id": context_id})
     assert excluded_preview["status"] == "preview_ready"
     assert excluded_preview["preview"]["progress_exclusion_count"] == 1
 
@@ -83,9 +84,9 @@ def test_preview_resolution_progress_exclusion_and_confirmation() -> None:
     token = preview["confirmation_token"]
     changed = copy.deepcopy(movement)
     changed["purpose"] = "changed after preview"
-    assert protocol.export({"request": changed, "confirmed": True, "confirmation_token": token})["status"] == "confirmation_mismatch"
+    assert protocol.export({"request": changed, "confirmed": True, "confirmation_token": token, "preview_context_id": context_id})["status"] == "confirmation_mismatch"
 
-    exported = protocol.export({"request": movement, "confirmed": True, "confirmation_token": token})
+    exported = protocol.export({"request": movement, "confirmed": True, "confirmation_token": token, "preview_context_id": context_id})
     assert exported["status"] == "bundle_ready", exported
     assert exported["safety_flags"] == {
         "raw_included": False, "executor_called": False, "formal_data_written": False
@@ -94,6 +95,35 @@ def test_preview_resolution_progress_exclusion_and_confirmation() -> None:
         artifact = protocol.artifact(exported["artifact_id"], format_name)
         assert artifact is not None
         assert artifact[1]
+    assert protocol.export({
+        "request": movement,
+        "confirmed": True,
+        "confirmation_token": token,
+        "preview_context_id": context_id,
+    })["status"] == "confirmation_mismatch"
+
+
+def test_new_preview_context_invalidates_old_plan() -> None:
+    protocol = service()
+    old_request = load("requests.json")["body_recent_28"]
+    new_request = load("requests.json")["diet_recent_14"]
+    old_preview = protocol.preview({"request": old_request, "preview_context_id": "old-plan"})
+    assert protocol.invalidate_preview_context("old-plan") == 1
+    new_preview = protocol.preview({"request": new_request, "preview_context_id": "new-plan"})
+    assert old_preview["status"] == "preview_ready"
+    assert new_preview["status"] == "preview_ready"
+    assert protocol.export({
+        "request": old_request,
+        "confirmed": True,
+        "confirmation_token": old_preview["confirmation_token"],
+        "preview_context_id": "old-plan",
+    })["status"] == "confirmation_mismatch"
+    assert protocol.export({
+        "request": new_request,
+        "confirmed": True,
+        "confirmation_token": new_preview["confirmation_token"],
+        "preview_context_id": "new-plan",
+    })["status"] == "bundle_ready"
 
 
 def test_ambiguous_movement_requires_resolution() -> None:
@@ -137,6 +167,8 @@ def test_frontend_uses_only_v1_protocol_controls() -> None:
     assert "analysis-export-scope-digest" in app
     assert "protocol-composer-tools" in app
     assert "exportFormalSemanticDataPackage" in app
+    assert "supersedes_preview_context_id" in app
+    assert "preview_context_id:preview.preview_context_id" in app
     assert "/api/analysis-export/v1/artifact/" in app
     assert "导出数据包" in app
     assert "QUICK EXAMPLES" not in app
@@ -148,6 +180,7 @@ def main() -> None:
     test_validate_contract_and_provider_disabled()
     test_invalid_boundaries_are_reported_without_provider_calls()
     test_preview_resolution_progress_exclusion_and_confirmation()
+    test_new_preview_context_invalidates_old_plan()
     test_ambiguous_movement_requires_resolution()
     test_natural_language_request_feeds_direct_bundle_export()
     test_frontend_uses_only_v1_protocol_controls()

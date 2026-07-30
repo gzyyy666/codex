@@ -101,8 +101,10 @@ def run(output: Path | None = None) -> dict:
             record["candidate_patch"] = patched
             record["passed"] = record["passed"] and patched.get("status") == "ready" and len(patched.get("requests", [])) == 1
             record["requests"] = patched.get("requests", [])
+            natural = patched
+        preview_context_id = natural.get("preview_context_id", "")
         for request in record["requests"]:
-            preview = post("/api/analysis-export/v1/preview", {"request": request})
+            preview = post("/api/analysis-export/v1/preview", {"request": request, "preview_context_id": preview_context_id})
             record["previews"].append({
                 "status": preview.get("status"),
                 "request_fingerprint": fingerprint(preview.get("normalized_request")),
@@ -110,21 +112,20 @@ def run(output: Path | None = None) -> dict:
                 "record_count": preview.get("preview", {}).get("record_count"),
                 "warnings": preview.get("preview", {}).get("warnings", []),
                 "token": preview.get("confirmation_token", ""),
+                "preview_context_id": preview.get("preview_context_id", ""),
             })
             record["passed"] = record["passed"] and preview.get("status") == "preview_ready" and not preview.get("preview", {}).get("raw", {}).get("allowed", False)
+        if case_id in {CASES[1][0], CASES[7][0]}:
+            for request, preview in zip(record["requests"], record["previews"]):
+                result = post("/api/analysis-export/v1/export", {
+                    "request": request,
+                    "confirmed": True,
+                    "confirmation_token": preview["token"],
+                    "preview_context_id": preview["preview_context_id"],
+                })
+                record["bundles"].append({"status": result.get("status"), "bundle_id": result.get("bundle_id", ""), "record_count": result.get("record_count", 0), "safety_flags": result.get("safety_flags", {})})
+                record["passed"] = record["passed"] and result.get("status") == "bundle_ready" and not result.get("safety_flags", {}).get("raw_included", True) and not result.get("safety_flags", {}).get("formal_data_written", True)
         records.append(record)
-
-    for confirm_case in (records[1], records[7]):
-        if not confirm_case["previews"]:
-            continue
-        for request, preview in zip(confirm_case["requests"], confirm_case["previews"]):
-            result = post("/api/analysis-export/v1/export", {
-                "request": request,
-                "confirmed": True,
-                "confirmation_token": preview["token"],
-            })
-            confirm_case["bundles"].append({"status": result.get("status"), "bundle_id": result.get("bundle_id", ""), "record_count": result.get("record_count", 0), "safety_flags": result.get("safety_flags", {})})
-            confirm_case["passed"] = confirm_case["passed"] and result.get("status") == "bundle_ready" and not result.get("safety_flags", {}).get("raw_included", True) and not result.get("safety_flags", {}).get("formal_data_written", True)
 
     summary = {
         "schema_version": "fitness-ledger-pure-core-acceptance-v1",

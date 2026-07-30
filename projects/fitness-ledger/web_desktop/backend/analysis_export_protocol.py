@@ -123,6 +123,7 @@ class AnonymousFixtureProvider:
 class StoredPreview:
     request: dict[str, Any]
     fingerprint: str
+    context_id: str
 
 
 class AnalysisExportProtocolService:
@@ -316,8 +317,9 @@ class AnalysisExportProtocolService:
                 "execution": self._execution(),
             }
         fingerprint = hashlib.sha256(_canonical(normalized).encode("utf-8")).hexdigest()
+        context_id = str(payload.get("preview_context_id", "") or "").strip()
         token = secrets.token_urlsafe(18)
-        self._previews[token] = StoredPreview(normalized, fingerprint)
+        self._previews[token] = StoredPreview(normalized, fingerprint, context_id)
         return {
             "status": "preview_ready",
             "schema_version": REQUEST_SCHEMA_VERSION,
@@ -325,6 +327,7 @@ class AnalysisExportProtocolService:
             "errors": [],
             "preview": preview,
             "confirmation_token": token,
+            "preview_context_id": context_id,
             "preview_fingerprint": fingerprint,
             "execution": self._execution(),
         }
@@ -339,11 +342,23 @@ class AnalysisExportProtocolService:
             return {"status": "formal_data_unavailable", "matches": [], "errors": []}
         return {"status": "resolved" if len(matches) == 1 else "movement_resolution_required" if len(matches) > 1 else "unresolved", "matches": matches, "errors": []}
 
+    def invalidate_preview_context(self, context_id: str) -> int:
+        target = str(context_id or "").strip()
+        if not target:
+            return 0
+        tokens = [token for token, stored in self._previews.items() if stored.context_id == target]
+        for token in tokens:
+            self._previews.pop(token, None)
+        return len(tokens)
+
     def export(self, payload: dict[str, Any]) -> dict[str, Any]:
         token = str(payload.get("confirmation_token", ""))
         stored = self._previews.get(token)
         if payload.get("confirmed") is not True or stored is None:
             return {"status": "confirmation_mismatch", "errors": [{"code": "CONFIRMATION_MISMATCH", "path": "$.confirmation_token", "message": "A matching preview confirmation is required."}], "execution": self._execution()}
+        context_id = str(payload.get("preview_context_id", "") or "").strip()
+        if context_id != stored.context_id:
+            return {"status": "confirmation_mismatch", "errors": [{"code": "CONFIRMATION_MISMATCH", "path": "$.preview_context_id", "message": "The Preview is no longer the active confirmation context."}], "execution": self._execution()}
         result = validate_request(self._request(payload))
         if not result.valid or result.normalized_request is None:
             return {"status": "invalid_request", "errors": self._errors(result), "execution": self._execution()}
@@ -361,6 +376,7 @@ class AnalysisExportProtocolService:
         bundle_json = exports.get("json", json.dumps(bundle, ensure_ascii=False, sort_keys=True))
         artifact_id = "artifact-" + hashlib.sha256(bundle_json.encode("utf-8")).hexdigest()[:24]
         self._artifacts[artifact_id] = {"bundle": bundle, "exports": exports}
+        self._previews.pop(token, None)
         safety = bundle.get("safety_flags", {})
         return {
             "status": "bundle_ready",
