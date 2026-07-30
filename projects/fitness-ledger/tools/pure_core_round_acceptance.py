@@ -48,6 +48,19 @@ ROUND_THREE = [
     ("S3-10", "导出最近四个主要训练动作的最近表现。", "ready"),
 ]
 
+ROUND_FOUR = [
+    ("U4-1", "最近两周饮食记录。", "ready"),
+    ("U4-2", "最近一个月的体重变化。", "ready"),
+    ("U4-3", "最近几次卧推表现。", "ready"),
+    ("U4-4", "导出我最近的胸部训练。", "ready"),
+    ("U4-5", "看看最近一周的身体和饮食情况。", "ready"),
+    ("U4-6", "看一下最近几次背部训练前吃了什么。", "ready"),
+    ("U4-7", "导出我七月份的训练记录。", "ready"),
+    ("U4-8", "导出引体向上的全部记录。", "ready"),
+    ("U4-9", "看一下最近肩部都练了哪些动作。", "candidate_confirmation_required"),
+    ("U4-10", "看看我最近几次腿训的表现。", "ready"),
+]
+
 
 def post(path: str, payload: dict) -> dict:
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -129,13 +142,15 @@ def run(output: Path | None = None) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path)
-    parser.add_argument("--round", type=int, default=1, choices=(1, 2, 3))
+    parser.add_argument("--round", type=int, default=1, choices=(1, 2, 3, 4))
     args = parser.parse_args()
     global CASES
     if args.round == 2:
         CASES = ROUND_TWO
     elif args.round == 3:
         CASES = ROUND_THREE
+    elif args.round == 4:
+        CASES = ROUND_FOUR
     summary = run(args.output)
     print(json.dumps({key: summary[key] for key in ("passed", "total", "model_calls_total")}, ensure_ascii=False))
 

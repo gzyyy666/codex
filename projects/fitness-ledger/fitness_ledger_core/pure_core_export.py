@@ -9,6 +9,7 @@ the only authority for data access and Bundle creation.
 
 from __future__ import annotations
 
+import calendar
 import hashlib
 import re
 from dataclasses import dataclass
@@ -25,11 +26,15 @@ RULE_SMALL_DIET_7D = "QUANTITY_SMALL_DAILY_7D"
 RULE_RECENT_DIET_14D = "TIME_RECENT_DIET_14D"
 RULE_RECENT_MOVEMENT_6S = "TIME_RECENT_MOVEMENT_6S"
 RULE_RECENT_TRAINING_14D = "TIME_RECENT_TRAINING_14D"
+RULE_RECENT_TRAINING_3S = "TIME_RECENT_TRAINING_3S"
 RULE_ALL_FITNESS = "CONCEPT_ALL_FITNESS_V1"
 RULE_ALL_SELECTED = "SCOPE_ALL_AVAILABLE_SELECTED_DOMAIN"
 RULE_MOVEMENT_ALL = "SCOPE_ALL_AVAILABLE_SELECTED_MOVEMENT"
 RULE_PRE_TRAINING_3D = "RELATION_PRE_TRAINING_3D"
 RULE_PRE_TRAINING_EXPLICIT = "RELATION_PRE_TRAINING_EXPLICIT"
+RULE_TARGET_SESSION_DAY = "RELATION_TARGET_SESSION_DAY"
+RULE_POST_TRAINING_1D = "RELATION_POST_TRAINING_1D"
+RULE_POST_TRAINING_EXPLICIT = "RELATION_POST_TRAINING_EXPLICIT"
 RULE_SOME_MOVEMENTS_3 = "QUANTITY_SOME_MOVEMENTS_3"
 RULE_REPRESENTATIVE_TOP3 = "MOVEMENT_REPRESENTATIVE_TOP3_V1"
 RULE_EXPLICIT_MOVEMENTS = "QUANTITY_EXPLICIT_MOVEMENTS_V1"
@@ -57,9 +62,9 @@ _UNITS = {"十": 10, "百": 100, "千": 1000}
 _NUMBER = r"(?:\d+|[零一二两三四五六七八九十百千]+)"
 _RAW_TERMS = ("raw", "原始记录", "原始输入", "原始数据", "数据库原始")
 _WRITE_TERMS = ("删除", "修改", "写入", "新增", "保存", "同步", "上传", "清理掉")
-_BODY_TERMS = ("体重", "身体数据", "身体记录", "身体变化", "身体")
-_DIET_TERMS = ("饮食", "热量", "卡路里", "蛋白", "碳水", "脂肪", "食物")
-_TRAINING_TERMS = ("训练记录", "训练数据", "训练情况", "训练表现", "训练次数", "训练状态", "训练")
+_BODY_TERMS = ("体重", "身体数据", "身体记录", "身体变化", "身体", "体脂", "体成分")
+_DIET_TERMS = ("饮食", "热量", "卡路里", "蛋白", "碳水", "脂肪", "食物", "吃了什么", "吃什么", "吃了", "摄入", "营养", "餐")
+_TRAINING_TERMS = ("训练记录", "训练数据", "训练情况", "训练表现", "训练次数", "训练状态", "训练", "锻炼", "胸训", "背训", "肩训", "腿训")
 _MOVEMENT_TERMS = ("动作成长", "成长记录", "动作表现", "动作历史", "动作名称", "动作清单", "动作")
 _BODY_PARTS = {
     "胸部": ("Chest", "胸"), "胸": ("Chest", "胸"),
@@ -112,7 +117,24 @@ def _first_date_range(text: str) -> dict[str, Any] | None:
     return {"mode": "explicit_range", "start": match.group(1), "end": match.group(2)} if start <= end else None
 
 
+def _month_range(text: str, anchor: date) -> dict[str, Any] | None:
+    match = re.search(rf"(?:(\d{{4}})年)?\s*({_NUMBER})月(?:份)?", text)
+    if not match:
+        return None
+    month = _number(match.group(2))
+    year = int(match.group(1)) if match.group(1) else anchor.year
+    if month is None or not 1 <= month <= 12:
+        return None
+    last_day = calendar.monthrange(year, month)[1]
+    return {"mode": "explicit_range", "start": f"{year:04d}-{month:02d}-01", "end": f"{year:04d}-{month:02d}-{last_day:02d}"}
+
+
 def _recent_days(text: str) -> int | None:
+    match = re.search(rf"(?:最近|近|过去)\s*({_NUMBER})\s*(天|日|周|星期|个月|月)", text)
+    if match:
+        value = _number(match.group(1))
+        if value is not None:
+            return value * (7 if match.group(2) in {"周", "星期"} else 30 if match.group(2) in {"月", "个月"} else 1)
     match = re.search(rf"最近\s*({_NUMBER})\s*(?:天|日)", text)
     if match:
         return _number(match.group(1))
@@ -282,7 +304,7 @@ class PureCoreExportCompiler:
         domains: list[str] = ["body", "diet", "training"] if all_fitness else []
         movement_signal = any(term in text for term in _MOVEMENT_TERMS) or bool(self._movement_mentions(text))
         training_signal = any(term in text for term in _TRAINING_TERMS)
-        relation_signal = "训练前" in text or "训练当天" in text or "训练之后" in text or "训练后" in text
+        relation_signal = "训练前" in text or "训练之前" in text or "训练当天" in text or "训练之后" in text or "训练后" in text
         if any(term in text for term in _BODY_TERMS):
             domains.append("body")
         if any(term in text for term in _DIET_TERMS):
@@ -301,7 +323,7 @@ class PureCoreExportCompiler:
             complete = "完整" in text or "全部字段" in text
             return (PROFILE_BODY_COMPLETE if complete else PROFILE_BODY_BASIC, BODY_COMPLETE_FIELDS if complete else BODY_FIELDS, "daily" if complete else None)
         if domain == "diet":
-            complete = "完整饮食" in text or "完整记录" in text or "全部字段" in text
+            complete = "完整饮食" in text or "完整记录" in text or "全部字段" in text or "吃了什么" in text or "食物" in text
             notes = None if _contains_negative(text, ("饮食备注", "饮食笔记")) else ("diet" if complete or "饮食备注" in text or "饮食笔记" in text else None)
             return (PROFILE_DIET_COMPLETE if complete else PROFILE_DIET_BASIC, DIET_COMPLETE_FIELDS if complete else DIET_FIELDS, notes)
         if domain == "training":
@@ -329,10 +351,19 @@ class PureCoreExportCompiler:
 
     def _time_scope(self, text: str, domain: str, *, all_available: bool = False, relation: dict[str, Any] | None = None) -> tuple[dict[str, Any], str, str]:
         if relation is not None:
-            return relation, "relation", RULE_PRE_TRAINING_EXPLICIT if relation["days_before"] != 3 else RULE_PRE_TRAINING_3D
+            if relation["mode"] == "target_session_day":
+                rule = RULE_TARGET_SESSION_DAY
+            elif relation["mode"] == "days_after_target_session":
+                rule = RULE_POST_TRAINING_EXPLICIT if relation["days_after"] != 1 else RULE_POST_TRAINING_1D
+            else:
+                rule = RULE_PRE_TRAINING_EXPLICIT if relation["days_before"] != 3 else RULE_PRE_TRAINING_3D
+            return relation, "relation", rule
         explicit = _first_date_range(text)
         if explicit:
             return explicit, "explicit_user_range", "TIME_EXPLICIT_RANGE"
+        month = _month_range(text, self.anchor)
+        if month:
+            return month, "explicit_user_month", "TIME_EXPLICIT_MONTH"
         if all_available:
             rows: list[dict[str, Any]] = []
             if domain == "body": rows = list(self.tracker.get("daily_records", []))
@@ -358,13 +389,21 @@ class PureCoreExportCompiler:
         return {"mode": "recent_days", "days": 14}, "product_default", "TIME_RECENT_BODY_14D"
 
     def _relation(self, text: str, training_id: str) -> dict[str, Any] | None:
-        if "训练前" not in text and "训练当天" not in text:
+        match_mode = "single_latest_matching_session" if ("上一次" in text or "上次" in text) else "each_matching_session"
+        if "训练后" in text or "训练之后" in text:
+            match = re.search(rf"训练(?:后|之后)\s*({_NUMBER})\s*天", text)
+            days = _number(match.group(1)) if match else 1
+            include = "训练当天" in text and not bool(re.search(r"(?:不包含|不含|排除|不要)[^。；;，,。]{0,4}训练当天", text))
+            return {"mode": "days_after_target_session", "days_after": days or 1, "target_dataset_id": training_id, "match_mode": match_mode, "include_target_session_day": include}
+        if "训练当天" in text and "训练前" not in text and "训练之前" not in text:
+            return {"mode": "target_session_day", "target_dataset_id": training_id, "match_mode": match_mode}
+        if not any(term in text for term in ("训练前", "训练之前")):
             return None
-        match = re.search(rf"训练前\s*({_NUMBER})\s*天", text)
+        match = re.search(rf"训练(?:前|之前)\s*({_NUMBER})\s*天", text)
         days = _number(match.group(1)) if match else 3
         excludes_day = bool(re.search(r"(?:不包含|不含|排除|不要)[^。；;，,。]{0,4}训练当天", text))
         include = not excludes_day and ("到训练当天" in text or "包含训练当天" in text or "训练当天" in text)
-        return {"mode": "days_before_target_session", "days_before": days or 3, "target_dataset_id": training_id, "match_mode": "single_latest_matching_session" if ("上一次" in text or "上次" in text) else "each_matching_session", "include_target_session_day": include}
+        return {"mode": "days_before_target_session", "days_before": days or 3, "target_dataset_id": training_id, "match_mode": match_mode, "include_target_session_day": include}
 
     def _movement_selection(self, text: str) -> tuple[list[CatalogItem], list[dict[str, Any]], bool]:
         mentions = self._movement_mentions(text)
@@ -378,7 +417,7 @@ class PureCoreExportCompiler:
             else:
                 ambiguous.append({"movement_name": phrase, "movement_id": "", "body_part": "", "history_count": 0, "recent_date": ""})
         part = self._body_part(text)
-        if part and ("所有动作" in text or "全部动作" in text or "动作名称" in text or "动作清单" in text or "主要动作" in text or "代表性动作" in text):
+        if part and ("所有动作" in text or "全部动作" in text or "动作名称" in text or "动作清单" in text or "哪些动作" in text or "练了哪些动作" in text or "主要动作" in text or "代表性动作" in text):
             candidates = [item for item in self.catalog if item.body_part.casefold() == part[0].casefold() and item.history_count > 0]
             if "主要动作" in text or "代表性动作" in text:
                 candidates = sorted(candidates, key=lambda item: (-item.history_count, item.movement_name))[:3]
@@ -416,9 +455,11 @@ class PureCoreExportCompiler:
         if not domains:
             return CompileOutput("needs_confirmation", plan, confirmations=("请说明要导出的数据类型，例如身体、饮食、训练或动作成长。",))
 
-        has_explicit_window = _first_date_range(text) is not None or _recent_days(text) is not None
+        if "健身" in text and any(term in text for term in ("全部", "所有", "整体", "最近", "整理", "导出")):
+            plan["applied_rule_ids"].append(RULE_ALL_FITNESS)
+        has_explicit_window = _first_date_range(text) is not None or _month_range(text, self.anchor) is not None or _recent_days(text) is not None
         all_available = any(term in text for term in ("从有记录以来", "全部成长", "完整成长", "全部可用历史")) or (not has_explicit_window and ("全部" in text or "所有" in text) and "动作名称" not in text and "动作清单" not in text)
-        name_list = any(term in text for term in ("动作名称", "动作清单", "列出所有动作", "列出动作")) and "成长" not in text and "表现" not in text
+        name_list = any(term in text for term in ("动作名称", "动作清单", "列出所有动作", "列出动作", "哪些动作", "练了哪些动作")) and "成长" not in text and "表现" not in text
         movement_selection, candidates, movement_signal = self._movement_selection(text)
         selected_id_set = {str(value).strip() for value in (selected_movement_ids or ()) if str(value).strip()}
         if selected_id_set:
@@ -429,7 +470,9 @@ class PureCoreExportCompiler:
             count_match = re.search(rf"(?:最近|导出|列出)?\s*({_NUMBER})\s*(?:个|项)?\s*(?:主要|代表性)?\s*(?:训练)?\s*动作", text)
             requested_count = _number(count_match.group(1)) if count_match else 3
             movement_selection = sorted(self.catalog, key=lambda item: (-item.history_count, item.movement_name))[: max(1, requested_count or 3)]
-        body_part_scope = self._body_part(text) and any(term in text for term in ("动作名称", "动作清单", "所有动作", "全部动作"))
+            if "一些" in text or "少量" in text:
+                plan["applied_rule_ids"].append(RULE_SOME_MOVEMENTS_3)
+        body_part_scope = self._body_part(text) and any(term in text for term in ("动作名称", "动作清单", "所有动作", "全部动作", "哪些动作", "练了哪些动作"))
         if body_part_scope and "movement_progress" in domains and not selected_id_set:
             plan["selected_movement_ids"] = [item.movement_id for item in movement_selection]
             plan["applied_rule_ids"] = [RULE_NAME_LIST if name_list else "MOVEMENT_CATALOG_DISCOVERY"]
@@ -464,7 +507,7 @@ class PureCoreExportCompiler:
         if "movement_progress" in domains and "所有动作" in text and not movement_selection:
             return CompileOutput("candidate_confirmation_required", plan, candidates=tuple(item.to_dict() for item in self.catalog), confirmations=("该范围没有可用的正式动作候选。",))
 
-        training_needed_for_relation = "diet" in domains and ("训练前" in text or "训练当天" in text)
+        training_needed_for_relation = "diet" in domains and ("训练前" in text or "训练之前" in text or "训练当天" in text or "训练后" in text or "训练之后" in text)
         if training_needed_for_relation and "training" not in domains:
             domains.append("training")
             plan["requested_domains"] = domains
@@ -497,9 +540,14 @@ class PureCoreExportCompiler:
                 sessions = _recent_sessions(text)
                 if sessions is None and ("上一次" in text or "上次" in text):
                     sessions = 1
+                if sessions is None and "最近几次" in text:
+                    sessions = 3
                 if sessions is not None:
                     scope = {"mode": "latest_matching_sessions", "sessions": sessions}
-                    source, rule = "explicit_recent_sessions", "TIME_EXPLICIT_TRAINING_SESSIONS"
+                    if _recent_sessions(text) is not None or "上一次" in text or "上次" in text:
+                        source, rule = "explicit_recent_sessions", "TIME_EXPLICIT_TRAINING_SESSIONS"
+                    else:
+                        source, rule = "product_default", RULE_RECENT_TRAINING_3S
             dataset_specs.append((f"{domain}_1", scope, profile, fields, notes_scope, {"filters": filters, "source": source, "rule": rule, "relation": relation}))
 
         requests: list[dict[str, Any]] = []
@@ -531,7 +579,7 @@ class PureCoreExportCompiler:
                 if meta.get("rule"):
                     plan["applied_rule_ids"].append(meta["rule"])
                 if meta.get("relation") is not None:
-                    plan["relationship_specs"].append({"relationship_id": intent["relationship_id"], "target_dataset_id": relation["target_dataset_id"], "dependent_dataset_id": dataset["dataset_id"], "days_before": relation["days_before"], "include_target_session_day": relation["include_target_session_day"]})
+                    plan["relationship_specs"].append({"relationship_id": intent["relationship_id"], "mode": relation["mode"], "target_dataset_id": relation["target_dataset_id"], "dependent_dataset_id": dataset["dataset_id"], "days_before": relation.get("days_before"), "days_after": relation.get("days_after"), "include_target_session_day": relation.get("include_target_session_day", False)})
             request = {"request_version": "1.1", "purpose": text[:500], "datasets": datasets, "raw": False, "output": {"formats": ["json", "markdown"]}}
             validation = validate_request(request)
             if not validation.valid or validation.normalized_request is None:

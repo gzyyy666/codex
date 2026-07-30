@@ -15,7 +15,7 @@ from typing import Any
 REQUEST_VERSION = "1.1"
 REQUEST_SCHEMA_VERSION = "fitness-ledger-analysis-export-request-v1.1"
 DATASET_TYPES = ("body", "diet", "training", "movement_progress")
-TIME_MODES = ("recent_days", "explicit_range", "latest_matching_sessions", "days_before_target_session")
+TIME_MODES = ("recent_days", "explicit_range", "latest_matching_sessions", "days_before_target_session", "target_session_day", "days_after_target_session")
 NOTES_SCOPES = ("daily", "diet", "training", "movement")
 OUTPUT_FORMATS = ("json", "markdown")
 SET_ROLES = ("top", "working", "backoff")
@@ -129,7 +129,7 @@ def _validate_time_range(value: Any, dataset_type: str, path: str, errors: list[
         return None
     allowed_by_type = {
         "body": {"recent_days", "explicit_range"},
-        "diet": {"recent_days", "explicit_range", "days_before_target_session"},
+        "diet": {"recent_days", "explicit_range", "days_before_target_session", "target_session_day", "days_after_target_session"},
         "training": {"recent_days", "explicit_range", "latest_matching_sessions"},
         "movement_progress": {"recent_days", "explicit_range", "latest_matching_sessions"},
     }
@@ -152,11 +152,12 @@ def _validate_time_range(value: Any, dataset_type: str, path: str, errors: list[
     elif mode == "latest_matching_sessions":
         _unknown_keys(value, {"mode", "sessions"}, path, errors); _required(value, ("sessions",), path, errors)
         if "sessions" in value: normalized["sessions"] = _integer(value["sessions"], f"{path}.sessions", errors, 1, 20)
-    else:
-        allowed = {"mode", "days_before", "target_dataset_id", "target_date", "match_mode", "include_target_session_day"}
+    elif mode in {"days_before_target_session", "days_after_target_session"}:
+        distance_key = "days_before" if mode == "days_before_target_session" else "days_after"
+        allowed = {"mode", distance_key, "target_dataset_id", "target_date", "match_mode", "include_target_session_day"}
         _unknown_keys(value, allowed, path, errors)
-        _required(value, ("days_before", "match_mode", "include_target_session_day"), path, errors)
-        if "days_before" in value: normalized["days_before"] = _integer(value["days_before"], f"{path}.days_before", errors, 1, 30)
+        _required(value, (distance_key, "match_mode", "include_target_session_day"), path, errors)
+        if distance_key in value: normalized[distance_key] = _integer(value[distance_key], f"{path}.{distance_key}", errors, 1, 30)
         match_mode = value.get("match_mode")
         if match_mode not in MATCH_MODES:
             _error(errors, "UNKNOWN_MATCH_MODE", f"{path}.match_mode", f"Unsupported match mode: {match_mode}")
@@ -164,6 +165,26 @@ def _validate_time_range(value: Any, dataset_type: str, path: str, errors: list[
         include_day = value.get("include_target_session_day")
         if not isinstance(include_day, bool): _error(errors, "INVALID_TYPE", f"{path}.include_target_session_day", "Expected a boolean")
         else: normalized["include_target_session_day"] = include_day
+        has_dataset = "target_dataset_id" in value
+        has_date = "target_date" in value
+        if has_dataset == has_date:
+            _error(errors, "TARGET_REFERENCE_EXCLUSIVE", path, "Provide exactly one of target_dataset_id or target_date")
+        if has_dataset:
+            target = _string(value.get("target_dataset_id"), f"{path}.target_dataset_id", errors, maximum=64)
+            if target and not _IDENTIFIER.fullmatch(target): _error(errors, "INVALID_DATASET_ID", f"{path}.target_dataset_id", "Invalid dataset_id format")
+            if target: normalized["target_dataset_id"] = target
+        if has_date:
+            target_date = _validate_date(value.get("target_date"), f"{path}.target_date", errors)
+            if target_date: normalized["target_date"] = target_date
+            if match_mode == "each_matching_session": _error(errors, "MATCH_MODE_REQUIRES_DATASET", f"{path}.match_mode", "each_matching_session requires target_dataset_id")
+    else:
+        allowed = {"mode", "target_dataset_id", "target_date", "match_mode"}
+        _unknown_keys(value, allowed, path, errors)
+        _required(value, ("match_mode",), path, errors)
+        match_mode = value.get("match_mode")
+        if match_mode not in MATCH_MODES:
+            _error(errors, "UNKNOWN_MATCH_MODE", f"{path}.match_mode", f"Unsupported match mode: {match_mode}")
+        else: normalized["match_mode"] = match_mode
         has_dataset = "target_dataset_id" in value
         has_date = "target_date" in value
         if has_dataset == has_date:
