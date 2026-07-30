@@ -145,7 +145,16 @@ class AnonymousFixtureMaterializer:
         if dataset["type"] == "training":
             for key in ("body_part", "split"):
                 if key in filters:
-                    rows = [row for row in rows if _casefold(row.get(key)) == _casefold(filters[key])]
+                    if key == "body_part":
+                        # Training rows store the human split label (for
+                        # example ``肩胸背综合``), while Request v1.1 uses
+                        # ``body_part`` as the semantic filter name.  Match
+                        # the selected part inside that label; exact split
+                        # filters remain exact.
+                        expected = _casefold(filters[key])
+                        rows = [row for row in rows if expected and expected in _casefold(row.get("split"))]
+                    else:
+                        rows = [row for row in rows if _casefold(row.get(key)) == _casefold(filters[key])]
         elif dataset["type"] == "movement_progress" and "movement_selector" in filters:
             selector = filters["movement_selector"]
             matches = self._movement_matches(selector)
@@ -240,7 +249,7 @@ class AnonymousFixtureMaterializer:
         rows = self._apply_static_filters(dataset, list(source_rows), warnings)
         self._stage_counts[dataset_id] = {"candidate_record_count": len(rows)}
         time_range = dataset["time_range"]
-        if time_range["mode"] != "days_before_target_session":
+        if time_range["mode"] not in {"days_before_target_session", "target_session_day", "days_after_target_session"}:
             rows = self._time_filter(dataset, rows)
         else:
             target_dates: list[str] = []
@@ -259,8 +268,15 @@ class AnonymousFixtureMaterializer:
             relation_rows: list[dict[str, Any]] = []
             for target_date in target_dates:
                 target_day = _parse_date(target_date)
-                start = target_day - timedelta(days=time_range["days_before"])
-                end = target_day if time_range["include_target_session_day"] else target_day - timedelta(days=1)
+                mode = time_range["mode"]
+                if mode == "target_session_day":
+                    start = end = target_day
+                elif mode == "days_after_target_session":
+                    start = target_day if time_range["include_target_session_day"] else target_day + timedelta(days=1)
+                    end = target_day + timedelta(days=time_range["days_after"])
+                else:
+                    start = target_day - timedelta(days=time_range["days_before"])
+                    end = target_day if time_range["include_target_session_day"] else target_day - timedelta(days=1)
                 for row in rows:
                     row_date = _parse_date(_iso(row.get("date")))
                     if start <= row_date <= end:
