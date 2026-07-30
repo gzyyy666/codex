@@ -154,7 +154,10 @@ def validate_case(spec: dict[str, Any], natural: dict[str, Any]) -> tuple[bool, 
     previews: list[dict[str, Any]] = []
     if effective.get("status") == "ready":
         for request in effective.get("requests", []):
-            preview = post("/api/analysis-export/v1/preview", {"request": request})
+            preview = post("/api/analysis-export/v1/preview", {
+                "request": request,
+                "preview_context_id": effective.get("preview_context_id", ""),
+            })
             previews.append(preview)
             if preview.get("status") != "preview_ready":
                 errors.append(f"preview status={preview.get('status')}")

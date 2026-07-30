@@ -6,6 +6,7 @@ import importlib.util
 import mimetypes
 import os
 import re
+import secrets
 import sys
 import threading
 from datetime import datetime, timezone
@@ -203,7 +204,12 @@ class LedgerWebService:
             selected_ids = request.get("selected_movement_ids")
             if not isinstance(selected_ids, list):
                 selected_ids = []
-            return PureCoreExportCompiler(self.views).compile(text, selected_ids).to_response()
+            superseded_context_id = str(request.get("supersedes_preview_context_id", "") or "").strip()
+            invalidated_preview_count = self.analysis_export_protocol.invalidate_preview_context(superseded_context_id)
+            response = PureCoreExportCompiler(self.views).compile(text, selected_ids).to_response()
+            response["preview_context_id"] = secrets.token_urlsafe(18)
+            response["invalidated_preview_count"] = invalidated_preview_count
+            return response
         except Exception as exc:
             return {
                 "status": "error",

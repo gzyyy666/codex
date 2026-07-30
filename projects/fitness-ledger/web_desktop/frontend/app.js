@@ -482,14 +482,14 @@ function renderFormalSemanticPreview(payload={}){
 function renderFormalSemanticExportResult(result){
   const target=$('#analysis-export-natural-result');if(!target)return;
   const results=Array.isArray(result)?result:[result];
-  target.dataset.status='bundle_ready';state.formalSemanticPreview=null;
+  target.dataset.status='bundle_ready';state.formalSemanticPreview=null;state.formalSemanticPreviewContextId='';
   target.innerHTML=`<span class="eyebrow">EXPORT COMPLETE / DATA PACKAGE</span><strong>${results.length} 个只读 Bundle 已生成。</strong><p>Raw CLOSED · No formal data write · Executor not called.</p><div class="protocol-downloads">${results.map((item,index)=>{const jsonUrl=`/api/analysis-export/v1/artifact/${encodeURIComponent(item.artifact_id)}?format=json`,markdownUrl=`/api/analysis-export/v1/artifact/${encodeURIComponent(item.artifact_id)}?format=markdown`;return `<div><b>Batch ${index+1} · ${esc(item.record_count)} records</b><a class="protocol-download" href="${jsonUrl}" download="fitness-ledger-analysis-bundle-${index+1}.json">下载 JSON</a><a class="protocol-download" href="${markdownUrl}" download="fitness-ledger-analysis-bundle-${index+1}.md">下载 Markdown</a></div>`}).join('')}</div>`;
 }
 async function requestFormalSemanticPreviews(natural){
   const requests=Array.isArray(natural.requests)&&natural.requests.length?natural.requests:[natural.request];
-  const previews=[];
+  const previews=[],previewContextId=natural.preview_context_id||'';
   for(const request of requests){
-    const preview=await postApi('/api/analysis-export/v1/preview',{request});
+    const preview=await postApi('/api/analysis-export/v1/preview',{request,preview_context_id:previewContextId});
     if(preview.status!=='preview_ready'){
       renderFormalSemanticPreview({status:'needs_confirmation',confirmations:['Formal read-only Preview did not pass. No data package was generated.'],errors:preview.errors||preview.preview?.warnings||[],semantic_plan:natural.semantic_plan});
       return null;
@@ -502,14 +502,15 @@ async function continueFormalSemanticCandidateSelection(){
   const input=$('#analysis-export-natural-language');if(!input)return;
   const selected=[...document.querySelectorAll('[data-natural-candidate]:checked')].map(item=>item.value).filter(Boolean);
   if(!selected.length){showToast('请至少选择一个正式动作。');return}
-  try{const natural=await postApi('/api/analysis-export/v1/natural-language/preview',{text:input.value.trim(),selected_movement_ids:selected});if(natural.status!=='ready'){renderFormalSemanticPreview(natural);return}await requestFormalSemanticPreviews(natural);showToast('已按选定动作生成 Preview。')}catch(error){renderFormalSemanticPreview({status:'error',errors:[{message:error.message}]})}
+  try{const natural=await postApi('/api/analysis-export/v1/natural-language/preview',{text:input.value.trim(),selected_movement_ids:selected,supersedes_preview_context_id:state.formalSemanticPreviewContextId||''});state.formalSemanticPreviewContextId=natural.preview_context_id||'';if(natural.status!=='ready'){renderFormalSemanticPreview(natural);return}await requestFormalSemanticPreviews(natural);showToast('已按选定动作生成 Preview。')}catch(error){renderFormalSemanticPreview({status:'error',errors:[{message:error.message}]})}
 }
 async function exportFormalSemanticDataPackage(){
   const input=$('#analysis-export-natural-language'),button=$('[data-analysis-export-natural-preview]');if(!input||state.formalSemanticBusy)return;
   const text=input.value.trim();if(!text){renderFormalSemanticPreview({status:'needs_confirmation',confirmations:['Enter the data scope to export.']});input.focus();return}
   state.formalSemanticBusy=true;state.formalSemanticPreviews=[];if(button){button.disabled=true;button.textContent='正在生成 Preview…'}
   try{
-    const natural=await postApi('/api/analysis-export/v1/natural-language/preview',{text});
+    const natural=await postApi('/api/analysis-export/v1/natural-language/preview',{text,supersedes_preview_context_id:state.formalSemanticPreviewContextId||''});
+    state.formalSemanticPreviewContextId=natural.preview_context_id||'';
     if(natural.status!=='ready'||!(natural.requests?.length||natural.request)){renderFormalSemanticPreview(natural);return}
     await requestFormalSemanticPreviews(natural);showToast('Preview 已生成，请确认范围后导出。');
   }catch(error){renderFormalSemanticPreview({status:'error',errors:[{message:error.message||'Natural-language data-package export failed. Try again.'}]})}
@@ -518,7 +519,7 @@ async function exportFormalSemanticDataPackage(){
 async function confirmFormalSemanticDataPackage(){
   const check=$('#analysis-export-natural-confirm-check');if(!check?.checked){showToast('请先确认当前 Preview 范围。');return}
   const previews=Array.isArray(state.formalSemanticPreviews)?state.formalSemanticPreviews:[],button=$('[data-analysis-export-natural-confirm]');if(!previews.length){showToast('请先生成 Preview。');return}
-  try{button.disabled=true;button.textContent='正在重新校验…';const results=[];for(const preview of previews){const result=await postApi('/api/analysis-export/v1/export',{request:preview.normalized_request,confirmed:true,confirmation_token:preview.confirmation_token});if(result.status!=='bundle_ready'){renderFormalSemanticPreview({status:'needs_confirmation',confirmations:['确认未通过，未生成新的 Bundle。'],errors:result.errors||[]});return}results.push(result)}renderFormalSemanticExportResult(results);showToast(`${results.length} 个只读 Bundle 已生成。`)}catch(error){showToast(error.message)}finally{if(button){button.disabled=false;button.textContent='确认并生成只读 Bundle →'}}
+  try{button.disabled=true;button.textContent='正在重新校验…';const results=[];for(const preview of previews){const result=await postApi('/api/analysis-export/v1/export',{request:preview.normalized_request,confirmed:true,confirmation_token:preview.confirmation_token,preview_context_id:preview.preview_context_id||''});if(result.status!=='bundle_ready'){renderFormalSemanticPreview({status:'needs_confirmation',confirmations:['确认未通过，未生成新的 Bundle。'],errors:result.errors||[]});return}results.push(result)}renderFormalSemanticExportResult(results);showToast(`${results.length} 个只读 Bundle 已生成。`)}catch(error){showToast(error.message)}finally{if(button){button.disabled=false;button.textContent='确认并生成只读 Bundle →'}}
 }
 
 const INTELLIGENT_REVIEW_SCENARIOS=[
