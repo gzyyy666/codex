@@ -458,7 +458,9 @@ function naturalScopeMarkup(requests=[]){
 function naturalPlanMarkup(plan={}){
   const rules=(plan.applied_rule_ids||[]).join(' · ')||'none';
   const intents=(plan.dataset_intents||[]).map(item=>`<div><b>${esc(item.intent_id||'')}</b><span>${esc(item.domain||'')} · ${esc(item.field_profile||'')}</span><small>${esc(JSON.stringify(item.time_scope||{}))}</small></div>`).join('');
-  return `<div class="protocol-natural-plan"><strong>SemanticExportPlan</strong><small>plan_id: ${esc(plan.plan_id||'')}</small><small>rules: ${esc(rules)}</small>${intents}</div>`;
+  const boundary=plan.analysis_boundary||{};
+  const analysisNotice=boundary.analysis_requested?`<div class="protocol-natural-warning"><b>分析能力边界</b><span>${esc(boundary.message||'Pure Core 仅导出分析证据，不生成分析结论。')}</span></div>`:'';
+  return `<div class="protocol-natural-plan"><strong>SemanticExportPlan</strong><small>plan_id: ${esc(plan.plan_id||'')}</small><small>request_kind: ${esc(plan.request_kind||'direct_data_export')}</small><small>rules: ${esc(rules)}</small>${analysisNotice}${intents}</div>`;
 }
 function renderFormalSemanticPreview(payload={}){
   const target=$('#analysis-export-natural-result');if(!target)return;

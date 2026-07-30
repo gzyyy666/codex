@@ -37,6 +37,7 @@ RULE_POST_TRAINING_1D = "RELATION_POST_TRAINING_1D"
 RULE_POST_TRAINING_EXPLICIT = "RELATION_POST_TRAINING_EXPLICIT"
 RULE_SOME_MOVEMENTS_3 = "QUANTITY_SOME_MOVEMENTS_3"
 RULE_REPRESENTATIVE_TOP3 = "MOVEMENT_REPRESENTATIVE_TOP3_V1"
+RULE_MAJOR_PER_BODY_PART = "MOVEMENT_MAJOR_PER_BODY_PART_V1"
 RULE_EXPLICIT_MOVEMENTS = "QUANTITY_EXPLICIT_MOVEMENTS_V1"
 RULE_NAME_LIST = "MOVEMENT_NAME_LIST_V1"
 
@@ -63,9 +64,13 @@ _NUMBER = r"(?:\d+|[零一二两三四五六七八九十百千]+)"
 _RAW_TERMS = ("raw", "原始记录", "原始输入", "原始数据", "数据库原始")
 _WRITE_TERMS = ("删除", "修改", "写入", "新增", "保存", "同步", "上传", "清理掉")
 _BODY_TERMS = ("体重", "身体数据", "身体记录", "身体变化", "身体", "体脂", "体成分")
-_DIET_TERMS = ("饮食", "热量", "卡路里", "蛋白", "碳水", "脂肪", "食物", "吃了什么", "吃什么", "吃了", "摄入", "营养", "餐")
+_DIET_TERMS = ("饮食", "热量", "卡路里", "蛋白", "碳水", "脂肪", "食物", "吃了什么", "吃什么", "吃了", "吃的东西", "吃过什么", "摄入", "营养", "餐")
 _TRAINING_TERMS = ("训练记录", "训练数据", "训练情况", "训练表现", "训练次数", "训练状态", "训练", "锻炼", "胸训", "背训", "肩训", "腿训")
 _MOVEMENT_TERMS = ("动作成长", "成长记录", "动作表现", "动作历史", "动作名称", "动作清单", "动作")
+_ANALYSIS_TERMS = ("分析", "比较", "判断", "评估", "是否", "有没有变化", "趋势", "影响", "保持稳定", "稳定性")
+_TRAINING_RELATION_PREFIX = r"(?:训练|胸训|背训|肩训|腿训)"
+_TRAINING_ARRANGEMENT_TERMS = ("动作安排", "安排了什么动作", "练了什么动作", "练了哪些动作", "做了哪些动作", "做了什么动作", "包含哪些动作")
+_MAJOR_MOVEMENT_TERMS = ("主要动作", "代表性动作", "最常练", "最常做", "最常出现")
 _BODY_PARTS = {
     "胸部": ("Chest", "胸"), "胸": ("Chest", "胸"),
     "背部": ("Back", "背"), "背": ("Back", "背"),
@@ -106,6 +111,18 @@ def _contains_negative(text: str, terms: tuple[str, ...]) -> bool:
     )
 
 
+def _has_training_relation(text: str) -> bool:
+    return bool(re.search(rf"{_TRAINING_RELATION_PREFIX}(?:前|之前|当天|后|之后)", text))
+
+
+def _has_training_arrangement(text: str) -> bool:
+    return any(term in text for term in _TRAINING_ARRANGEMENT_TERMS)
+
+
+def _has_major_movement_scope(text: str) -> bool:
+    return any(term in text for term in _MAJOR_MOVEMENT_TERMS)
+
+
 def _first_date_range(text: str) -> dict[str, Any] | None:
     match = re.search(r"(\d{4}-\d{2}-\d{2})\s*(?:到|至|—|~)\s*(\d{4}-\d{2}-\d{2})", text)
     if not match:
@@ -115,6 +132,40 @@ def _first_date_range(text: str) -> dict[str, Any] | None:
     except ValueError:
         return None
     return {"mode": "explicit_range", "start": match.group(1), "end": match.group(2)} if start <= end else None
+
+
+def _chinese_date_range(text: str, anchor: date) -> dict[str, Any] | None:
+    match = re.search(
+        rf"(?:(\d{{4}})年)?\s*({_NUMBER})月\s*({_NUMBER})日?\s*(?:到|至|—|~)\s*(?:(\d{{4}})年)?\s*({_NUMBER})月\s*({_NUMBER})日",
+        text,
+    )
+    if not match:
+        short = re.search(
+            rf"(?:(\d{{4}})年)?\s*({_NUMBER})月\s*({_NUMBER})日?\s*(?:到|至|—|~)\s*({_NUMBER})日",
+            text,
+        )
+        if not short:
+            return None
+        year = int(short.group(1)) if short.group(1) else anchor.year
+        month = _number(short.group(2))
+        start_day = _number(short.group(3))
+        end_day = _number(short.group(4))
+        end_year, end_month = year, month
+    else:
+        year = int(match.group(1)) if match.group(1) else anchor.year
+        month = _number(match.group(2))
+        start_day = _number(match.group(3))
+        end_year = int(match.group(4)) if match.group(4) else year
+        end_month = _number(match.group(5))
+        end_day = _number(match.group(6))
+    try:
+        start = date(year, int(month), int(start_day))
+        end = date(end_year, int(end_month), int(end_day))
+    except (TypeError, ValueError):
+        return None
+    if start > end:
+        return None
+    return {"mode": "explicit_range", "start": start.isoformat(), "end": end.isoformat()}
 
 
 def _month_range(text: str, anchor: date) -> dict[str, Any] | None:
@@ -130,6 +181,8 @@ def _month_range(text: str, anchor: date) -> dict[str, Any] | None:
 
 
 def _recent_days(text: str) -> int | None:
+    if "最近一段时间" in text:
+        return 30
     match = re.search(rf"(?:最近|近|过去)\s*({_NUMBER})\s*(天|日|周|星期|个月|月)", text)
     if match:
         value = _number(match.group(1))
@@ -149,8 +202,12 @@ def _recent_days(text: str) -> int | None:
 
 
 def _recent_sessions(text: str) -> int | None:
-    match = re.search(rf"最近\s*({_NUMBER})\s*(?:次|场|个(?:匹配)?场次)", text)
+    match = re.search(rf"最近\s*({_NUMBER})\s*(?:次|场|回|个(?:匹配)?场次)", text)
     return _number(match.group(1)) if match else None
+
+
+def _has_recent_few_sessions(text: str) -> bool:
+    return bool(re.search(r"最近\s*几\s*(?:次|场|回)", text))
 
 
 def _last_data_date(tracker: dict[str, Any]) -> date:
@@ -211,6 +268,11 @@ class CompileOutput:
             "candidates": list(self.candidates),
             "errors": list(self.errors),
             "confirmations": list(self.confirmations),
+            "warnings": (
+                [{"code": "ANALYSIS_EVIDENCE_ONLY", "message": self.plan["analysis_boundary"]["message"]}]
+                if self.plan.get("analysis_boundary", {}).get("analysis_requested")
+                else []
+            ),
             "execution": {
                 "allowed": False,
                 "executor_called": False,
@@ -293,8 +355,15 @@ class PureCoreExportCompiler:
     def _excluded_domains(self, text: str) -> list[str]:
         excluded: list[str] = []
         for domain, terms in (("body", _BODY_TERMS), ("diet", _DIET_TERMS), ("training", _TRAINING_TERMS), ("movement_progress", _MOVEMENT_TERMS)):
-            notes_only = domain == "diet" and re.search(r"(?:不要|不含|排除)[^。；;，,。]{0,8}饮食(?:备注|笔记)", text)
-            notes_only = bool(notes_only) and not re.search(r"(?:不要|不含|排除)[^。；;，,。]{0,8}饮食(?:和|、|与).*(?:训练|动作)", text)
+            notes_terms = {
+                "body": ("身体备注", "每日备注"),
+                "diet": ("饮食备注", "饮食笔记"),
+                "training": ("训练备注", "训练笔记"),
+                "movement_progress": ("动作备注", "动作笔记", "movement notes"),
+            }[domain]
+            notes_only = any(_contains_negative(text, (term,)) for term in notes_terms)
+            if domain == "diet" and notes_only:
+                notes_only = not bool(re.search(r"(?:不要|不含|排除)[^。；;，,。]{0,8}饮食(?:和|、|与).*(?:训练|动作)", text))
             if _contains_negative(text, terms) and not notes_only:
                 excluded.append(domain)
         return excluded
@@ -304,12 +373,13 @@ class PureCoreExportCompiler:
         domains: list[str] = ["body", "diet", "training"] if all_fitness else []
         movement_signal = any(term in text for term in _MOVEMENT_TERMS) or bool(self._movement_mentions(text))
         training_signal = any(term in text for term in _TRAINING_TERMS)
-        relation_signal = "训练前" in text or "训练之前" in text or "训练当天" in text or "训练之后" in text or "训练后" in text
+        relation_signal = _has_training_relation(text)
+        training_evidence_signal = any(term in text for term in ("训练记录", "训练数据", "训练情况", "整体训练")) or _has_training_arrangement(text)
         if any(term in text for term in _BODY_TERMS):
             domains.append("body")
         if any(term in text for term in _DIET_TERMS):
             domains.append("diet")
-        if training_signal and not (movement_signal and not any(term in text for term in ("训练记录", "训练数据", "训练情况", "整体训练"))):
+        if training_signal and not (movement_signal and not training_evidence_signal):
             domains.append("training")
         if movement_signal:
             domains.append("movement_progress")
@@ -323,7 +393,7 @@ class PureCoreExportCompiler:
             complete = "完整" in text or "全部字段" in text
             return (PROFILE_BODY_COMPLETE if complete else PROFILE_BODY_BASIC, BODY_COMPLETE_FIELDS if complete else BODY_FIELDS, "daily" if complete else None)
         if domain == "diet":
-            complete = "完整饮食" in text or "完整记录" in text or "全部字段" in text or "吃了什么" in text or "食物" in text
+            complete = "完整饮食" in text or "完整记录" in text or "全部字段" in text or any(term in text for term in ("吃了什么", "吃的东西", "吃过什么", "食物"))
             notes = None if _contains_negative(text, ("饮食备注", "饮食笔记")) else ("diet" if complete or "饮食备注" in text or "饮食笔记" in text else None)
             return (PROFILE_DIET_COMPLETE if complete else PROFILE_DIET_BASIC, DIET_COMPLETE_FIELDS if complete else DIET_FIELDS, notes)
         if domain == "training":
@@ -361,6 +431,9 @@ class PureCoreExportCompiler:
         explicit = _first_date_range(text)
         if explicit:
             return explicit, "explicit_user_range", "TIME_EXPLICIT_RANGE"
+        explicit = _chinese_date_range(text, self.anchor)
+        if explicit:
+            return explicit, "explicit_user_range", "TIME_EXPLICIT_RANGE"
         month = _month_range(text, self.anchor)
         if month:
             return month, "explicit_user_month", "TIME_EXPLICIT_MONTH"
@@ -374,7 +447,9 @@ class PureCoreExportCompiler:
             return _range_for_all(rows, self.anchor), "all_available", RULE_ALL_SELECTED
         days = self._scoped_days(text, domain, _recent_days(text))
         if days is not None:
-            return {"mode": "recent_days", "days": days}, "explicit_recent_days", "TIME_RECENT_CUSTOM"
+            rule = "TIME_RECENT_CONTEXT_30D" if "最近一段时间" in text else "TIME_RECENT_CUSTOM"
+            source = "product_default" if "最近一段时间" in text else "explicit_recent_days"
+            return {"mode": "recent_days", "days": days}, source, rule
         sessions = _recent_sessions(text)
         if sessions is not None and domain in {"training", "movement_progress"}:
             return {"mode": "latest_matching_sessions", "sessions": sessions}, "explicit_recent_sessions", "TIME_EXPLICIT_MOVEMENT_SESSIONS"
@@ -390,19 +465,23 @@ class PureCoreExportCompiler:
 
     def _relation(self, text: str, training_id: str) -> dict[str, Any] | None:
         match_mode = "single_latest_matching_session" if ("上一次" in text or "上次" in text) else "each_matching_session"
-        if "训练后" in text or "训练之后" in text:
-            match = re.search(rf"训练(?:后|之后)\s*({_NUMBER})\s*天", text)
+        post_phrase = re.search(rf"{_TRAINING_RELATION_PREFIX}(?:后|之后)", text)
+        target_day_phrase = re.search(rf"{_TRAINING_RELATION_PREFIX}当天", text)
+        pre_phrase = re.search(rf"{_TRAINING_RELATION_PREFIX}(?:前|之前)", text)
+        if post_phrase:
+            match = re.search(rf"{_TRAINING_RELATION_PREFIX}(?:后|之后)\s*({_NUMBER})\s*(?:天|日)", text)
             days = _number(match.group(1)) if match else 1
-            include = "训练当天" in text and not bool(re.search(r"(?:不包含|不含|排除|不要)[^。；;，,。]{0,4}训练当天", text))
+            excludes_day = bool(re.search(rf"(?:不包含|不含|排除|不要)[^。；;，,。]{{0,6}}(?:{_TRAINING_RELATION_PREFIX})?当天", text))
+            include = not excludes_day and (bool(target_day_phrase) or "到当天" in text or "包含当天" in text)
             return {"mode": "days_after_target_session", "days_after": days or 1, "target_dataset_id": training_id, "match_mode": match_mode, "include_target_session_day": include}
-        if "训练当天" in text and "训练前" not in text and "训练之前" not in text:
+        if target_day_phrase and not pre_phrase:
             return {"mode": "target_session_day", "target_dataset_id": training_id, "match_mode": match_mode}
-        if not any(term in text for term in ("训练前", "训练之前")):
+        if not pre_phrase:
             return None
-        match = re.search(rf"训练(?:前|之前)\s*({_NUMBER})\s*天", text)
+        match = re.search(rf"{_TRAINING_RELATION_PREFIX}(?:前|之前)\s*({_NUMBER})\s*(?:天|日)", text)
         days = _number(match.group(1)) if match else 3
-        excludes_day = bool(re.search(r"(?:不包含|不含|排除|不要)[^。；;，,。]{0,4}训练当天", text))
-        include = not excludes_day and ("到训练当天" in text or "包含训练当天" in text or "训练当天" in text)
+        excludes_day = bool(re.search(rf"(?:不包含|不含|排除|不要)[^。；;，,。]{{0,6}}(?:{_TRAINING_RELATION_PREFIX})?当天", text))
+        include = not excludes_day and (bool(target_day_phrase) or "到当天" in text or "包含当天" in text)
         return {"mode": "days_before_target_session", "days_before": days or 3, "target_dataset_id": training_id, "match_mode": match_mode, "include_target_session_day": include}
 
     def _movement_selection(self, text: str) -> tuple[list[CatalogItem], list[dict[str, Any]], bool]:
@@ -416,10 +495,21 @@ class PureCoreExportCompiler:
                 ambiguous.extend(item.to_dict() for item in matches)
             else:
                 ambiguous.append({"movement_name": phrase, "movement_id": "", "body_part": "", "history_count": 0, "recent_date": ""})
+        all_parts_scope = any(term in text for term in ("各部位", "各个部位", "每个部位", "全身各部位"))
+        if all_parts_scope and _has_major_movement_scope(text):
+            grouped: dict[str, list[CatalogItem]] = {}
+            for item in self.catalog:
+                if item.body_part and item.history_count > 0:
+                    grouped.setdefault(item.body_part, []).append(item)
+            selected = [
+                sorted(items, key=lambda item: (-item.history_count, item.movement_name))[0]
+                for _body_part, items in sorted(grouped.items())
+            ]
+            ambiguous = []
         part = self._body_part(text)
-        if part and ("所有动作" in text or "全部动作" in text or "动作名称" in text or "动作清单" in text or "哪些动作" in text or "练了哪些动作" in text or "主要动作" in text or "代表性动作" in text):
+        if part and ("所有动作" in text or "全部动作" in text or "动作名称" in text or "动作清单" in text or "哪些动作" in text or _has_training_arrangement(text) or _has_major_movement_scope(text)):
             candidates = [item for item in self.catalog if item.body_part.casefold() == part[0].casefold() and item.history_count > 0]
-            if "主要动作" in text or "代表性动作" in text:
+            if _has_major_movement_scope(text):
                 candidates = sorted(candidates, key=lambda item: (-item.history_count, item.movement_name))[:3]
             selected = candidates
             ambiguous = [item.to_dict() for item in candidates]
@@ -427,9 +517,19 @@ class PureCoreExportCompiler:
 
     def _base_plan(self, text: str, domains: list[str], excluded: list[str]) -> dict[str, Any]:
         plan_id = "sep_" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:24]
+        analysis_terms = [term for term in _ANALYSIS_TERMS if term in text]
+        analysis_requested = bool(analysis_terms)
         return {
             "schema_version": SCHEMA_VERSION,
             "plan_id": plan_id,
+            "request_kind": "analysis_evidence_export" if analysis_requested else "direct_data_export",
+            "analysis_boundary": {
+                "analysis_requested": analysis_requested,
+                "matched_terms": analysis_terms,
+                "core_capability": "evidence_export_only" if analysis_requested else "data_export",
+                "analysis_result_generated": False,
+                "message": "Pure Core 仅规划并导出分析所需证据，不生成分析结论。" if analysis_requested else "",
+            },
             "requested_domains": domains,
             "excluded_domains": excluded,
             "dataset_intents": [],
@@ -457,22 +557,22 @@ class PureCoreExportCompiler:
 
         if "健身" in text and any(term in text for term in ("全部", "所有", "整体", "最近", "整理", "导出")):
             plan["applied_rule_ids"].append(RULE_ALL_FITNESS)
-        has_explicit_window = _first_date_range(text) is not None or _month_range(text, self.anchor) is not None or _recent_days(text) is not None
+        has_explicit_window = _first_date_range(text) is not None or _chinese_date_range(text, self.anchor) is not None or _month_range(text, self.anchor) is not None or _recent_days(text) is not None
         all_available = any(term in text for term in ("从有记录以来", "全部成长", "完整成长", "全部可用历史")) or (not has_explicit_window and ("全部" in text or "所有" in text) and "动作名称" not in text and "动作清单" not in text)
-        name_list = any(term in text for term in ("动作名称", "动作清单", "列出所有动作", "列出动作", "哪些动作", "练了哪些动作")) and "成长" not in text and "表现" not in text
+        name_list = any(term in text for term in ("动作名称", "动作清单", "列出所有动作", "列出动作", "哪些动作", "练了哪些动作", "安排了什么动作", "练了什么动作")) and "成长" not in text and "表现" not in text
         movement_selection, candidates, movement_signal = self._movement_selection(text)
         selected_id_set = {str(value).strip() for value in (selected_movement_ids or ()) if str(value).strip()}
         if selected_id_set:
             movement_selection = [item for item in self.catalog if item.movement_id in selected_id_set]
             candidates = []
             plan["explicit_constraints"]["selected_movement_ids"] = sorted(selected_id_set)
-        if "movement_progress" in domains and not movement_selection and not candidates and any(term in text for term in ("一些", "少量", "主要", "代表性")):
+        if "movement_progress" in domains and not movement_selection and not candidates and (any(term in text for term in ("一些", "少量", "主要", "代表性")) or _has_major_movement_scope(text)):
             count_match = re.search(rf"(?:最近|导出|列出)?\s*({_NUMBER})\s*(?:个|项)?\s*(?:主要|代表性)?\s*(?:训练)?\s*动作", text)
             requested_count = _number(count_match.group(1)) if count_match else 3
             movement_selection = sorted(self.catalog, key=lambda item: (-item.history_count, item.movement_name))[: max(1, requested_count or 3)]
             if "一些" in text or "少量" in text:
                 plan["applied_rule_ids"].append(RULE_SOME_MOVEMENTS_3)
-        body_part_scope = self._body_part(text) and any(term in text for term in ("动作名称", "动作清单", "所有动作", "全部动作", "哪些动作", "练了哪些动作"))
+        body_part_scope = self._body_part(text) and (any(term in text for term in ("动作名称", "动作清单", "所有动作", "全部动作", "哪些动作")) or _has_training_arrangement(text))
         if body_part_scope and "movement_progress" in domains and not selected_id_set:
             plan["selected_movement_ids"] = [item.movement_id for item in movement_selection]
             plan["applied_rule_ids"] = [RULE_NAME_LIST if name_list else "MOVEMENT_CATALOG_DISCOVERY"]
@@ -498,16 +598,19 @@ class PureCoreExportCompiler:
                 movement_selection = sorted(self.catalog, key=lambda item: (-item.history_count, item.movement_name))[:3]
                 selected_ids = [item.movement_id for item in movement_selection]
                 plan["applied_rule_ids"].append(RULE_SOME_MOVEMENTS_3)
+        all_parts_scope = any(term in text for term in ("各部位", "各个部位", "每个部位", "全身各部位"))
         count_match_for_rule = re.search(rf"({_NUMBER})\s*(?:个|项)?\s*(?:主要|代表性)?\s*(?:训练)?\s*动作", text)
-        if count_match_for_rule and ("主要" in text or "代表性" in text):
+        if all_parts_scope and _has_major_movement_scope(text):
+            plan["applied_rule_ids"].append(RULE_MAJOR_PER_BODY_PART)
+        elif count_match_for_rule and ("主要" in text or "代表性" in text):
             plan["applied_rule_ids"].append(RULE_EXPLICIT_MOVEMENTS)
-        elif "主要" in text or "代表性" in text:
+        elif _has_major_movement_scope(text):
             plan["applied_rule_ids"].append(RULE_REPRESENTATIVE_TOP3)
         plan["selected_movement_ids"] = selected_ids
         if "movement_progress" in domains and "所有动作" in text and not movement_selection:
             return CompileOutput("candidate_confirmation_required", plan, candidates=tuple(item.to_dict() for item in self.catalog), confirmations=("该范围没有可用的正式动作候选。",))
 
-        training_needed_for_relation = "diet" in domains and ("训练前" in text or "训练之前" in text or "训练当天" in text or "训练后" in text or "训练之后" in text)
+        training_needed_for_relation = "diet" in domains and _has_training_relation(text)
         if training_needed_for_relation and "training" not in domains:
             domains.append("training")
             plan["requested_domains"] = domains
@@ -540,7 +643,7 @@ class PureCoreExportCompiler:
                 sessions = _recent_sessions(text)
                 if sessions is None and ("上一次" in text or "上次" in text):
                     sessions = 1
-                if sessions is None and "最近几次" in text:
+                if sessions is None and _has_recent_few_sessions(text):
                     sessions = 3
                 if sessions is not None:
                     scope = {"mode": "latest_matching_sessions", "sessions": sessions}
