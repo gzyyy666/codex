@@ -40,6 +40,7 @@ from web_desktop.backend.analysis_export_protocol import (  # noqa: E402
 from fitness_ledger_core.formal_analysis_request_preview_service import (  # noqa: E402
     FormalAnalysisRequestPreviewService,
 )
+from fitness_ledger_core.formal_readonly_data_source import FormalReadOnlyDataSource  # noqa: E402
 from fitness_ledger_core.pure_core_export import PureCoreExportCompiler  # noqa: E402
 
 
@@ -91,11 +92,14 @@ class LedgerWebService:
         self.server_started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
         self.build_info_path = build_info_path
         self.build_info_override = build_info_override
-        self.analysis_export_protocol = (
-            analysis_export_protocol
-            if analysis_export_protocol is not None
-            else AnalysisExportProtocolService.from_environment()
-        )
+        if analysis_export_protocol is not None:
+            self.analysis_export_protocol = analysis_export_protocol
+        elif Path(data_file).is_file() and Path(dictionary_file).is_file():
+            self.analysis_export_protocol = AnalysisExportProtocolService(
+                FormalReadOnlyDataSource(Path(data_file), Path(dictionary_file))
+            )
+        else:
+            self.analysis_export_protocol = AnalysisExportProtocolService.from_environment()
         semantic_config = os.environ.get("FITNESS_LEDGER_SEMANTIC_HINT_CONFIG", "").strip()
         self.formal_analysis_preview = FormalAnalysisRequestPreviewService.from_runtime_config(semantic_config) if semantic_config else FormalAnalysisRequestPreviewService.from_runtime_config(Path("__missing_formal_semantic_hint_config__.json"))
 
