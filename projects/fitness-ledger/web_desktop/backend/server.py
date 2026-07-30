@@ -39,6 +39,7 @@ from web_desktop.backend.analysis_export_protocol import (  # noqa: E402
 from fitness_ledger_core.formal_analysis_request_preview_service import (  # noqa: E402
     FormalAnalysisRequestPreviewService,
 )
+from fitness_ledger_core.pure_core_export import PureCoreExportCompiler  # noqa: E402
 
 
 def load_stable_module():
@@ -189,10 +190,27 @@ class LedgerWebService:
         if len(text) > 500:
             return {"status": "invalid_request", "errors": [{"code": "TEXT_TOO_LONG", "path": "$.text", "message": "自然语言请求最多 500 个字符。"}], "execution": {"allowed": False, "executor_called": False, "formal_data_written": False, "raw_allowed": False}}
         try:
-            result = self.formal_analysis_preview.preview(text)
-        except Exception:
-            return {"status": "error", "errors": [{"code": "PREVIEW_UNAVAILABLE", "path": "$", "message": "自然语言预览暂时不可用，请修改请求或使用 JSON Contract。"}], "execution": {"allowed": False, "executor_called": False, "formal_data_written": False, "raw_allowed": False}}
-        return result
+            # Phase One is deliberately model-free.  The compiler is rebuilt
+            # from the current read-only view for every request so the plan is
+            # grounded in the same local snapshot that the formal materializer
+            # will later revalidate.
+            # A small legacy unit harness constructs this service without the
+            # Web read-model.  Keep that isolated adapter-only fixture alive;
+            # the real Web service always has ``views`` and therefore stays on
+            # Pure Core with zero model calls.
+            if not hasattr(self, "views"):
+                return self.formal_analysis_preview.preview(text)
+            selected_ids = request.get("selected_movement_ids")
+            if not isinstance(selected_ids, list):
+                selected_ids = []
+            return PureCoreExportCompiler(self.views).compile(text, selected_ids).to_response()
+        except Exception as exc:
+            return {
+                "status": "error",
+                "errors": [{"code": "PURE_CORE_UNAVAILABLE", "path": "$", "message": str(exc)[:240]}],
+                "model_calls": 0,
+                "execution": {"allowed": False, "executor_called": False, "formal_data_written": False, "raw_allowed": False},
+            }
 
     def intelligent_export_preview(self, request: dict) -> dict:
         text = str(request.get("request", "") or "").strip()

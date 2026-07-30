@@ -235,7 +235,7 @@ class FormalReadOnlyDataSource:
                         catalog_item.get("muscle_group") or ""
                     ),
                 }
-                for field in ("date", "order"):
+                for field in ("date", "order", "variant"):
                     if field in history:
                         row[field] = deepcopy(history[field])
                 if "sets" in history:

@@ -145,7 +145,16 @@ class AnonymousFixtureMaterializer:
         if dataset["type"] == "training":
             for key in ("body_part", "split"):
                 if key in filters:
-                    rows = [row for row in rows if _casefold(row.get(key)) == _casefold(filters[key])]
+                    if key == "body_part":
+                        # Training rows store the human split label (for
+                        # example ``肩胸背综合``), while Request v1.1 uses
+                        # ``body_part`` as the semantic filter name.  Match
+                        # the selected part inside that label; exact split
+                        # filters remain exact.
+                        expected = _casefold(filters[key])
+                        rows = [row for row in rows if expected and expected in _casefold(row.get("split"))]
+                    else:
+                        rows = [row for row in rows if _casefold(row.get(key)) == _casefold(filters[key])]
         elif dataset["type"] == "movement_progress" and "movement_selector" in filters:
             selector = filters["movement_selector"]
             matches = self._movement_matches(selector)
