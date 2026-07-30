@@ -40,6 +40,7 @@ RULE_REPRESENTATIVE_TOP3 = "MOVEMENT_REPRESENTATIVE_TOP3_V1"
 RULE_MAJOR_PER_BODY_PART = "MOVEMENT_MAJOR_PER_BODY_PART_V1"
 RULE_EXPLICIT_MOVEMENTS = "QUANTITY_EXPLICIT_MOVEMENTS_V1"
 RULE_NAME_LIST = "MOVEMENT_NAME_LIST_V1"
+RULE_MULTI_BODY_PART_EXPANSION = "MULTI_BODY_PART_DATASET_EXPANSION_V1"
 
 PROFILE_BODY_BASIC = "BODY_BASIC_V1"
 PROFILE_BODY_COMPLETE = "BODY_COMPLETE_V1"
@@ -332,11 +333,20 @@ class PureCoreExportCompiler:
             unique.setdefault(_normalize(term), (index, term, matches))
         return [(term, matches) for _index, term, matches in sorted(unique.values(), key=lambda value: value[0])]
 
-    def _body_part(self, text: str) -> tuple[str, str] | None:
+    def _body_parts(self, text: str) -> list[tuple[str, str]]:
+        found: list[tuple[int, tuple[str, str]]] = []
+        seen: set[str] = set()
         for term, value in sorted(_BODY_PARTS.items(), key=lambda pair: len(pair[0]), reverse=True):
-            if term in text:
-                return value
-        return None
+            index = text.find(term)
+            if index < 0 or value[0] in seen:
+                continue
+            found.append((index, value))
+            seen.add(value[0])
+        return [value for _index, value in sorted(found, key=lambda item: item[0])]
+
+    def _body_part(self, text: str) -> tuple[str, str] | None:
+        parts = self._body_parts(text)
+        return parts[0] if parts else None
 
     def _scoped_days(self, text: str, domain: str, fallback: int | None) -> int | None:
         matches = list(re.finditer(rf"最近\s*({_NUMBER})\s*(?:天|日)", text))
@@ -506,14 +516,26 @@ class PureCoreExportCompiler:
                 for _body_part, items in sorted(grouped.items())
             ]
             ambiguous = []
-        part = self._body_part(text)
-        if part and ("所有动作" in text or "全部动作" in text or "动作名称" in text or "动作清单" in text or "哪些动作" in text or _has_training_arrangement(text) or _has_major_movement_scope(text)):
-            candidates = [item for item in self.catalog if item.body_part.casefold() == part[0].casefold() and item.history_count > 0]
+        parts = self._body_parts(text)
+        if parts and ("所有动作" in text or "全部动作" in text or "动作名称" in text or "动作清单" in text or "哪些动作" in text or _has_training_arrangement(text) or _has_major_movement_scope(text)):
+            part_keys = {part[0].casefold() for part in parts}
+            candidates = [item for item in self.catalog if item.body_part.casefold() in part_keys and item.history_count > 0]
             if _has_major_movement_scope(text):
-                candidates = sorted(candidates, key=lambda item: (-item.history_count, item.movement_name))[:3]
+                if len(parts) > 1:
+                    ranked_by_part: list[CatalogItem] = []
+                    for part in parts:
+                        ranked_by_part.extend(
+                            sorted(
+                                (item for item in candidates if item.body_part.casefold() == part[0].casefold()),
+                                key=lambda item: (-item.history_count, item.movement_name),
+                            )[:3]
+                        )
+                    candidates = ranked_by_part
+                else:
+                    candidates = sorted(candidates, key=lambda item: (-item.history_count, item.movement_name))[:3]
             selected = candidates
             ambiguous = [item.to_dict() for item in candidates]
-        return selected, ambiguous, bool(mentions or part)
+        return selected, ambiguous, bool(mentions or parts)
 
     def _base_plan(self, text: str, domains: list[str], excluded: list[str]) -> dict[str, Any]:
         plan_id = "sep_" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:24]
@@ -557,8 +579,10 @@ class PureCoreExportCompiler:
 
         if "健身" in text and any(term in text for term in ("全部", "所有", "整体", "最近", "整理", "导出")):
             plan["applied_rule_ids"].append(RULE_ALL_FITNESS)
-        has_explicit_window = _first_date_range(text) is not None or _chinese_date_range(text, self.anchor) is not None or _month_range(text, self.anchor) is not None or _recent_days(text) is not None
-        all_available = any(term in text for term in ("从有记录以来", "全部成长", "完整成长", "全部可用历史")) or (not has_explicit_window and ("全部" in text or "所有" in text) and "动作名称" not in text and "动作清单" not in text)
+        has_explicit_date_window = _first_date_range(text) is not None or _chinese_date_range(text, self.anchor) is not None or _month_range(text, self.anchor) is not None or _recent_days(text) is not None
+        has_explicit_session_window = _recent_sessions(text) is not None or _has_recent_few_sessions(text)
+        general_all_available = not (has_explicit_date_window or has_explicit_session_window) and ("全部" in text or "所有" in text) and "动作名称" not in text and "动作清单" not in text
+        movement_all_available = not has_explicit_session_window and any(term in text for term in ("从有记录以来", "全部成长", "全部可用历史"))
         name_list = any(term in text for term in ("动作名称", "动作清单", "列出所有动作", "列出动作", "哪些动作", "练了哪些动作", "安排了什么动作", "练了什么动作")) and "成长" not in text and "表现" not in text
         movement_selection, candidates, movement_signal = self._movement_selection(text)
         selected_id_set = {str(value).strip() for value in (selected_movement_ids or ()) if str(value).strip()}
@@ -618,10 +642,45 @@ class PureCoreExportCompiler:
         movement_items = movement_selection if "movement_progress" in domains else []
         if "movement_progress" in domains and not movement_items and not name_list:
             return CompileOutput("candidate_confirmation_required", plan, confirmations=("动作请求需要正式 movement resolver 结果。",))
-        domain_order = [domain for domain in ("body", "diet", "training") if domain in domains]
+        body_parts = self._body_parts(text)
+        if len(body_parts) > 1:
+            plan["applied_rule_ids"].append(RULE_MULTI_BODY_PART_EXPANSION)
+
+        handled_domains: set[str] = set()
+        if training_needed_for_relation:
+            training_profile, training_fields, training_notes = self._profile("training", text, name_list)
+            training_fields = self._field_constraints("training", training_fields, text)
+            diet_profile, diet_fields, diet_notes = self._profile("diet", text, name_list)
+            diet_fields = self._field_constraints("diet", diet_fields, text)
+            if not training_fields or not diet_fields:
+                return CompileOutput("needs_confirmation", plan, confirmations=("关系导出的字段被全部排除，请为训练和饮食各保留至少一个结构化字段。",))
+
+            relation_parts: list[tuple[str, str] | None] = list(body_parts) or [None]
+            for index, part in enumerate(relation_parts, 1):
+                training_id = f"training_{index}"
+                training_scope, training_source, training_rule = self._time_scope(text, "training", all_available=general_all_available)
+                filters = {"body_part": part[1]} if part else {}
+                sessions = _recent_sessions(text)
+                if sessions is None and ("上一次" in text or "上次" in text):
+                    sessions = 1
+                if sessions is None and _has_recent_few_sessions(text):
+                    sessions = 3
+                if sessions is not None:
+                    training_scope = {"mode": "latest_matching_sessions", "sessions": sessions}
+                    if _recent_sessions(text) is not None or "上一次" in text or "上次" in text:
+                        training_source, training_rule = "explicit_recent_sessions", "TIME_EXPLICIT_TRAINING_SESSIONS"
+                    else:
+                        training_source, training_rule = "product_default", RULE_RECENT_TRAINING_3S
+                dataset_specs.append((training_id, training_scope, training_profile, training_fields, training_notes, {"filters": filters, "source": training_source, "rule": training_rule, "relation": None}))
+
+                relation = self._relation(text, training_id)
+                diet_scope, diet_source, diet_rule = self._time_scope(text, "diet", all_available=general_all_available, relation=relation)
+                dataset_specs.append((f"diet_{index}", diet_scope, diet_profile, diet_fields, diet_notes, {"filters": {}, "source": diet_source, "rule": diet_rule, "relation": relation}))
+            handled_domains.update(("diet", "training"))
+
+        domain_order = [domain for domain in ("body", "diet", "training") if domain in domains and domain not in handled_domains]
         if "movement_progress" in domains:
             domain_order.append("movement_progress")
-        training_id = "training_1" if "training" in domains else ""
         for domain in domain_order:
             profile, fields, notes_scope = self._profile(domain, text, name_list)
             fields = self._field_constraints(domain, fields, text)
@@ -629,17 +688,13 @@ class PureCoreExportCompiler:
                 return CompileOutput("needs_confirmation", plan, confirmations=(f"{domain} 的字段被全部排除，请至少保留一个结构化字段。",))
             if domain == "movement_progress":
                 for index, item in enumerate(movement_items, 1):
-                    scope, source, rule = self._time_scope(text, domain, all_available=all_available)
+                    scope, source, rule = self._time_scope(text, domain, all_available=movement_all_available)
                     dataset_id = f"movement_{index}"
                     dataset_specs.append((dataset_id, scope, profile, fields, notes_scope, {"movement_id": item.movement_id, "movement_name": item.movement_name, "source": source, "rule": rule}))
                 continue
-            relation = self._relation(text, training_id) if domain == "diet" and training_needed_for_relation else None
-            scope, source, rule = self._time_scope(text, domain, all_available=all_available, relation=relation)
+            scope, source, rule = self._time_scope(text, domain, all_available=general_all_available)
             filters: dict[str, Any] = {}
             if domain == "training":
-                part = self._body_part(text)
-                if part:
-                    filters["body_part"] = part[1]
                 sessions = _recent_sessions(text)
                 if sessions is None and ("上一次" in text or "上次" in text):
                     sessions = 1
@@ -651,7 +706,12 @@ class PureCoreExportCompiler:
                         source, rule = "explicit_recent_sessions", "TIME_EXPLICIT_TRAINING_SESSIONS"
                     else:
                         source, rule = "product_default", RULE_RECENT_TRAINING_3S
-            dataset_specs.append((f"{domain}_1", scope, profile, fields, notes_scope, {"filters": filters, "source": source, "rule": rule, "relation": relation}))
+                training_parts: list[tuple[str, str] | None] = list(body_parts) or [None]
+                for index, part in enumerate(training_parts, 1):
+                    part_filters = {"body_part": part[1]} if part else {}
+                    dataset_specs.append((f"training_{index}", scope, profile, fields, notes_scope, {"filters": part_filters, "source": source, "rule": rule, "relation": None}))
+                continue
+            dataset_specs.append((f"{domain}_1", scope, profile, fields, notes_scope, {"filters": filters, "source": source, "rule": rule, "relation": None}))
 
         requests: list[dict[str, Any]] = []
         for batch_index in range(0, len(dataset_specs), MAX_DATASETS_PER_BATCH):
@@ -664,7 +724,8 @@ class PureCoreExportCompiler:
                     dataset["filters"] = {"movement_selector": {"kind": "movement_id", "value": meta["movement_id"]}}
                 if meta.get("relation") is not None:
                     relation = dict(meta["relation"])
-                    relation["target_dataset_id"] = id_map.get("training_1", relation.get("target_dataset_id"))
+                    relation_target_id = str(relation.get("target_dataset_id") or "")
+                    relation["target_dataset_id"] = id_map.get(relation_target_id, relation_target_id)
                     dataset["time_range"] = relation
                 if notes_scope:
                     dataset["notes_scope"] = notes_scope
