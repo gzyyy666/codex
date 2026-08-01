@@ -50,6 +50,7 @@ If no closure phrase is given, default to **先开发/先让我验收**. This pr
 
 - Desktop UI or parser: `FUNCTION_INDEX.md`, then relevant functions in `stable_app.pyw`
 - Web behavior: `web_desktop/ARCHITECTURE.md`, then `web_desktop/frontend/app.js`
+- Analysis Export Web changes: `docs/maintenance/ANALYSIS_EXPORT_HANDOFF.md`, then the v1.1 service and frontend files it names
 - Web visual changes: `docs/design/STYLE_BIBLE.md`, `docs/design/DESIGN_RESOURCES.md`
 - Environment or launch issues: `docs/maintenance/ENVIRONMENT.md`
 - WeChat or CloudBase maintenance: `mini_program/README.md`, `mini_program/docs/`, `../../workflows/fitness-ledger-wechat-readonly-release.md`, then `cloud_sync/CLOUD_REVIEW.md`

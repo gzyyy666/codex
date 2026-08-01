@@ -1,5 +1,19 @@
 # Fitness Ledger Changelog
 
+## 2026-08-01 - Analysis Export workbench integration
+
+- Replaced the Analysis Export page body with the approved natural-language-first
+  evidence workbench while preserving the formal navigation and v1.1 request
+  protocol.
+- Kept JSON secondary and blank by default; both input modes now share the real
+  validate, scope, preview, confirmation, and read-only export path.
+- Bound the stage orb, multi-batch scope cards, preview fields/selectors,
+  warnings, candidate movement selection, done state, and error state to real
+  service responses.
+- Added the durable Web handoff at
+  `docs/maintenance/ANALYSIS_EXPORT_HANDOFF.md` so later conversations can
+  resume from live status and the correct safety boundaries.
+
 ## 2026-07-29 - Project baseline and Worktree hygiene closeout
 
 - Added repository-root task routing so new conversations reliably discover

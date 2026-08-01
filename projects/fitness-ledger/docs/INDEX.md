@@ -29,6 +29,7 @@ Use this index instead of scanning the project.
 | --- | --- |
 | Python, launchers, local paths, and dependencies | `maintenance/ENVIRONMENT.md` |
 | Git source rollback and local data rollback | `maintenance/ROLLBACK.md` |
+| Analysis Export Web resume point and v1.1 boundaries | `maintenance/ANALYSIS_EXPORT_HANDOFF.md` |
 | Reusable engineering and design lessons | `maintenance/WORKFLOW_LESSONS.md` |
 | Chronological changes | `../CHANGELOG.md` |
 | Cloud replica truth, collections, and review | `../cloud_sync/CLOUD_REVIEW.md` |
