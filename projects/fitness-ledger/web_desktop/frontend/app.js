@@ -447,10 +447,22 @@ function naturalStatusLabel(status=''){
     ready:'PREVIEW READY / CONFIRMATION REQUIRED',
     candidate_confirmation_required:'MOVEMENT CANDIDATES REQUIRE CONFIRMATION',
     needs_clarification:'FORMAL CATALOG SELECTION REQUIRED',
+    planner_required:'ANALYSIS PLANNING REQUIRED',
+    rejected_contract:'REQUEST REJECTED BY SAFETY CONTRACT',
     NO_EXPORT_REQUIRED:'NO EXPORT REQUIRED',
     unsupported:'UNSUPPORTED REQUEST',
+    error:'EXPORT REQUEST ERROR',
     needs_confirmation:'SCOPE CONFIRMATION REQUIRED',
   })[status]||'SAFE EXPORT CANDIDATE NOT FORMED';
+}
+function naturalStatusMessage(status=''){
+  return ({
+    planner_required:'这句话需要比较或判断关系；受限导出只准备明确的数据证据，不会替你猜测分析口径。请改成明确的数据导出范围。',
+    rejected_contract:'请求触发了只读安全边界；当前不允许 Raw、写入或删除正式数据。',
+    unsupported:'请求未通过当前只读导出边界，请调整为明确的数据范围。',
+    NO_EXPORT_REQUIRED:'没有识别到可导出的数据范围，请补充数据域和时间范围。',
+    needs_clarification:'动作名称存在歧义，请从正式动作候选中选择。',
+  })[status]||'请补充或修改导出范围后重试。';
 }
 function naturalScopeMarkup(requests=[]){
   const list=Array.isArray(requests)?requests:[requests];
@@ -473,7 +485,8 @@ function renderFormalSemanticPreview(payload={}){
      target.innerHTML=`<span class="eyebrow">PREVIEW READY / CONFIRMATION REQUIRED</span><strong>范围已解释，尚未生成 Bundle。</strong><p>Restricted Parser v3 · Formal Catalog · Model calls 0 · ${requests.length} batch(es) · Raw CLOSED</p>${naturalPlanMarkup(payload.semantic_plan||{})}<div class="protocol-natural-summary">${naturalScopeMarkup(requests)}</div><label class="protocol-confirm-check"><input id="analysis-export-natural-confirm-check" type="checkbox"> 我确认当前 Preview 范围</label><button class="btn btn-primary" type="button" data-analysis-export-natural-confirm ${previewCount===requests.length?'disabled':''}>确认并生成只读 Bundle <span>→</span></button>`;
     return;
   }
-  const messages=[...confirmations,...errors.map(item=>typeof item==='string'?item:(item.message||item.code||'Unable to continue'))];
+  const warnings=Array.isArray(payload.warnings)?payload.warnings:[];
+  const messages=[...confirmations,...errors.map(item=>typeof item==='string'?item:(item.message||item.code||'Unable to continue')),naturalStatusMessage(status),...warnings];
   const candidates=Array.isArray(payload.candidates)?payload.candidates:[];
   const candidateMarkup=candidates.length?`<div class="protocol-natural-candidates">${candidates.map(item=>`<div><b>${esc(item.movement_name||'')}</b><span>${esc(item.movement_id||'')}</span><small>${esc(item.body_part||'')} · ${esc(item.history_count??0)} records · ${esc(item.recent_date||'n/a')}</small></div>`).join('')}</div>`:'';
   const selectableCandidates=candidates.length?`<label class="protocol-confirm-check"><input type="checkbox" data-natural-candidate-all> 全选候选</label><button class="btn btn-primary" type="button" data-analysis-export-candidate-continue>使用已选动作继续生成 Preview →</button>`:'';
