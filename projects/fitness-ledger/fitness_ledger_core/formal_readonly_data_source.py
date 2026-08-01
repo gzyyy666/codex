@@ -212,13 +212,18 @@ class FormalReadOnlyDataSource:
             )
 
         movement_rows: list[dict[str, Any]] = []
-        for movement_id, movement in movements.items():
+        for movement_key, movement in movements.items():
             if (
                 not isinstance(movement, dict)
                 or not isinstance(movement.get("history", []), list)
             ):
                 continue
-            movement_id = str(movement_id)
+            # Formal tracker keys are storage slugs (for example ``pullup``),
+            # while history and the movement dictionary use the authoritative
+            # movement_id (for example ``BACK_001``).  The export materializer
+            # resolves selectors by the latter, so prefer the explicit record
+            # ID and only fall back to the storage key for legacy rows.
+            movement_id = str(movement.get("movement_id") or movement_key)
             catalog_item = dictionary_by_id.get(movement_id, {})
             for history in movement.get("history", []):
                 if not isinstance(history, dict):

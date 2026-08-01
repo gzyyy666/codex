@@ -1,4 +1,4 @@
-"""Formal Catalog binding for the restricted export parser v2.
+"""Formal Catalog binding for the restricted export parser v3.
 
 The parser receives an anonymous projection of the existing read-only Catalog;
 it never opens tracker.json or movement_dictionary.json itself.  The v1.1
@@ -12,7 +12,7 @@ from typing import Any, Mapping, Sequence
 
 from .analysis_export_request import validate_request
 from .data_catalog import DataCatalogBuilder
-from .restricted_export_parser_v2 import (
+from .restricted_export_parser_v3 import (
     MovementEntry,
     RestrictedExportParser,
     SemanticExportPlan,

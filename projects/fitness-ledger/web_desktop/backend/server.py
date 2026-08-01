@@ -223,7 +223,7 @@ class LedgerWebService:
             superseded_context_id = str(request.get("supersedes_preview_context_id", "") or "").strip()
             invalidated_preview_count = self.analysis_export_protocol.invalidate_preview_context(superseded_context_id)
             response = compile_natural_language_export(self.views, text, selected_ids)
-            response["route"] = "restricted_parser_v2"
+            response["route"] = "restricted_parser_v3"
             response["model_calls"] = 0
             response["execution"] = {
                 "allowed": response.get("status") == "ready",

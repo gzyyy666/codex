@@ -14,6 +14,7 @@
   "required": ["request_version", "purpose", "datasets", "raw", "output"],
   "$defs": {
     "dataset_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+    "all_available": { "type": "object", "additionalProperties": false, "properties": { "mode": { "const": "all_available" } }, "required": ["mode"] },
     "recent_days": { "type": "object", "additionalProperties": false, "properties": { "mode": { "const": "recent_days" }, "days": { "type": "integer", "minimum": 1, "maximum": 3650 } }, "required": ["mode", "days"] },
     "explicit_range": { "type": "object", "additionalProperties": false, "properties": { "mode": { "const": "explicit_range" }, "start": { "type": "string", "format": "date" }, "end": { "type": "string", "format": "date" } }, "required": ["mode", "start", "end"] },
     "latest_matching_sessions": { "type": "object", "additionalProperties": false, "properties": { "mode": { "const": "latest_matching_sessions" }, "sessions": { "type": "integer", "minimum": 1, "maximum": 20 } }, "required": ["mode", "sessions"] },
@@ -31,10 +32,10 @@
       "required": ["mode", "days_before", "match_mode", "include_target_session_day"],
       "oneOf": [{ "required": ["target_dataset_id"], "not": { "required": ["target_date"] } }, { "required": ["target_date"], "not": { "required": ["target_dataset_id"] } }]
     },
-    "body_time_range": { "oneOf": [{ "$ref": "#/$defs/recent_days" }, { "$ref": "#/$defs/explicit_range" }] },
-    "diet_time_range": { "oneOf": [{ "$ref": "#/$defs/recent_days" }, { "$ref": "#/$defs/explicit_range" }, { "$ref": "#/$defs/days_before_target_session" }] },
-    "training_time_range": { "oneOf": [{ "$ref": "#/$defs/recent_days" }, { "$ref": "#/$defs/explicit_range" }, { "$ref": "#/$defs/latest_matching_sessions" }] },
-    "movement_time_range": { "oneOf": [{ "$ref": "#/$defs/recent_days" }, { "$ref": "#/$defs/explicit_range" }, { "$ref": "#/$defs/latest_matching_sessions" }] },
+    "body_time_range": { "oneOf": [{ "$ref": "#/$defs/all_available" }, { "$ref": "#/$defs/recent_days" }, { "$ref": "#/$defs/explicit_range" }] },
+    "diet_time_range": { "oneOf": [{ "$ref": "#/$defs/all_available" }, { "$ref": "#/$defs/recent_days" }, { "$ref": "#/$defs/explicit_range" }, { "$ref": "#/$defs/days_before_target_session" }] },
+    "training_time_range": { "oneOf": [{ "$ref": "#/$defs/all_available" }, { "$ref": "#/$defs/recent_days" }, { "$ref": "#/$defs/explicit_range" }, { "$ref": "#/$defs/latest_matching_sessions" }] },
+    "movement_time_range": { "oneOf": [{ "$ref": "#/$defs/all_available" }, { "$ref": "#/$defs/recent_days" }, { "$ref": "#/$defs/explicit_range" }, { "$ref": "#/$defs/latest_matching_sessions" }] },
     "empty_filters": { "type": "object", "additionalProperties": false, "properties": {} },
     "training_filters": { "type": "object", "additionalProperties": false, "properties": { "body_part": { "type": "string", "minLength": 1, "maxLength": 80 }, "split": { "type": "string", "minLength": 1, "maxLength": 80 } } },
     "movement_selector": {

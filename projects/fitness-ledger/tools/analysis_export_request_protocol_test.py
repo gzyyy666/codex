@@ -163,7 +163,15 @@ def test_v11_closure_regressions() -> None:
     latest_diet["datasets"][0]["fields"] = ["date", "calories_kcal"]
     assert_rejected(latest_diet, "TIME_MODE_NOT_SUPPORTED_FOR_DATASET")
 
-    # 7. Raw remains closed even when every other field is valid.
+    # 7. V3's explicit all-history scope is supported by every data domain.
+    all_history = load("04_movement_progress_known_name.json")
+    all_history["datasets"][0]["time_range"] = {"mode": "all_available"}
+    assert validate_request(all_history).valid
+    all_body = base_request()
+    all_body["datasets"][0]["time_range"] = {"mode": "all_available"}
+    assert validate_request(all_body).valid
+
+    # 8. Raw remains closed even when every other field is valid.
     raw = base_request()
     raw["raw"] = True
     assert_rejected(raw, "RAW_PERMISSION_REQUIRED")

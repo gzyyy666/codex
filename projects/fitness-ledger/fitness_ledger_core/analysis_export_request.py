@@ -15,7 +15,7 @@ from typing import Any
 REQUEST_VERSION = "1.1"
 REQUEST_SCHEMA_VERSION = "fitness-ledger-analysis-export-request-v1.1"
 DATASET_TYPES = ("body", "diet", "training", "movement_progress")
-TIME_MODES = ("recent_days", "explicit_range", "latest_matching_sessions", "days_before_target_session", "target_session_day", "days_after_target_session")
+TIME_MODES = ("recent_days", "explicit_range", "latest_matching_sessions", "all_available", "days_before_target_session", "target_session_day", "days_after_target_session")
 NOTES_SCOPES = ("daily", "diet", "training", "movement")
 OUTPUT_FORMATS = ("json", "markdown")
 SET_ROLES = ("top", "working", "backoff")
@@ -128,16 +128,18 @@ def _validate_time_range(value: Any, dataset_type: str, path: str, errors: list[
         _error(errors, "UNKNOWN_TIME_MODE", f"{path}.mode", f"Unsupported time mode: {mode}")
         return None
     allowed_by_type = {
-        "body": {"recent_days", "explicit_range"},
-        "diet": {"recent_days", "explicit_range", "days_before_target_session", "target_session_day", "days_after_target_session"},
-        "training": {"recent_days", "explicit_range", "latest_matching_sessions"},
-        "movement_progress": {"recent_days", "explicit_range", "latest_matching_sessions"},
+        "body": {"recent_days", "explicit_range", "all_available"},
+        "diet": {"recent_days", "explicit_range", "all_available", "days_before_target_session", "target_session_day", "days_after_target_session"},
+        "training": {"recent_days", "explicit_range", "all_available", "latest_matching_sessions"},
+        "movement_progress": {"recent_days", "explicit_range", "all_available", "latest_matching_sessions"},
     }
     if mode not in allowed_by_type[dataset_type]:
         _error(errors, "TIME_MODE_NOT_SUPPORTED_FOR_DATASET", f"{path}.mode", f"{mode} is not supported for {dataset_type}")
         return None
     normalized: dict[str, Any] = {"mode": mode}
-    if mode == "recent_days":
+    if mode == "all_available":
+        _unknown_keys(value, {"mode"}, path, errors)
+    elif mode == "recent_days":
         _unknown_keys(value, {"mode", "days"}, path, errors); _required(value, ("days",), path, errors)
         if "days" in value: normalized["days"] = _integer(value["days"], f"{path}.days", errors, 1, 3650)
     elif mode == "explicit_range":

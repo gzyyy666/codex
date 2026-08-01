@@ -6,6 +6,7 @@ import re
 import unicodedata
 import uuid
 from copy import deepcopy
+from datetime import date, timedelta
 from typing import Any, Iterable, Literal, Mapping, Sequence
 
 
@@ -190,20 +191,20 @@ _CN_DIGITS = {
 DEFAULT_DATA_DOMAIN_ALIASES: dict[str, tuple[str, ...]] = {
     "body": (
         "身体数据", "身体记录", "身体档案", "体重数据", "体重记录",
-        "体重变化", "体脂数据", "身体",
+        "体重变化", "体重趋势", "晨重", "空腹体重", "体脂数据", "身体指标", "身体",
     ),
     "diet": (
         "饮食数据", "饮食记录", "完整饮食", "饮食档案", "营养数据",
-        "热量数据", "宏量营养数据", "三大营养素", "饮食",
+        "热量数据", "宏量营养数据", "饮食宏量", "宏量", "三大营养素",
+        "营养摄入", "摄入数据", "食物数据", "饮食",
     ),
     "training": (
         "整体训练数据", "整体训练记录", "训练数据", "训练记录",
-        "训练情况", "训练档案", "整体训练", "训练", "锻炼", "健身",
+        "训练情况", "训练状态", "训练档案", "整体训练",
     ),
     "movement_progress": (
         "动作成长数据", "动作成长记录", "完整成长记录", "成长记录",
-        "成长数据", "动作表现", "动作数据", "动作进展", "动作历史", "动作记录",
-        "动作名称", "动作清单",
+        "成长数据", "动作表现", "动作进步", "进步记录", "动作数据", "动作名称", "动作清单",
     ),
 }
 
@@ -229,7 +230,10 @@ DEFAULT_DATA_FIELD_ALIASES: dict[str, dict[str, tuple[str, ...]]] = {
         "movement_name": ("动作名称", "动作名"),
         "variant": ("变式", "动作变式", "做法"),
         "order": ("动作顺序", "第几个动作", "顺序"),
-        "sets": ("组次", "重量次数组数", "训练组", "组数"),
+        "sets": (
+            "组次", "重量次数组数", "训练组", "组数", "每组重量次数",
+            "每组重量和次数", "重量和次数", "组次明细", "每一组", "每组",
+        ),
     },
 }
 
@@ -322,8 +326,8 @@ def _looks_like_global_prefix_scope(text: str) -> bool:
     number = _number_pattern()
     return bool(
         re.match(
-            rf"^(?:请|帮我|给我|把|导出|整理|列出|查看|看看)*"
-            rf"(?:最近\s*{number}\s*(?:天|个?月|次)|从有记录以来|有记录以来|全部历史|全部可用历史|全部(?:的)?|所有(?:的)?)",
+            rf"^(?:请|帮我|给我|把|从|导出|整理|列出|查看|看看|我|一下|一下我|我的)*"
+            rf"(?:\d{{4}}年\d{{1,2}}月\d{{1,2}}日\s*(?:到|至|-)|最近\s*{number}\s*(?:天|个?月|次)|从有记录以来|有记录以来|全部历史|全部可用历史|全部(?:的)?|所有(?:的)?)",
             text,
         )
         or re.search(r"(?:全部|所有)导出$", text)
@@ -367,19 +371,30 @@ def _custom_fields(
     if not explicit_subset and generic_domain_phrase and not field_list_style:
         return None
 
-    ordered = [field_name for field_name in PROFILE_FIELDS.get(
-        {
-            "body": "BODY_COMPLETE_V1",
-            "diet": "DIET_COMPLETE_V1",
-            "training": "TRAINING_COMPLETE_V1",
-            "movement_progress": "MOVEMENT_GROWTH_COMPLETE_V1",
-        }[domain],
-        [],
-    ) if field_name in matched]
+    profile_name = {
+        "body": "BODY_COMPLETE_V1",
+        "diet": "DIET_COMPLETE_V1",
+        "training": "TRAINING_COMPLETE_V1",
+        "movement_progress": "MOVEMENT_GROWTH_COMPLETE_V1",
+    }[domain]
+    profile_fields = PROFILE_FIELDS.get(profile_name, [])
 
-    # Dates are required for meaningful exported series except a pure name list.
-    if domain != "movement_progress" or "movement_name" not in ordered:
-        ordered = ["date", *ordered]
+    if domain == "movement_progress":
+        # A growth/performance request needs identity + context. Phrases such as
+        # “包含动作顺序、每组重量次数和动作笔记” describe required details,
+        # not a request to throw away movement identity, variant or sets.
+        explicit_only = _contains_any(clause, ("只要", "仅要", "仅导出", "只导出"))
+        if not explicit_only or _contains_any(
+            clause,
+            ("表现", "成长", "完整", "每组", "重量", "次数", "动作笔记", "动作备注"),
+        ):
+            return list(profile_fields)
+        identity = ["date", "movement_id", "movement_name"]
+        ordered = [field_name for field_name in profile_fields if field_name in matched]
+        return list(dict.fromkeys([*identity, *ordered]))
+
+    ordered = [field_name for field_name in profile_fields if field_name in matched]
+    ordered = ["date", *ordered]
     return list(dict.fromkeys(ordered))
 
 
@@ -452,6 +467,109 @@ def _normalize(text: str) -> str:
         .replace("）", ")")
         .strip()
     )
+
+
+def _expand_time_phrases(text: str, reference_date: date) -> str:
+    """Normalize common daily time phrases into the bounded protocol grammar."""
+    text = re.sub(r"(?<=\d)号", "日", text)
+
+    # ISO date ranges are converted to the one canonical range grammar.
+    text = re.sub(
+        r"(?P<y1>\d{4})-(?P<m1>\d{1,2})-(?P<d1>\d{1,2})\s*(?:到|至|-)\s*"
+        r"(?P<y2>\d{4})-(?P<m2>\d{1,2})-(?P<d2>\d{1,2})",
+        lambda m: (
+            f"{m.group('y1')}年{int(m.group('m1'))}月{int(m.group('d1'))}日到"
+            f"{m.group('y2')}年{int(m.group('m2'))}月{int(m.group('d2'))}日"
+        ),
+        text,
+    )
+
+    fixed_replacements = {
+        "最近一周": "最近7天",
+        "近一周": "最近7天",
+        "过去一周": "最近7天",
+        "这一周": "最近7天",
+        "本周": "最近7天",
+        "最近两周": "最近14天",
+        "近两周": "最近14天",
+        "过去两周": "最近14天",
+        "这两周": "最近14天",
+        "最近三周": "最近21天",
+        "近三周": "最近21天",
+        "过去三周": "最近21天",
+        "最近四周": "最近28天",
+        "近四周": "最近28天",
+        "过去四周": "最近28天",
+        "最近半个月": "最近15天",
+        "近半个月": "最近15天",
+        "最近一个月": "最近30天",
+        "近一个月": "最近30天",
+        "过去一个月": "最近30天",
+        "最近1个月": "最近30天",
+        "近1个月": "最近30天",
+        "最近几次": "最近6次",
+        "近几次": "最近6次",
+        "过去几次": "最近6次",
+    }
+    for source, target in fixed_replacements.items():
+        text = text.replace(source, target)
+
+    number = _number_pattern()
+
+    def weeks_to_days(match: re.Match[str]) -> str:
+        count = chinese_number(match.group("n")) or 1
+        return f"最近{count * 7}天"
+
+    text = re.sub(rf"(?:最近|(?<!最)近|过去|这)(?P<n>{number})周", weeks_to_days, text)
+    text = re.sub(rf"(?:(?<!最)近|过去)(?P<n>{number})(?P<unit>天|个?月|次|场)",
+                  lambda m: f"最近{m.group('n')}{'次' if m.group('unit') == '场' else m.group('unit')}", text)
+    text = re.sub(rf"最近(?P<n>{number})场", lambda m: f"最近{m.group('n')}次", text)
+
+    def month_since(match: re.Match[str]) -> str:
+        year_text = match.group("year")
+        month = int(match.group("month"))
+        year = int(year_text) if year_text else reference_date.year
+        if not year_text and month > reference_date.month:
+            year -= 1
+        start = date(year, month, 1)
+        return (
+            f"{start.year}年{start.month}月{start.day}日到"
+            f"{reference_date.year}年{reference_date.month}月{reference_date.day}日"
+        )
+
+    text = re.sub(
+        r"(?:(?P<year>\d{4})年|今年)?(?P<month>1[0-2]|0?[1-9])月(?:以来|开始|起)",
+        month_since,
+        text,
+    )
+
+    if "今年以来" in text:
+        start = date(reference_date.year, 1, 1)
+        explicit = (
+            f"{start.year}年{start.month}月{start.day}日到"
+            f"{reference_date.year}年{reference_date.month}月{reference_date.day}日"
+        )
+        text = text.replace("今年以来", explicit)
+
+    if "本月" in text:
+        start = reference_date.replace(day=1)
+        explicit = (
+            f"{start.year}年{start.month}月{start.day}日到"
+            f"{reference_date.year}年{reference_date.month}月{reference_date.day}日"
+        )
+        text = text.replace("本月", explicit)
+
+    if "上个月" in text or "上月" in text:
+        first_this_month = reference_date.replace(day=1)
+        last_previous = first_this_month - timedelta(days=1)
+        first_previous = last_previous.replace(day=1)
+        explicit = (
+            f"{first_previous.year}年{first_previous.month}月{first_previous.day}日到"
+            f"{last_previous.year}年{last_previous.month}月{last_previous.day}日"
+        )
+        text = text.replace("上个月", explicit).replace("上月", explicit)
+
+    return text
 
 
 def _contains_any(text: str, values: Iterable[str]) -> bool:
@@ -537,6 +655,7 @@ def _extract_negative_constraints(text: str) -> tuple[set[Domain], set[str], lis
         r"不需要(?P<value>[^.;]+)",
         r"排除(?P<value>[^.;]+)",
         r"不包含(?P<value>[^.;]+)",
+        r"不含(?P<value>[^.;]+)",
     ]
     for pattern in patterns:
         negative_chunks.extend(m.group("value") for m in re.finditer(pattern, text))
@@ -574,7 +693,7 @@ def _extract_negative_constraints(text: str) -> tuple[set[Domain], set[str], lis
 
 def _strip_negative_chunks(text: str) -> str:
     for pattern in (
-        r"不要[^.;]+", r"不需要[^.;]+", r"排除[^.;]+", r"不包含[^.;]+"
+        r"不要[^.;]+", r"不需要[^.;]+", r"排除[^.;]+", r"不包含[^.;]+", r"不含[^.;]+"
     ):
         text = re.sub(pattern, "", text)
     return text
@@ -588,7 +707,7 @@ def _resolve_movements(
 ) -> tuple[list[MovementEntry], list[dict[str, Any]], dict[str, dict[str, Any]]]:
     alias_map: dict[str, list[tuple[str, MovementEntry]]] = {}
     for entry in catalog:
-        names = {entry.movement_id, entry.movement_name, *entry.aliases}
+        names = {entry.movement_name, *entry.aliases}
         for name in names:
             normalized = _normalize_match_text(name)
             if normalized:
@@ -707,10 +826,15 @@ def _body_parts_from_text(
 
 
 def _split_top_level_clauses(text: str) -> list[str]:
-    # Protect “X和Y最近N次…” movement lists and body-part lists by only splitting
-    # around connectors that usually introduce a new dataset intent.
+    # Split only at connectors that normally introduce a new scope. “再导出其中”
+    # is intentionally kept inside one clause so two-stage discovery can retain
+    # the body-part context from its first half.
     text = re.sub(r"\s+", "", text)
-    parts = re.split(r"(?:;|\.|另外|以及|同时|并且|再分别|再导出|再看看)", text)
+    text = text.replace("再导出其中", "其中")
+    parts = re.split(
+        r"(?:;|\.|另外|同时|并且|再分别|再看看|但(?:是)?|不过|而(?=训练|身体|体重|饮食|动作))",
+        text,
+    )
     return [part.strip(",") for part in parts if part.strip(",")]
 
 
@@ -740,6 +864,18 @@ def _detect_domain(
     movements, _, _ = _resolve_movements(clause, catalog, allow_fuzzy=False)
     if movements:
         return "movement_progress"
+
+    if _body_parts_from_text(clause) and _contains_any(
+        clause,
+        ("动作", "成长", "表现", "进步", "训练动作"),
+    ):
+        return "movement_progress"
+
+    if "训练" in clause and not _contains_any(
+        clause,
+        ("动作", "成长", "动作表现", "动作数据"),
+    ):
+        return "training"
 
     # Controlled typo tolerance for data concepts. Auto-resolve only at very high
     # confidence and only when one domain clearly wins.
@@ -801,6 +937,20 @@ def _parse_relationships(
 
     number = _number_pattern()
     patterns = [
+        # 最近6次背部训练，以及这些训练当天和前2天的饮食数据
+        re.compile(
+            rf"最近(?P<sessions>{number})次(?P<parts>(?:背|肩|胸|腿)(?:部)?"
+            rf"(?:[、和](?:背|肩|胸|腿)(?:部)?)*)训练(?:,)?"
+            rf"(?:(?:以及|并且|和|再看|再导出))?(?:这些|每次|对应)?训练"
+            rf"(?:(?P<include>当天)(?:和|及|以及))?前(?P<days>{number})天(?:的)?饮食(?:数据|记录)?"
+        ),
+        # 背部最近6次训练，以及对应训练当天和前2天饮食
+        re.compile(
+            rf"(?P<parts>(?:背|肩|胸|腿)(?:部)?"
+            rf"(?:[、和](?:背|肩|胸|腿)(?:部)?)*)最近(?P<sessions>{number})次训练(?:,)?"
+            rf"(?:(?:以及|并且|和|再看|再导出))?(?:这些|每次|对应)?训练"
+            rf"(?:(?P<include>当天)(?:和|及|以及))?前(?P<days>{number})天(?:的)?饮食(?:数据|记录)?"
+        ),
         # 最近2次背部训练前1天的饮食，不包含训练当天
         re.compile(
             rf"最近(?P<sessions>{number})次(?P<parts>(?:背|肩|胸|腿)(?:部)?"
@@ -820,7 +970,8 @@ def _parse_relationships(
             spans.append(match.span())
             sessions = chinese_number(match.group("sessions")) or 1
             days_before = chinese_number(match.group("days")) or 1
-            explicit_exclusion = "不包含训练当天" in text[match.start():match.end()+12]
+            context = text[match.start():match.end()+16]
+            explicit_exclusion = _contains_any(context, ("不包含训练当天", "不含训练当天"))
             include_target = bool(match.group("include")) and not explicit_exclusion
             raw_parts = re.split(r"[、和]", match.group("parts"))
             body_parts = []
@@ -892,17 +1043,19 @@ class RestrictedExportParser:
         data_domain_aliases: Mapping[str, Sequence[str]] | None = None,
         data_field_aliases: Mapping[str, Mapping[str, Sequence[str]]] | None = None,
         body_part_aliases: Mapping[str, str] | None = None,
+        reference_date: date | None = None,
     ) -> None:
         self.movement_catalog = tuple(movement_catalog)
         self.data_domain_aliases = data_domain_aliases or DEFAULT_DATA_DOMAIN_ALIASES
         self.data_field_aliases = data_field_aliases or DEFAULT_DATA_FIELD_ALIASES
         self.body_part_aliases = dict(body_part_aliases or _BODY_PART_ALIASES)
+        self.reference_date = reference_date or date.today()
 
     def parse(self, user_text: str) -> SemanticExportPlan:
-        text = _normalize(user_text)
+        text = _expand_time_phrases(_normalize(user_text), self.reference_date)
         plan = SemanticExportPlan(
             plan_id=f"restricted_{uuid.uuid4().hex}",
-            plan_version="restricted-v2",
+            plan_version="restricted-v3",
             request_kind="direct_data_export",
             original_user_input=user_text,
         )
@@ -924,9 +1077,29 @@ class RestrictedExportParser:
 
         analysis_terms = (
             "是否顺利", "有没有受到影响", "是不是", "为什么", "导致", "合理频率",
-            "放纵餐对", "评估减脂", "分析减脂效果", "判断原因",
+            "放纵餐对", "评估减脂", "分析减脂效果", "判断原因", "比较", "关系",
+            "相关性", "是否影响", "效果如何", "变化原因",
         )
-        if _contains_any(text, analysis_terms) and not _contains_any(text, ("导出", "整理", "列出")):
+        generic_evidence_request = _contains_any(
+            text,
+            (
+                "把需要的数据导出来", "把需要的数据导出", "导出需要的数据",
+                "把相关数据导出来", "把相关数据导出", "导出相关数据",
+                "需要哪些数据", "帮我判断",
+            ),
+        )
+        has_analysis_intent = _contains_any(text, analysis_terms)
+        has_explicit_export_shape = (
+            len({
+                domain
+                for domain in ("body", "diet", "training", "movement_progress")
+                if _detect_domain(
+                    text, self.movement_catalog, self.data_domain_aliases, self.data_field_aliases
+                ) == domain
+            }) >= 2
+            or _contains_any(text, ("体重", "饮食", "训练记录", "动作成长"))
+        )
+        if has_analysis_intent and (generic_evidence_request or not _contains_any(text, ("导出", "整理", "列出"))):
             plan.request_kind = "planner_required"
             plan.warnings.append("ANALYSIS_PLANNING_NOT_SUPPORTED_BY_RESTRICTED_PARSER")
             return plan
@@ -961,27 +1134,36 @@ class RestrictedExportParser:
         raw_clauses = _split_top_level_clauses(remaining_text)
         clause_specs: list[tuple[str, TimeScope | None]] = []
         for raw_clause in raw_clauses:
-            candidate_parts = [item for item in re.split(r"[、及与和]", raw_clause) if item]
+            candidate_separator = (
+                r"(?:以及|[、,及与和])"
+                if _time_expression_count(raw_clause) >= 2
+                else r"(?:以及|[、及与和])"
+            )
+            candidate_parts = [item for item in re.split(candidate_separator, raw_clause) if item]
             candidate_domains = [
                 _detect_domain(item, self.movement_catalog, self.data_domain_aliases, self.data_field_aliases)
                 for item in candidate_parts
             ]
-            non_null_domains = [item for item in candidate_domains if item is not None]
+            domain_parts = [
+                (part, domain)
+                for part, domain in zip(candidate_parts, candidate_domains)
+                if domain is not None
+            ]
+            non_null_domains = [domain for _, domain in domain_parts]
             distinct_domains = set(non_null_domains)
 
             split_multi_domain = (
-                len(candidate_parts) > 1
-                and len(non_null_domains) == len(candidate_parts)
+                len(domain_parts) > 1
                 and len(distinct_domains) > 1
             )
 
-            # Also split same-domain movement clauses when every side carries its
-            # own explicit time, e.g. “卧推最近4次和引体全部历史”.
+            # Also split same-domain movement clauses when every meaningful side
+            # carries its own explicit time. Filler tails such as “只要这两个动作”
+            # are ignored instead of preventing the split.
             split_independent_movements = (
-                len(candidate_parts) > 1
-                and len(non_null_domains) == len(candidate_parts)
+                len(domain_parts) > 1
                 and distinct_domains == {"movement_progress"}
-                and sum(_time_expression_count(item) > 0 for item in candidate_parts) >= 2
+                and sum(_time_expression_count(part) > 0 for part, _ in domain_parts) >= 2
             )
 
             if split_multi_domain or split_independent_movements:
@@ -989,13 +1171,7 @@ class RestrictedExportParser:
                     raw_clause,
                     [item for item in non_null_domains if item != "all_fitness"],
                 )
-                for candidate_part in candidate_parts:
-                    part_domain = _detect_domain(
-                        candidate_part,
-                        self.movement_catalog,
-                        self.data_domain_aliases,
-                        self.data_field_aliases,
-                    )
+                for candidate_part, _part_domain in domain_parts:
                     part_scope = None
                     if inherited_scope is not None and _time_expression_count(candidate_part) == 0:
                         part_scope = _copy_time_scope(inherited_scope)
@@ -1048,9 +1224,9 @@ class RestrictedExportParser:
                 )
                 intent_number += 1
                 if domain == "training":
-                    body_parts = _body_parts_from_text(clause, self.body_part_aliases)
-                    if len(body_parts) == 1:
-                        current_intent.filters = {"body_part": body_parts[0]}
+                    training_parts = _body_parts_from_text(clause, self.body_part_aliases)
+                    if len(training_parts) == 1:
+                        current_intent.filters = {"body_part": training_parts[0]}
                 if (
                     inherited_scope is not None
                     and inherited_scope.mode == "all_available"

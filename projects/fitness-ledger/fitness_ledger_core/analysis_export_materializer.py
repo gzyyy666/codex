@@ -183,6 +183,8 @@ class AnonymousFixtureMaterializer:
     def _time_filter(self, dataset: dict[str, Any], rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         time_range = dataset["time_range"]
         mode = time_range["mode"]
+        if mode == "all_available":
+            return list(rows)
         if mode == "recent_days":
             end = self.anchor_date
             start = end - timedelta(days=time_range["days"] - 1)
