@@ -485,7 +485,7 @@ function analysisExportSetScopeReady(ready){const root=analysisExportRoot();if(r
 function setAnalysisExportProtocolMode(mode='guided'){
   const root=analysisExportRoot();if(!root)return;const active=mode==='json'?'json':'guided';root.dataset.inputMode=active;
   $$('[data-analysis-export-mode]',root).forEach(button=>{const selected=button.dataset.analysisExportMode===active;button.classList.toggle('is-active',selected);button.setAttribute('aria-selected',String(selected))});
-  $$('[data-analysis-export-mode-panel]',root).forEach(panel=>{panel.hidden=panel.dataset.analysisExportModePanel!==active;panel.classList.toggle('is-active',selected)});
+  const panels=[['guided','#analysis-export-natural-pane'],['json','#analysis-export-json-pane']];panels.forEach(([panelMode,selector])=>{const panel=$(selector);if(!panel)return;const selected=panelMode===active;panel.hidden=!selected;panel.classList.toggle('is-active',selected)});
   const natural=active==='guided';const note=$('#analysis-export-local-note');if(note)note.textContent=natural?'只在本地解释，不上传':'本地校验 JSON，不上传';analysisExportSetPrimaryLabel(natural?'解释需求':'验证 JSON');analysisExportResetEvidence();
 }
 function setAnalysisExportProtocolStage(stage='request'){
