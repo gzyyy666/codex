@@ -263,7 +263,7 @@ def compile_natural_language_export(
     response: dict[str, Any] = {
         "status": result.get("status", plan.request_kind),
         "requests": result.get("requests", []),
-        "warnings": [*plan.warnings, *result.get("warnings", [])],
+        "warnings": list(dict.fromkeys([*plan.warnings, *result.get("warnings", [])])),
         "errors": [],
         "semantic_plan": plan.to_dict(),
         "batch_manifest": result.get("batch_manifest", []),
