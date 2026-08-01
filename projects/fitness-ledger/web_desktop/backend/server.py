@@ -41,7 +41,9 @@ from fitness_ledger_core.formal_analysis_request_preview_service import (  # noq
     FormalAnalysisRequestPreviewService,
 )
 from fitness_ledger_core.formal_readonly_data_source import FormalReadOnlyDataSource  # noqa: E402
-from fitness_ledger_core.pure_core_export import PureCoreExportCompiler  # noqa: E402
+from fitness_ledger_core.restricted_export_integration import (  # noqa: E402
+    compile_natural_language_export,
+)
 
 
 def load_stable_module():
@@ -72,6 +74,16 @@ class LedgerWebService:
         build_info_override: dict | None = None,
         analysis_export_protocol: AnalysisExportProtocolService | None = None,
     ) -> None:
+        if data_file is None and dictionary_file is None:
+            configured_formal_dir = str(os.environ.get("FITNESS_LEDGER_FORMAL_DIR", "")).strip()
+            if configured_formal_dir:
+                formal_root = Path(configured_formal_dir).expanduser()
+                formal_data_root = formal_root / "data" if (formal_root / "data").is_dir() else formal_root
+                configured_tracker = formal_data_root / "tracker.json"
+                configured_dictionary = formal_data_root / "movement_dictionary.json"
+                if configured_tracker.is_file() and configured_dictionary.is_file():
+                    data_file = configured_tracker
+                    dictionary_file = configured_dictionary
         data_file = data_file or PROJECT_DIR / "data" / "tracker.json"
         dictionary_file = dictionary_file or PROJECT_DIR / "data" / "movement_dictionary.json"
         backup_dir = backup_dir or PROJECT_DIR / "data" / "backups"
@@ -210,14 +222,22 @@ class LedgerWebService:
                 selected_ids = []
             superseded_context_id = str(request.get("supersedes_preview_context_id", "") or "").strip()
             invalidated_preview_count = self.analysis_export_protocol.invalidate_preview_context(superseded_context_id)
-            response = PureCoreExportCompiler(self.views).compile(text, selected_ids).to_response()
+            response = compile_natural_language_export(self.views, text, selected_ids)
+            response["route"] = "restricted_parser_v2"
+            response["model_calls"] = 0
+            response["execution"] = {
+                "allowed": response.get("status") == "ready",
+                "executor_called": False,
+                "formal_data_written": False,
+                "raw_allowed": False,
+            }
             response["preview_context_id"] = secrets.token_urlsafe(18)
             response["invalidated_preview_count"] = invalidated_preview_count
             return response
         except Exception as exc:
             return {
                 "status": "error",
-                "errors": [{"code": "PURE_CORE_UNAVAILABLE", "path": "$", "message": str(exc)[:240]}],
+                "errors": [{"code": "RESTRICTED_EXPORT_UNAVAILABLE", "path": "$", "message": str(exc)[:240]}],
                 "model_calls": 0,
                 "execution": {"allowed": False, "executor_called": False, "formal_data_written": False, "raw_allowed": False},
             }

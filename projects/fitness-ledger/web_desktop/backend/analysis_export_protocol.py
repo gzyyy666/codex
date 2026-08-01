@@ -247,6 +247,34 @@ class AnalysisExportProtocolService:
             },
         }
 
+    @staticmethod
+    def _selector_resolution_error(
+        request: dict[str, Any],
+        provider: AnalysisExportProvider,
+    ) -> dict[str, Any] | None:
+        for index, dataset in enumerate(request.get("datasets", [])):
+            selector = dataset.get("filters", {}).get("movement_selector")
+            if not selector:
+                continue
+            matches = provider.resolve(selector)
+            if len(matches) == 1:
+                continue
+            unresolved = not matches
+            return {
+                "code": "UNRESOLVED_SELECTOR" if unresolved else "AMBIGUOUS_SELECTOR",
+                "path": f"$.datasets[{index}].filters.movement_selector",
+                "message": (
+                    f"{dataset['dataset_id']}: movement selector did not resolve in the formal Catalog"
+                    if unresolved
+                    else f"{dataset['dataset_id']}: movement selector has multiple formal Catalog candidates"
+                ),
+                "status": "unresolved_selector" if unresolved else "ambiguous_selector",
+                "dataset_id": dataset["dataset_id"],
+                "selector": selector,
+                "candidates": matches,
+            }
+        return None
+
     def validate(self, payload: dict[str, Any]) -> dict[str, Any]:
         result = validate_request(self._request(payload))
         preview = self._structural_preview(result)
@@ -278,6 +306,21 @@ class AnalysisExportProtocolService:
             }
         normalized = result.normalized_request
         try:
+            selector_error = self._selector_resolution_error(normalized, self.provider)
+            if selector_error:
+                return {
+                    "status": "movement_resolution_required",
+                    "schema_version": REQUEST_SCHEMA_VERSION,
+                    "normalized_request": normalized,
+                    "errors": [selector_error],
+                    "preview": {
+                        **self._structural_preview(result),
+                        "status": "movement_resolution_required",
+                        "warnings": [selector_error["message"]],
+                        "movement_body_part_resolution": [selector_error],
+                    },
+                    "execution": self._execution(),
+                }
             bundle = self.provider.materialize(normalized)
             preview = self._bundle_preview(bundle, self.provider)
         except MaterializationError as exc:
@@ -367,6 +410,9 @@ class AnalysisExportProtocolService:
         if fingerprint != stored.fingerprint:
             return {"status": "confirmation_mismatch", "errors": [{"code": "CONFIRMATION_MISMATCH", "path": "$.request", "message": "The request changed after Preview."}], "execution": self._execution()}
         try:
+            selector_error = self._selector_resolution_error(normalized, self.provider)
+            if selector_error:
+                return {"status": "movement_resolution_required", "errors": [selector_error], "execution": self._execution()}
             bundle, exports = self.provider.materialize_with_exports(normalized)
         except MaterializationError as exc:
             status = "movement_resolution_required" if exc.code == "MOVEMENT_RESOLUTION_REQUIRED" else "safety_blocked"
@@ -378,11 +424,23 @@ class AnalysisExportProtocolService:
         self._artifacts[artifact_id] = {"bundle": bundle, "exports": exports}
         self._previews.pop(token, None)
         safety = bundle.get("safety_flags", {})
+        quality = bundle.get("quality_profile", {})
+        manifest = bundle.get("manifest", {})
+        provenance = bundle.get("provenance", {})
         return {
             "status": "bundle_ready",
             "artifact_id": artifact_id,
-            "bundle_id": bundle.get("manifest", {}).get("bundle_id", ""),
-            "record_count": bundle.get("manifest", {}).get("record_count", 0),
+            "bundle_id": manifest.get("bundle_id", ""),
+            "record_count": manifest.get("record_count", 0),
+            "generated_at": manifest.get("generated_at", ""),
+            "source_snapshot_id": manifest.get("source_snapshot_id") or provenance.get("source_snapshot_id", ""),
+            "empty_datasets": [
+                item.get("dataset_id", "")
+                for item in quality.get("datasets", [])
+                if not item.get("materialized_record_count", item.get("resolved_record_count", 0))
+            ],
+            "warnings": bundle.get("warnings", []),
+            "missing_information": bundle.get("missing_information", []),
             "formats": sorted(exports),
             "sha256": {format_name: hashlib.sha256(content.encode("utf-8")).hexdigest() for format_name, content in exports.items()},
             "safety_flags": {

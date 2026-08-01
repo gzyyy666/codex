@@ -446,6 +446,7 @@ function naturalStatusLabel(status=''){
   return ({
     ready:'PREVIEW READY / CONFIRMATION REQUIRED',
     candidate_confirmation_required:'MOVEMENT CANDIDATES REQUIRE CONFIRMATION',
+    needs_clarification:'FORMAL CATALOG SELECTION REQUIRED',
     NO_EXPORT_REQUIRED:'NO EXPORT REQUIRED',
     unsupported:'UNSUPPORTED REQUEST',
     needs_confirmation:'SCOPE CONFIRMATION REQUIRED',
@@ -469,7 +470,7 @@ function renderFormalSemanticPreview(payload={}){
   target.dataset.status=status;state.formalSemanticPreview=status==='ready'?payload:null;
   if(status==='ready'){
     const previewCount=Array.isArray(state.formalSemanticPreviews)?state.formalSemanticPreviews.length:0;
-    target.innerHTML=`<span class="eyebrow">PREVIEW READY / CONFIRMATION REQUIRED</span><strong>范围已解释，尚未生成 Bundle。</strong><p>Pure Core · Model calls 0 · ${requests.length} batch(es) · Raw CLOSED</p>${naturalPlanMarkup(payload.semantic_plan||{})}<div class="protocol-natural-summary">${naturalScopeMarkup(requests)}</div><label class="protocol-confirm-check"><input id="analysis-export-natural-confirm-check" type="checkbox"> 我确认当前 Preview 范围</label><button class="btn btn-primary" type="button" data-analysis-export-natural-confirm ${previewCount===requests.length?'disabled':''}>确认并生成只读 Bundle <span>→</span></button>`;
+     target.innerHTML=`<span class="eyebrow">PREVIEW READY / CONFIRMATION REQUIRED</span><strong>范围已解释，尚未生成 Bundle。</strong><p>Restricted Parser v2 · Formal Catalog · Model calls 0 · ${requests.length} batch(es) · Raw CLOSED</p>${naturalPlanMarkup(payload.semantic_plan||{})}<div class="protocol-natural-summary">${naturalScopeMarkup(requests)}</div><label class="protocol-confirm-check"><input id="analysis-export-natural-confirm-check" type="checkbox"> 我确认当前 Preview 范围</label><button class="btn btn-primary" type="button" data-analysis-export-natural-confirm ${previewCount===requests.length?'disabled':''}>确认并生成只读 Bundle <span>→</span></button>`;
     return;
   }
   const messages=[...confirmations,...errors.map(item=>typeof item==='string'?item:(item.message||item.code||'Unable to continue'))];
@@ -483,7 +484,7 @@ function renderFormalSemanticExportResult(result){
   const target=$('#analysis-export-natural-result');if(!target)return;
   const results=Array.isArray(result)?result:[result];
   target.dataset.status='bundle_ready';state.formalSemanticPreview=null;state.formalSemanticPreviewContextId='';
-  target.innerHTML=`<span class="eyebrow">EXPORT COMPLETE / DATA PACKAGE</span><strong>${results.length} 个只读 Bundle 已生成。</strong><p>Raw CLOSED · No formal data write · Executor not called.</p><div class="protocol-downloads">${results.map((item,index)=>{const jsonUrl=`/api/analysis-export/v1/artifact/${encodeURIComponent(item.artifact_id)}?format=json`,markdownUrl=`/api/analysis-export/v1/artifact/${encodeURIComponent(item.artifact_id)}?format=markdown`;return `<div><b>Batch ${index+1} · ${esc(item.record_count)} records</b><a class="protocol-download" href="${jsonUrl}" download="fitness-ledger-analysis-bundle-${index+1}.json">下载 JSON</a><a class="protocol-download" href="${markdownUrl}" download="fitness-ledger-analysis-bundle-${index+1}.md">下载 Markdown</a></div>`}).join('')}</div>`;
+   target.innerHTML=`<span class="eyebrow">EXPORT COMPLETE / DATA PACKAGE</span><strong>${results.length} 个只读 Bundle 已生成。</strong><p>Raw CLOSED · No formal data write · Executor not called.</p><div class="protocol-downloads">${results.map((item,index)=>{const jsonUrl=`/api/analysis-export/v1/artifact/${encodeURIComponent(item.artifact_id)}?format=json`;return `<div><b>Batch ${index+1} · ${esc(item.record_count)} records</b><span>Bundle ID ${esc(item.bundle_id||'—')} · ${esc(item.generated_at||'')}</span><span>Source ${esc(item.source_snapshot_id||'—')} · Empty ${esc((item.empty_datasets||[]).join(', ')||'none')}</span><span>Raw ${item.safety_flags?.raw_included?'included':'excluded'} · Written ${item.safety_flags?.formal_data_written?'yes':'no'}</span>${(item.warnings||[]).length?`<small>${esc(item.warnings.join(' · '))}</small>`:''}<a class="protocol-download" href="${jsonUrl}" download="fitness-ledger-analysis-bundle-${index+1}.json">Download JSON Bundle</a></div>`}).join('')}</div>`;
 }
 async function requestFormalSemanticPreviews(natural){
   const requests=Array.isArray(natural.requests)&&natural.requests.length?natural.requests:[natural.request];

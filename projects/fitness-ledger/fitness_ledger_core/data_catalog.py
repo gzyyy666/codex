@@ -102,6 +102,19 @@ def _performance(history: dict) -> dict:
     return {"set_count": len(sets), "structured": bool(sets)}
 
 
+def _movement_aliases(definition: dict) -> list[str]:
+    """Project every formal name/alias field used by the dictionary surface."""
+    values: list[str] = []
+    for key in ("display_name", "english_name", "aliases", "synonyms", "name_aliases", "alternate_names"):
+        raw = definition.get(key, "")
+        candidates = [raw] if isinstance(raw, str) else raw if isinstance(raw, (list, tuple, set)) else []
+        for value in candidates:
+            text = str(value).strip()
+            if text and text not in values:
+                values.append(text)
+    return values
+
+
 class MovementResolver:
     """Read-only dictionary resolver used after Intent, before Planning."""
 
@@ -318,7 +331,7 @@ class DataCatalogBuilder:
             progress = [item for item in histories if history_in_progress(item) and movement_in_progress(definition)]
             dates = _date_list(histories, "date")
             progress_dates = _date_list(progress, "date")
-            aliases = [str(value) for value in definition.get("aliases", []) or [] if str(value).strip()]
+            aliases = _movement_aliases(definition)
             movements.append(MovementCard(
                 movement_id,
                 str(definition.get("display_name") or tracker_movement.get("name") or movement_id),
