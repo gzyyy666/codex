@@ -1,6 +1,7 @@
 const ledger = require("../../services/ledger");
+const BUILD_VERSION = "v2026.08.01-live-save-03";
 Page({
-  data: { loading: true, error: "", status: null, identity: null },
+  data: { loading: true, error: "", status: null, identity: null, buildVersion: BUILD_VERSION },
   async onShow() {
     getApp().globalData.resetReferenceNotepad = true;
     const [status, identity] = await Promise.all([ledger.call("status"), ledger.call("whoami")]);

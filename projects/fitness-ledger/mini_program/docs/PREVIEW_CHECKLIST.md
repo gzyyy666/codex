@@ -9,6 +9,9 @@
 - [ ] Simulator opens Home and shows loading, empty, or real data cleanly.
 - [ ] Today and Record Detail show only replica data.
 - [ ] Training Reference returns history and never generates a plan.
+- [ ] Training Reference inline TRAINING NOTE saves while typing.
+- [ ] After scrolling, Dock input survives collapse/reopen and switching to Status and back.
+- [ ] Status page shows the expected front-end build marker below Environment.
 - [ ] Search finds Chinese name, English name, alias, date, split, or diet keyword.
 - [ ] Movement Detail shows recent history and notes.
 - [ ] Network, unauthorized, empty, and stale-data messages are understandable.

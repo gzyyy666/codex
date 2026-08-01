@@ -25,6 +25,21 @@
 - Movement search filters rows without changing matrix date columns.
 - Original raw text retention for audit and later correction.
 
+## Mini Program baseline
+
+- The WeChat Mini Program is a read-only gym reference client backed by the
+  CloudBase replica; local formal JSON remains authoritative.
+- The accepted freeform Training Note is local-only and stored under
+  `fitness-ledger:freeform-notepad:v2:current-training`; it is not a formal
+  record and is not uploaded to CloudBase.
+- Training Reference has an inline editor and a scroll-revealed collapsible
+  Dock. Both persist while typing. On tab/page changes, the page must refresh
+  from Storage rather than write a stale page mirror over a newer Dock edit.
+- Accepted front-end build marker after the Dock save fix:
+  `v2026.08.01-live-save-03`.
+- Preserve this boundary in future work; automatic action extraction, account
+  sync, and Mini Program writes require a separately approved design.
+
 ## Data Safety
 
 - Never clear or replace `data/tracker.json` without a backup.

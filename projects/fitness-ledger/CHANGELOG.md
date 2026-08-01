@@ -1,5 +1,30 @@
 # Fitness Ledger Changelog
 
+## 2026-08-01 - Mini Program Freeform Note Dock Save Closeout
+
+- Synced the accepted Mini Program freeform-note Dock and Reference page fixes
+  from the formal business directory into the tracked `mini_program/` source.
+- The floating Dock now persists on input, change, and blur, while its fixed
+  textarea no longer uses a second nested `fixed` mode.
+- Fixed the tab-switch overwrite: Reference page lifecycle refreshes its mirror
+  from the shared local Storage key instead of writing a stale page buffer over
+  newer Dock text.
+- Preserved the neutral v2 local-only note key
+  `fitness-ledger:freeform-notepad:v2:current-training`; notes do not enter
+  CloudBase, formal JSON, or the read API.
+- Added the visible front-end build marker `v2026.08.01-live-save-03` below
+  the Status page Environment value.
+
+Data structure impact: None. CloudBase and cloud functions: unchanged.
+Formal data modified: No.
+
+Tests and acceptance:
+
+- `node --check` for the changed Mini Program JavaScript files
+- `python tools/mini_program_test.py`
+- WeChat DevTools/manual acceptance confirmed Dock text survives switching to
+  Status and returning to Training Reference.
+
 ## 2026-08-01 - Analysis Export workbench integration
 
 - Replaced the Analysis Export page body with the approved natural-language-first

@@ -21,3 +21,23 @@ The Mini Program never writes back to the formal Fitness Ledger database.
 6. After changing `cloudfunctions/ledgerRead/index.js`, redeploy `ledgerRead` with cloud dependencies installed.
 
 The program has no write controls. Every page displays its read-only status and latest replica timestamp.
+
+## Accepted freeform note baseline
+
+The current accepted Mini Program build marker is `v2026.08.01-live-save-03`.
+Training Reference includes a neutral `TRAINING NOTE` surface and a floating
+Dock that share the local-only Storage key
+`fitness-ledger:freeform-notepad:v2:current-training`. The note accepts free
+text and is never written to CloudBase, `fl_training_sessions`,
+`fl_movement_history`, `fl_movements`, or the formal JSON data.
+
+Both the inline Archive editor and the scroll-revealed Dock persist on input.
+When the user switches tabs, the Reference page refreshes its mirror from
+Storage instead of saving a stale page buffer over the Dock's newer text. The
+Dock's fixed textarea is intentionally not nested inside another `fixed`
+textarea mode.
+
+For future changes, preserve this local-only, read-only boundary and manually
+verify: Dock input -> collapse/reopen -> switch to Status -> return to Training
+Reference. Automatic action extraction or formal-record writes are not part of
+this baseline.

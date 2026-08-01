@@ -44,6 +44,9 @@ Page({
       this.buildNotepadObserver();
     }
   },
+  // Both the inline editor and the floating Dock persist on input. Do not
+  // write this page's possibly stale buffer during a tab switch: the Dock is
+  // a separate component and its newer text must never be overwritten here.
   onHide() { this.flushDraft(); this.disconnectNotepadObserver(); },
   onUnload() { this.flushDraft(); this.disconnectNotepadObserver(); },
   onTabItemTap() {
@@ -82,8 +85,10 @@ Page({
     this.setData({ noteText: this.noteText });
   },
   flushDraft(callback) {
-    const noteText = String(this.noteText || "");
-    notepad.save(noteText);
+    // Input handlers already persist synchronously. Refresh the page mirror
+    // from Storage instead of saving the page mirror back over a Dock edit.
+    const noteText = notepad.load();
+    this.noteText = noteText;
     this.setData({ noteText }, callback);
   },
   toggleNotepad() {
@@ -102,6 +107,10 @@ Page({
   collapseNotepad() { this.flushDraft(() => this.setData({ notepadExpanded: false })); },
   noop() {},
   onNoteInput(event) { this.noteText = event.detail.value; notepad.save(this.noteText); },
+  onNoteBlur(event) {
+    this.noteText = String(event && event.detail && event.detail.value != null ? event.detail.value : this.noteText || "");
+    notepad.save(this.noteText);
+  },
   copyNote() {
     if (!this.noteText) { wx.showToast({ title: "暂无可复制内容", icon: "none" }); return; }
     wx.setClipboardData({ data: this.noteText, success: () => wx.showToast({ title: "已复制全部", icon: "success" }) });
