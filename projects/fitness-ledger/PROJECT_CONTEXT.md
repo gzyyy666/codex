@@ -35,10 +35,26 @@
 - Training Reference has an inline editor and a scroll-revealed collapsible
   Dock. Both persist while typing. On tab/page changes, the page must refresh
   from Storage rather than write a stale page mirror over a newer Dock edit.
-- Accepted front-end build marker after the Dock save fix:
-  `v2026.08.01-live-save-03`.
+- Accepted front-end build marker for the current candidate-history build:
+  `v2026.08.02-action-candidates-12`.
+- Training Reference can recognize movement names, English names, and aliases in
+  the freeform note and show a read-only, neutral floating history panel. It uses
+  `movementCatalog` for matching and `movement`/`movementHistory` for previews;
+  it does not turn note text into a formal record.
+- The panel is independent of the note card, keeps a fixed viewport, shows the
+  latest record first, and lets the user scroll older records or collapse it to a
+  narrow edge tab without interrupting typing.
 - Preserve this boundary in future work; automatic action extraction, account
   sync, and Mini Program writes require a separately approved design.
+
+## How a new task should find its place
+
+In plain terms: read the bootstrap for the rules, the index for the file map,
+the function index for data ownership, then read only the files named by the
+task. Choose the smallest relevant checklist, make the change only inside the
+allowed boundary, run its checks, and write a short changelog entry. The formal
+business directory is for DevTools acceptance; the separate Git directory is
+the durable project record and receives only the selected accepted files.
 
 ## Data Safety
 

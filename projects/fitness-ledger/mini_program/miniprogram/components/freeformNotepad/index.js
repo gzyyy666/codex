@@ -1,8 +1,10 @@
 const notepad = require("../../utils/freeformNotepad");
+const candidates = require("../../utils/freeformCandidates");
+const movementPreview = require("../../utils/movementPreview");
 
 Component({
   properties: { visible: { type: Boolean, value: true } },
-  data: { open: false, text: "" },
+  data: { open: false, text: "", candidates: [], candidatesLoading: false, candidatesCollapsed: false, detailOpen: false, detailLoading: false, detailError: "", detailMovement: null, detailHistory: [] },
   observers: {
     visible(next, previous) {
       // The inline Archive editor and the floating Dock share one local key.
@@ -13,16 +15,17 @@ Component({
   },
   lifetimes: {
     attached() { this.refresh(); },
-    detached() { this.flush(); }
+    detached() { this.cancelCandidateSearch(); }
   },
   pageLifetimes: {
     show() { this.refresh(); },
-    hide() { this.flush(); }
+    hide() { this.cancelCandidateSearch(); }
   },
   methods: {
     refresh() {
       this.noteText = notepad.load();
-      this.setData({ text: this.noteText });
+      this.setData({ text: this.noteText, candidates: [] });
+      this.scheduleCandidateSearch(this.noteText);
     },
     flush() {
       notepad.save(String(this.noteText || ""));
@@ -44,6 +47,7 @@ Component({
       // so a later render must not reapply the pre-edit value.
       notepad.save(this.noteText);
       if (this.data.text !== this.noteText) this.setData({ text: this.noteText });
+      this.scheduleCandidateSearch(this.noteText);
     },
     onInput(event) { this.persist(event.detail && event.detail.value); },
     onChange(event) { this.persist(event.detail && event.detail.value); },
@@ -51,6 +55,47 @@ Component({
       const value = event && event.detail && event.detail.value != null ? event.detail.value : this.noteText;
       this.persist(value);
     },
+    scheduleCandidateSearch(text) {
+      this.cancelCandidateSearch();
+      if (!String(text || "").trim()) {
+        this.setData({ candidates: [], candidatesLoading: false });
+        return;
+      }
+      this.setData({ candidatesLoading: true, candidatesCollapsed: false });
+      this.candidateTimer = setTimeout(() => {
+        const request = ++this.candidateRequest;
+        candidates.detect(text).then(items => {
+          if (request !== this.candidateRequest) return;
+          this.setData({ candidates: items, candidatesLoading: false });
+          Promise.all(items.map(item => movementPreview.load(item.movement_id))).then(previews => {
+            if (request !== this.candidateRequest) return;
+            this.setData({ candidates: items.map((item, index) => {
+              const history = previews[index] && previews[index].history || [];
+              const latest = history[0];
+              return latest ? { ...item, previewDate: latest.date, previewSummary: movementPreview.summarize(latest), previewHistory: history } : item;
+            }) });
+          });
+        });
+      }, 180);
+    },
+    cancelCandidateSearch() {
+      if (this.candidateTimer) clearTimeout(this.candidateTimer);
+      this.candidateTimer = null;
+      this.candidateRequest = (this.candidateRequest || 0) + 1;
+    },
+    toggleCandidates() { this.setData({ candidatesCollapsed: !this.data.candidatesCollapsed }); },
+    openCandidate(event) {
+      const movementId = event.currentTarget.dataset.id;
+      if (!movementId) return;
+      this.setData({ detailOpen: true, detailLoading: true, detailError: "", detailMovement: null, detailHistory: [] });
+      movementPreview.load(movementId).then(detail => {
+        this.setData({ detailLoading: false, detailError: detail.error, detailMovement: detail.movement, detailHistory: detail.history });
+      });
+    },
+    closeDetail() {
+      this.setData({ detailOpen: false });
+    },
+    noop() {},
     copy() {
       if (!this.noteText) { wx.showToast({ title: "暂无可复制内容", icon: "none" }); return; }
       wx.setClipboardData({ data: this.noteText, success: () => wx.showToast({ title: "已复制全部", icon: "success" }) });
@@ -60,7 +105,8 @@ Component({
         if (!result.confirm) return;
         notepad.clear();
         this.noteText = "";
-        this.setData({ text: "" });
+        this.cancelCandidateSearch();
+        this.setData({ text: "", candidates: [], candidatesLoading: false });
       } });
     }
   }

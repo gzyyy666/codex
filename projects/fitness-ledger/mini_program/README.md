@@ -24,7 +24,7 @@ The program has no write controls. Every page displays its read-only status and 
 
 ## Accepted freeform note baseline
 
-The current accepted Mini Program build marker is `v2026.08.01-live-save-03`.
+The current accepted Mini Program build marker is `v2026.08.02-action-candidates-12`.
 Training Reference includes a neutral `TRAINING NOTE` surface and a floating
 Dock that share the local-only Storage key
 `fitness-ledger:freeform-notepad:v2:current-training`. The note accepts free
@@ -37,7 +37,15 @@ Storage instead of saving a stale page buffer over the Dock's newer text. The
 Dock's fixed textarea is intentionally not nested inside another `fixed`
 textarea mode.
 
+While typing, the Reference page may recognize catalog names, English names,
+and aliases and surface a neutral floating read-only history panel. The panel
+does not change the note, does not depend on the selected body part, and does
+not write a formal record. It keeps a fixed viewport: the latest session is
+visible initially, older sessions are available by scrolling, and the collapsed
+state is a narrow edge tab. The movement order shown in a preview comes from
+the read-only history data, not from parsing the note.
+
 For future changes, preserve this local-only, read-only boundary and manually
-verify: Dock input -> collapse/reopen -> switch to Status -> return to Training
-Reference. Automatic action extraction or formal-record writes are not part of
+verify: Dock input -> collapse/reopen -> candidate panel -> switch to Status ->
+return to Training Reference. Automatic formal-record writes are not part of
 this baseline.

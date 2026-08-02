@@ -56,6 +56,27 @@ Use this file to restore project context with low token cost.
 9. Select the minimum tests from `REGRESSION_CHECKLIST.md`.
 10. Record durable changes in `CHANGELOG.md`.
 
+## New Conversation Quick Start
+
+Use this short sequence to get oriented without scanning the whole project:
+
+1. Read `PROJECT_BOOTSTRAP.md` for architecture, safety boundaries, and routing.
+2. Read `PROJECT_INDEX.md` to locate the relevant module and its tests.
+3. Read `FUNCTION_INDEX.md` for the fields and functions that supply the feature.
+4. Read only the named module files. For Mini Program work, start with
+   `mini_program/README.md`, `mini_program/app.json`, the relevant page/component,
+   and the read-only API contract.
+5. Check `REGRESSION_CHECKLIST.md` and the module checklist before changing code.
+6. State the task's allowed files and forbidden boundaries, then make the smallest
+   change that meets the request.
+7. Run the relevant syntax/tests, inspect `git diff --check` and the actual diff,
+   and record user-visible changes in `CHANGELOG.md`.
+
+The formal business directory is the copy used by WeChat DevTools. The tracked
+Git project is a separate record directory. After manual acceptance, sync only
+the selected source and documentation files into Git; do not sync formal data,
+credentials, generated Cloud Sync output, or unrelated desktop/Web changes.
+
 ## Shared Platform Services (maintained)
 
 - `ledger_commands.py` is the only shared write boundary for desktop and Web. Web Undo must call `LedgerCommandService.undo_last_write`; do not recreate restore logic in JavaScript.

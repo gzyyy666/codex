@@ -1,5 +1,5 @@
 const ledger = require("../../services/ledger");
-const BUILD_VERSION = "v2026.08.01-live-save-03";
+const BUILD_VERSION = "v2026.08.02-action-candidates-12";
 Page({
   data: { loading: true, error: "", status: null, identity: null, buildVersion: BUILD_VERSION },
   async onShow() {

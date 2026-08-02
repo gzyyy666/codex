@@ -374,3 +374,12 @@ Check body, macros, movement order, aliases, strength sets, and cardio metrics.
 - Set two movements as focused with different `focus_rank` values; confirm both Web and Mini place the lower rank first.
 - In Web Movement Index and Mini Reference, switch to Training Days and confirm a multi-part day appears when its movement history contains the selected body part.
 - Open a Mini Training Day card and confirm it routes to the existing date detail page.
+- In Mini Training Reference, type a canonical movement, English name, and alias
+  into the freeform note and confirm a candidate appears without leaving the
+  editor or changing the selected body part.
+- Confirm the candidate history overlay is neutral, fixed-height, independently
+  scrollable, shows one latest session initially, and collapses to a narrow edge
+  tab without moving the page content.
+- Confirm grouped set lines retain their real weight/reps/group values and show
+  clear sequence markers; editing or clearing the note must not leave stale
+  candidates or overwrite newer local text.

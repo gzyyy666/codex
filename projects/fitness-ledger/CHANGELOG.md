@@ -1,5 +1,30 @@
 # Fitness Ledger Changelog
 
+## 2026-08-02 - Mini Program freeform candidate history closeout
+
+- Added read-only movement candidate recognition for the Training Reference note.
+  Matching uses the movement catalog's canonical names, English names, and
+  aliases; it is independent of the currently selected body part and does not
+  parse the note into a formal training record.
+- Added an in-place neutral history overlay. It keeps a fixed viewport, shows
+  the latest session first, scrolls older sessions internally, labels grouped
+  set lines with sequence numbers, and collapses to a narrow edge tab.
+- Kept note input local-only and immediately saved. Candidate lookup is
+  cancellable so edits, deletion, page changes, and no-history movements cannot
+  overwrite newer text or crash the page.
+- Added the read-only `movementCatalog` contract and updated the Mini Program
+  smoke assertions. The cloud function source is recorded but was not deployed
+  in this closeout.
+
+Data structure impact: None. CloudBase data and formal JSON: unchanged.
+
+Checks:
+
+- `node --check` for changed Mini Program JavaScript files
+- `python tools/mini_program_test.py`
+- JSON/WXML/WXSS structural checks, `git diff --check`, and manual diff review
+- WeChat DevTools acceptance completed before this documentation closeout
+
 ## 2026-08-01 - Mini Program Freeform Note Dock Save Closeout
 
 - Synced the accepted Mini Program freeform-note Dock and Reference page fixes

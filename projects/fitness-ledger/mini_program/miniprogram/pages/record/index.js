@@ -40,5 +40,5 @@ Page({
   openMovement(event) {
     const id = event.currentTarget.dataset.id;
     if (id) wx.navigateTo({ url: `/pages/movement/index?id=${encodeURIComponent(id)}&part=${this.data.part}` });
-  }
+  },
 });

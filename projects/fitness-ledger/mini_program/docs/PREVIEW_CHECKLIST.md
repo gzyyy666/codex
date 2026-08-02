@@ -11,6 +11,12 @@
 - [ ] Training Reference returns history and never generates a plan.
 - [ ] Training Reference inline TRAINING NOTE saves while typing.
 - [ ] After scrolling, Dock input survives collapse/reopen and switching to Status and back.
+- [ ] A recognized movement appears automatically without leaving the note editor.
+- [ ] The candidate panel is a neutral independent overlay and does not push the movement list down.
+- [ ] Its initial viewport shows one latest session; older sessions scroll inside the panel.
+- [ ] Set lines keep their real grouped values and show clear 01/02/03 sequence markers.
+- [ ] The collapsed candidate state is a narrow edge tab and does not block note input or movement cards.
+- [ ] A movement with no history, a different body part, or an edited/deleted note does not crash the page.
 - [ ] Status page shows the expected front-end build marker below Environment.
 - [ ] Search finds Chinese name, English name, alias, date, split, or diet keyword.
 - [ ] Movement Detail shows recent history and notes.

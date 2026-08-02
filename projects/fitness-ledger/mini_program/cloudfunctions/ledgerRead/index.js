@@ -145,6 +145,17 @@ async function bodyAreaPayload(partId) {
   ]);
   return buildBodyArea(partId, datasets[0], datasets[1], datasets[2]);
 }
+async function movementCatalogPayload() {
+  const movements = await all(COLLECTIONS.movements, 200);
+  return movements.filter(item => item.active !== false && item.movement_id && item.display_name).map(item => ({
+    movement_id: String(item.movement_id),
+    display_name: String(item.display_name),
+    english_name: String(item.english_name || ""),
+    aliases: Array.isArray(item.aliases) ? item.aliases.map(value => String(value)).filter(Boolean) : [],
+    muscle_group: String(item.muscle_group || ""),
+    body_parts: Object.keys(BODY_PARTS).filter(partId => groupMatches(item.muscle_group, BODY_PARTS[partId].groups))
+  }));
+}
 function validIsoDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
 }
@@ -248,6 +259,7 @@ exports.main = async (event) => {
         const data = await bodyAreaPayload(String(event.part || ""));
         return data ? result(data) : failure("INVALID_BODY_PART", "未识别训练部位。");
       }
+      case "movementCatalog": return result(await movementCatalogPayload());
       case "trainingReference": {
         const where = event.split ? { Split: db.RegExp({ regexp: String(event.split), options: "i" }) } : {};
         return result((await db.collection(COLLECTIONS.training).where(where).orderBy("Date", "desc").limit(8).get()).data);

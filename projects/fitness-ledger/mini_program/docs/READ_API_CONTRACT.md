@@ -23,12 +23,21 @@ Except for `whoami`, every action requires the caller openid in `FITNESS_LEDGER_
 | `trainingReference` | optional `split` | latest eight matching sessions | `[]` | `fl_training_sessions` |
 | `search` | `query` | up to 30 prepared index rows | `[]` | `fl_search_index` |
 | `movement` | `movementId` | movement dictionary row | `null` | `fl_movements` |
+| `movementCatalog` | none | active movement names, aliases, IDs, and body-part metadata | `[]` | `fl_movements` |
 | `movementHistory` | `movementId`, optional `limit` | recent history | `[]` | `fl_movement_history` |
 | `trainingDayDetail` | ISO `date` (`YYYY-MM-DD`) | one read-only training-day projection | `session: null`, `movements: []` | `fl_training_sessions`, `fl_movement_history`, `fl_movements` |
 | `recordDetail` | ISO `date` | Body, Diet, Training arrays | arrays may be empty | three record collections |
 | `quality` | none | up to 50 read-only issues | `[]` | `fl_data_quality_issues` |
 
 No action calls database `add`, `update`, `set`, or `remove`. Pagination is currently bounded by `limit <= 50`; the first MVP uses small lists rather than unbounded reads.
+
+## `movementCatalog`
+
+This is a read-only catalog for local UI candidate matching. It returns active
+movement definitions even when the movement has no history yet. The catalog
+contains `movement_id`, `display_name`, `english_name`, `aliases`,
+`muscle_group`, and derived `body_parts`. It does not return training history,
+and the Mini Program never writes a candidate back as a formal record.
 
 ## `trainingDayDetail`
 

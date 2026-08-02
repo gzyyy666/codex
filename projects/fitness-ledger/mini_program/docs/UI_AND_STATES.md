@@ -12,6 +12,10 @@ The mobile viewer translates the Web identity rather than copying its wide layou
   inline Archive editor and a scroll-revealed collapsible Dock. Both editors
   share one Storage key; the Dock must never be treated as a formal training
   record or CloudBase write surface.
+- Movement candidates are a separate neutral overlay above the reference flow.
+  Visible, loading, empty, history-error, internally-scrolling, and collapsed
+  states all leave the note editor usable. The initial viewport favors one
+  latest session; older sessions remain inside the overlay's scroll area.
 
 Pages: Home, Today, Training Reference, Search, Movement Detail, Record Detail, and Data Status.
 

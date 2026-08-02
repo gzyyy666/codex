@@ -26,6 +26,7 @@ def main() -> None:
     assert 'case "bodyRecords"' in cloud
     assert 'case "dietRecords"' in cloud
     assert 'case "trainingRecords"' in cloud
+    assert 'case "movementCatalog"' in cloud
     assert app["pages"][0] == "pages/reference/index"
     assert app["tabBar"]["list"][0]["pagePath"] == "pages/reference/index"
     assert app["tabBar"]["list"][1]["pagePath"] == "pages/training/index"
@@ -44,8 +45,8 @@ def main() -> None:
     assert "createIntersectionObserver" in reference_js
     assert "#notepad-observer-anchor" in reference_js
     assert "disconnectNotepadObserver" in reference_js
-    assert "onHide() { this.flushDraft(); this.disconnectNotepadObserver(); }" in reference_js
-    assert "onUnload() { this.flushDraft(); this.disconnectNotepadObserver(); }" in reference_js
+    assert "onHide() { this.flushDraft(); this.cancelNoteCandidateSearch(); this.disconnectNotepadObserver(); }" in reference_js
+    assert "onUnload() { this.flushDraft(); this.cancelNoteCandidateSearch(); this.disconnectNotepadObserver(); }" in reference_js
     assert "dockVisible !== this.data.dockVisible" in reference_js
     assert "wx.nextTick" in reference_js and "thresholds: [0, 1]" in reference_js
     assert "wx.createIntersectionObserver(this, options)" in reference_js
@@ -56,12 +57,14 @@ def main() -> None:
     assert 'STORAGE_KEY = "fitness-ledger:freeform-notepad:v2:current-training"' in notepad
     assert "migrateLegacy" not in notepad and "training-draft" not in notepad and ":v1:" not in notepad
     assert "function load()" in notepad and "function save(text)" in notepad and "function clear()" in notepad
+    candidate_helper = (ROOT / "miniprogram" / "utils" / "freeformCandidates.js").read_text(encoding="utf-8")
+    assert "function findMatches" in candidate_helper and "body_part_label" in candidate_helper
     dock = ROOT / "miniprogram" / "components" / "freeformNotepad"
     for suffix in (".js", ".json", ".wxml", ".wxss"):
         assert (dock / f"index{suffix}").exists()
     dock_js = (dock / "index.js").read_text(encoding="utf-8")
     assert "notepad.load()" in dock_js and "notepad.save(this.noteText)" in dock_js
-    assert "pageLifetimes" in dock_js and "show() { this.refresh(); }" in dock_js and "hide() { this.flush(); }" in dock_js
+    assert "pageLifetimes" in dock_js and "show() { this.refresh(); }" in dock_js and "hide() { this.cancelCandidateSearch(); }" in dock_js
     assert "this.data.part" not in dock_js and "properties: { part:" not in dock_js
     assert "properties: { visible: { type: Boolean, value: true } }" in dock_js
     dock_wxss = (dock / "index.wxss").read_text(encoding="utf-8")
@@ -75,7 +78,8 @@ def main() -> None:
     assert "{{visible ? 'is-visible' : 'is-hidden'}}" in dock_wxml
     movement = (ROOT / "miniprogram" / "pages" / "movement" / "index.wxml").read_text(encoding="utf-8")
     record = (ROOT / "miniprogram" / "pages" / "record" / "index.wxml").read_text(encoding="utf-8")
-    assert "<freeform-notepad />" in movement and "<freeform-notepad />" in record
+    assert "<freeform-notepad />" in movement
+    assert "<freeform-notepad />" in record
     movement_js = (ROOT / "miniprogram" / "pages" / "movement" / "index.js").read_text(encoding="utf-8")
     record_js = (ROOT / "miniprogram" / "pages" / "record" / "index.js").read_text(encoding="utf-8")
     assert "&part=${this.data.selected}" in reference_js

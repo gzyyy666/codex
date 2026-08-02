@@ -2,6 +2,8 @@ const ledger = require("../../services/ledger");
 const { BODY_PARTS, byId } = require("../../utils/bodyParts");
 const freshness = require("../../utils/freshness");
 const notepad = require("../../utils/freeformNotepad");
+const movementCandidates = require("../../utils/freeformCandidates");
+const movementPreview = require("../../utils/movementPreview");
 
 function sortedArea(area, sortBy) {
   const movements = (area.movements || []).slice();
@@ -28,7 +30,7 @@ function enrichSessions(area, records) {
 }
 
 Page({
-  data: { loading: true, error: "", selected: "", sortBy: "frequency", freshness: null, areas: BODY_PARTS, area: null, notepadOpen: false, notepadTurning: false, notepadFlipBack: false, notepadExpanded: false, noteText: "", dockVisible: false },
+  data: { loading: true, error: "", selected: "", sortBy: "frequency", freshness: null, areas: BODY_PARTS, area: null, notepadOpen: false, notepadTurning: false, notepadFlipBack: false, notepadExpanded: false, noteText: "", noteCandidates: [], noteCandidatesLoading: false, noteCandidatesCollapsed: false, dockVisible: false, noteDetailOpen: false, noteDetailLoading: false, noteDetailError: "", noteDetailMovement: null, noteDetailHistory: [] },
   async onShow() {
     if (getApp().globalData.resetReferenceNotepad) {
       getApp().globalData.resetReferenceNotepad = false;
@@ -47,8 +49,8 @@ Page({
   // Both the inline editor and the floating Dock persist on input. Do not
   // write this page's possibly stale buffer during a tab switch: the Dock is
   // a separate component and its newer text must never be overwritten here.
-  onHide() { this.flushDraft(); this.disconnectNotepadObserver(); },
-  onUnload() { this.flushDraft(); this.disconnectNotepadObserver(); },
+  onHide() { this.flushDraft(); this.cancelNoteCandidateSearch(); this.disconnectNotepadObserver(); },
+  onUnload() { this.flushDraft(); this.cancelNoteCandidateSearch(); this.disconnectNotepadObserver(); },
   onTabItemTap() {
     this.overview();
   },
@@ -70,7 +72,7 @@ Page({
     this.disconnectNotepadObserver();
     const noteText = notepad.load();
     this.noteText = noteText;
-    this.setData({ loading: true, error: "", selected: part, notepadOpen: false, notepadExpanded: false, noteText, dockVisible: false, area: { label: theme.cn, labelEn: theme.en, tone: theme.tone, session_count: 0, movement_count: 0, latest_date: "", movements: [], sessions: [] } });
+    this.setData({ loading: true, error: "", selected: part, notepadOpen: false, notepadExpanded: false, noteText, noteCandidates: [], noteCandidatesLoading: false, dockVisible: false, area: { label: theme.cn, labelEn: theme.en, tone: theme.tone, session_count: 0, movement_count: 0, latest_date: "", movements: [], sessions: [] } });
     const [response, records] = await Promise.all([ledger.call("bodyArea", { part }), ledger.call("trainingRecords")]);
     const area = response.ok ? sortedArea(enrichSessions({ ...response.data, label: theme.cn, labelEn: theme.en, tone: theme.tone }, records.ok ? records.data : []), this.data.sortBy) : this.data.area;
     this.setData({ loading: false, area, error: response.ok ? "" : response.message }, () => this.buildNotepadObserver());
@@ -79,17 +81,21 @@ Page({
     const sortBy = event.currentTarget.dataset.sort;
     this.setData({ sortBy, area: this.data.area ? sortedArea(this.data.area, sortBy) : null });
   },
-  overview() { this.disconnectNotepadObserver(); this.setData({ selected: "", area: null, error: "", notepadOpen: false, notepadExpanded: false, noteText: "", dockVisible: false }); },
+  overview() { this.cancelNoteCandidateSearch(); this.disconnectNotepadObserver(); this.setData({ selected: "", area: null, error: "", notepadOpen: false, notepadExpanded: false, noteText: "", noteCandidates: [], noteCandidatesLoading: false, dockVisible: false, noteDetailOpen: false }); },
   refreshDraft() {
     this.noteText = notepad.load();
     this.setData({ noteText: this.noteText });
+    this.scheduleNoteCandidateSearch(this.noteText);
   },
   flushDraft(callback) {
     // Input handlers already persist synchronously. Refresh the page mirror
     // from Storage instead of saving the page mirror back over a Dock edit.
     const noteText = notepad.load();
     this.noteText = noteText;
-    this.setData({ noteText }, callback);
+    this.setData({ noteText }, () => {
+      this.scheduleNoteCandidateSearch(noteText);
+      if (callback) callback();
+    });
   },
   toggleNotepad() {
     if (this.data.notepadOpen) {
@@ -106,11 +112,56 @@ Page({
   expandNotepad() { this.flushDraft(() => this.setData({ notepadExpanded: true })); },
   collapseNotepad() { this.flushDraft(() => this.setData({ notepadExpanded: false })); },
   noop() {},
-  onNoteInput(event) { this.noteText = event.detail.value; notepad.save(this.noteText); },
+  onNoteInput(event) {
+    this.noteText = event.detail.value;
+    notepad.save(this.noteText);
+    this.scheduleNoteCandidateSearch(this.noteText);
+  },
   onNoteBlur(event) {
     this.noteText = String(event && event.detail && event.detail.value != null ? event.detail.value : this.noteText || "");
     notepad.save(this.noteText);
+    this.scheduleNoteCandidateSearch(this.noteText);
   },
+  scheduleNoteCandidateSearch(text) {
+    this.cancelNoteCandidateSearch();
+    if (!String(text || "").trim()) {
+      this.setData({ noteCandidates: [], noteCandidatesLoading: false });
+      return;
+    }
+    this.setData({ noteCandidatesLoading: true, noteCandidatesCollapsed: false });
+    this.noteCandidateTimer = setTimeout(() => {
+      const request = ++this.noteCandidateRequest;
+      movementCandidates.detect(text).then(items => {
+        if (request !== this.noteCandidateRequest) return;
+        this.setData({ noteCandidates: items, noteCandidatesLoading: false });
+        Promise.all(items.map(item => movementPreview.load(item.movement_id))).then(previews => {
+          if (request !== this.noteCandidateRequest) return;
+          this.setData({ noteCandidates: items.map((item, index) => {
+            const history = previews[index] && previews[index].history || [];
+            const latest = history[0];
+            return latest ? { ...item, previewDate: latest.date, previewSummary: movementPreview.summarize(latest), previewHistory: history } : item;
+          }) });
+        });
+      });
+    }, 180);
+  },
+  cancelNoteCandidateSearch() {
+    if (this.noteCandidateTimer) clearTimeout(this.noteCandidateTimer);
+    this.noteCandidateTimer = null;
+    this.noteCandidateRequest = (this.noteCandidateRequest || 0) + 1;
+  },
+  toggleNoteCandidates() { this.setData({ noteCandidatesCollapsed: !this.data.noteCandidatesCollapsed }); },
+  openNoteCandidate(event) {
+    const movementId = event.currentTarget.dataset.id;
+    if (!movementId) return;
+    this.flushDraft(() => {
+      this.setData({ noteDetailOpen: true, noteDetailLoading: true, noteDetailError: "", noteDetailMovement: null, noteDetailHistory: [] });
+      movementPreview.load(movementId).then(detail => {
+        this.setData({ noteDetailLoading: false, noteDetailError: detail.error, noteDetailMovement: detail.movement, noteDetailHistory: detail.history });
+      });
+    });
+  },
+  closeNoteDetail() { this.setData({ noteDetailOpen: false }); },
   copyNote() {
     if (!this.noteText) { wx.showToast({ title: "暂无可复制内容", icon: "none" }); return; }
     wx.setClipboardData({ data: this.noteText, success: () => wx.showToast({ title: "已复制全部", icon: "success" }) });
