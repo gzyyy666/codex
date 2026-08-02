@@ -488,6 +488,7 @@ function setAnalysisExportProtocolMode(mode='guided'){
   const panels=[['guided','#analysis-export-natural-pane'],['json','#analysis-export-json-pane']];panels.forEach(([panelMode,selector])=>{const panel=$(selector);if(!panel)return;const selected=panelMode===active;panel.hidden=!selected;panel.classList.toggle('is-active',selected)});
   const natural=active==='guided';const note=$('#analysis-export-local-note');if(note)note.textContent=natural?'只在本地解释，不上传':'本地校验 JSON，不上传';analysisExportSetPrimaryLabel(natural?'解释需求':'验证 JSON');analysisExportResetEvidence();
 }
+function protocolRequestValue(){try{return JSON.parse($('#analysis-export-request')?.value||'')}catch(error){throw new Error(`JSON 无法解析：${error.message}`)}}
 function setAnalysisExportProtocolStage(stage='request'){
   const root=analysisExportRoot();if(!root)return;const mode=root.dataset.inputMode==='json'?'json':'guided';state.analysisExportStage=stage;root.dataset.stage=stage;
   const orb=$('#analysis-export-stage-orb'),stateNode=$('#analysis-export-evidence-state'),next=$('#analysis-export-next'),back=$('#analysis-export-back'),result=$('#analysis-export-natural-result'),preview=$('#analysis-export-protocol-result');

@@ -167,6 +167,7 @@ def test_frontend_uses_only_v1_protocol_controls() -> None:
     assert 'id="analysis-export-json-pane"' in app
     assert "panel.hidden=!selected" in app
     assert 'id="analysis-export-request"' in app
+    assert "function protocolRequestValue" in app
     assert "analysis-export-scope-digest" in app
     assert "protocol-composer-tools" in app
     assert "exportFormalSemanticDataPackage" in app
