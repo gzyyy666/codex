@@ -9,8 +9,29 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE_DIR / "data"
-TRACKER_FILE = DATA_DIR / "tracker.json"
-MOVEMENT_DICTIONARY_FILE = DATA_DIR / "movement_dictionary.json"
+
+
+def _configured_formal_data_dir() -> Path | None:
+    config_path = BASE_DIR / "PROJECT_STATUS_CONFIG.json"
+    try:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        formal_directory = str(config.get("formal_directory") or "").strip()
+    except Exception:
+        formal_directory = ""
+    if not formal_directory:
+        return None
+    formal_data_dir = Path(formal_directory) / "data"
+    return formal_data_dir if formal_data_dir.is_dir() else None
+
+
+def _default_data_file(filename: str) -> Path:
+    formal_data_dir = _configured_formal_data_dir()
+    formal_file = formal_data_dir / filename if formal_data_dir else None
+    return formal_file if formal_file and formal_file.is_file() else DATA_DIR / filename
+
+
+TRACKER_FILE = _default_data_file("tracker.json")
+MOVEMENT_DICTIONARY_FILE = _default_data_file("movement_dictionary.json")
 
 
 def read_json(path: Path, fallback):
