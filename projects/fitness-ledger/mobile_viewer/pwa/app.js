@@ -67,6 +67,37 @@ function pageEnd() { return "</main>"; }
 function header(eyebrow, title, intro = "") { return `<div class="eyebrow">${esc(eyebrow)}</div><h1 class="title">${title}</h1>${intro ? `<p class="intro">${esc(intro)}</p>` : ""}`; }
 function stateMessage(message, error = false) { return `<div class="state ${error ? "error" : ""}">${esc(message)}</div>`; }
 
+function normalizeCandidateText(value) {
+  return String(value || "").toLocaleLowerCase().replace(/\s+/g, " ").trim();
+}
+function usableCandidateTerm(value) {
+  const term = normalizeCandidateText(value);
+  if (!term) return "";
+  const compactLength = term.replace(/\s/g, "").length;
+  if (/[\u3400-\u9fff]/.test(term)) return compactLength >= 2 ? term : "";
+  return compactLength >= 3 ? term : "";
+}
+function findLastCandidate(note, catalog) {
+  const source = normalizeCandidateText(note);
+  if (!source) return null;
+  const matches = (catalog || []).map(item => {
+    const terms = [item.display_name, item.english_name, ...(item.aliases || [])].map(usableCandidateTerm).filter(Boolean);
+    const hits = terms.map(term => ({ term, position: source.indexOf(term) })).filter(hit => hit.position >= 0);
+    hits.sort((a, b) => b.position - a.position || b.term.length - a.term.length);
+    return hits.length ? { ...item, matched_term: hits[0].term, matched_position: hits[0].position } : null;
+  }).filter(Boolean);
+  matches.sort((a, b) => b.matched_position - a.matched_position || b.matched_term.length - a.matched_term.length);
+  return matches[0] || null;
+}
+function renderNoteCandidate(candidate) {
+  const latest = (candidate.previewHistory || [])[0];
+  const orderLabel = latest && latest.order ? ` · 第 ${latest.order} 个动作` : "";
+  const historyLabel = latest ? `${date(latest.date)}${orderLabel}` : "暂无最近记录";
+  const preview = latest ? [historyLabel, setSummary(latest), latest.notes].filter(Boolean).join(" · ") : historyLabel;
+  const partLabel = (candidate.body_parts || []).map(id => bodyPart(id).cn).join(" / ") || candidate.body_part_label || "跨部位";
+  return `<button class="candidate" data-action="candidate" data-id="${esc(candidate.movement_id)}"><span><b>${esc(candidate.display_name)}</b><small>${esc(candidate.english_name || partLabel)}</small><em>${esc(preview)}</em></span><strong>详情 →</strong></button>`;
+}
+
 function renderReference() {
   const selected = state.route.params.get("part");
   if (!selected) {
@@ -80,7 +111,7 @@ function renderReferenceArea(selected) {
   const area = state.area || { ...bodyPart(selected), label: bodyPart(selected).cn, labelEn: bodyPart(selected).en, movements: [], sessions: [] };
   const part = bodyPart(selected);
   const note = state.noteOpen ? `<section class="notepad-card"><div class="notepad-head"><div><div class="eyebrow">LOCAL ONLY / TRAINING NOTE</div><h2>TRAINING NOTE / 训练记录</h2></div><button data-action="toggle-note">FLIP</button></div><textarea data-note placeholder="Freeform notes, any format.">${esc(state.note)}</textarea><div class="notepad-actions"><button data-action="copy-note">${state.noteExpanded ? "COPY ALL" : "COPY"}</button><button class="danger-link" data-action="clear-note">CLEAR</button><button data-action="expand-note">${state.noteExpanded ? "COLLAPSE EDIT" : "EXPAND"}</button></div><div class="notepad-status">已自动保存</div></section>` : `<button class="part-hero tone-${part.tone}" data-action="toggle-note"><div class="hero-top"><span class="eyebrow">${esc(area.labelEn || part.en)} ARCHIVE</span><span class="flip-hint">FLIP</span></div><div class="part-title">${esc(area.label || part.cn)}</div><div class="part-meta">${area.session_count || 0} 次训练 · ${area.movement_count || 0} 个动作</div><div class="part-latest">最近训练 ${esc(area.latest_date || "暂无")}</div></button>`;
-  const candidates = state.noteCandidates.length || state.noteCandidatesCollapsed ? `<section class="candidates ${state.noteCandidatesCollapsed ? "collapsed" : ""}"><div class="candidate-head"><span>可能相关动作 · 最近记录</span><button data-action="toggle-candidates">${state.noteCandidatesCollapsed ? "展开" : "收起"}</button></div>${!state.noteCandidatesCollapsed ? state.noteCandidates.map(candidate => `<button class="candidate" data-action="candidate" data-id="${esc(candidate.movement_id)}"><span><b>${esc(candidate.display_name)}</b><small>${esc(candidate.english_name || candidate.body_part_label || "")}</small>${candidate.preview ? `<em>${esc(candidate.preview)}</em>` : ""}</span><strong>详情 →</strong></button>`).join("") : ""}</section>` : "";
+  const candidates = state.noteCandidates.length || state.noteCandidatesCollapsed ? `<section class="candidates ${state.noteCandidatesCollapsed ? "collapsed" : ""}"><div class="candidate-head"><span>可能相关动作 · 最近记录</span><button data-action="toggle-candidates">${state.noteCandidatesCollapsed ? "展开" : "收起"}</button></div>${!state.noteCandidatesCollapsed ? state.noteCandidates.map(renderNoteCandidate).join("") : ""}</section>` : "";
   const sort = state.sortBy;
   const movements = [...(area.movements || [])].sort((a, b) => sort === "recent" ? String(b.latest?.date || "").localeCompare(String(a.latest?.date || "")) : sort === "days" ? 0 : (Number(b.pinned) - Number(a.pinned) || Number(a.focus_rank || 9999) - Number(b.focus_rank || 9999) || b.sessions - a.sessions));
   const body = state.loading ? stateMessage(`正在读取${area.label || part.cn}部档案…`) : state.error ? stateMessage(state.error, true) : sort === "days" ? renderSessions(area.sessions || [], area.label || part.cn) : `<section class="movement-list"><div class="list-heading"><div><div class="eyebrow">MOVEMENTS / FREQUENCY</div><h2 class="section-title">动作与最近表现</h2></div><span class="count">${area.movement_count || movements.length}</span></div>${movements.length ? movements.map(renderMovementCard).join("") : stateMessage("该部位暂时没有动作历史。")}</section>`;
@@ -191,10 +222,15 @@ async function updateCandidates() {
   if (!state.note.trim()) { state.noteCandidates = []; render(); return; }
   noteTimer = setTimeout(async () => {
     try {
-      const catalog = await call("movementCatalog"); const source = state.note.toLowerCase();
-      const matches = catalog.filter(item => [item.display_name, item.english_name, ...(item.aliases || [])].some(term => String(term || "").length > 1 && source.includes(String(term).toLowerCase()))).slice(0, 4);
+      const catalog = await call("movementCatalog");
+      const match = findLastCandidate(state.note, catalog);
       if (request !== state.candidatesRequest) return;
-      state.noteCandidates = matches.map(item => ({ ...item, body_part_label: (item.body_parts || []).map(id => bodyPart(id).cn).join(" / ") })); render();
+      if (!match) { state.noteCandidates = []; render(); return; }
+      let history = [];
+      try { history = await call("movementHistory", { movementId: match.movement_id, limit: 20 }); } catch (_) {}
+      if (request !== state.candidatesRequest) return;
+      state.noteCandidates = [{ ...match, body_part_label: (match.body_parts || []).map(id => bodyPart(id).cn).join(" / "), previewHistory: Array.isArray(history) ? history.slice(0, 3) : [] }];
+      render();
     } catch (_) { state.noteCandidates = []; render(); }
   }, 180);
 }
