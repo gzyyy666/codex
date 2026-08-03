@@ -10,7 +10,7 @@
   "theme_color": "#7468ee",
   "icons": [
     {
-      "src": "./icons/fitness-ledger.png?v=20260803-14",
+      "src": "./icons/fitness-ledger.png?v=20260803-15",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any"

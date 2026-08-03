@@ -1,4 +1,4 @@
-import { apiDescription, call, signIn } from "./api.js";
+import { apiDescription, call, signIn } from "./api.js?v=20260803-15";
 
 const BODY_PARTS = [
   { id: "shoulders", cn: "肩", en: "SHOULDERS", tone: "amber" },
@@ -42,6 +42,10 @@ function loadNote() {
 }
 function saveNote(value) { state.note = String(value || ""); try { localStorage.setItem(NOTE_KEY, state.note); } catch (_) {} }
 function bodyPart(id) { return BODY_PARTS.find(item => item.id === id) || BODY_PARTS[0]; }
+function toneForArea(item) {
+  const configured = String(item?.tone || "");
+  return BODY_PARTS.some(part => part.tone === configured) ? configured : bodyPart(item?.id).tone;
+}
 function isTopRoute() { return ["reference", "training", "status"].includes(state.route.name); }
 function resetViewport() {
   document.activeElement?.blur?.();
@@ -145,7 +149,7 @@ function renderReference() {
   const selected = state.route.params.get("part");
   if (!selected) {
     const fresh = freshness(state.status);
-    return renderShell(`${pageStart("reference-page")}${header("BEFORE YOU TRAIN / READ ONLY", "训练部位<br>档案。", "不是训练计划。选择今天可能练的部位，快速回看动作、最近表现与历史轨迹。")}${fresh ? `<div class="freshness ${fresh.stale ? "stale" : ""}">${esc(fresh.text)}</div>` : ""}${state.loading ? stateMessage("正在整理动作档案…") : state.error ? stateMessage(state.error, true) : `<div class="area-list">${state.areas.map((item, index) => `<button class="area-row tone-${item.tone}" data-route="reference?part=${item.id}"><span class="area-number">0${index + 1}</span><span class="area-name"><b>${esc(item.cn || item.label)}</b><small>${esc(item.en || item.labelEn)}</small></span><span class="area-data"><small>${item.movement_count || 0} 动作</small><small>${item.session_count || 0} 次训练</small></span><span class="area-arrow">→</span></button>`).join("")}</div>`}${pageEnd()}`);
+    return renderShell(`${pageStart("reference-page")}${header("BEFORE YOU TRAIN / READ ONLY", "训练部位<br>档案。", "不是训练计划。选择今天可能练的部位，快速回看动作、最近表现与历史轨迹。")}${fresh ? `<div class="freshness ${fresh.stale ? "stale" : ""}">${esc(fresh.text)}</div>` : ""}${state.loading ? stateMessage("正在整理动作档案…") : state.error ? stateMessage(state.error, true) : `<div class="area-list">${state.areas.map((item, index) => `<button class="area-row tone-${toneForArea(item)}" data-route="reference?part=${item.id}"><span class="area-number">0${index + 1}</span><span class="area-name"><b>${esc(item.cn || item.label)}</b><small>${esc(item.en || item.labelEn)}</small></span><span class="area-data"><small>${item.movement_count || 0} 动作</small><small>${item.session_count || 0} 次训练</small></span><span class="area-arrow">→</span></button>`).join("")}</div>`}${pageEnd()}`);
   }
   return renderReferenceArea(selected);
 }
@@ -388,7 +392,7 @@ document.addEventListener("click", event => {
 });
 window.addEventListener("scroll", scheduleDockCheck, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260803-14", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260803-15", { updateViaCache: "none" }).catch(() => {});
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();
   event.preventDefault();

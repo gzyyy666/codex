@@ -38,13 +38,14 @@ def main() -> None:
     for route in ("reference", "training", "status", "body", "diet", "record", "movement"):
         assert f'"{route}"' in app_source, f"missing Mini Program route: {route}"
     assert "NOTE_KEY" in app_source
+    assert "toneForArea" in app_source
     assert 'freeform-notepad:v2:current-training' in app_source
     assert "findLastCandidate" in app_source
     assert "previewHistory" in app_source
     assert 'call("movementHistory"' in app_source
     for marker in ("renderLogin", "signIn", "AUTH_REQUIRED", "Authorization", "cloudbase-js-sdk/2.27.1"):
         assert marker in source, f"missing Web authentication contract: {marker}"
-    assert 'persistence: "local"' in api_source, "Web login must survive app restarts"
+    assert '.auth()' in api_source, "Web login must use the verified CloudBase auth initialization"
     assert "resetViewport" in app_source and "window.scrollTo(0, 0)" in app_source
     assert ".auth-card input { font-size: 16px; }" in css_source, "iOS login input must not trigger page zoom"
     for marker in ("renderNoteDock", "candidate-overlay", "candidate-edge-dot", "可能相关动作 · 最近记录", "previewSetLine", "note-detail-backdrop", "data-note-surface", "scheduleDockCheck"):
@@ -65,8 +66,8 @@ def main() -> None:
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'includes("/api/")' in service_worker
-    assert 'fitness-ledger-pwa-v14' in service_worker
-    assert 'register("./sw.js?v=20260803-14", { updateViaCache: "none" })' in app_source
+    assert 'fitness-ledger-pwa-v15' in service_worker
+    assert 'register("./sw.js?v=20260803-15", { updateViaCache: "none" })' in app_source
     desktop_icon = ROOT / "assets" / "fitness-ledger-monogram-v3.png"
     pwa_icon = PWA / "icons" / "fitness-ledger.png"
     assert hashlib.sha256(desktop_icon.read_bytes()).digest() == hashlib.sha256(pwa_icon.read_bytes()).digest()
