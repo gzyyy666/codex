@@ -16,6 +16,8 @@
 - Persisted the Web login through the CloudBase local session, prevented iOS
   form-focus zoom, reset stale viewport offsets after login/navigation, aligned
   the PWA icon with the desktop app, and added reduced-motion-aware transitions.
+- Added a cache-busted Service Worker registration and asset version so an
+  already-installed iOS Web App can upgrade without changing its stable URL.
 
 CloudBase data and formal JSON: unchanged. `ledgerWebRead` was deployed as a
 new Event cloud function in `cloud1-d9g35v5s1a904a8ad`; its HTTP route requires
