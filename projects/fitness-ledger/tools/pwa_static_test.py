@@ -32,6 +32,7 @@ def main() -> None:
 
     source = "\n".join(path.read_text(encoding="utf-8") for path in required if path.suffix in {".html", ".js", ".css"})
     app_source = (PWA / "app.js").read_text(encoding="utf-8")
+    css_source = (PWA / "styles.css").read_text(encoding="utf-8")
     for route in ("reference", "training", "status", "body", "diet", "record", "movement"):
         assert f'"{route}"' in app_source, f"missing Mini Program route: {route}"
     assert "NOTE_KEY" in app_source
@@ -41,6 +42,14 @@ def main() -> None:
     assert 'call("movementHistory"' in app_source
     for marker in ("renderNoteDock", "candidate-overlay", "note-detail-backdrop", "data-note-surface", "scheduleDockCheck"):
         assert marker in source, f"missing sealed Mini Program parity marker: {marker}"
+    for marker in (
+        ".reference-page .candidate-overlay { position: fixed; z-index: 55;",
+        "width: min(542px, calc(100vw - 18px))",
+        ".reference-page .notepad-dock { position: fixed; z-index: 40;",
+        "width: min(538px, calc(100vw - 22px))",
+        ".reference-page .note-detail-sheet { width: 100%; max-width: 560px;",
+    ):
+        assert marker in css_source, f"missing responsive overlay contract: {marker}"
     assert "home-page" not in app_source and "plan-grid" not in app_source
     forbidden = ["wx.cloud", "AppSecret", "FITNESS_LEDGER_ALLOWED_OPENIDS", "POST", "PUT", "DELETE"]
     violations = [token for token in forbidden if token in source]
