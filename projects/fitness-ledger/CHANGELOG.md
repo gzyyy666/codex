@@ -1,5 +1,19 @@
 # Fitness Ledger Changelog
 
+## 2026-08-03 - PWA Training Note input and stable candidate rendering
+
+- Kept the Training Note textarea mounted while typing, so Chinese IME
+  composition and English cursor/input behavior are not interrupted by a page
+  render.
+- Debounced candidate recognition until composition ends, updated only the
+  fixed candidate region, and cached the catalog/history for the current page
+  session so the interface does not repeatedly refresh or shake.
+- Added an explicit PWA frontend version on the Status page.
+
+Data structure impact: None. The note remains local-only and is not included
+in CloudBase or formal data. The existing Cloud Sync export and one-click
+upload path remain the source of the `fl_*` read replica used by the PWA.
+
 ## 2026-08-03 - Authenticated PWA deployment and mobile polish
 
 - Added the isolated `ledgerWebRead` HTTP cloud function for the PWA. It reads

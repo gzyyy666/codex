@@ -77,7 +77,7 @@ python tools/pwa_deployment_preflight.py
 ## 仍需用户完成的验收
 
 - 在 CloudBase“登录方式”中确认账号密码登录已启用；不要把密码写进代码或发给他人。
-- 用现有 `administrator` 网页账号登录 PWA，确认最新训练日、动作候选、动作历史和
+- 用现有 `gzyyyy` 网页账号登录 PWA，确认最新训练日、动作候选、动作历史和
   状态页均能读取。
 - iPhone Safari 打开静态站点，选择“分享”→“添加到主屏幕”→“作为 Web App 打开”。
 - CloudBase Web 登录态使用本地持久会话，正常情况下在显式退出或会话到期前无需

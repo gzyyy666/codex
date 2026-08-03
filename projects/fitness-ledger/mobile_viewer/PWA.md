@@ -19,6 +19,27 @@ set order markers, and notes. The mobile layout uses the Mini Program's 750rpx
 spacing baseline converted to the viewport, with a 16px minimum editor font to
 avoid iPhone input zoom.
 
+The PWA Training Note is intentionally a local scratchpad. Its input is not
+recreated for every keystroke: Chinese composition events are allowed to
+finish, English cursor position stays in the same textarea, and the candidate
+overlay is refreshed independently. Candidate history is read-only data from
+the same CloudBase replica used by the rest of the PWA.
+
+## Data and Sync boundary
+
+The PWA does not replace or extend the existing Cloud Sync automation. The
+normal flow remains:
+
+```text
+formal local data → Cloud Sync export/payload → CloudBase fl_* replica → PWA read-only API
+```
+
+The one-click sync command needs no change for this PWA release. Run it as
+before when formal data changes; after the upload and verification complete,
+the PWA will read the new `fl_*` records on its next load. The local Training
+Note itself is not uploaded, and typing a movement name does not create a
+formal training record.
+
 ## Local preview
 
 From the repository root:

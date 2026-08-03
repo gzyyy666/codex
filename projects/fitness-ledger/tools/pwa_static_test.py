@@ -43,6 +43,14 @@ def main() -> None:
     assert "findLastCandidate" in app_source
     assert "previewHistory" in app_source
     assert 'call("movementHistory"' in app_source
+    assert "compositionstart" in app_source and "compositionend" in app_source
+    assert "refreshCandidateOverlay" in app_source
+    assert "noteHistoryCache" in app_source
+    assert 'data-candidate-region' in app_source
+    assert 'PWA v1.0.0' in app_source
+    candidate_update = app_source.split("async function updateCandidates()", 1)[1].split("async function openNoteCandidate", 1)[0]
+    assert "render()" not in candidate_update, "candidate recognition must not redraw the whole page"
+    assert 'autocomplete="off"' in app_source and 'autocorrect="off"' in app_source
     for marker in ("renderLogin", "signIn", "AUTH_REQUIRED", "Authorization", "cloudbase-js-sdk/2.27.1"):
         assert marker in source, f"missing Web authentication contract: {marker}"
     assert '.auth()' in api_source, "Web login must use the verified CloudBase auth initialization"
@@ -66,8 +74,8 @@ def main() -> None:
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'includes("/api/")' in service_worker
-    assert 'fitness-ledger-pwa-v15' in service_worker
-    assert 'register("./sw.js?v=20260803-15", { updateViaCache: "none" })' in app_source
+    assert 'fitness-ledger-pwa-v17' in service_worker
+    assert 'register("./sw.js?v=20260803-17", { updateViaCache: "none" })' in app_source
     desktop_icon = ROOT / "assets" / "fitness-ledger-monogram-v3.png"
     pwa_icon = PWA / "icons" / "fitness-ledger.png"
     assert hashlib.sha256(desktop_icon.read_bytes()).digest() == hashlib.sha256(pwa_icon.read_bytes()).digest()
