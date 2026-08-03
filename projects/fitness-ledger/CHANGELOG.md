@@ -1,5 +1,13 @@
 # Fitness Ledger Changelog
 
+## 2026-08-03 - PWA candidate set mobile layout
+
+- Replaced the candidate history's single truncated set string with explicit
+  load, reps, and sets cells so the last values remain visible on narrow phone
+  screens.
+- Kept the existing read-only candidate and history behavior; this is a PWA
+  presentation-only change with no data or sync impact.
+
 ## 2026-08-03 - PWA Training Note input and stable candidate rendering
 
 - Kept the Training Note textarea mounted while typing, so Chinese IME

@@ -42,6 +42,8 @@ def main() -> None:
     assert 'freeform-notepad:v2:current-training' in app_source
     assert "findLastCandidate" in app_source
     assert "previewHistory" in app_source
+    assert "renderCandidateSet" in app_source
+    assert "previewSetParts" in app_source
     assert 'call("movementHistory"' in app_source
     assert "compositionstart" in app_source and "compositionend" in app_source
     assert "refreshCandidateOverlay" in app_source
@@ -74,8 +76,8 @@ def main() -> None:
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'includes("/api/")' in service_worker
-    assert 'fitness-ledger-pwa-v17' in service_worker
-    assert 'register("./sw.js?v=20260803-17", { updateViaCache: "none" })' in app_source
+    assert 'fitness-ledger-pwa-v18' in service_worker
+    assert 'register("./sw.js?v=20260803-18", { updateViaCache: "none" })' in app_source
     desktop_icon = ROOT / "assets" / "fitness-ledger-monogram-v3.png"
     pwa_icon = PWA / "icons" / "fitness-ledger.png"
     assert hashlib.sha256(desktop_icon.read_bytes()).digest() == hashlib.sha256(pwa_icon.read_bytes()).digest()

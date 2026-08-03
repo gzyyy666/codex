@@ -1,4 +1,4 @@
-import { apiDescription, call, signIn } from "./api.js?v=20260803-17";
+import { apiDescription, call, signIn } from "./api.js?v=20260803-18";
 
 const BODY_PARTS = [
   { id: "shoulders", cn: "肩", en: "SHOULDERS", tone: "amber" },
@@ -9,7 +9,7 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.0.0 · build 2026.08.03.19";
+const BUILD_VERSION = "PWA v1.0.0 · build 2026.08.03.20";
 const app = document.querySelector("#app");
 const state = {
   route: parseRoute(), loading: true, error: "", status: null, identity: null,
@@ -80,15 +80,22 @@ function setLine(item) {
   const weight = item.weight_text || item.weightText || (item.weight ? `${item.weight} kg` : "自重");
   return `${weight} ${item.reps ? `${item.reps} 次` : ""} ${item.sets ? `× ${item.sets} 组` : ""}`.trim();
 }
-function previewSetLine(item) {
+function previewSetParts(item) {
   const rawWeight = item?.weight_text ?? item?.weightText ?? item?.weight;
   const numericWeight = rawWeight !== undefined && rawWeight !== null && /^\s*\d+(?:\.\d+)?\s*$/.test(String(rawWeight));
   const weightLabel = rawWeight === undefined || rawWeight === null || rawWeight === "" || Number(rawWeight) === 0
-    ? ""
+    ? "自重"
     : (numericWeight ? `${Number(rawWeight)} kg` : String(rawWeight));
-  const repsLabel = item?.reps === undefined || item?.reps === null || item?.reps === "" ? "" : `${item.reps} 次`;
-  const setsLabel = item?.sets === undefined || item?.sets === null || item?.sets === "" ? "" : `${item.sets} 组`;
-  return [weightLabel, repsLabel, setsLabel].filter(Boolean).join(" · ");
+  const repsLabel = item?.reps === undefined || item?.reps === null || item?.reps === "" ? "-" : `${String(item.reps).trim()} 次`;
+  const setsLabel = item?.sets === undefined || item?.sets === null || item?.sets === "" ? "-" : `${String(item.sets).trim()} 组`;
+  return [weightLabel, repsLabel, setsLabel];
+}
+function previewSetLine(item) {
+  return previewSetParts(item).filter(value => value !== "-").join(" / ");
+}
+function renderCandidateSet(item, index) {
+  const [weight, reps, sets] = previewSetParts(item);
+  return `<div class="candidate-set"><span>${String(index + 1).padStart(2, "0")}</span><div class="candidate-set-values"><b>${esc(weight)}</b><b>${esc(reps)}</b><b>${esc(sets)}</b></div></div>`;
 }
 function setSummary(item) {
   if (item.summary) return item.summary;
@@ -137,7 +144,7 @@ function renderCandidateHistory(history) {
   return history.slice(0, 3).map(record => {
     const sets = Array.isArray(record.sets) ? record.sets : [];
     const setMarkup = sets.length
-      ? `<div class="candidate-sets">${sets.map((item, index) => `<div class="candidate-set"><span>${String(index + 1).padStart(2, "0")}</span><b>${esc(previewSetLine(item))}</b></div>`).join("")}</div>`
+      ? `<div class="candidate-sets">${sets.map(renderCandidateSet).join("")}</div>`
       : `<div class="candidate-summary">${esc(setSummary(record))}</div>`;
     return `<article class="candidate-history"><div class="candidate-history-head"><b>${esc(`${date(record.date)}${record.order ? ` · 第 ${record.order} 个动作` : ""}`)}</b></div>${setMarkup}${record.notes ? `<p>${esc(record.notes)}</p>` : ""}</article>`;
   }).join("");
@@ -438,7 +445,7 @@ document.addEventListener("click", event => {
 });
 window.addEventListener("scroll", scheduleDockCheck, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260803-17", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260803-18", { updateViaCache: "none" }).catch(() => {});
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();
   event.preventDefault();
