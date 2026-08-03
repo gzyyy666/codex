@@ -41,6 +41,7 @@ button { color: inherit; cursor: pointer; }
    read-only candidate overlay, and mobile archive proportions. */
 .notepad-observer-anchor { height: 1px; margin: 0; pointer-events: none; }
 .notepad-dock { position: fixed; z-index: 40; top: calc(env(safe-area-inset-top) + 8px); right: 11px; left: 11px; pointer-events: none; }
+.reference-page .notepad-dock { position: fixed; z-index: 40; }
 .notepad-dock > * { pointer-events: auto; }
 .notepad-dock-bar { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px; width: 100%; padding: 11px 14px; border: 1px solid rgba(55,51,43,.16); border-radius: 999px; background: rgba(253,250,243,.96); box-shadow: 0 8px 22px rgba(53,44,29,.15); text-align: left; }
 .notepad-dock-bar span { color: #6d665b; font-size: 10px; letter-spacing: 1.7px; }
@@ -50,6 +51,7 @@ button { color: inherit; cursor: pointer; }
 .notepad-dock-card h2 { margin: 4px 0 0; font-family: "Songti SC", Georgia, serif; font-size: 21px; font-weight: 400; }
 .notepad-dock-card textarea { display: block; width: 100%; height: 150px; max-height: 42vh; margin-top: 10px; padding: 9px 0; border: 0; border-top: 1px solid rgba(23,23,20,.17); border-bottom: 1px solid rgba(23,23,20,.12); background: transparent; outline: none; color: #27251f; font-size: 16px; line-height: 1.55; resize: vertical; }
 .candidate-overlay { position: fixed; z-index: 55; top: calc(env(safe-area-inset-top) + 182px); right: 9px; left: 9px; height: 166px; overflow: hidden; margin: 0; padding: 9px; border: 1px solid rgba(138,91,0,.18); border-radius: 9px; background: rgba(247,244,238,.98); box-shadow: 0 13px 32px rgba(53,44,29,.2); }
+.reference-page .candidate-overlay { position: fixed; z-index: 55; }
 .candidate-overlay .candidate-head { align-items: center; min-height: 18px; }
 .candidate-overlay .candidate-scroll { height: 120px; overflow-y: auto; margin-top: 5px; padding-right: 2px; }
 .candidate-overlay .candidate { display: grid; grid-template-columns: minmax(0, 1fr) auto; width: 100%; margin-top: 5px; padding: 8px; border: 1px solid rgba(138,91,0,.15); border-radius: 8px; background: #fbfaf6; }
@@ -72,6 +74,7 @@ button { color: inherit; cursor: pointer; }
 .candidate-edge span { writing-mode: vertical-rl; letter-spacing: 1px; }
 .candidate-edge b { font-size: 14px; font-weight: 400; line-height: 1; }
 .note-detail-backdrop { position: fixed; z-index: 60; inset: 0; display: flex; align-items: stretch; justify-content: center; padding: calc(env(safe-area-inset-top) + 57px) 9px 22px; background: rgba(28,25,20,.38); }
+.reference-page .note-detail-backdrop { position: fixed; z-index: 60; }
 .note-detail-sheet { width: 100%; max-height: 82vh; overflow: hidden; padding: 14px; border-radius: 15px; background: #fdfaf3; box-shadow: 0 20px 48px rgba(0,0,0,.22); }
 .note-detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .note-detail-head h2 { margin: 4px 0 0; font-family: "Songti SC", Georgia, serif; font-size: 22px; font-weight: 400; }
