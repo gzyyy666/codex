@@ -1,5 +1,29 @@
 # Fitness Ledger Changelog
 
+## 2026-08-03 - PWA CloudBase deployment preparation
+
+- Added the isolated `ledgerWebRead` HTTP cloud function for the PWA. It reads
+  the existing ten `fl_*` replica collections, requires a bearer token by
+  default, limits CORS to configured origins, and contains no write operations.
+- Added CloudBase Web SDK login and access-token forwarding to the PWA while
+  keeping the local Flask adapter authentication-free for local development.
+- Added a compact mobile login surface, deployment safety checks, and a
+  dedicated web-function contract test.
+- Corrected the tracked CloudBase environment example to match the environment
+  confirmed by the successful sync report and static-hosting deployment.
+
+CloudBase data and formal JSON: unchanged. The new web function and updated PWA
+were prepared locally but not deployed in this change.
+
+Checks:
+
+- `node --check` for the PWA and `ledgerWebRead` JavaScript
+- `python tools/ledger_web_read_test.py`
+- `python tools/pwa_static_test.py`
+- `python tools/mobile_viewer_smoke_test.py`
+- `python tools/mini_program_test.py`
+- deployment preflight expected-block check and `git diff --check`
+
 ## 2026-08-02 - Mini Program freeform candidate history closeout
 
 - Added read-only movement candidate recognition for the Training Reference note.

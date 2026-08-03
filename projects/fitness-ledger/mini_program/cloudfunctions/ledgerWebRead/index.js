@@ -1,0 +1,373 @@
+const cloud = require("wx-server-sdk");
+cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
+const db = cloud.database();
+
+const COLLECTIONS = {
+  meta: "fl_meta", latest: "fl_latest_summary", daily: "fl_daily_records",
+  diet: "fl_diet_records", training: "fl_training_sessions", movements: "fl_movements",
+  history: "fl_movement_history", search: "fl_search_index", raw: "fl_raw_entries",
+  quality: "fl_data_quality_issues"
+};
+
+const BODY_PARTS = {
+  shoulders: { label: "肩", labelEn: "SHOULDERS", groups: ["Shoulder", "Shoulders", "肩部"], split: ["肩", "shoulder"] },
+  chest: { label: "胸", labelEn: "CHEST", groups: ["Chest", "胸部"], split: ["胸", "chest"] },
+  back: { label: "背", labelEn: "BACK", groups: ["Back", "背部"], split: ["背", "back"] },
+  legs: { label: "腿", labelEn: "LEGS", groups: ["Leg", "Legs", "Lower Body", "腿部", "臀部"], split: ["腿", "臀", "leg", "lower"] },
+  arms: { label: "手臂", labelEn: "ARMS", groups: ["Arm", "Arms", "Biceps", "Triceps", "手臂"], split: ["手臂", "二头", "三头", "arm", "biceps", "triceps"] }
+};
+
+function result(data) { return { ok: true, data }; }
+function failure(code, message) { return { ok: false, code, message }; }
+async function list(name, limit = 20, skip = 0, orderField = "Date") {
+  return (await db.collection(name).orderBy(orderField, "desc").skip(skip).limit(Math.min(Math.max(limit, 1), 50)).get()).data;
+}
+async function all(name, maxItems = 500) {
+  const rows = [];
+  const pageSize = 100;
+  for (let skip = 0; skip < maxItems; skip += pageSize) {
+    const page = (await db.collection(name).skip(skip).limit(pageSize).get()).data;
+    rows.push(...page);
+    if (page.length < pageSize) break;
+  }
+  return rows.slice(0, maxItems);
+}
+function normalized(value) { return String(value || "").trim().toLowerCase(); }
+function matchesAny(value, terms) {
+  const source = normalized(value);
+  return terms.some(term => source.includes(normalized(term)));
+}
+function groupMatches(value, groups) {
+  const source = normalized(value);
+  return groups.some(group => source === normalized(group) || source.includes(normalized(group)));
+}
+function setSummary(sets) {
+  return (Array.isArray(sets) ? sets : []).map(item => {
+    const weight = item.weight_text || (Number(item.weight) > 0 ? `${Number(item.weight)}kg` : "自重");
+    return `${weight} × ${item.reps || "-"} × ${item.sets || 1}`;
+  }).join(" · ");
+}
+function compactHistory(item) {
+  const metrics = item.metrics || {};
+  return {
+    id: item.id || item._id,
+    date: item.date || "",
+    order: item.order || null,
+    sets: item.sets || [],
+    summary: setSummary(item.sets),
+    notes: item.notes || "",
+    max_weight: Number(metrics.max_weight || 0),
+    total_reps: Number(metrics.total_reps || 0),
+    volume: Number(metrics.volume || 0)
+  };
+}
+function buildBodyArea(partId, movements, history, sessions) {
+  const theme = BODY_PARTS[partId];
+  if (!theme) return null;
+  const activeMovements = movements.filter(item => item.active !== false && groupMatches(item.muscle_group, theme.groups));
+  const historyByMovement = {};
+  history.forEach(item => {
+    if (!historyByMovement[item.movement_id]) historyByMovement[item.movement_id] = [];
+    historyByMovement[item.movement_id].push(item);
+  });
+  const movementCards = activeMovements.map(movement => {
+    const records = (historyByMovement[movement.movement_id] || []).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    const compact = records.map(compactHistory);
+    const best = compact.reduce((current, item) => {
+      if (!current || item.max_weight > current.max_weight || (item.max_weight === current.max_weight && item.volume > current.volume)) return item;
+      return current;
+    }, null);
+    return {
+      movement_id: movement.movement_id,
+      display_name: movement.display_name,
+      english_name: movement.english_name || "",
+      muscle_group: movement.muscle_group || "",
+      pinned: movement.pinned === true,
+      focus_rank: Number(movement.focus_rank || 0),
+      sessions: compact.length,
+      latest: compact[0] || null,
+      previous: compact[1] || null,
+      best,
+      recent: compact.slice(0, 3)
+    };
+  }).filter(item => item.sessions > 0).sort((a, b) => {
+    const aFocused = Boolean(a.pinned) || a.focus_rank > 0, bFocused = Boolean(b.pinned) || b.focus_rank > 0;
+    return Number(bFocused) - Number(aFocused)
+      || (a.focus_rank > 0 ? a.focus_rank : Number.MAX_SAFE_INTEGER) - (b.focus_rank > 0 ? b.focus_rank : Number.MAX_SAFE_INTEGER)
+      || b.sessions - a.sessions
+      || String(a.display_name).localeCompare(String(b.display_name), "zh-CN");
+  });
+  const activeIds = new Set(activeMovements.map(item => String(item.movement_id || "")));
+  const movementById = Object.fromEntries(activeMovements.map(item => [String(item.movement_id || ""), item]));
+  const relatedByDate = {};
+  history.forEach(item => {
+    const movementId = String(item.movement_id || "");
+    const date = String(item.date || "").slice(0, 10);
+    if (!date || !activeIds.has(movementId)) return;
+    if (!relatedByDate[date]) relatedByDate[date] = [];
+    relatedByDate[date].push({ ...compactHistory(item), movement_id: movementId, display_name: movementById[movementId].display_name || "" });
+  });
+  const sessionsByDate = {};
+  sessions.forEach(item => { const date = String(item.Date || "").slice(0, 10); if (date && !sessionsByDate[date]) sessionsByDate[date] = item; });
+  const matchedSessions = Object.keys(relatedByDate).sort((a, b) => b.localeCompare(a)).map(date => {
+    const session = sessionsByDate[date] || {};
+    const related = relatedByDate[date].sort((a, b) => Number(a.order || 999) - Number(b.order || 999));
+    return {
+      id: session.id || session._id || date,
+      date,
+      split: session.Split || "",
+      notes: session.Notes || "",
+      related_count: related.length,
+      related_movements: related.map(item => item.display_name).filter(Boolean),
+      movement_summary: related.map(item => `${item.display_name}${item.summary ? `：${item.summary}` : ""}`).join("；")
+    };
+  });
+  return {
+    id: partId,
+    label: theme.label,
+    labelEn: theme.labelEn,
+    session_count: matchedSessions.length,
+    movement_count: movementCards.length,
+    latest_date: matchedSessions[0] ? matchedSessions[0].Date : "",
+    movements: movementCards,
+    sessions: matchedSessions.slice(0, 12)
+  };
+}
+async function bodyAreaPayload(partId) {
+  const datasets = await Promise.all([
+    all(COLLECTIONS.movements, 200),
+    all(COLLECTIONS.history, 500),
+    all(COLLECTIONS.training, 200)
+  ]);
+  return buildBodyArea(partId, datasets[0], datasets[1], datasets[2]);
+}
+async function movementCatalogPayload() {
+  const movements = await all(COLLECTIONS.movements, 200);
+  return movements.filter(item => item.active !== false && item.movement_id && item.display_name).map(item => ({
+    movement_id: String(item.movement_id),
+    display_name: String(item.display_name),
+    english_name: String(item.english_name || ""),
+    aliases: Array.isArray(item.aliases) ? item.aliases.map(value => String(value)).filter(Boolean) : [],
+    muscle_group: String(item.muscle_group || ""),
+    body_parts: Object.keys(BODY_PARTS).filter(partId => groupMatches(item.muscle_group, BODY_PARTS[partId].groups))
+  }));
+}
+function validIsoDate(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
+}
+function chunks(values, size) {
+  const result = [];
+  for (let index = 0; index < values.length; index += size) result.push(values.slice(index, index + size));
+  return result;
+}
+async function allOnDate(name, field, date, maxItems = 500) {
+  const rows = [];
+  const pageSize = 100;
+  for (let skip = 0; skip < maxItems; skip += pageSize) {
+    const page = (await db.collection(name).where({ [field]: date }).skip(skip).limit(pageSize).get()).data;
+    rows.push(...page);
+    if (page.length < pageSize) break;
+  }
+  return rows.slice(0, maxItems);
+}
+async function getTrainingDayDetail(date) {
+  const [sessionResult, history] = await Promise.all([
+    db.collection(COLLECTIONS.training).where({ Date: date }).limit(10).get(),
+    allOnDate(COLLECTIONS.history, "date", date)
+  ]);
+  const movementIds = [...new Set(history.map(item => String(item.movement_id || "")).filter(Boolean))];
+  const movementRows = movementIds.length ? (await Promise.all(chunks(movementIds, 20).map(ids => (
+    db.collection(COLLECTIONS.movements).where({ movement_id: db.command.in(ids) }).get()
+  )))).flatMap(item => item.data || []) : [];
+  const movementById = Object.fromEntries(movementRows.map(item => [String(item.movement_id || ""), item]));
+  const movements = history.map((item, index) => {
+    const movementId = String(item.movement_id || "");
+    const movement = movementById[movementId] || {};
+    return {
+      movement_id: movementId,
+      movement_name: movement.display_name || movementId,
+      english_name: movement.english_name || "",
+      muscle_group: movement.muscle_group || "",
+      order: item.order === undefined || item.order === null ? null : item.order,
+      sets: Array.isArray(item.sets) ? item.sets : [],
+      notes: item.notes || "",
+      _source_index: index
+    };
+  }).sort((a, b) => {
+    const aOrder = a.order === null ? Number.MAX_SAFE_INTEGER : Number(a.order);
+    const bOrder = b.order === null ? Number.MAX_SAFE_INTEGER : Number(b.order);
+    return aOrder - bOrder || a._source_index - b._source_index;
+  }).map(({ _source_index, ...item }) => item);
+  const session = (sessionResult.data || [])[0] || null;
+  return {
+    date,
+    session: session ? {
+      id: session.id || session._id || "",
+      date: String(session.Date || "").slice(0, 10),
+      split: session.Split || "",
+      summary: session["Standardized Summary"] || "",
+      notes: session.Notes || ""
+    } : null,
+    movements
+  };
+}
+
+async function readAction(event) {
+  if (event.action === "whoami" || event.action === "getOpenId") {
+    return result({
+      openid: "",
+      appid: "",
+      env: process.env.TCB_ENV || process.env.SCF_NAMESPACE || "",
+      web: true
+    });
+  }
+  try {
+    switch (event.action) {
+      case "status": return result((await list(COLLECTIONS.meta, 1, 0, "generated_at"))[0] || null);
+      case "latest": return result((await list(COLLECTIONS.latest, 1, 0, "date"))[0] || null);
+      case "recent": return result(await list(COLLECTIONS.daily, Number(event.limit || 10), Number(event.skip || 0)));
+      case "bodyRecords": return result(await list(COLLECTIONS.daily, Number(event.limit || 30), Number(event.skip || 0)));
+      case "dietRecords": return result(await list(COLLECTIONS.diet, Number(event.limit || 30), Number(event.skip || 0)));
+      case "trainingRecords": {
+        const rows = await all(COLLECTIONS.training, 200);
+        rows.sort((a, b) => String(b.Date || "").localeCompare(String(a.Date || "")));
+        return result(rows);
+      }
+      case "bodyAreas": {
+        const datasets = await Promise.all([
+          all(COLLECTIONS.movements, 200),
+          all(COLLECTIONS.history, 500),
+          all(COLLECTIONS.training, 200)
+        ]);
+        const areas = Object.keys(BODY_PARTS).map(partId => buildBodyArea(partId, datasets[0], datasets[1], datasets[2]));
+        return result(areas.map(item => ({
+          id: item.id,
+          label: item.label,
+          labelEn: item.labelEn,
+          session_count: item.session_count,
+          movement_count: item.movement_count,
+          latest_date: item.latest_date
+        })));
+      }
+      case "bodyArea": {
+        const data = await bodyAreaPayload(String(event.part || ""));
+        return data ? result(data) : failure("INVALID_BODY_PART", "未识别训练部位。");
+      }
+      case "movementCatalog": return result(await movementCatalogPayload());
+      case "trainingReference": {
+        const where = event.split ? { Split: db.RegExp({ regexp: String(event.split), options: "i" }) } : {};
+        return result((await db.collection(COLLECTIONS.training).where(where).orderBy("Date", "desc").limit(8).get()).data);
+      }
+      case "search": {
+        const query = String(event.query || "").trim();
+        if (!query) return result([]);
+        const rows = (await db.collection(COLLECTIONS.search).where({ text: db.RegExp({ regexp: query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), options: "i" }) }).limit(30).get()).data;
+        const movements = await all(COLLECTIONS.movements, 100);
+        const movementMap = Object.fromEntries(movements.map(item => [item.movement_id, item]));
+        return result(rows.map(item => {
+          if (item.type === "movement" && movementMap[item.id]) {
+            const movement = movementMap[item.id];
+            return {
+              type: item.type,
+              id: item.id,
+              title: movement.display_name,
+              subtitle: [movement.english_name, movement.muscle_group].filter(Boolean).join(" · "),
+              preview: `${Array.isArray(movement.aliases) ? movement.aliases.length : 0} 个别名`
+            };
+          }
+          const labels = { daily: "身体记录", diet: "饮食记录", training: "训练记录" };
+          return {
+            type: item.type,
+            id: item.id,
+            date: String(item.date || "").slice(0, 10),
+            title: `${labels[item.type] || "档案记录"} · ${String(item.date || "").slice(0, 10)}`,
+            subtitle: labels[item.type] || "档案记录",
+            preview: String(item.text || "").replace(/\s+/g, " ").slice(0, 92)
+          };
+        }));
+      }
+      case "movementHistory": return result((await db.collection(COLLECTIONS.history).where({ movement_id: String(event.movementId || "") }).orderBy("date", "desc").limit(Math.min(Number(event.limit || 5), 20)).get()).data);
+      case "movement": return result((await db.collection(COLLECTIONS.movements).where({ movement_id: String(event.movementId || "") }).limit(1).get()).data[0] || null);
+      case "trainingDayDetail": {
+        const date = String(event.date || "").slice(0, 10);
+        if (!validIsoDate(date)) return failure("INVALID_DATE", "日期格式应为 YYYY-MM-DD。");
+        return result(await getTrainingDayDetail(date));
+      }
+      case "recordDetail": {
+        const date = String(event.date || "").slice(0, 10);
+        const fetch = name => db.collection(name).where({ Date: date }).get();
+        const [body, diet, training] = await Promise.all([fetch(COLLECTIONS.daily), fetch(COLLECTIONS.diet), fetch(COLLECTIONS.training)]);
+        return result({ date, body: body.data, diet: diet.data, training: training.data });
+      }
+      case "quality": return result(await list(COLLECTIONS.quality, 50, 0, "date"));
+      default: return failure("UNKNOWN_ACTION", "未知只读操作。");
+    }
+  } catch (_error) {
+    return failure("QUERY_FAILED", "云端查询失败，请稍后重试。");
+  }
+}
+
+function requestHeaders(event) {
+  return event && event.headers && typeof event.headers === "object" ? event.headers : {};
+}
+
+function headerValue(event, name) {
+  const expected = String(name).toLowerCase();
+  const entry = Object.entries(requestHeaders(event)).find(([key]) => String(key).toLowerCase() === expected);
+  return entry ? String(entry[1] || "") : "";
+}
+
+function hasBearerToken(event) {
+  return /^Bearer\s+\S+/i.test(headerValue(event, "authorization"));
+}
+
+function authRequired() {
+  return String(process.env.FITNESS_LEDGER_WEB_AUTH_REQUIRED || "true").toLowerCase() !== "false";
+}
+
+function allowedOrigin(event) {
+  const origin = headerValue(event, "origin");
+  if (!origin) return "";
+  const allowed = String(process.env.FITNESS_LEDGER_WEB_ORIGINS || "")
+    .split(",").map(value => value.trim()).filter(Boolean);
+  return allowed.includes(origin) ? origin : "";
+}
+
+function httpResponse(event, statusCode, payload) {
+  const origin = allowedOrigin(event);
+  const headers = {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store",
+    "Vary": "Origin",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Accept, Content-Type, Authorization"
+  };
+  if (origin) headers["Access-Control-Allow-Origin"] = origin;
+  return { statusCode, headers, body: JSON.stringify(payload) };
+}
+
+function requestData(event) {
+  let body = {};
+  if (typeof event.body === "string" && event.body.trim()) {
+    try { body = JSON.parse(event.body); } catch (_) { body = {}; }
+  } else if (event.body && typeof event.body === "object") {
+    body = event.body;
+  }
+  return { ...body, ...(event.queryStringParameters || {}), action: event.queryStringParameters?.action || body.action || event.action || "" };
+}
+
+exports.main = async (event = {}) => {
+  if (String(event.httpMethod || "").toUpperCase() === "OPTIONS") {
+    return httpResponse(event, allowedOrigin(event) ? 204 : 403, {});
+  }
+  if (authRequired() && !hasBearerToken(event)) {
+    return httpResponse(event, 401, failure("UNAUTHORIZED", "请先完成网页端登录。"));
+  }
+  const request = requestData(event);
+  try {
+    const payload = await readAction(request);
+    return httpResponse(event, payload.ok ? 200 : 400, payload);
+  } catch (_) {
+    return httpResponse(event, 500, failure("QUERY_FAILED", "云端查询失败，请稍后重试。"));
+  }
+};

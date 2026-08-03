@@ -1,4 +1,4 @@
-import { apiDescription, call } from "./api.js";
+import { apiDescription, call, signIn } from "./api.js";
 
 const BODY_PARTS = [
   { id: "shoulders", cn: "肩", en: "SHOULDERS", tone: "amber" },
@@ -9,7 +9,7 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "v2026.08.03-sealed-parity-15";
+const BUILD_VERSION = "v2026.08.03-sealed-parity-16";
 const app = document.querySelector("#app");
 const state = {
   route: parseRoute(), loading: true, error: "", status: null, identity: null,
@@ -20,7 +20,7 @@ const state = {
   noteCandidatesCollapsed: false, dockVisible: false, dockOpen: false,
   noteDetailOpen: false, noteDetailLoading: false, noteDetailError: "",
   noteDetailMovement: null, noteDetailHistory: [], noteDetailRequest: 0, showAliases: false,
-  expanded: {}, candidatesRequest: 0
+  expanded: {}, candidatesRequest: 0, authRequired: false, authBusy: false, authMessage: ""
 };
 
 function parseRoute() {
@@ -44,7 +44,14 @@ function saveNote(value) { state.note = String(value || ""); try { localStorage.
 function bodyPart(id) { return BODY_PARTS.find(item => item.id === id) || BODY_PARTS[0]; }
 function isTopRoute() { return ["reference", "training", "status"].includes(state.route.name); }
 function navigate(route) { window.location.hash = route; }
-function setError(error) { state.error = error?.message === "HTTP_401" ? "当前 Web 账号尚未完成授权。" : "读取失败，请检查网络与只读接口。"; }
+function setError(error) {
+  if (["AUTH_REQUIRED", "HTTP_401", "UNAUTHORIZED"].includes(error?.message)) {
+    state.authRequired = true;
+    state.authMessage = "请先登录 CloudBase 网页账号。";
+    return;
+  }
+  state.error = "读取失败，请检查网络与只读接口。";
+}
 function renderStartupError() {
   if (!app) return;
   app.innerHTML = `<main class="page"><div class="eyebrow">STARTUP / RECOVERY</div><h1 class="title">页面正在恢复。</h1><p class="intro">工作台脚本没有正常启动。请刷新一次；如果仍为空白，请把当前页面地址发给我。</p><button class="archive-entry" onclick="location.reload()"><span><strong>重新加载</strong><small>刷新工作台</small></span><b>↻</b></button></main>`;
@@ -88,6 +95,9 @@ function pageStart(className = "") { return `<main class="page ${className}">`; 
 function pageEnd() { return "</main>"; }
 function header(eyebrow, title, intro = "") { return `<div class="eyebrow">${esc(eyebrow)}</div><h1 class="title">${title}</h1>${intro ? `<p class="intro">${esc(intro)}</p>` : ""}`; }
 function stateMessage(message, error = false) { return `<div class="state ${error ? "error" : ""}">${esc(message)}</div>`; }
+function renderLogin() {
+  return `<main class="page auth-page"><div class="eyebrow">PRIVATE WEB ACCESS / CLOUDBASE</div><h1 class="title">登录每日健身</h1><p class="intro">这是个人只读训练档案。登录只用于验证网页访问身份，不会修改小程序数据。</p><form class="auth-card" data-login><label>账号<input name="username" autocomplete="username" required></label><label>密码<input name="password" type="password" autocomplete="current-password" required></label><button class="auth-submit" type="submit" ${state.authBusy ? "disabled" : ""}>${state.authBusy ? "登录中…" : "登录"}</button>${state.authMessage ? `<p class="auth-error">${esc(state.authMessage)}</p>` : ""}</form></main>`;
+}
 
 function normalizeCandidateText(value) {
   return String(value || "").toLocaleLowerCase().replace(/\s+/g, " ").trim();
@@ -243,6 +253,10 @@ function scheduleDockCheck() {
 }
 
 function render() {
+  if (state.authRequired) {
+    app.innerHTML = renderLogin();
+    return;
+  }
   const active = document.activeElement;
   const noteSurface = active?.getAttribute("data-note-surface");
   const focusedSelector = noteSurface ? `[data-note-surface="${noteSurface}"]` : active?.matches("[data-search]") ? "[data-search]" : "";
@@ -329,6 +343,21 @@ async function openNoteCandidate(movementId) {
 }
 
 document.addEventListener("input", event => { if (event.target.matches("[data-search]")) { state.query = event.target.value; render(); } if (event.target.matches("[data-note]")) { saveNote(event.target.value); updateCandidates(); } });
+document.addEventListener("submit", async event => {
+  if (!event.target.matches("[data-login]")) return;
+  event.preventDefault();
+  const form = event.target;
+  const username = form.elements.username.value;
+  const password = form.elements.password.value;
+  state.authBusy = true; state.authMessage = ""; render();
+  try {
+    await signIn(username, password);
+    state.authRequired = false; state.authBusy = false; state.error = "";
+    await loadRoute();
+  } catch (_) {
+    state.authBusy = false; state.authMessage = "登录失败，请检查账号、密码和 CloudBase 登录方式。"; render();
+  }
+});
 document.addEventListener("click", event => {
   const route = event.target.closest("[data-route]")?.dataset.route;
   if (route) { state.query = ""; state.order = "newest"; navigate(route); return; }

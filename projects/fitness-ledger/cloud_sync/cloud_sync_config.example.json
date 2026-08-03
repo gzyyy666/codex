@@ -1,6 +1,6 @@
 {
   "provider": "tencentcloud",
-  "environment_id": "cloud1-d9g35v5s1a904a8aad",
+  "environment_id": "cloud1-d9g35v5s1a904a8ad",
   "region": "ap-shanghai",
   "secret_id_env": "TENCENTCLOUD_SECRET_ID",
   "secret_key_env": "TENCENTCLOUD_SECRET_KEY",

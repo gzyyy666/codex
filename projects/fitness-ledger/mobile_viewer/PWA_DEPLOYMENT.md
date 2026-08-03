@@ -16,8 +16,8 @@
 必须准备：
 
 1. 有权限访问当前 CloudBase 环境的腾讯云账号，并能在本机完成 `cloudbase login`。
-2. 确认要使用的 CloudBase 环境 ID。仓库示例是
-   `cloud1-d9g35v5s1a904a8aad`，最终以 CloudBase 控制台为准。
+2. 确认要使用的 CloudBase 环境 ID。当前最近一次真实同步和控制台部署使用的是
+   `cloud1-d9g35v5s1a904a8ad`，仍以 CloudBase 控制台为最终准。
 3. 一个 Web 登录方式。推荐启用 CloudBase Web 登录并使用微信 OAuth，或使用
    CloudBase 账号登录。微信小程序的登录会话不会自动继承到 Safari。
 4. 将实际访问地址加入 CloudBase Web 安全来源/安全域名配置。
@@ -55,8 +55,8 @@ python tools/pwa_deployment_preflight.py
 
 2. 完成 Web 只读 API 和 Web 登录配置，并在浏览器中验证 `status`、
    `movementCatalog`、`movementHistory` 三个接口。
-3. 将 PWA 的 `config.js` 中 `apiBaseUrl` 指向审查过的 Web API；不要把密钥放入
-   `config.js`。
+3. 将 PWA 的 `config.js` 中 `apiBaseUrl` 指向审查过的 Web API，并将
+   `requireWebAuth` 设为 `true`；不要把密钥放入 `config.js`。
 4. 登录 CloudBase 后上传静态文件。
 5. 用 Safari 打开 HTTPS 地址，选择“分享”→“添加到主屏幕”→打开“作为 Web App
    打开”→“添加”。
@@ -66,6 +66,9 @@ python tools/pwa_deployment_preflight.py
 ## 当前不能自动替你完成的动作
 
 - CloudBase 控制台登录和 OAuth/安全域名配置需要你的账号交互。
-- Web API 需要确定采用 CloudBase Web SDK 直接调用云函数，还是单独的 HTTP 网关；
-  这会决定认证和 allowlist 的实现，不能凭猜测部署。
+- `ledgerWebRead` 的代码已经准备在
+  `mini_program/cloudfunctions/ledgerWebRead/`，需要在 CloudBase 单独部署并通过
+  HTTP 网关暴露；它不会覆盖现有小程序 `ledgerRead`。
+- 仍需要在 CloudBase 控制台配置 Web 登录方式、安全来源和 HTTP 网关权限；这些
+  需要你的账号交互，不能凭猜测代替。
 - 未完成 Web API 前不能宣称“手机桌面版已经具备小程序同样的数据功能”。

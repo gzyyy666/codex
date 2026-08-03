@@ -177,3 +177,11 @@ button { color: inherit; cursor: pointer; }
   .tab span { font-size: 5.067vw; }
   .tab small { font-size: 2.667vw; }
 }
+/* Web-only authentication surface; it stays dormant for the local adapter. */
+.auth-page { min-height: calc(100dvh - 32px); display: grid; align-content: center; }
+.auth-card { max-width: 420px; margin-top: 28px; padding: 24px; border: 1px solid var(--line, #ded8cc); border-radius: 18px; background: rgba(255, 253, 248, .92); box-shadow: 0 18px 42px rgba(46, 38, 23, .08); }
+.auth-card label { display: grid; gap: 8px; margin-bottom: 16px; color: var(--muted, #777267); font-size: 13px; letter-spacing: .08em; }
+.auth-card input { width: 100%; box-sizing: border-box; min-height: 46px; border: 1px solid var(--line, #ded8cc); border-radius: 10px; padding: 0 12px; background: #fffdfa; color: var(--ink, #24221f); font: inherit; letter-spacing: normal; }
+.auth-submit { width: 100%; min-height: 46px; border: 0; border-radius: 10px; background: #28251f; color: #fffdfa; font: inherit; cursor: pointer; }
+.auth-submit:disabled { opacity: .55; cursor: wait; }
+.auth-error { margin: 14px 0 0; color: #a44c3d; font-size: 13px; }

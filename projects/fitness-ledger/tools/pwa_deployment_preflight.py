@@ -63,6 +63,10 @@ def main() -> int:
         warnings.append("config.js still points to the local/same-origin /api adapter")
         if args.deployment:
             errors.append("deployment config needs a reviewed HTTPS Web API gateway")
+    if re.search(r'requireWebAuth\s*:\s*false', config, re.IGNORECASE) and args.deployment:
+        errors.append("deployment config must require Web authentication")
+    if args.deployment and not re.search(r'envId\s*:\s*["\']cloud1-[^"\']+["\']', config):
+        errors.append("deployment config must contain the reviewed CloudBase environment id")
 
     if errors:
         print("PWA_PREFLIGHT_FAIL")

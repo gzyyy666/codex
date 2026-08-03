@@ -235,8 +235,10 @@ Future desktop visual work must modify the final `_premium_*` presentation layer
 - `cloud_sync/sync_to_cloud.py --dry-run`: Validates the payload and writes an explicit no-network sync report.
 - `mini_program/miniprogram/services/ledger.js`: Central Mini Program cloud-function client with unconfigured and network error states.
 - `mini_program/cloudfunctions/ledgerRead/index.js`: OpenID-allowlisted, read-only query boundary for status, latest, recent, reference, search, movement history, and record detail.
+- `mini_program/cloudfunctions/ledgerWebRead/index.js`: Separate HTTP/PWA read boundary with bearer-token enforcement, exact-origin CORS, and the same read action vocabulary; it does not replace `ledgerRead`.
 - `tools/cloud_payload_test.py`: Verifies collection contract, counts, raw-text exclusion, and no-network status.
 - `tools/mini_program_test.py`: Verifies project skeleton completeness and absence of cloud write calls.
+- `tools/ledger_web_read_test.py`: Verifies the PWA cloud function remains independent of Mini Program OpenID and contains no database write calls.
 
 ## Web API Additions
 
