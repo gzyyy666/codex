@@ -2,7 +2,7 @@
 
 ## What Exists Now
 
-The Git mirror intentionally contains no CloudBase credentials or active environment binding. It contains the local payload builder, import-ready collection files, the read-only cloud function, and the Mini Program skeleton. A formal working directory may be configured; use the live Cloud Sync report and `project_status.py` rather than this source guide to determine whether it is connected.
+The Git mirror intentionally contains no CloudBase credentials or committed environment binding. It contains the local payload builder, the reviewed one-way uploader, the read-only cloud function, and the Mini Program skeleton. A formal working directory and uploader may be configured locally; use the live Cloud Sync report and `project_status.py` rather than this source guide to determine whether it is connected.
 
 ## Create And Verify The Environment
 
@@ -15,7 +15,7 @@ The Git mirror intentionally contains no CloudBase credentials or active environ
 
 ## Review And Import
 
-Run `python cloud_sync/build_cloud_payload.py`, then open `cloud_sync/out/cloudbase_import/manifest.json`. In the CloudBase document-database console, clear the previous disposable replica collection and import its matching UTF-8 `.json` file using **Insert** mode. Import `fl_meta` last. Although the extension is `.json` for the file picker, the content uses JSON Lines: one complete JSON object per line.
+With the local SDK provider configured, use the desktop workbench's **执行自动同步** action. It builds the payload from the configured formal data directory, replaces the disposable replica collections, imports `fl_meta` last, and verifies the result. If the provider is unavailable, run `python cloud_sync/build_cloud_payload.py` and use the generated files for the manual console import fallback. Although the extension is `.json` for the file picker, the content uses JSON Lines: one complete JSON object per line.
 
 Collections with zero rows must still follow the current importer contract: use the valid empty-collection representation emitted by the current payload builder/uploader, rather than assuming a missing file is acceptable. Verify the actual `manifest.json` and dry-run report from the current Git baseline before importing; never rely on this guide to infer an older empty-collection behavior.
 

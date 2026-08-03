@@ -1,6 +1,7 @@
 from __future__ import annotations
 import json
 import importlib.util
+import os
 import sys
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
@@ -41,15 +42,35 @@ def source_metadata(tracker: dict, dictionary: dict) -> dict:
         "latest_record_date": max(dates, default=""),
     }
 
+
+def resolve_source_files() -> tuple[Path, Path]:
+    """Resolve the same formal data directory used by the desktop web service.
+
+    The repository keeps only a small fixture under ``data/``.  The running
+    desktop application may point at the user's formal ledger through
+    ``FITNESS_LEDGER_FORMAL_DIR``; payload generation must use that same source
+    or a one-click sync could publish stale fixture data.
+    """
+    configured_root = str(os.environ.get("FITNESS_LEDGER_FORMAL_DIR", "")).strip()
+    if configured_root:
+        formal_root = Path(configured_root).expanduser()
+        formal_data_root = formal_root / "data" if (formal_root / "data").is_dir() else formal_root
+        tracker = formal_data_root / "tracker.json"
+        dictionary = formal_data_root / "movement_dictionary.json"
+        if tracker.is_file() and dictionary.is_file():
+            return tracker, dictionary
+    return PROJECT_DIR / "data" / "tracker.json", PROJECT_DIR / "data" / "movement_dictionary.json"
+
 def main() -> Path:
-    views = LedgerViewModels(PROJECT_DIR / "data" / "tracker.json", PROJECT_DIR / "data" / "movement_dictionary.json")
+    tracker_path, dictionary_path = resolve_source_files()
+    views = LedgerViewModels(tracker_path, dictionary_path)
     tracker, dictionary = views.snapshot()
     source = source_metadata(tracker, dictionary)
     quality = collect_issues(
         tracker,
         dictionary,
         load_stable_module(),
-        PROJECT_DIR / "data" / "data_check_state.json",
+        tracker_path.parent / "data_check_state.json",
     )
     payload = build_cloud_payload(views, data_quality=quality)
     output = PROJECT_DIR / "cloud_sync" / "out" / "fitness_ledger_cloud_payload.json"
