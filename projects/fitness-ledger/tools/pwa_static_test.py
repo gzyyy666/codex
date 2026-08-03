@@ -76,8 +76,8 @@ def main() -> None:
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'includes("/api/")' in service_worker
-    assert 'fitness-ledger-pwa-v20' in service_worker
-    assert 'register("./sw.js?v=20260803-20", { updateViaCache: "none" })' in app_source
+    assert 'fitness-ledger-pwa-v21' in service_worker
+    assert 'register("./sw.js?v=20260803-21", { updateViaCache: "none" })' in app_source
     desktop_icon = ROOT / "assets" / "fitness-ledger-monogram-v3.png"
     pwa_icon = PWA / "icons" / "fitness-ledger.png"
     assert hashlib.sha256(desktop_icon.read_bytes()).digest() == hashlib.sha256(pwa_icon.read_bytes()).digest()

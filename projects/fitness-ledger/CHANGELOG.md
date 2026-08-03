@@ -1,5 +1,11 @@
 # Fitness Ledger Changelog
 
+## 2026-08-03 - PWA icon opaque edge fix
+
+- Replaced transparent outer corners with the same warm-white background so
+  mobile home-screen rendering cannot expose a dark edge.
+- Kept the smaller centered monogram and the desktop/PWA icon parity.
+
 ## 2026-08-03 - PWA icon margin refinement
 
 - Reduced the monogram slightly and added more even warm-white margin.
