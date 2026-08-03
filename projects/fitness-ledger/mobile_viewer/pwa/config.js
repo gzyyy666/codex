@@ -1,10 +1,9 @@
-// Public, non-secret defaults for the same-origin local viewer.
-// Configure a reviewed HTTPS Web API gateway here when deploying the PWA.
+// Public, non-secret production settings for the CloudBase-hosted PWA.
 window.FL_PWA_CONFIG = {
-  apiBaseUrl: "/api",
+  apiBaseUrl: "https://cloud1-d9g35v5s1a904a8ad-1450570992.ap-shanghai.app.tcloudbase.com/api",
   credentials: "include",
   envId: "cloud1-d9g35v5s1a904a8ad",
   region: "ap-shanghai",
-  requireWebAuth: false,
+  requireWebAuth: true,
   appName: "每日健身"
 };

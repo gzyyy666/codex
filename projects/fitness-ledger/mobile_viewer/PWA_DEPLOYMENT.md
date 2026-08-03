@@ -2,9 +2,9 @@
 
 ## 先说结论
 
-当前 `mobile_viewer/pwa/` 是可以直接上传的纯静态 PWA，但本地配置中的
-`/api` 只连接本机 Flask 查看器。把静态文件上传到 CloudBase 后，页面可以打开，
-但如果没有 Web API 网关，训练数据不会加载。
+当前 `mobile_viewer/pwa/` 已部署到 CloudBase 静态托管，生产配置通过启用身份认证
+和安全域名检查的 HTTP 网关访问独立只读函数 `ledgerWebRead`。匿名接口实测返回
+`401 Unauthorized`，不会直接暴露训练数据。
 
 现有 `mini_program/cloudfunctions/ledgerRead` 是小程序专用读取函数，使用
 `wx.getWXContext()` 和微信 `openid` 白名单。不能把它未经改造直接当作 Safari
@@ -47,9 +47,16 @@ cloudbase hosting deploy .\mobile_viewer\pwa / --env-id <环境ID>
 
 ## 安全上线顺序
 
-当前断点：静态 PWA 已上传；`ledgerWebRead` 已作为独立 Event 云函数部署并处于
-`Active / Available`，但尚未创建 HTTP 网关路由或触发器，所以没有公开数据入口。
-下一步是完成安全来源和 Web 登录方式，再绑定 `/api/pwa/read`。
+当前上线状态：
+
+- 静态站点：`https://cloud1-d9g35v5s1a904a8ad-1450570992.tcloudbaseapp.com`
+- API 路由：`/api/pwa/read` → `ledgerWebRead`
+- HTTP 身份认证：开启
+- 安全域名：开启；静态站点域名已在安全域名列表
+- 生产 PWA：`requireWebAuth: true`
+- 匿名访问：已验证返回 `401 Unauthorized`
+
+后续仅需由实际用户在手机上验证账号登录和真实数据展示。
 
 1. 先运行静态预检：
 
@@ -67,12 +74,11 @@ python tools/pwa_deployment_preflight.py
 6. 手机上验证登录、最新训练日、动作候选、动作历史和状态页；确认失败时不会
    回退显示本地或其他用户的数据。
 
-## 当前不能自动替你完成的动作
+## 仍需用户完成的验收
 
-- CloudBase 控制台登录和 OAuth/安全域名配置需要你的账号交互。
-- `ledgerWebRead` 的代码已经准备在
-  `mini_program/cloudfunctions/ledgerWebRead/`，需要在 CloudBase 单独部署并通过
-  HTTP 网关暴露；它不会覆盖现有小程序 `ledgerRead`。
-- 仍需要在 CloudBase 控制台配置 Web 登录方式、安全来源和 HTTP 网关权限；这些
-  需要你的账号交互，不能凭猜测代替。
-- 未完成 Web API 前不能宣称“手机桌面版已经具备小程序同样的数据功能”。
+- 在 CloudBase“登录方式”中确认账号密码登录已启用；不要把密码写进代码或发给他人。
+- 用现有 `administrator` 网页账号登录 PWA，确认最新训练日、动作候选、动作历史和
+  状态页均能读取。
+- iPhone Safari 打开静态站点，选择“分享”→“添加到主屏幕”→“作为 Web App 打开”。
+
+现有小程序 `ledgerRead`、正式数据集合和同步流程没有被此次 PWA 网关部署修改。
