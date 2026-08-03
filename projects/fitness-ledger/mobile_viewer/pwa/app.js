@@ -122,8 +122,26 @@ function renderRecord() {
 }
 
 function renderMovement() {
-  const movement = state.movement; const history = state.movementHistory || []; const latest = history[0]; const previous = history[1];
-  return `${pageStart("movement-page")}${state.loading ? stateMessage("读取中…") : state.error ? stateMessage(state.error, true) : !movement ? stateMessage("没有找到该动作。") : `<section class="movement-hero"><div class="eyebrow">MOVEMENT TRAJECTORY</div><h1 class="title movement-title">${esc(movement.display_name)}</h1><p>${esc(movement.english_name || "")} · ${esc(movement.muscle_group || "")}</p><button class="alias-toggle" data-action="aliases">${state.showAliases ? "收起别名" : "查看别名"} →</button>${state.showAliases ? `<div class="chips">${(movement.aliases || []).map(item => `<span>${esc(item)}</span>`).join("")}</div>` : ""}</section>${latest ? `<section class="signal-board"><div class="board-head"><div><div class="eyebrow">RECENT SIGNALS</div><h2>最近变化</h2></div><span>${esc(date(latest.date))}</span></div><div class="signal-grid"><span>LATEST MAX<strong>${metric(latest, "max_weight") ? `${metric(latest, "max_weight")}kg` : "自重"}</strong></span><span>TOTAL REPS<strong>${metric(latest, "total_reps") || "-"}</strong></span><span>VOLUME<strong>${metric(latest, "volume") || "-"}</strong></span><span>PREVIOUS MAX<strong>${previous ? (metric(previous, "max_weight") ? `${metric(previous, "max_weight")}kg` : "自重") : "-"}</strong></span></div></section>` : ""}<section class="trajectory"><div class="list-heading"><div><div class="eyebrow">RECENT THREE</div><h2 class="section-title">最近三次</h2></div><span class="count">${history.length}</span></div>${history.length ? history.map((item, index) => `<button class="history-slip" data-action="session" data-date="${esc(item.date)}"><div class="history-head"><b>${esc(date(item.date))}</b><span>${item.order ? `第 ${item.order} 个动作` : `#${index + 1}`}</span></div><div class="set-row"><span>${esc(setSummary(item))}</span><span>${metric(item, "total_reps") || "-"} reps</span></div>${item.notes ? `<p>${esc(item.notes)}</p>` : ""}<small>查看当天完整训练 →</small></button>`).join("") : stateMessage("该动作暂无历史。")}</section>${pageEnd()}`;
+  const movement = state.movement;
+  const history = state.movementHistory || [];
+  const latest = history[0];
+  const previous = history[1];
+  if (state.loading) return `${pageStart("movement-page")}${stateMessage("读取中…")}${pageEnd()}`;
+  if (state.error) return `${pageStart("movement-page")}${stateMessage(state.error, true)}${pageEnd()}`;
+  if (!movement) return `${pageStart("movement-page")}${stateMessage("没有找到该动作。")}${pageEnd()}`;
+
+  const aliases = state.showAliases ? `<div class="chips">${(movement.aliases || []).map(item => `<span>${esc(item)}</span>`).join("")}</div>` : "";
+  const hero = `<section class="movement-hero"><div class="eyebrow">MOVEMENT TRAJECTORY</div><h1 class="title movement-title">${esc(movement.display_name)}</h1><p>${esc(movement.english_name || "")} · ${esc(movement.muscle_group || "")}</p><button class="alias-toggle" data-action="aliases">${state.showAliases ? "收起别名" : "查看别名"} →</button>${aliases}</section>`;
+  const latestMax = metric(latest, "max_weight") ? `${metric(latest, "max_weight")}kg` : "自重";
+  const previousMax = previous ? (metric(previous, "max_weight") ? `${metric(previous, "max_weight")}kg` : "自重") : "-";
+  const signal = latest ? `<section class="signal-board"><div class="board-head"><div><div class="eyebrow">RECENT SIGNALS</div><h2>最近变化</h2></div><span>${esc(date(latest.date))}</span></div><div class="signal-grid"><span>LATEST MAX<strong>${latestMax}</strong></span><span>TOTAL REPS<strong>${metric(latest, "total_reps") || "-"}</strong></span><span>VOLUME<strong>${metric(latest, "volume") || "-"}</strong></span><span>PREVIOUS MAX<strong>${previousMax}</strong></span></div></section>` : "";
+  const historyCards = history.map((item, index) => {
+    const orderLabel = item.order ? `第 ${item.order} 个动作` : `#${index + 1}`;
+    const note = item.notes ? `<p>${esc(item.notes)}</p>` : "";
+    return `<button class="history-slip" data-action="session" data-date="${esc(item.date)}"><div class="history-head"><b>${esc(date(item.date))}</b><span>${orderLabel}</span></div><div class="set-row"><span>${esc(setSummary(item))}</span><span>${metric(item, "total_reps") || "-"} reps</span></div>${note}<small>查看当天完整训练 →</small></button>`;
+  }).join("");
+  const trajectory = `<section class="trajectory"><div class="list-heading"><div><div class="eyebrow">RECENT THREE</div><h2 class="section-title">最近三次</h2></div><span class="count">${history.length}</span></div>${history.length ? historyCards : stateMessage("该动作暂无历史。")}</section>`;
+  return `${pageStart("movement-page")}${hero}${signal}${trajectory}${pageEnd()}`;
 }
 
 function renderNoteDetail() { return ""; }
