@@ -47,6 +47,10 @@ cloudbase hosting deploy .\mobile_viewer\pwa / --env-id <环境ID>
 
 ## 安全上线顺序
 
+当前断点：静态 PWA 已上传；`ledgerWebRead` 已作为独立 Event 云函数部署并处于
+`Active / Available`，但尚未创建 HTTP 网关路由或触发器，所以没有公开数据入口。
+下一步是完成安全来源和 Web 登录方式，再绑定 `/api/pwa/read`。
+
 1. 先运行静态预检：
 
 ```powershell

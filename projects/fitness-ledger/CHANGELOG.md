@@ -12,8 +12,10 @@
 - Corrected the tracked CloudBase environment example to match the environment
   confirmed by the successful sync report and static-hosting deployment.
 
-CloudBase data and formal JSON: unchanged. The new web function and updated PWA
-were prepared locally but not deployed in this change.
+CloudBase data and formal JSON: unchanged. `ledgerWebRead` was deployed as a
+new Event cloud function in `cloud1-d9g35v5s1a904a8ad` with no trigger or HTTP
+route; the existing `ledgerRead` was untouched. The authenticated PWA update
+has not yet been uploaded because the final gateway URL is not available.
 
 Checks:
 
