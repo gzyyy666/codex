@@ -8,7 +8,7 @@ const BODY_PARTS = [
   { id: "arms", cn: "手臂", en: "ARMS", tone: "cyan" }
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "v2026.08.02-action-candidates-12";
+const BUILD_VERSION = "v2026.08.03-mobile-input-14";
 const app = document.querySelector("#app");
 const state = {
   route: parseRoute(), loading: true, error: "", status: null, identity: null,
@@ -147,9 +147,25 @@ function renderMovement() {
 function renderNoteDetail() { return ""; }
 
 function render() {
+  const active = document.activeElement;
+  const focusedSelector = active?.matches("[data-note]") ? "[data-note]" : active?.matches("[data-search]") ? "[data-search]" : "";
+  const focusedControl = focusedSelector ? {
+    start: active.selectionStart,
+    end: active.selectionEnd,
+    scrollTop: active.scrollTop
+  } : null;
   const name = state.route.name;
   const content = name === "reference" ? renderReference() : name === "training" ? renderTraining() : name === "status" ? renderStatus() : name === "body" ? renderArchive("body") : name === "diet" ? renderArchive("diet") : name === "record" ? renderRecord() : name === "movement" ? renderMovement() : renderReference();
   app.innerHTML = content;
+  if (focusedControl) {
+    const nextControl = app.querySelector(focusedSelector);
+    if (nextControl) {
+      nextControl.focus({ preventScroll: true });
+      const length = nextControl.value.length;
+      nextControl.setSelectionRange(Math.min(focusedControl.start, length), Math.min(focusedControl.end, length));
+      nextControl.scrollTop = focusedControl.scrollTop;
+    }
+  }
 }
 
 async function loadRoute() {
