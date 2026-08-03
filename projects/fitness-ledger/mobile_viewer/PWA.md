@@ -36,9 +36,15 @@ only for development.
 ## Deployment contract
 
 The static files can be deployed to CloudBase Static Hosting, Cloudflare
-Pages, or another HTTPS static host. No custom domain is required for a
-private pilot: the provider's default HTTPS address is sufficient for Safari's
-"Add to Home Screen" flow.
+Pages, or another HTTPS static host. The complete phone experience also needs
+a reviewed Web API gateway and Web authentication; static hosting alone only
+serves HTML/CSS/JavaScript. See `PWA_DEPLOYMENT.md` for the current checklist
+and run `python tools/pwa_deployment_preflight.py` before uploading.
+
+CloudBase's default HTTPS address is suitable for an initial private test when
+the console permits it. For production browser access, follow the current
+CloudBase hosting/domain requirements and configure a custom domain if the
+platform requires one.
 
 The deployed page must reach a safe Web API. The browser must not call the
 WeChat-only `wx.cloud.callFunction` API and must not contain CloudBase secrets.
