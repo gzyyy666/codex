@@ -13,7 +13,7 @@
       "src": "./icons/fitness-ledger.png",
       "type": "image/png",
       "sizes": "512x512",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }

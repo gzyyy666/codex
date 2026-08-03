@@ -80,5 +80,7 @@ python tools/pwa_deployment_preflight.py
 - 用现有 `administrator` 网页账号登录 PWA，确认最新训练日、动作候选、动作历史和
   状态页均能读取。
 - iPhone Safari 打开静态站点，选择“分享”→“添加到主屏幕”→“作为 Web App 打开”。
+- CloudBase Web 登录态使用本地持久会话，正常情况下在显式退出或会话到期前无需
+  重复登录。已安装旧图标时，需要先删除旧主屏幕图标再重新添加，iOS 才会刷新图标。
 
 现有小程序 `ledgerRead`、正式数据集合和同步流程没有被此次 PWA 网关部署修改。

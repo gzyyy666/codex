@@ -1,6 +1,6 @@
 # Fitness Ledger Changelog
 
-## 2026-08-03 - PWA CloudBase deployment preparation
+## 2026-08-03 - Authenticated PWA deployment and mobile polish
 
 - Added the isolated `ledgerWebRead` HTTP cloud function for the PWA. It reads
   the existing ten `fl_*` replica collections, requires a bearer token by
@@ -11,11 +11,16 @@
   dedicated web-function contract test.
 - Corrected the tracked CloudBase environment example to match the environment
   confirmed by the successful sync report and static-hosting deployment.
+- Bound `/api/pwa/read` to `ledgerWebRead` with gateway authentication and safe
+  domain checks enabled, then deployed the production PWA to CloudBase hosting.
+- Persisted the Web login through the CloudBase local session, prevented iOS
+  form-focus zoom, reset stale viewport offsets after login/navigation, aligned
+  the PWA icon with the desktop app, and added reduced-motion-aware transitions.
 
 CloudBase data and formal JSON: unchanged. `ledgerWebRead` was deployed as a
-new Event cloud function in `cloud1-d9g35v5s1a904a8ad` with no trigger or HTTP
-route; the existing `ledgerRead` was untouched. The authenticated PWA update
-has not yet been uploaded because the final gateway URL is not available.
+new Event cloud function in `cloud1-d9g35v5s1a904a8ad`; its HTTP route requires
+authentication and rejects anonymous requests with `401`. The existing
+`ledgerRead` was untouched.
 
 Checks:
 

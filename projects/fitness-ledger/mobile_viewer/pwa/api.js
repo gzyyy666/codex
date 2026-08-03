@@ -28,7 +28,7 @@ async function webAuth() {
   if (!config.envId) throw new Error("CLOUDBASE_ENV_MISSING");
   if (!webAuthPromise) {
     webAuthPromise = loadCloudBaseSdk().then(cloudbase => (
-      cloudbase.init({ env: config.envId, region: config.region || "ap-shanghai" }).auth()
+      cloudbase.init({ env: config.envId, region: config.region || "ap-shanghai" }).auth({ persistence: "local" })
     ));
   }
   return webAuthPromise;

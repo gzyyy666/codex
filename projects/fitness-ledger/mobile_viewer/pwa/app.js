@@ -9,7 +9,7 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "v2026.08.03-sealed-parity-16";
+const BUILD_VERSION = "v2026.08.03-mobile-polish-17";
 const app = document.querySelector("#app");
 const state = {
   route: parseRoute(), loading: true, error: "", status: null, identity: null,
@@ -43,7 +43,12 @@ function loadNote() {
 function saveNote(value) { state.note = String(value || ""); try { localStorage.setItem(NOTE_KEY, state.note); } catch (_) {} }
 function bodyPart(id) { return BODY_PARTS.find(item => item.id === id) || BODY_PARTS[0]; }
 function isTopRoute() { return ["reference", "training", "status"].includes(state.route.name); }
-function navigate(route) { window.location.hash = route; }
+function resetViewport() {
+  document.activeElement?.blur?.();
+  window.scrollTo(0, 0);
+  window.requestAnimationFrame(() => window.scrollTo(0, 0));
+}
+function navigate(route) { resetViewport(); window.location.hash = route; }
 function setError(error) {
   if (["AUTH_REQUIRED", "HTTP_401", "UNAUTHORIZED"].includes(error?.message)) {
     state.authRequired = true;
@@ -281,6 +286,7 @@ function render() {
 }
 
 async function loadRoute() {
+  resetViewport();
   state.route = parseRoute(); state.loading = true; state.error = ""; state.dockVisible = false; state.dockOpen = false; state.noteDetailOpen = false; state.noteDetailRequest += 1; render();
   try {
     const name = state.route.name; const part = state.route.params.get("part");
@@ -353,6 +359,7 @@ document.addEventListener("submit", async event => {
   try {
     await signIn(username, password);
     state.authRequired = false; state.authBusy = false; state.error = "";
+    resetViewport();
     await loadRoute();
   } catch (_) {
     state.authBusy = false; state.authMessage = "登录失败，请检查账号、密码和 CloudBase 登录方式。"; render();

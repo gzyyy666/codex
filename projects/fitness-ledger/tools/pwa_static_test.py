@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 
 
@@ -33,6 +34,7 @@ def main() -> None:
     source = "\n".join(path.read_text(encoding="utf-8") for path in required if path.suffix in {".html", ".js", ".css"})
     app_source = (PWA / "app.js").read_text(encoding="utf-8")
     css_source = (PWA / "styles.css").read_text(encoding="utf-8")
+    api_source = (PWA / "api.js").read_text(encoding="utf-8")
     for route in ("reference", "training", "status", "body", "diet", "record", "movement"):
         assert f'"{route}"' in app_source, f"missing Mini Program route: {route}"
     assert "NOTE_KEY" in app_source
@@ -42,6 +44,9 @@ def main() -> None:
     assert 'call("movementHistory"' in app_source
     for marker in ("renderLogin", "signIn", "AUTH_REQUIRED", "Authorization", "cloudbase-js-sdk/2.27.1"):
         assert marker in source, f"missing Web authentication contract: {marker}"
+    assert 'persistence: "local"' in api_source, "Web login must survive app restarts"
+    assert "resetViewport" in app_source and "window.scrollTo(0, 0)" in app_source
+    assert ".auth-card input { font-size: 16px; }" in css_source, "iOS login input must not trigger page zoom"
     for marker in ("renderNoteDock", "candidate-overlay", "candidate-edge-dot", "可能相关动作 · 最近记录", "previewSetLine", "note-detail-backdrop", "data-note-surface", "scheduleDockCheck"):
         assert marker in source, f"missing sealed Mini Program parity marker: {marker}"
     for marker in (
@@ -60,6 +65,9 @@ def main() -> None:
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'includes("/api/")' in service_worker
+    desktop_icon = ROOT / "assets" / "fitness-ledger-monogram-v3.png"
+    pwa_icon = PWA / "icons" / "fitness-ledger.png"
+    assert hashlib.sha256(desktop_icon.read_bytes()).digest() == hashlib.sha256(pwa_icon.read_bytes()).digest()
     print("PWA static contract: PASS")
 
 
