@@ -7,6 +7,9 @@ from flask import Flask, abort, jsonify, render_template, request, send_from_dir
 from .data_access import BASE_DIR, LedgerDataAccess
 
 
+PWA_DIR = Path(__file__).resolve().parent / "pwa"
+
+
 def create_app() -> Flask:
     app = Flask(__name__, template_folder="templates", static_folder="static")
     data_access = LedgerDataAccess()
@@ -26,6 +29,15 @@ def create_app() -> Flask:
     @app.get("/viewer-assets/<path:filename>")
     def viewer_assets(filename: str):
         return send_from_directory(BASE_DIR / "assets", filename)
+
+    @app.get("/pwa/")
+    @app.get("/pwa")
+    def pwa_index():
+        return send_from_directory(PWA_DIR, "index.html")
+
+    @app.get("/pwa/<path:filename>")
+    def pwa_assets(filename: str):
+        return send_from_directory(PWA_DIR, filename)
 
     @app.get("/")
     def home():

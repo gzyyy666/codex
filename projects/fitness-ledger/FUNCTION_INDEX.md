@@ -31,6 +31,17 @@
 
 ### Web Training And Export Presentation
 
+### Mobile Workbench PWA
+
+- `mobile_viewer/pwa/app.js`: Renders the mobile-first home, plan, records, body, and settings surfaces without formal writes.
+- `mobile_viewer/pwa/api.js`: Reads the bounded Web API contract and accepts either raw JSON or the existing `{ok, data}` envelope.
+- `mobile_viewer/pwa/sw.js`: Caches only the app shell and never caches `/api/` responses.
+- `mobile_viewer/app.py` `/pwa/`: Serves the PWA shell from the local Flask viewer for safe local verification.
+
+The PWA is a presentation layer only. A future Web authentication gateway must
+be reviewed before it exposes the private CloudBase replica; do not call the
+WeChat-only `wx.cloud.callFunction` API from browser code.
+
 - `quickPage`: Renders the Daily Entry writing workbench while preserving the shared Parse/Review/Save workflow.
 - `compactEntryAside`: Renders the floating Today receipt and layered Recent Saved archive slips from existing local data.
 - `bodyPartThemes`: Defines the five Training Records theme identities, copy, colors, imagery, matching keywords, and empty states.

@@ -30,6 +30,7 @@
 | `tools/` | Extraction and regression utilities. | Auxiliary |
 | `cloud_sync/` | Builds and validates the sanitized read-only cloud replica. | Local-to-cloud preparation |
 | `mini_program/` | WeChat read-only viewer, cloud-function contract, and setup documentation. | Deployment is environment-dependent; Git contains no credentials |
+| `mobile_viewer/` | Local Flask viewer and installable read-only mobile workbench PWA. | Web API/auth gateway required for private remote data |
 | `backups/` | Manual project snapshots before maintenance. | Keep |
 | `__pycache__/` | Generated Python bytecode. | Disposable |
 

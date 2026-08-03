@@ -1,0 +1,19 @@
+{
+  "name": "每日健身 · Fitness Ledger",
+  "short_name": "每日健身",
+  "description": "Fitness Ledger 的个人只读健身工作台",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f7fb",
+  "theme_color": "#7468ee",
+  "icons": [
+    {
+      "src": "./icons/fitness-ledger.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ]
+}
