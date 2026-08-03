@@ -40,7 +40,7 @@ def main() -> None:
     assert "findLastCandidate" in app_source
     assert "previewHistory" in app_source
     assert 'call("movementHistory"' in app_source
-    for marker in ("renderNoteDock", "candidate-overlay", "note-detail-backdrop", "data-note-surface", "scheduleDockCheck"):
+    for marker in ("renderNoteDock", "candidate-overlay", "candidate-edge-dot", "可能相关动作 · 最近记录", "previewSetLine", "note-detail-backdrop", "data-note-surface", "scheduleDockCheck"):
         assert marker in source, f"missing sealed Mini Program parity marker: {marker}"
     for marker in (
         ".reference-page .candidate-overlay { position: fixed; z-index: 55;",

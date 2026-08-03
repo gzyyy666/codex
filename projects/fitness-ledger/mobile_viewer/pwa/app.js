@@ -62,6 +62,16 @@ function setLine(item) {
   const weight = item.weight_text || item.weightText || (item.weight ? `${item.weight} kg` : "自重");
   return `${weight} ${item.reps ? `${item.reps} 次` : ""} ${item.sets ? `× ${item.sets} 组` : ""}`.trim();
 }
+function previewSetLine(item) {
+  const rawWeight = item?.weight_text ?? item?.weightText ?? item?.weight;
+  const numericWeight = rawWeight !== undefined && rawWeight !== null && /^\s*\d+(?:\.\d+)?\s*$/.test(String(rawWeight));
+  const weightLabel = rawWeight === undefined || rawWeight === null || rawWeight === "" || Number(rawWeight) === 0
+    ? ""
+    : (numericWeight ? `${Number(rawWeight)} kg` : String(rawWeight));
+  const repsLabel = item?.reps === undefined || item?.reps === null || item?.reps === "" ? "" : `${item.reps} 次`;
+  const setsLabel = item?.sets === undefined || item?.sets === null || item?.sets === "" ? "" : `${item.sets} 组`;
+  return [weightLabel, repsLabel, setsLabel].filter(Boolean).join(" · ");
+}
 function setSummary(item) {
   if (item.summary) return item.summary;
   if (Array.isArray(item.sets) && item.sets.length) return item.sets.map(setLine).join("  ");
@@ -106,14 +116,14 @@ function renderCandidateHistory(history) {
   return history.slice(0, 3).map(record => {
     const sets = Array.isArray(record.sets) ? record.sets : [];
     const setMarkup = sets.length
-      ? `<div class="candidate-sets">${sets.map((item, index) => `<div class="candidate-set"><span>${String(index + 1).padStart(2, "0")}</span><b>${esc(setLine(item))}</b></div>`).join("")}</div>`
+      ? `<div class="candidate-sets">${sets.map((item, index) => `<div class="candidate-set"><span>${String(index + 1).padStart(2, "0")}</span><b>${esc(previewSetLine(item))}</b></div>`).join("")}</div>`
       : `<div class="candidate-summary">${esc(setSummary(record))}</div>`;
-    return `<article class="candidate-history"><div class="candidate-history-head"><b>${esc(date(record.date))}</b><span>${record.order ? `第 ${esc(record.order)} 个动作` : "训练记录"}</span></div>${setMarkup}${record.notes ? `<p>${esc(record.notes)}</p>` : ""}</article>`;
+    return `<article class="candidate-history"><div class="candidate-history-head"><b>${esc(`${date(record.date)}${record.order ? ` · 第 ${record.order} 个动作` : ""}`)}</b></div>${setMarkup}${record.notes ? `<p>${esc(record.notes)}</p>` : ""}</article>`;
   }).join("");
 }
 function renderNoteCandidate(candidate) {
   const partLabel = (candidate.body_parts || []).map(id => bodyPart(id).cn).join(" / ") || candidate.body_part_label || "跨部位";
-  return `<button class="candidate" data-action="candidate" data-id="${esc(candidate.movement_id)}"><span class="candidate-main"><b>${esc(candidate.display_name)}</b><small>${esc(candidate.english_name || partLabel)} · ${esc(partLabel)}</small><em>识别词：${esc(candidate.matched_term || candidate.display_name)}</em></span><strong>只读详情 →</strong><span class="candidate-history-list">${renderCandidateHistory(candidate.previewHistory)}</span></button>`;
+  return `<button class="candidate" data-action="candidate" data-id="${esc(candidate.movement_id)}"><span class="candidate-main"><b>${esc(candidate.display_name)}</b>${candidate.english_name ? `<small>${esc(candidate.english_name)}</small>` : ""}<span class="candidate-history-list">${renderCandidateHistory(candidate.previewHistory)}</span></span><span class="candidate-meta"><small>${esc(partLabel)}</small><strong>详情 →</strong></span></button>`;
 }
 
 function renderReference() {
@@ -127,20 +137,20 @@ function renderReference() {
 
 function renderNoteDock() {
   if (!state.dockVisible) return "";
-  if (!state.dockOpen) return `<section class="notepad-dock notepad-dock-collapsed"><button class="notepad-dock-bar" data-action="toggle-dock"><span>TRAINING NOTE</span><b>${state.note ? "已保存 · 打开" : "打开记事本"}</b><i>⌃</i></button></section>`;
-  return `<section class="notepad-dock"><div class="notepad-dock-card"><div class="notepad-head"><div><div class="eyebrow">LOCAL ONLY / TRAINING NOTE</div><h2>TRAINING NOTE / 训练记录</h2></div><button data-action="toggle-dock">COLLAPSE</button></div><textarea data-note data-note-surface="dock" placeholder="Freeform notes, any format.">${esc(state.note)}</textarea><div class="notepad-actions"><button data-action="copy-note">COPY ALL</button><button class="danger-link" data-action="clear-note">CLEAR</button></div><div class="notepad-status">已自动保存 · 不写入正式训练记录</div></div></section>`;
+  if (!state.dockOpen) return `<section class="notepad-dock notepad-dock-collapsed"><button class="notepad-dock-bar" data-action="toggle-dock"><span>TRAINING NOTE <b> · 已自动保存</b></span><strong>展开</strong></button></section>`;
+  return `<section class="notepad-dock"><div class="notepad-dock-card"><div class="notepad-head"><div><div class="eyebrow">LOCAL ONLY</div><h2>TRAINING NOTE / 训练记录</h2></div><button data-action="toggle-dock">收拢</button></div><textarea data-note data-note-surface="dock" placeholder="自由记录本次训练，支持任意格式……">${esc(state.note)}</textarea><div class="notepad-actions"><button data-action="copy-note">复制全部</button><button class="danger-link" data-action="clear-note">清空</button></div><div class="notepad-status">已自动保存到本地</div></div></section>`;
 }
 
 function renderCandidateOverlay() {
   if (!state.noteCandidatesLoading && !state.noteCandidates.length && !state.noteCandidatesCollapsed) return "";
-  if (state.noteCandidatesCollapsed) return `<section class="candidates candidate-overlay collapsed"><button class="candidate-edge" data-action="toggle-candidates"><span>候选</span><b>›</b></button></section>`;
-  return `<section class="candidates candidate-overlay"><div class="candidate-head"><span>可能相关动作 · 最近正式记录</span><button data-action="toggle-candidates">收起</button></div>${state.noteCandidatesLoading ? `<div class="candidate-loading">正在识别动作库…</div>` : `<div class="candidate-scroll">${state.noteCandidates.map(renderNoteCandidate).join("")}</div>`}</section>`;
+  if (state.noteCandidatesCollapsed) return `<section class="candidates candidate-overlay collapsed"><button class="candidate-edge" data-action="toggle-candidates" aria-label="展开动作候选"><span class="candidate-edge-dot"></span></button></section>`;
+  return `<section class="candidates candidate-overlay"><div class="candidate-head"><span>可能相关动作 · 最近记录</span><button data-action="toggle-candidates">收起</button></div>${state.noteCandidatesLoading ? `<div class="candidate-loading">正在识别动作库…</div>` : `<div class="candidate-scroll">${state.noteCandidates.map(renderNoteCandidate).join("")}</div>`}</section>`;
 }
 
 function renderReferenceArea(selected) {
   const area = state.area || { ...bodyPart(selected), label: bodyPart(selected).cn, labelEn: bodyPart(selected).en, movements: [], sessions: [] };
   const part = bodyPart(selected);
-  const note = state.noteOpen ? `<section class="notepad-card"><div class="notepad-head"><div><div class="eyebrow">LOCAL ONLY / TRAINING NOTE</div><h2>TRAINING NOTE / 训练记录</h2></div><button data-action="toggle-note">FLIP</button></div><textarea data-note data-note-surface="inline" placeholder="Freeform notes, any format.">${esc(state.note)}</textarea><div class="notepad-actions"><button data-action="copy-note">${state.noteExpanded ? "COPY ALL" : "COPY"}</button><button class="danger-link" data-action="clear-note">CLEAR</button><button data-action="expand-note">${state.noteExpanded ? "COLLAPSE EDIT" : "EXPAND"}</button></div><div class="notepad-status">已自动保存 · 不写入正式训练记录</div></section>` : `<button class="part-hero tone-${part.tone}" data-action="toggle-note"><div class="hero-top"><span class="eyebrow">${esc(area.labelEn || part.en)} ARCHIVE</span><span class="flip-hint">FLIP</span></div><div class="part-title">${esc(area.label || part.cn)}</div><div class="part-meta">${area.session_count || 0} 次训练 · ${area.movement_count || 0} 个动作</div><div class="part-latest">最近训练 ${esc(area.latest_date || "暂无")}</div></button>`;
+  const note = state.noteOpen ? `<section class="notepad-card"><div class="notepad-head"><div><div class="eyebrow">LOCAL ONLY / TRAINING NOTE</div><h2>TRAINING NOTE / 训练记录</h2></div><button data-action="toggle-note">FLIP</button></div><textarea data-note data-note-surface="inline" placeholder="Freeform notes, any format.">${esc(state.note)}</textarea><div class="notepad-actions"><button data-action="copy-note">${state.noteExpanded ? "COPY ALL" : "COPY"}</button><button class="danger-link" data-action="clear-note">CLEAR</button><button data-action="expand-note">${state.noteExpanded ? "COLLAPSE EDIT" : "EXPAND"}</button></div><div class="notepad-status">已自动保存</div></section>` : `<button class="part-hero tone-${part.tone}" data-action="toggle-note"><div class="hero-top"><span class="eyebrow">${esc(area.labelEn || part.en)} ARCHIVE</span><span class="flip-hint">FLIP</span></div><div class="part-title">${esc(area.label || part.cn)}</div><div class="part-meta">${area.session_count || 0} 次训练 · ${area.movement_count || 0} 个动作</div><div class="part-latest">最近训练 ${esc(area.latest_date || "暂无")}</div></button>`;
   const sort = state.sortBy;
   const movements = [...(area.movements || [])].sort((a, b) => sort === "recent" ? String(b.latest?.date || "").localeCompare(String(a.latest?.date || "")) : sort === "days" ? 0 : (Number(b.pinned) - Number(a.pinned) || Number(a.focus_rank || 9999) - Number(b.focus_rank || 9999) || b.sessions - a.sessions));
   const body = state.loading ? stateMessage(`正在读取${area.label || part.cn}部档案…`) : state.error ? stateMessage(state.error, true) : sort === "days" ? renderSessions(area.sessions || [], area.label || part.cn) : `<section class="movement-list"><div class="list-heading"><div><div class="eyebrow">MOVEMENTS / FREQUENCY</div><h2 class="section-title">动作与最近表现</h2></div><span class="count">${area.movement_count || movements.length}</span></div>${movements.length ? movements.map(renderMovementCard).join("") : stateMessage("该部位暂时没有动作历史。")}</section>`;
@@ -213,7 +223,7 @@ function renderNoteDetail() {
       ? stateMessage(state.noteDetailError, true)
       : !movement
         ? stateMessage("没有找到该动作。", true)
-        : `<div class="note-detail-intro"><span>${esc(movement.english_name || "")}</span><small>${esc((movement.body_parts || []).map(id => bodyPart(id).cn).join(" / ") || "动作档案")}</small></div><div class="note-detail-scroll">${state.noteDetailHistory.length ? state.noteDetailHistory.map((record, index) => `<article class="note-detail-history"><div class="note-detail-history-head"><b>${esc(date(record.date))}</b><span>${record.order ? `第 ${esc(record.order)} 个动作` : `记录 ${index + 1}`}</span></div>${Array.isArray(record.sets) && record.sets.length ? `<div class="note-detail-sets">${record.sets.map((item, setIndex) => `<div class="note-detail-set"><span>${String(setIndex + 1).padStart(2, "0")}</span><b>${esc(setLine(item))}</b></div>`).join("")}</div>` : `<p>${esc(setSummary(record))}</p>`}${record.notes ? `<p class="note-detail-note">${esc(record.notes)}</p>` : ""}</article>`).join("") : `<div class="state">该动作暂无正式历史记录。</div>`}</div>`;
+        : `<div class="note-detail-intro"><span>${esc(movement.english_name || "")}</span><small>${esc(movement.muscle_group || "")}</small></div><div class="note-detail-scroll">${state.noteDetailHistory.length ? state.noteDetailHistory.map((record, index) => `<article class="note-detail-history"><div class="note-detail-history-head"><b>${esc(date(record.date))}</b><span>${record.order ? `第 ${esc(record.order)} 个动作` : `记录 ${index + 1}`}</span></div>${Array.isArray(record.sets) && record.sets.length ? `<div class="note-detail-sets">${record.sets.map((item, setIndex) => `<div class="note-detail-set"><span>${String(setIndex + 1).padStart(2, "0")}</span><b>${esc(previewSetLine(item))}</b></div>`).join("")}</div>` : `<p>${esc(setSummary(record))}</p>`}${record.notes ? `<p class="note-detail-note">${esc(record.notes)}</p>` : ""}</article>`).join("") : `<div class="state">该动作暂无正式历史记录。</div>`}</div>`;
   return `<section class="note-detail-backdrop" data-action="close-note-detail"><section class="note-detail-sheet" data-action="noop"><div class="note-detail-head"><div><div class="eyebrow">READ ONLY / MOVEMENT HISTORY</div><h2>${esc(title)}</h2></div><button data-action="close-note-detail">关闭</button></div>${content}</section></section>`;
 }
 
