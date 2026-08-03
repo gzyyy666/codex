@@ -31,6 +31,11 @@ def main() -> None:
     assert manifest["icons"]
 
     source = "\n".join(path.read_text(encoding="utf-8") for path in required if path.suffix in {".html", ".js", ".css"})
+    app_source = (PWA / "app.js").read_text(encoding="utf-8")
+    for route in ("reference", "training", "status", "body", "diet", "record", "movement"):
+        assert f'"{route}"' in app_source, f"missing Mini Program route: {route}"
+    assert "NOTE_KEY" in app_source
+    assert "home-page" not in app_source and "plan-grid" not in app_source
     forbidden = ["wx.cloud", "AppSecret", "FITNESS_LEDGER_ALLOWED_OPENIDS", "POST", "PUT", "DELETE"]
     violations = [token for token in forbidden if token in source]
     if violations:

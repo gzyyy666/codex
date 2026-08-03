@@ -1,8 +1,10 @@
 # Fitness Ledger Mobile Workbench PWA
 
-`pwa/` is a mobile-first, read-only presentation layer for the existing
-Fitness Ledger data. It intentionally keeps the formal ledger and the
-CloudBase replica unchanged.
+`pwa/` is a browser implementation of the existing Mini Program surface. It
+keeps the same three tab pages (训练部位档案、训练记录、同步与档案), secondary
+body/diet archives, record detail, movement trajectory, local Training Note,
+candidate recognition, and read-only navigation. It intentionally keeps the
+formal ledger and the CloudBase replica unchanged.
 
 ## Local preview
 
@@ -12,8 +14,9 @@ From the repository root:
 python start_mobile_viewer.py
 ```
 
-Open `http://127.0.0.1:5055/pwa/`. The local Flask viewer exposes the same
-read-only `/api/today` and `/api/training/<date>` endpoints used by the PWA.
+Open `http://127.0.0.1:5055/pwa/`. The local Flask viewer exposes
+`/api/pwa/read?action=...` using the same action vocabulary as the Mini
+Program's `ledger.call(...)` service.
 Installability on a phone still requires an HTTPS deployment; localhost is
 only for development.
 
@@ -26,12 +29,14 @@ private pilot: the provider's default HTTPS address is sufficient for Safari's
 
 The deployed page must reach a safe Web API. The browser must not call the
 WeChat-only `wx.cloud.callFunction` API and must not contain CloudBase secrets.
-The API should expose the same read-only shape as the local viewer:
+The deployed Web gateway should expose the same read-only action shape:
 
 ```text
-GET /api/today
-GET /api/training/<YYYY-MM-DD>
-GET /api/search?q=<query>
+GET /api/pwa/read?action=bodyAreas
+GET /api/pwa/read?action=bodyArea&part=shoulders
+GET /api/pwa/read?action=trainingRecords
+GET /api/pwa/read?action=recordDetail&date=YYYY-MM-DD
+GET /api/pwa/read?action=movementHistory&movementId=<id>
 ```
 
 Responses may be raw JSON or the existing `{ok: true, data: ...}` envelope.

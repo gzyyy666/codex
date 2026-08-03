@@ -1,209 +1,184 @@
-import { apiDescription, getSearch, getToday, getTraining } from "./api.js";
+import { apiDescription, call } from "./api.js";
 
-const PLAN = [
-  { id: "shoulders", label: "肩背训练", note: "第 1 天", emoji: "🏋️", color: "pink", terms: ["肩", "背", "shoulder", "back"] },
-  { id: "chest", label: "胸腹训练", note: "第 2 天", emoji: "💪", color: "blue", terms: ["胸", "腹", "chest", "core"] },
-  { id: "legs", label: "臀腿训练", note: "第 3 天", emoji: "🦵", color: "orange", terms: ["腿", "臀", "leg", "lower"] },
-  { id: "cardio", label: "有氧循环", note: "第 4 天", emoji: "🔥", color: "yellow", terms: ["有氧", "cardio", "跑", "骑"] }
+const BODY_PARTS = [
+  { id: "shoulders", cn: "肩", en: "SHOULDERS", tone: "amber" },
+  { id: "chest", cn: "胸", en: "CHEST", tone: "coral" },
+  { id: "back", cn: "背", en: "BACK", tone: "teal" },
+  { id: "legs", cn: "腿", en: "LEGS", tone: "violet" },
+  { id: "arms", cn: "手臂", en: "ARMS", tone: "cyan" }
 ];
-
+const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
+const BUILD_VERSION = "v2026.08.02-action-candidates-12";
+const app = document.querySelector("#app");
 const state = {
-  tab: readTab(),
-  today: null,
-  training: null,
-  search: [],
-  searchQuery: "",
-  busy: true,
-  error: ""
+  route: parseRoute(), loading: true, error: "", status: null, identity: null,
+  areas: [], area: null, trainingRecords: [], bodyRecords: [], dietRecords: [],
+  record: null, trainingDay: null, movement: null, movementHistory: [],
+  sortBy: "frequency", order: "newest", query: "", note: loadNote(),
+  noteOpen: false, noteExpanded: false, noteCandidates: [], noteCandidatesCollapsed: false,
+  showAliases: false, expanded: {}, candidatesRequest: 0
 };
 
-const app = document.querySelector("#app");
+function parseRoute() {
+  const raw = window.location.hash.slice(1) || "reference";
+  const [path, query = ""] = raw.split("?");
+  return { name: path || "reference", params: new URLSearchParams(query) };
+}
+function esc(value) { return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;"); }
+function text(value, fallback = "-") { const result = String(value ?? "").trim(); return result || fallback; }
+function date(value) { return String(value || "").slice(0, 10) || "暂无日期"; }
+function loadNote() { try { return localStorage.getItem(NOTE_KEY) || ""; } catch (_) { return ""; } }
+function saveNote(value) { state.note = String(value || ""); try { localStorage.setItem(NOTE_KEY, state.note); } catch (_) {} }
+function bodyPart(id) { return BODY_PARTS.find(item => item.id === id) || BODY_PARTS[0]; }
+function isTopRoute() { return ["reference", "training", "status"].includes(state.route.name); }
+function navigate(route) { window.location.hash = route; }
+function setError(error) { state.error = error?.message === "HTTP_401" ? "当前 Web 账号尚未完成授权。" : "读取失败，请检查网络与只读接口。"; }
 
-function readTab() {
-  const value = window.location.hash.slice(1);
-  return ["home", "plan", "records", "body", "more"].includes(value) ? value : "home";
+function freshness(meta) {
+  if (!meta) return "同步状态未知";
+  const generated = String(meta.generated_at || "");
+  const stamp = Date.parse(generated);
+  const stale = Number.isFinite(stamp) && (Date.now() - stamp) > 48 * 3600000;
+  return { text: `云端更新 ${generated || "尚未同步"} · 最新记录 ${meta.latest_record_date || "暂无"}`, stale };
 }
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+function setLine(item) {
+  const weight = item.weight_text || item.weightText || (item.weight ? `${item.weight} kg` : "自重");
+  return `${weight} ${item.reps ? `${item.reps} 次` : ""} ${item.sets ? `× ${item.sets} 组` : ""}`.trim();
 }
+function setSummary(item) {
+  if (item.summary) return item.summary;
+  if (Array.isArray(item.sets) && item.sets.length) return item.sets.map(setLine).join("  ");
+  if (Array.isArray(item.sets_lines)) return item.sets_lines.join(" · ");
+  return "暂无组数记录";
+}
+function metric(item, key) { return item?.[key] ?? item?.[key.replace(/_([a-z])/g, (_, c) => c.toUpperCase())] ?? 0; }
 
-function firstValue(object, keys, fallback = "-") {
-  for (const key of keys) {
-    const value = object?.[key];
-    if (value !== undefined && value !== null && String(value).trim() !== "") return value;
+function renderShell(content) {
+  const nav = isTopRoute() ? `<nav class="tabbar"><button class="tab ${state.route.name === "reference" ? "active" : ""}" data-route="reference"><span>⌂</span><small>首页</small></button><button class="tab ${state.route.name === "training" ? "active" : ""}" data-route="training"><span>▤</span><small>训练记录</small></button><button class="tab ${state.route.name === "status" ? "active" : ""}" data-route="status"><span>◉</span><small>状态</small></button></nav>` : "";
+  return `${content}${nav}`;
+}
+function pageStart(className = "") { return `<main class="page ${className}">`; }
+function pageEnd() { return "</main>"; }
+function header(eyebrow, title, intro = "") { return `<div class="eyebrow">${esc(eyebrow)}</div><h1 class="title">${title}</h1>${intro ? `<p class="intro">${esc(intro)}</p>` : ""}`; }
+function stateMessage(message, error = false) { return `<div class="state ${error ? "error" : ""}">${esc(message)}</div>`; }
+
+function renderReference() {
+  const selected = state.route.params.get("part");
+  if (!selected) {
+    const fresh = freshness(state.status);
+    return renderShell(`${pageStart("reference-page")}${header("BEFORE YOU TRAIN / READ ONLY", "训练部位<br>档案。", "不是训练计划。选择今天可能练的部位，快速回看动作、最近表现与历史轨迹。")}${fresh ? `<div class="freshness ${fresh.stale ? "stale" : ""}">${esc(fresh.text)}</div>` : ""}${state.loading ? stateMessage("正在整理动作档案…") : state.error ? stateMessage(state.error, true) : `<div class="area-list">${state.areas.map((item, index) => `<button class="area-row tone-${item.tone}" data-route="reference?part=${item.id}"><span class="area-number">0${index + 1}</span><span class="area-name"><b>${esc(item.cn || item.label)}</b><small>${esc(item.en || item.labelEn)}</small></span><span class="area-data"><small>${item.movement_count || 0} 动作</small><small>${item.session_count || 0} 次训练</small></span><span class="area-arrow">→</span></button>`).join("")}</div>`}${pageEnd()}`);
   }
-  return fallback;
+  return renderReferenceArea(selected);
 }
 
-function formatDate(value) {
-  const text = String(value || "");
-  return text.length >= 10 ? text.slice(0, 10) : text || "暂无日期";
+function renderReferenceArea(selected) {
+  const area = state.area || { ...bodyPart(selected), label: bodyPart(selected).cn, labelEn: bodyPart(selected).en, movements: [], sessions: [] };
+  const part = bodyPart(selected);
+  const note = state.noteOpen ? `<section class="notepad-card"><div class="notepad-head"><div><div class="eyebrow">LOCAL ONLY / TRAINING NOTE</div><h2>TRAINING NOTE / 训练记录</h2></div><button data-action="toggle-note">FLIP</button></div><textarea data-note placeholder="Freeform notes, any format.">${esc(state.note)}</textarea><div class="notepad-actions"><button data-action="copy-note">${state.noteExpanded ? "COPY ALL" : "COPY"}</button><button class="danger-link" data-action="clear-note">CLEAR</button><button data-action="expand-note">${state.noteExpanded ? "COLLAPSE EDIT" : "EXPAND"}</button></div><div class="notepad-status">已自动保存</div></section>` : `<button class="part-hero tone-${part.tone}" data-action="toggle-note"><div class="hero-top"><span class="eyebrow">${esc(area.labelEn || part.en)} ARCHIVE</span><span class="flip-hint">FLIP</span></div><div class="part-title">${esc(area.label || part.cn)}</div><div class="part-meta">${area.session_count || 0} 次训练 · ${area.movement_count || 0} 个动作</div><div class="part-latest">最近训练 ${esc(area.latest_date || "暂无")}</div></button>`;
+  const candidates = state.noteCandidates.length || state.noteCandidatesCollapsed ? `<section class="candidates ${state.noteCandidatesCollapsed ? "collapsed" : ""}"><div class="candidate-head"><span>可能相关动作 · 最近记录</span><button data-action="toggle-candidates">${state.noteCandidatesCollapsed ? "展开" : "收起"}</button></div>${!state.noteCandidatesCollapsed ? state.noteCandidates.map(candidate => `<button class="candidate" data-action="candidate" data-id="${esc(candidate.movement_id)}"><span><b>${esc(candidate.display_name)}</b><small>${esc(candidate.english_name || candidate.body_part_label || "")}</small>${candidate.preview ? `<em>${esc(candidate.preview)}</em>` : ""}</span><strong>详情 →</strong></button>`).join("") : ""}</section>` : "";
+  const sort = state.sortBy;
+  const movements = [...(area.movements || [])].sort((a, b) => sort === "recent" ? String(b.latest?.date || "").localeCompare(String(a.latest?.date || "")) : sort === "days" ? 0 : (Number(b.pinned) - Number(a.pinned) || Number(a.focus_rank || 9999) - Number(b.focus_rank || 9999) || b.sessions - a.sessions));
+  const body = state.loading ? stateMessage(`正在读取${area.label || part.cn}部档案…`) : state.error ? stateMessage(state.error, true) : sort === "days" ? renderSessions(area.sessions || [], area.label || part.cn) : `<section class="movement-list"><div class="list-heading"><div><div class="eyebrow">MOVEMENTS / FREQUENCY</div><h2 class="section-title">动作与最近表现</h2></div><span class="count">${area.movement_count || movements.length}</span></div>${movements.length ? movements.map(renderMovementCard).join("") : stateMessage("该部位暂时没有动作历史。")}</section>`;
+  return renderShell(`${pageStart(`reference-page selected-theme tone-page-${part.tone}`)}<img class="theme-art" src="./images/themes-v2/${esc(selected)}.webp" alt="">${note}${candidates}<div class="part-switch">${BODY_PARTS.map(item => `<button class="part-pill ${selected === item.id ? `active tone-${item.tone}` : ""}" data-route="reference?part=${item.id}">${item.cn}</button>`).join("")}</div><div class="sort-rail"><span class="sort-label">排序</span>${[["frequency", "训练频率"], ["recent", "最近训练"], ["days", "按训练日"]].map(([id, label]) => `<button class="sort-option ${sort === id ? "active" : ""}" data-sort="${id}">${label}</button>`).join("")}</div>${body}${state.noteDetail ? renderNoteDetail() : ""}${pageEnd()}`);
 }
 
-function formatWeight(value) {
-  if (value === "-" || value === "") return "-";
-  return String(value).includes("kg") ? String(value) : `${value} kg`;
+function renderMovementCard(item) {
+  return `<button class="movement-card" data-action="movement" data-id="${esc(item.movement_id)}" data-part="${esc(state.route.params.get("part") || "")}"><div class="movement-head"><div>${item.pinned ? `<span class="focus-mark">★ FOCUS</span>` : ""}<div class="movement-name">${esc(item.display_name)}</div><div class="movement-en">${esc(item.english_name || "")}</div></div><span class="session-badge">${item.sessions || 0} 次</span></div>${item.latest ? `<div class="latest-set"><span>最近</span><span>${esc(item.latest.date)}${item.latest.order ? ` · 第 ${item.latest.order} 动作` : ""}</span></div><div class="set-summary">${esc(setSummary(item.latest))}</div>` : ""}<div class="compare-grid"><div class="compare-cell"><span>上一次</span><b>${esc(item.previous ? setSummary(item.previous) : "首次记录")}</b></div><div class="compare-cell"><span>历史最好</span><b>${item.best && metric(item.best, "max_weight") ? `${metric(item.best, "max_weight")} kg` : item.best && metric(item.best, "total_reps") ? `${metric(item.best, "total_reps")} reps` : "-"}</b></div></div>${item.latest?.notes ? `<div class="movement-note">${esc(item.latest.notes)}</div>` : ""}<div class="movement-action">查看完整轨迹 →</div></button>`;
+}
+function renderSessions(sessions, label) {
+  return `<section class="session-list"><div class="list-heading"><div><div class="eyebrow">TRAINING DAYS / RECENT</div><h2 class="section-title">相关训练日</h2></div><span class="count">${sessions.length}</span></div>${sessions.length ? sessions.map(item => `<button class="session-card" data-action="session" data-date="${esc(item.date)}" data-part="${esc(state.route.params.get("part") || "")}"><div class="session-card-head"><b>${esc(item.date)}</b><span>${esc(item.title || item.split || `${label}训练`)}</span></div><div class="session-meta"><span>${item.related_count || 0} 个相关动作</span><span>完整训练上下文</span></div><div class="chips">${(item.related_movements || []).slice(0, 4).map(name => `<span>${esc(name)}</span>`).join("")}</div><p>${esc(item.full_summary || item.movement_summary || "暂无完整动作摘要")}</p>${item.notes ? `<div class="session-note">${esc(item.notes)}</div>` : ""}<div class="movement-action">查看当日训练 →</div></button>`).join("") : stateMessage("该部位暂时没有相关训练日。")}</section>`;
 }
 
-function trainingLabel(today) {
-  return firstValue(today?.training, ["split", "Split"], firstValue(today?.body, ["Training"], "暂无训练"));
+function renderTraining() {
+  const records = filterRecords(state.trainingRecords, state.query, state.order);
+  const fresh = freshness(state.status);
+  return renderShell(`${pageStart("training-page")}<img class="archive-art" src="./images/training-archive.webp" alt="">${header("TRAINING ARCHIVE / DAILY", "训练记录。", "按日期回看当天训练主题与记录，需要细节时再展开。")}${fresh ? `<div class="freshness ${fresh.stale ? "stale" : ""}">${esc(fresh.text)}</div>` : ""}<div class="archive-tools"><input data-search placeholder="搜索日期，如 6-30 / 06.30" value="${esc(state.query)}"><button data-action="toggle-order">${state.order === "newest" ? "最新优先 ↓" : "最早优先 ↑"}</button></div>${state.loading ? stateMessage("正在读取训练档案…") : state.error ? stateMessage(state.error, true) : records.length ? `<section class="training-list">${records.map((item, index) => `<button class="training-slip slip-tone-${index % 3}" data-action="training-record" data-date="${esc(item.Date)}"><span class="training-index">${String(index + 1).padStart(2, "0")}</span><span class="slip-label">TRAINING NOTE</span><b class="training-date">${esc(item.Date)}</b><strong>${esc(item.Split || "未标注训练主题")}</strong><p>${esc(item["Standardized Summary"] || item.Summary || "暂无训练摘要")}</p>${item.Notes ? `<div class="training-note">${esc(item.Notes)}</div>` : ""}<span class="training-action">查看当日训练 →</span></button>`).join("")}</section>` : stateMessage("没有匹配的训练记录。")}${pageEnd()}`);
+}
+function filterRecords(records, query, order) { const needle = String(query || "").trim().replace(/[./]/g, "-"); return [...records].filter(item => !needle || String(item.Date || "").includes(needle)).sort((a, b) => (order === "oldest" ? 1 : -1) * String(a.Date || "").localeCompare(String(b.Date || ""))); }
+
+function renderStatus() {
+  const fresh = state.status;
+  return renderShell(`${pageStart("status-page")}${header("LOCAL-FIRST / READ ONLY", "同步与档案。")}${state.loading ? stateMessage("检查中…") : state.error ? stateMessage(state.error, true) : `<section class="status-slab"><span class="status-dot"></span><div class="eyebrow">REPLICA STATUS</div><h2>只读副本已连接</h2><div class="row"><span>最后同步</span><b>${esc(fresh?.generated_at || "尚未同步")}</b></div><div class="row"><span>最新记录</span><b>${esc(fresh?.latest_record_date || "暂无")}</b></div><div class="row"><span>数据结构</span><b>${esc(fresh?.schema || "-")}</b></div></section><button class="archive-entry" data-route="body"><span><span class="eyebrow">SECONDARY ARCHIVE</span><strong>身体记录</strong><small>体重、排便、训练与有氧</small></span><b>→</b></button><button class="archive-entry diet-entry" data-route="diet"><span><span class="eyebrow">SECONDARY ARCHIVE</span><strong>饮食记录</strong><small>热量、三大营养素与餐食便签</small></span><b>→</b></button><section class="debug-card"><div class="eyebrow">ACCESS DIAGNOSTICS / NO PRIVATE DATA</div><div class="row"><span>权限</span><b>${state.identity?.openid ? "已识别账号" : "未识别 / Web 端"}</b></div><div class="row"><span>OpenID</span><b>${esc(state.identity?.openid || "未获取")}</b></div><div class="row"><span>Environment</span><b>${esc(state.identity?.env || "当前部署环境")}</b></div><div class="row"><span>前端版本</span><b>${BUILD_VERSION}</b></div></section>`}${pageEnd()}`);
 }
 
-function isPlanActive(item, today) {
-  const source = trainingLabel(today).toLowerCase();
-  return item.terms.some(term => source.includes(term.toLowerCase()));
+function renderArchive(kind) {
+  const isBody = kind === "body"; const records = isBody ? state.bodyRecords : state.dietRecords; const filtered = records.filter(item => !state.query || String(item.Date || "").includes(state.query.replace(/[./]/g, "-"))).sort((a, b) => (state.order === "oldest" ? 1 : -1) * String(a.Date || "").localeCompare(String(b.Date || "")));
+  return `${pageStart(`${kind}-page`)}${header(isBody ? "BODY ARCHIVE / READ ONLY" : "DIET ARCHIVE / READ ONLY", isBody ? "身体记录。" : "饮食便签。", isBody ? "体重、训练与当天状态，按日期倒序保留。" : "先看热量与三大营养素，需要时再打开完整餐食。") }<div class="archive-tools"><input data-search placeholder="搜索日期，如 6-30 / 06.30" value="${esc(state.query)}"><button data-action="toggle-order">${state.order === "newest" ? "最新 ↓" : "最早 ↑"}</button></div>${state.loading ? stateMessage("正在读取档案…") : state.error ? stateMessage(state.error, true) : filtered.length ? filtered.map((item, index) => isBody ? `<button class="body-slip palette-${index % 4}" data-action="archive-record" data-date="${esc(item.Date)}"><span class="slip-index">${String(index + 1).padStart(2, "0")}</span><b class="slip-date">${esc(item.Date)}</b><strong class="slip-weight">${esc(text(item["Weight (kg)"], "-"))}<small>kg</small></strong><div class="slip-facts"><span>训练 <b>${esc(item.Training || "休息")}</b></span><span>排便 <b>${esc(item["Bowel Movement"] || "-")}</b></span><span>有氧 <b>${esc(item.Cardio || "无")}</b></span></div><p>${esc(item.Notes || "没有备注")}</p><span class="slip-action">查看记录 →</span></button>` : `<button class="diet-slip offset-${index % 3}" data-action="archive-record" data-date="${esc(item.Date)}"><div class="diet-head"><span><span class="eyebrow">NUTRITION NOTE</span><b>${esc(item.Date)}</b></span><strong>${esc(item["Calories (kcal)"] || "-")}<small>kcal</small></strong></div><div class="macro-strip"><span>P <b>${esc(item["Protein (g)"] || "-")}g</b></span><span>C <b>${esc(item["Carbs (g)"] || "-")}g</b></span><span>F <b>${esc(item["Fat (g)"] || "-")}g</b></span></div><p>${esc(item["Food Summary"] || "没有饮食摘要")}</p><span class="diet-action">阅读全文 →</span></button>`).join("") : stateMessage(isBody ? "暂无身体记录。" : "暂无饮食记录。")} ${pageEnd()}`;
 }
 
-function summaryStats(today) {
-  const body = today?.body || {};
-  const diet = today?.diet || {};
-  return [
-    ["体重", formatWeight(firstValue(body, ["Weight (kg)", "weight", "weight_text"]))],
-    ["训练", trainingLabel(today)],
-    ["热量", firstValue(diet, ["Calories (kcal)", "calories"], "-")],
-    ["蛋白质", firstValue(diet, ["Protein (g)", "protein"], "-")]
-  ];
+function renderRecord() {
+  const mode = state.route.params.get("mode") === "training"; const dateValue = state.route.params.get("date") || state.record?.date || "";
+  if (mode) {
+    const session = state.trainingDay?.session; const movements = state.trainingDay?.movements || [];
+    return `${pageStart("record-page")}${header("TRAINING DAY / READ ONLY", dateValue || "训练日详情")}${state.loading ? stateMessage("读取中…") : state.error ? stateMessage(state.error, true) : !session ? stateMessage("该日期暂无训练明细。") : `<section class="record-section training-session-only"><div class="eyebrow">TRAINING SESSION</div><h2>${esc(session.split || "训练记录")}</h2>${session.summary ? `<p>${esc(session.summary)}</p>` : ""}${movements.length ? movements.map((item, index) => `<button class="training-action-card" data-action="movement" data-id="${esc(item.movement_id)}"><span>第 ${item.order || index + 1} 个动作</span><strong>${esc(item.movement_name || item.display_name || item.movement_id)}</strong><b>轨迹 →</b><small>${esc((item.sets || []).map(setLine).join(" · ") || "没有组数记录")}</small>${item.notes ? `<em>${esc(item.notes)}</em>` : ""}</button>`).join("") : stateMessage("该训练日暂无动作明细。")} ${session.notes ? `<div class="session-notes"><span>训练总备注</span>${esc(session.notes)}</div>` : ""}</section>`}${pageEnd()}`;
+  }
+  const detail = state.record;
+  return `${pageStart("record-page")}${header("DAILY ARCHIVE / READ ONLY", dateValue || "记录详情")}${state.loading ? stateMessage("读取中…") : state.error ? stateMessage(state.error, true) : !detail ? stateMessage("该日期没有记录。") : `${(detail.body || []).map(item => `<section class="record-section body-section"><div class="record-head"><div><div class="eyebrow">BODY</div><h2>身体与当天状态</h2></div><button data-action="toggle" data-key="body">${state.expanded.body ? "收起" : "展开"}</button></div><div class="signal-grid"><span>WEIGHT<strong>${esc(item["Weight (kg)"] || "-")}kg</strong></span><span>BOWEL<strong>${esc(item["Bowel Movement"] || "-")}</strong></span></div><div class="row"><span>训练</span><b>${esc(item.Training || "未记录")}</b></div><div class="row"><span>有氧</span><b>${esc(item.Cardio || "未记录")}</b></div>${state.expanded.body ? `<p class="detail-text">${esc(item.Notes || "没有身体备注")}</p>` : ""}</section>`).join("")}${(detail.diet || []).map(item => `<section class="record-section diet-section"><div class="record-head"><div><div class="eyebrow">NUTRITION</div><h2>饮食</h2></div><button data-action="toggle" data-key="diet">${state.expanded.diet ? "收起" : "展开"}</button></div><div class="macro-line"><strong>${esc(item["Calories (kcal)"] || "-")} kcal</strong><span>P ${esc(item["Protein (g)"] || "-")} · C ${esc(item["Carbs (g)"] || "-")} · F ${esc(item["Fat (g)"] || "-")}</span></div><p class="detail-text ${state.expanded.diet ? "" : "clamp-3"}">${esc(item["Food Summary"] || "没有饮食摘要")}</p></section>`).join("")}${(detail.training || []).map(item => `<section class="record-section training-section"><div class="record-head"><div><div class="eyebrow">TRAINING</div><h2>${esc(item.Split || "训练记录")}</h2></div><button data-action="toggle" data-key="training">${state.expanded.training ? "收起" : "展开"}</button></div><p class="detail-text ${state.expanded.training ? "" : "clamp-3"}">${esc(item["Standardized Summary"] || "没有动作摘要")}</p>${state.expanded.training && item.Notes ? `<div class="training-note">${esc(item.Notes)}</div>` : ""}</section>`).join("")}`}${pageEnd()}`;
 }
 
-function setLines(movement) {
-  const sets = Array.isArray(movement?.sets) ? movement.sets : [];
-  return sets.map(row => {
-    const weight = row.weight_text || (row.weight ? `${row.weight}kg` : "自重");
-    return `${weight} × ${row.reps || "-"} × ${row.sets || 1}`;
-  });
+function renderMovement() {
+  const movement = state.movement; const history = state.movementHistory || []; const latest = history[0]; const previous = history[1];
+  return `${pageStart("movement-page")}${state.loading ? stateMessage("读取中…") : state.error ? stateMessage(state.error, true) : !movement ? stateMessage("没有找到该动作。") : `<section class="movement-hero"><div class="eyebrow">MOVEMENT TRAJECTORY</div><h1 class="title movement-title">${esc(movement.display_name)}</h1><p>${esc(movement.english_name || "")} · ${esc(movement.muscle_group || "")}</p><button class="alias-toggle" data-action="aliases">${state.showAliases ? "收起别名" : "查看别名"} →</button>${state.showAliases ? `<div class="chips">${(movement.aliases || []).map(item => `<span>${esc(item)}</span>`).join("")}</div>` : ""}</section>${latest ? `<section class="signal-board"><div class="board-head"><div><div class="eyebrow">RECENT SIGNALS</div><h2>最近变化</h2></div><span>${esc(date(latest.date))}</span></div><div class="signal-grid"><span>LATEST MAX<strong>${metric(latest, "max_weight") ? `${metric(latest, "max_weight")}kg` : "自重"}</strong></span><span>TOTAL REPS<strong>${metric(latest, "total_reps") || "-"}</strong></span><span>VOLUME<strong>${metric(latest, "volume") || "-"}</strong></span><span>PREVIOUS MAX<strong>${previous ? (metric(previous, "max_weight") ? `${metric(previous, "max_weight")}kg` : "自重") : "-"}</strong></span></div></section>` : ""}<section class="trajectory"><div class="list-heading"><div><div class="eyebrow">RECENT THREE</div><h2 class="section-title">最近三次</h2></div><span class="count">${history.length}</span></div>${history.length ? history.map((item, index) => `<button class="history-slip" data-action="session" data-date="${esc(item.date)}"><div class="history-head"><b>${esc(date(item.date))}</b><span>${item.order ? `第 ${item.order} 个动作` : `#${index + 1}`}</span></div><div class="set-row"><span>${esc(setSummary(item))}</span><span>${metric(item, "total_reps") || "-"} reps</span></div>${item.notes ? `<p>${esc(item.notes)}</p>` : ""}<small>查看当天完整训练 →</small></button>`).join("") : stateMessage("该动作暂无历史。")}</section>${pageEnd()}`;
 }
 
-function renderHeader() {
-  const date = formatDate(state.today?.date);
-  const connection = state.busy ? "正在读取" : state.error ? "连接需检查" : "只读已连接";
-  return `
-    <header class="topbar">
-      <div class="topline"><span>${escapeHtml(date)}</span><span class="connection-dot ${state.error ? "is-error" : ""}"></span><span>${escapeHtml(connection)}</span></div>
-      <div class="greeting"><div><p class="eyebrow">FITNESS LEDGER</p><h1>💪 每日健身</h1><p>坚持记录，遇见更好的自己</p></div><div class="avatar">FL</div></div>
-    </header>`;
-}
-
-function renderHome() {
-  const today = state.today || {};
-  const stats = summaryStats(today);
-  const activePlan = PLAN.find(item => isPlanActive(item, today));
-  const recordDate = formatDate(today.date);
-  return `
-    <main class="page home-page">
-      <section class="hero-workbench">
-        <div><span class="hero-kicker">只读训练账本</span><h2>今天先做<br><strong>${escapeHtml(trainingLabel(today))}</strong></h2><p>数据来自 FL 的最新同步副本，不在手机端直接改写正式记录。</p></div>
-        <div class="hero-mark">${activePlan?.emoji || "✓"}</div>
-      </section>
-      <section class="today-action ${state.error ? "has-error" : ""}">
-        <div class="status-ring">${state.error ? "!" : "✓"}</div>
-        <div class="action-copy"><strong>${state.error ? "数据暂不可用" : "最新记录已可查看"}</strong><span>${escapeHtml(recordDate)} · ${escapeHtml(trainingLabel(today))}</span></div>
-        <button class="primary-button" data-action="today">查看</button>
-      </section>
-      <section class="section-block"><div class="section-heading"><h2>一周四练计划</h2><button class="text-button" data-tab="plan">查看全部</button></div><div class="plan-grid">${PLAN.map(renderPlanCard).join("")}</div></section>
-      <section class="section-block"><div class="section-heading"><h2>今日数据</h2><span class="muted">只读摘要</span></div><div class="stats-grid">${stats.map(([label, value]) => `<div class="metric-card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("")}</div></section>
-      ${state.error ? `<div class="notice error-notice">${escapeHtml(state.error)}<br><span>如果部署到手机，请确认 PWA 的 Web API 地址已配置，且接口允许当前登录方式访问。</span></div>` : ""}
-    </main>`;
-}
-
-function renderPlanCard(item) {
-  const active = isPlanActive(item, state.today || {});
-  return `<button class="plan-card ${item.color} ${active ? "is-active" : ""}" data-plan="${item.id}"><span class="plan-emoji">${item.emoji}</span><strong>${item.label}</strong><small>${active ? "当前记录" : item.note}</small></button>`;
-}
-
-function renderPlan() {
-  return `<main class="page"><section class="page-intro"><span class="eyebrow purple">PLAN</span><h2>一周四练</h2><p>先固定训练节奏，具体动作继续从 FL 的训练参考中读取。</p></section><section class="plan-list">${PLAN.map(item => `<article class="plan-row ${item.color} ${isPlanActive(item, state.today || {}) ? "is-active" : ""}"><span class="plan-emoji">${item.emoji}</span><div><strong>${item.label}</strong><span>${item.note} · ${isPlanActive(item, state.today || {}) ? "当前同步记录匹配" : "按你的训练周期使用"}</span></div><span class="row-arrow">›</span></article>`).join("")}</section><div class="notice">计划卡片目前是前台工作台配置，不会写入或覆盖 FL 的正式训练记录。</div></main>`;
-}
-
-function renderRecords() {
-  const today = state.today || {};
-  const sessions = Array.isArray(today.training_sessions) ? today.training_sessions : [];
-  const training = state.training;
-  const movements = training?.movements || training?.sessions?.[0]?.movements || [];
-  return `<main class="page"><section class="page-intro"><span class="eyebrow purple">RECORDS</span><h2>最近记录</h2><p>原始记录和结构化训练数据继续由 FL 管理。</p></section><section class="record-summary"><div class="record-date">${escapeHtml(formatDate(today.date))}</div><strong>${escapeHtml(trainingLabel(today))}</strong><span>${escapeHtml(firstValue(today.training, ["summary", "Standardized Summary"], "暂无训练摘要"))}</span></section><section class="section-block"><div class="section-heading"><h2>训练动作</h2><span class="muted">${movements.length || 0} 项</span></div>${movements.length ? `<div class="movement-list">${movements.map((item, index) => `<article class="movement-row"><div class="movement-index">${item.order || index + 1}</div><div><strong>${escapeHtml(item.movement_name || item.display_name || item.movement_id || "未命名动作")}</strong><span>${escapeHtml(item.english_name || item.muscle_group || "")}</span><small>${escapeHtml(setLines(item).join(" · ") || item.summary || "暂无组数摘要")}</small></div></article>`).join("")}</div>` : `<div class="empty-card">点击“刷新数据”获取训练详情，或确认当前接口已部署。</div>`}</section><button class="wide-button" data-action="refresh">刷新数据</button></main>`;
-}
-
-function renderBody() {
-  const body = state.today?.body || {};
-  const diet = state.today?.diet || {};
-  return `<main class="page"><section class="page-intro"><span class="eyebrow purple">BODY</span><h2>身体数据</h2><p>先看今天的关键数字，历史趋势由后续 Web 只读接口补齐。</p></section><div class="body-hero"><span>当前体重</span><strong>${escapeHtml(formatWeight(firstValue(body, ["Weight (kg)", "weight", "weight_text"])))}</strong><small>${escapeHtml(formatDate(state.today?.date))}</small></div><div class="stats-grid"><div class="metric-card"><span>热量</span><strong>${escapeHtml(firstValue(diet, ["Calories (kcal)", "calories"]))}</strong></div><div class="metric-card"><span>蛋白质</span><strong>${escapeHtml(firstValue(diet, ["Protein (g)", "protein"]))}</strong></div><div class="metric-card"><span>碳水</span><strong>${escapeHtml(firstValue(diet, ["Carbs (g)", "carbs"]))}</strong></div><div class="metric-card"><span>脂肪</span><strong>${escapeHtml(firstValue(diet, ["Fat (g)", "fat"]))}</strong></div></div><div class="notice">当前 PWA 保持只读，不会在浏览器中保存或提交身体数据。</div></main>`;
-}
-
-function renderMore() {
-  const api = apiDescription();
-  return `<main class="page"><section class="page-intro"><span class="eyebrow purple">MORE</span><h2>数据与设置</h2><p>把复杂的数据管理留在 FL，把手机端保持成简单入口。</p></section><section class="settings-card"><div><span>访问模式</span><strong>只读工作台</strong></div><div><span>接口位置</span><strong>${escapeHtml(api.baseUrl)}</strong></div><div><span>登录凭据</span><strong>不在前端保存密钥</strong></div><div><span>数据写入</span><strong>已关闭</strong></div></section><div class="notice">如果在 iPhone 上安装：用 Safari 打开部署地址，点击分享按钮，再选择“添加到主屏幕”。</div><button class="wide-button" data-action="refresh">重新读取云端</button></main>`;
-}
-
-function renderBottomNav() {
-  const items = [["home", "⌂", "首页"], ["plan", "▦", "计划"], ["records", "▤", "记录"], ["body", "◒", "体重"], ["more", "•••", "更多"]];
-  return `<nav class="bottom-nav">${items.map(([id, icon, label]) => `<button class="nav-item ${state.tab === id ? "is-active" : ""}" data-tab="${id}"><span>${icon}</span><small>${label}</small></button>`).join("")}</nav>`;
-}
+function renderNoteDetail() { return ""; }
 
 function render() {
-  const page = { home: renderHome, plan: renderPlan, records: renderRecords, body: renderBody, more: renderMore }[state.tab]();
-  app.innerHTML = `${renderHeader()}${page}${renderBottomNav()}`;
+  const name = state.route.name;
+  const content = name === "reference" ? renderReference() : name === "training" ? renderTraining() : name === "status" ? renderStatus() : name === "body" ? renderArchive("body") : name === "diet" ? renderArchive("diet") : name === "record" ? renderRecord() : name === "movement" ? renderMovement() : renderReference();
+  app.innerHTML = content;
 }
 
-async function refresh() {
-  state.busy = true;
-  state.error = "";
-  render();
+async function loadRoute() {
+  state.route = parseRoute(); state.loading = true; state.error = ""; render();
   try {
-    state.today = await getToday();
-    if (state.tab === "records" && state.today?.date) {
-      state.training = await getTraining(state.today.date);
-    }
-  } catch (error) {
-    state.error = error.message === "HTTP_401" || error.message === "FORBIDDEN"
-      ? "当前 Web 访问尚未完成登录或授权。"
-      : "暂时无法读取 FL 数据。";
-  } finally {
-    state.busy = false;
-    render();
-  }
+    const name = state.route.name; const part = state.route.params.get("part");
+    if (name === "reference") {
+      if (part) { const [area, records] = await Promise.all([call("bodyArea", { part }), call("trainingRecords")]); state.area = { ...area, sessions: (area.sessions || []).map(item => ({ ...item, full_summary: records.find(record => date(record.Date) === date(item.date))?.["Standardized Summary"] || item.full_summary })) }; }
+      else { [state.areas, state.status] = await Promise.all([call("bodyAreas"), call("status")]); }
+    } else if (name === "training") { [state.trainingRecords, state.status] = await Promise.all([call("trainingRecords"), call("status")]); }
+    else if (name === "status") { [state.status, state.identity] = await Promise.all([call("status"), call("whoami")]); }
+    else if (name === "body") state.bodyRecords = await call("bodyRecords", { limit: 30 });
+    else if (name === "diet") state.dietRecords = await call("dietRecords", { limit: 30 });
+    else if (name === "record") { const params = Object.fromEntries(state.route.params.entries()); if (params.mode === "training") state.trainingDay = await call("trainingDayDetail", { date: params.date }); else state.record = await call("recordDetail", { date: params.date }); }
+    else if (name === "movement") { [state.movement, state.movementHistory] = await Promise.all([call("movement", { movementId: state.route.params.get("id") }), call("movementHistory", { movementId: state.route.params.get("id"), limit: 20 })]); }
+  } catch (error) { setError(error); }
+  state.loading = false; render();
 }
 
-async function openRecords() {
-  state.tab = "records";
-  window.location.hash = "records";
-  render();
-  if (!state.training && state.today?.date) {
-    try { state.training = await getTraining(state.today.date); render(); } catch (_error) { /* home data remains usable */ }
-  }
+let noteTimer;
+async function updateCandidates() {
+  clearTimeout(noteTimer); const request = ++state.candidatesRequest;
+  if (!state.note.trim()) { state.noteCandidates = []; render(); return; }
+  noteTimer = setTimeout(async () => {
+    try {
+      const catalog = await call("movementCatalog"); const source = state.note.toLowerCase();
+      const matches = catalog.filter(item => [item.display_name, item.english_name, ...(item.aliases || [])].some(term => String(term || "").length > 1 && source.includes(String(term).toLowerCase()))).slice(0, 4);
+      if (request !== state.candidatesRequest) return;
+      state.noteCandidates = matches.map(item => ({ ...item, body_part_label: (item.body_parts || []).map(id => bodyPart(id).cn).join(" / ") })); render();
+    } catch (_) { state.noteCandidates = []; render(); }
+  }, 180);
 }
 
+document.addEventListener("input", event => { if (event.target.matches("[data-search]")) { state.query = event.target.value; render(); } if (event.target.matches("[data-note]")) { saveNote(event.target.value); updateCandidates(); } });
 document.addEventListener("click", event => {
-  const tabButton = event.target.closest("[data-tab]");
-  if (tabButton) {
-    state.tab = tabButton.dataset.tab;
-    window.location.hash = state.tab;
-    render();
-    if (state.tab === "records" && !state.training) openRecords();
-    return;
-  }
-  const action = event.target.closest("[data-action]")?.dataset.action;
-  if (action === "today") {
-    state.tab = "records";
-    window.location.hash = "records";
-    openRecords();
-  } else if (action === "refresh") {
-    refresh();
-  }
+  const route = event.target.closest("[data-route]")?.dataset.route;
+  if (route) { state.query = ""; state.order = "newest"; navigate(route); return; }
+  const sort = event.target.closest("[data-sort]")?.dataset.sort; if (sort) { state.sortBy = sort; render(); return; }
+  const action = event.target.closest("[data-action]")?.dataset.action; if (!action) return;
+  if (action === "toggle-order") { state.order = state.order === "newest" ? "oldest" : "newest"; render(); }
+  if (action === "toggle-note") { state.noteOpen = !state.noteOpen; render(); }
+  if (action === "expand-note") { state.noteExpanded = !state.noteExpanded; render(); }
+  if (action === "toggle-candidates") { state.noteCandidatesCollapsed = !state.noteCandidatesCollapsed; render(); }
+  if (action === "copy-note") { navigator.clipboard?.writeText(state.note); }
+  if (action === "clear-note") { if (window.confirm("清空当前 TRAINING NOTE？不会影响正式训练记录。")) { saveNote(""); state.noteCandidates = []; render(); } }
+  if (action === "aliases") { state.showAliases = !state.showAliases; render(); }
+  if (action === "movement" || action === "candidate") { navigate(`movement?id=${encodeURIComponent(event.target.closest("[data-id]").dataset.id)}&part=${encodeURIComponent(event.target.closest("[data-part]")?.dataset.part || state.route.params.get("part") || "")}`); }
+  if (action === "session") { navigate(`record?mode=training&date=${encodeURIComponent(event.target.closest("[data-date]").dataset.date)}&part=${encodeURIComponent(event.target.closest("[data-part]")?.dataset.part || "")}`); }
+  if (action === "training-record" || action === "archive-record") { navigate(`record?date=${encodeURIComponent(event.target.closest("[data-date]").dataset.date)}`); }
+  if (action === "toggle") { const key = event.target.closest("[data-key]").dataset.key; state.expanded[key] = !state.expanded[key]; render(); }
 });
-
-window.addEventListener("hashchange", () => {
-  state.tab = readTab();
-  render();
-});
-
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js").catch(() => {});
-}
-
-render();
-refresh();
+window.addEventListener("hashchange", loadRoute);
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(() => {});
+render(); loadRoute();

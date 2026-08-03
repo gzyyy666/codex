@@ -33,8 +33,8 @@
 
 ### Mobile Workbench PWA
 
-- `mobile_viewer/pwa/app.js`: Renders the mobile-first home, plan, records, body, and settings surfaces without formal writes.
-- `mobile_viewer/pwa/api.js`: Reads the bounded Web API contract and accepts either raw JSON or the existing `{ok, data}` envelope.
+- `mobile_viewer/pwa/app.js`: Ports the Mini Program's reference, training, status, body, diet, record, movement, and local Training Note surfaces without formal writes.
+- `mobile_viewer/pwa/api.js`: Reads the Mini Program action vocabulary through a bounded Web API gateway.
 - `mobile_viewer/pwa/sw.js`: Caches only the app shell and never caches `/api/` responses.
 - `mobile_viewer/app.py` `/pwa/`: Serves the PWA shell from the local Flask viewer for safe local verification.
 
