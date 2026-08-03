@@ -1,5 +1,11 @@
 # Fitness Ledger Changelog
 
+## 2026-08-03 - PWA icon scale and centering
+
+- Reused the original monogram pixels and applied only a centered crop/scale
+  so the home-screen icon has less outer edge exposure and a larger mark.
+- Kept the desktop and PWA icon assets identical.
+
 ## 2026-08-03 - PWA candidate set mobile layout
 
 - Replaced the candidate history's single truncated set string with explicit
