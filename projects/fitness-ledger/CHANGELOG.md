@@ -1,5 +1,11 @@
 # Fitness Ledger Changelog
 
+## 2026-08-03 - PWA icon margin refinement
+
+- Reduced the monogram slightly and added more even warm-white margin.
+- Kept the existing mark, color treatment, transparent rounded corners, and
+  desktop/PWA icon parity unchanged.
+
 ## 2026-08-03 - PWA icon scale and centering
 
 - Reused the original monogram pixels and applied only a centered crop/scale
