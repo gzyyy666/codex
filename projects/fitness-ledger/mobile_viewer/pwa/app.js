@@ -33,6 +33,10 @@ function bodyPart(id) { return BODY_PARTS.find(item => item.id === id) || BODY_P
 function isTopRoute() { return ["reference", "training", "status"].includes(state.route.name); }
 function navigate(route) { window.location.hash = route; }
 function setError(error) { state.error = error?.message === "HTTP_401" ? "当前 Web 账号尚未完成授权。" : "读取失败，请检查网络与只读接口。"; }
+function renderStartupError() {
+  if (!app) return;
+  app.innerHTML = `<main class="page"><div class="eyebrow">STARTUP / RECOVERY</div><h1 class="title">页面正在恢复。</h1><p class="intro">工作台脚本没有正常启动。请刷新一次；如果仍为空白，请把当前页面地址发给我。</p><button class="archive-entry" onclick="location.reload()"><span><strong>重新加载</strong><small>刷新工作台</small></span><b>↻</b></button></main>`;
+}
 
 function freshness(meta) {
   if (!meta) return "同步状态未知";
@@ -181,4 +185,13 @@ document.addEventListener("click", event => {
 });
 window.addEventListener("hashchange", loadRoute);
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(() => {});
-render(); loadRoute();
+window.addEventListener("error", event => {
+  if (!app?.innerHTML.trim()) renderStartupError();
+  event.preventDefault();
+});
+window.addEventListener("unhandledrejection", event => {
+  if (!app?.innerHTML.trim()) renderStartupError();
+  event.preventDefault();
+});
+try { render(); } catch (_) { renderStartupError(); }
+loadRoute().catch(() => renderStartupError());
