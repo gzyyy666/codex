@@ -36,3 +36,124 @@ button { color: inherit; cursor: pointer; }
   .notepad-actions { gap: 10px; flex-wrap: wrap; }
   .notepad-actions button, .notepad-head button { min-height: 32px; }
 }
+
+/* Sealed Mini Program parity: the PWA keeps the same local note flow,
+   read-only candidate overlay, and mobile archive proportions. */
+.notepad-observer-anchor { height: 1px; margin: 0; pointer-events: none; }
+.notepad-dock { position: fixed; z-index: 40; top: calc(env(safe-area-inset-top) + 8px); right: 11px; left: 11px; pointer-events: none; }
+.notepad-dock > * { pointer-events: auto; }
+.notepad-dock-bar { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px; width: 100%; padding: 11px 14px; border: 1px solid rgba(55,51,43,.16); border-radius: 999px; background: rgba(253,250,243,.96); box-shadow: 0 8px 22px rgba(53,44,29,.15); text-align: left; }
+.notepad-dock-bar span { color: #6d665b; font-size: 10px; letter-spacing: 1.7px; }
+.notepad-dock-bar b { color: #8a6a14; font-size: 11px; font-weight: 500; }
+.notepad-dock-bar i { color: #81796e; font-size: 16px; font-style: normal; line-height: 1; }
+.notepad-dock-card { max-height: 66vh; overflow-y: auto; padding: 14px; border: 1px solid rgba(55,51,43,.2); border-radius: 6px 16px 16px 16px; background: rgba(252,249,242,.98); box-shadow: 0 12px 30px rgba(53,44,29,.2); }
+.notepad-dock-card h2 { margin: 4px 0 0; font-family: "Songti SC", Georgia, serif; font-size: 21px; font-weight: 400; }
+.notepad-dock-card textarea { display: block; width: 100%; height: 150px; max-height: 42vh; margin-top: 10px; padding: 9px 0; border: 0; border-top: 1px solid rgba(23,23,20,.17); border-bottom: 1px solid rgba(23,23,20,.12); background: transparent; outline: none; color: #27251f; font-size: 16px; line-height: 1.55; resize: vertical; }
+.candidate-overlay { position: fixed; z-index: 55; top: calc(env(safe-area-inset-top) + 182px); right: 9px; left: 9px; height: 166px; overflow: hidden; margin: 0; padding: 9px; border: 1px solid rgba(138,91,0,.18); border-radius: 9px; background: rgba(247,244,238,.98); box-shadow: 0 13px 32px rgba(53,44,29,.2); }
+.candidate-overlay .candidate-head { align-items: center; min-height: 18px; }
+.candidate-overlay .candidate-scroll { height: 120px; overflow-y: auto; margin-top: 5px; padding-right: 2px; }
+.candidate-overlay .candidate { display: grid; grid-template-columns: minmax(0, 1fr) auto; width: 100%; margin-top: 5px; padding: 8px; border: 1px solid rgba(138,91,0,.15); border-radius: 8px; background: #fbfaf6; }
+.candidate-overlay .candidate-main { display: flex; min-width: 0; flex-direction: column; }
+.candidate-overlay .candidate b { font-size: 15px; }
+.candidate-overlay .candidate small, .candidate-overlay .candidate em { margin-top: 2px; font-size: 9px; }
+.candidate-overlay .candidate > strong { align-self: start; }
+.candidate-history-list { grid-column: 1 / -1; display: block; min-width: 0; margin-top: 7px; }
+.candidate-history { padding: 6px 0; border-top: 1px solid rgba(23,23,20,.1); }
+.candidate-history-head { display: flex; justify-content: space-between; gap: 8px; color: #81796e; font-size: 9px; }
+.candidate-history-head b { color: #4c463d; font-family: Georgia, serif; font-size: 11px; font-weight: 500; }
+.candidate-sets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin-top: 5px; }
+.candidate-set { display: flex; min-height: 22px; align-items: center; gap: 4px; padding: 3px 4px; border-radius: 4px; background: #f0eadf; }
+.candidate-set span, .note-detail-set span { color: #9a641e; font-family: Georgia, serif; font-size: 9px; }
+.candidate-set b { overflow: hidden; font-size: 9px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
+.candidate-summary, .candidate-history p { margin: 5px 0 0; color: #625b51; font-size: 10px; line-height: 1.4; }
+.candidate-empty, .candidate-loading { padding: 12px 4px; color: #81796e; font-size: 10px; }
+.candidate-overlay.collapsed { right: auto; left: 2px; width: 23px; height: 23px; padding: 0; border-radius: 0 7px 7px 0; }
+.candidate-edge { display: grid; grid-template-columns: 1fr; justify-items: center; width: 100%; height: 100%; padding: 3px 0; border: 0; background: transparent; color: #6d5a28; font-size: 9px; }
+.candidate-edge span { writing-mode: vertical-rl; letter-spacing: 1px; }
+.candidate-edge b { font-size: 14px; font-weight: 400; line-height: 1; }
+.note-detail-backdrop { position: fixed; z-index: 60; inset: 0; display: flex; align-items: stretch; justify-content: center; padding: calc(env(safe-area-inset-top) + 57px) 9px 22px; background: rgba(28,25,20,.38); }
+.note-detail-sheet { width: 100%; max-height: 82vh; overflow: hidden; padding: 14px; border-radius: 15px; background: #fdfaf3; box-shadow: 0 20px 48px rgba(0,0,0,.22); }
+.note-detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.note-detail-head h2 { margin: 4px 0 0; font-family: "Songti SC", Georgia, serif; font-size: 22px; font-weight: 400; }
+.note-detail-head button { padding: 0 0 3px; border: 0; border-bottom: 1px solid currentColor; background: transparent; color: #706b62; font-size: 10px; }
+.note-detail-intro { display: flex; justify-content: space-between; gap: 8px; margin-top: 5px; color: #81796e; font-size: 10px; }
+.note-detail-intro small { font-size: 10px; }
+.note-detail-scroll { max-height: 62vh; overflow-y: auto; margin-top: 10px; padding-right: 2px; }
+.note-detail-history { padding: 10px 0; border-top: 1px solid rgba(23,23,20,.12); }
+.note-detail-history-head { display: flex; justify-content: space-between; color: #81796e; font-size: 10px; }
+.note-detail-history-head b { color: var(--ink); font-family: Georgia, serif; font-size: 15px; font-weight: 400; }
+.note-detail-sets { display: grid; gap: 5px; margin-top: 8px; }
+.note-detail-set { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 7px; background: #f0eadf; }
+.note-detail-set span { width: 22px; font-size: 11px; }
+.note-detail-set b { font-size: 12px; font-weight: 400; }
+.note-detail-history p { margin: 8px 0 0; color: #625b51; font-size: 11px; line-height: 1.55; }
+.note-detail-note { padding: 7px; border-radius: 6px; background: #f1ece1; white-space: pre-wrap; }
+
+@media (max-width: 699px) {
+  .page { padding-top: calc(4.533vw + env(safe-area-inset-top)); padding-right: 4vw; padding-bottom: 13.867vw; padding-left: 4vw; }
+  .title { margin-top: 1.6vw; margin-bottom: 1.067vw; font-size: clamp(32px, 8.8vw, 44px); }
+  .intro { margin-top: 1.867vw; font-size: 3.2vw; line-height: 1.65; }
+  .eyebrow { font-size: 2.533vw; letter-spacing: .667vw; }
+  .freshness { margin-top: 1.733vw; font-size: 2.667vw; }
+  .area-list { margin-top: 3.467vw; }
+  .area-row { min-height: 20.267vw; margin-bottom: 1.067vw; padding: 2.933vw; border-radius: 4.8vw; }
+  .area-name b { font-size: 7.2vw; }
+  .part-hero { min-height: 40vw; padding: 4vw; border-radius: 1.6vw 6.933vw 6.933vw 6.933vw; }
+  .part-title { margin-top: 1.867vw; font-size: 12.8vw; }
+  .part-meta, .part-latest { margin-top: 1.867vw; font-size: 3.067vw; }
+  .part-switch { gap: 1.333vw; margin: 2.4vw -4vw 0; padding: 1.067vw 4vw 1.867vw; }
+  .part-pill { min-width: 9.333vw; padding: 2.133vw 2.933vw; font-size: 3.067vw; }
+  .sort-rail { gap: 1.067vw; margin-top: .8vw; padding: 1.2vw; border-radius: 2.4vw; }
+  .sort-label { margin: 0 1.067vw; font-size: 2.533vw; }
+  .sort-option { padding: 1.6vw .8vw; border-radius: 2.133vw; font-size: 2.533vw; }
+  .movement-list, .session-list, .trajectory, .training-list { margin-top: 3.733vw; }
+  .list-heading { padding: 0 .267vw 1.867vw; }
+  .section-title { margin-top: .533vw; font-size: 5.067vw; }
+  .count { font-size: 6.667vw; }
+  .movement-card, .session-card, .training-slip, .history-slip { margin-top: 2.4vw; padding: 3.467vw; border-radius: 3.467vw 3.467vw 1.067vw 3.467vw; }
+  .movement-name { font-size: 5.333vw; }
+  .movement-en { margin-top: 1.067vw; font-size: 2.667vw; }
+  .latest-set { margin-top: 3.467vw; padding-top: 2.667vw; font-size: 2.667vw; }
+  .set-summary { margin-top: 1.6vw; font-size: 3.733vw; }
+  .compare-grid { gap: 1.333vw; margin-top: 2.667vw; }
+  .compare-cell { min-height: 21.867vw; padding: 1.867vw; border-radius: 2.133vw; }
+  .compare-cell span { font-size: 2.4vw; }
+  .compare-cell b { margin-top: 1.067vw; font-size: 2.933vw; }
+  .movement-note, .session-note { margin-top: 2.4vw; font-size: 2.933vw; }
+  .movement-action, .training-action, .slip-action, .diet-action { margin-top: 2.933vw; font-size: 2.933vw; }
+  .notepad-card { margin-bottom: 2.667vw; padding: 3.467vw; border-radius: 3.733vw; }
+  .notepad-card h2 { margin-top: 1.067vw; font-size: 5.6vw; }
+  .notepad-card textarea { min-height: 18.933vw; margin-top: 2.133vw; padding: 1.867vw 0; font-size: 16px; line-height: 1.55; }
+  .notepad-actions { gap: 2.667vw; margin-top: 2.4vw; }
+  .notepad-actions button, .notepad-head button { min-height: 8.533vw; font-size: 2.667vw; }
+  .notepad-status { margin-top: 1.867vw; font-size: 2.4vw; }
+  .archive-tools { gap: 1.333vw; margin-top: 3.733vw; padding: 1.2vw; border-radius: 3.2vw; }
+  .archive-tools input { height: 9.333vw; padding: 0 2.667vw; font-size: 16px; }
+  .archive-tools button { padding: 2.133vw 1.067vw; border-radius: 2.133vw; font-size: 2.933vw; }
+  .training-date { font-size: 5.6vw; }
+  .training-slip > strong { font-size: 4.533vw; }
+  .training-slip p, .session-card p, .history-slip p { margin-top: 2.667vw; font-size: 3.2vw; }
+  .status-slab { margin-top: 3.467vw; padding: 3.733vw; border-radius: 1.333vw 4.8vw 4.8vw 4.8vw; }
+  .status-slab h2 { margin: 1.6vw 0 2.667vw; font-size: 5.6vw; }
+  .status-slab .row { font-size: 2.8vw; }
+  .archive-entry { margin-top: 2.4vw; padding: 3.467vw; border-radius: 4vw 1.333vw 4vw 4vw; }
+  .archive-entry strong { font-size: 5.333vw; }
+  .archive-entry small { font-size: 2.667vw; }
+  .debug-card { margin-top: 4.8vw; }
+  .debug-card .row { font-size: 2.667vw; }
+  .record-section { margin-top: 2.667vw; padding: 3.6vw; border-radius: 4vw 4vw 1.067vw 4vw; }
+  .record-section h2, .signal-board h2 { font-size: 5.6vw; }
+  .detail-text { margin-top: 2.667vw; font-size: 3.2vw; }
+  .movement-hero { padding: 0 .533vw 3.733vw; }
+  .movement-title { margin-top: 2.667vw; font-size: clamp(32px, 9.333vw, 48px); }
+  .movement-hero p { font-size: 3.2vw; }
+  .signal-board { margin-top: 6.4vw; padding: 3.733vw; border-radius: 4.8vw 1.333vw 4.8vw 4.8vw; }
+  .signal-grid { gap: 1.6vw; margin: 2.667vw 0; }
+  .signal-grid > span { padding: 2.4vw; border-radius: 2.4vw; font-size: 2.4vw; }
+  .signal-grid strong { margin-top: 1.333vw; font-size: 4.533vw; }
+  .history-head b { font-size: 4.8vw; }
+  .set-row { padding: 2.4vw 0; font-size: 3.2vw; }
+  .tabbar { padding-top: 2.133vw; padding-right: 4.8vw; padding-bottom: calc(2.133vw + env(safe-area-inset-bottom)); padding-left: 4.8vw; }
+  .tab span { font-size: 5.067vw; }
+  .tab small { font-size: 2.667vw; }
+}

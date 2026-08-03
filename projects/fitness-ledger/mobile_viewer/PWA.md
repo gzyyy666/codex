@@ -6,6 +6,19 @@ body/diet archives, record detail, movement trajectory, local Training Note,
 candidate recognition, and read-only navigation. It intentionally keeps the
 formal ledger and the CloudBase replica unchanged.
 
+## Sealed Mini Program parity
+
+The PWA interaction baseline follows the Mini Program sealed commit
+`23057d674e73a21048401c2fb5548c25bfa05f32`: the Training Note remains local-only,
+candidate recognition stays in a neutral overlay, candidate clicks open an
+in-place read-only movement history sheet, and the collapsed Dock appears after
+the archive header has scrolled away. To match the approved PWA behavior, a
+note containing several movement names displays only the last recognized
+movement; its preview and detail sheet still show the latest formal history,
+set order markers, and notes. The mobile layout uses the Mini Program's 750rpx
+spacing baseline converted to the viewport, with a 16px minimum editor font to
+avoid iPhone input zoom.
+
 ## Local preview
 
 From the repository root:

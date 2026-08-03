@@ -35,9 +35,12 @@ def main() -> None:
     for route in ("reference", "training", "status", "body", "diet", "record", "movement"):
         assert f'"{route}"' in app_source, f"missing Mini Program route: {route}"
     assert "NOTE_KEY" in app_source
+    assert 'freeform-notepad:v2:current-training' in app_source
     assert "findLastCandidate" in app_source
     assert "previewHistory" in app_source
     assert 'call("movementHistory"' in app_source
+    for marker in ("renderNoteDock", "candidate-overlay", "note-detail-backdrop", "data-note-surface", "scheduleDockCheck"):
+        assert marker in source, f"missing sealed Mini Program parity marker: {marker}"
     assert "home-page" not in app_source and "plan-grid" not in app_source
     forbidden = ["wx.cloud", "AppSecret", "FITNESS_LEDGER_ALLOWED_OPENIDS", "POST", "PUT", "DELETE"]
     violations = [token for token in forbidden if token in source]
