@@ -17,7 +17,7 @@
 
 .admin-page,
 .tools-template-v6 {
-  width: min(100%, 1220px);
+  width: min(100%, 1340px);
   margin-inline: auto;
   padding-top: 32px;
   padding-inline: 0;
@@ -505,7 +505,7 @@
 /* Sync and Data Check use the same shell and component vocabulary. */
 .admin-sync-page,
 .admin-checks-page {
-  max-width: 1220px;
+  max-width: 1340px;
   padding-top: 27px;
 }
 
@@ -920,7 +920,7 @@
 
 /* The shared .page rule supplies large editorial side insets. Tools owns its
    own dashboard grid, so those insets must not consume the workspace column. */
-@media (max-width: 1220px) {
+@media (max-width: 1340px) {
   .admin-page,
   .tools-template-v6 {
     width: 100%;
