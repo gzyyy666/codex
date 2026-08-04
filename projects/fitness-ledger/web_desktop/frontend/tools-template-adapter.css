@@ -20,6 +20,8 @@
   width: min(100%, 1220px);
   margin-inline: auto;
   padding-top: 32px;
+  padding-inline: 0;
+  padding-bottom: 96px;
   color: var(--ink);
 }
 
@@ -913,6 +915,16 @@
 
   .admin-check-aside {
     min-height: 230px;
+  }
+}
+
+/* The shared .page rule supplies large editorial side insets. Tools owns its
+   own dashboard grid, so those insets must not consume the workspace column. */
+@media (max-width: 1220px) {
+  .admin-page,
+  .tools-template-v6 {
+    width: 100%;
+    padding-inline: clamp(16px, 4vw, 28px);
   }
 }
 
