@@ -62,13 +62,13 @@
     "mousePet": "local adapted MIT mouse-follower spring/inertia behavior with the original local ghost sprite style",
         "motion": "bounded archive-field spotlight plus short transform and opacity transitions",
         "upperField": "Use the side whitespace for quiet, source-derived rails and a small route map; do not stretch the hero to fill it.",
-        "archiveField": "A low-contrast radial contour field, asymmetrical shell, route line, and shared pointer light visually connect the three panels without adding a separate 3D object.",
-        "archiveCore": "Export, Sync, and Health are the 3D surfaces themselves. No detached model is placed inside a card; pointer and focus state move the complete semantic button as one shallow layered panel.",
+        "archiveField": "A low-contrast radial contour field, asymmetrical shell, route line, and shared pointer light visually connect the two operation surfaces without adding a separate 3D object.",
+        "archiveCore": "Export remains a separate one-off operation. Archive Health owns Sync and Data Check as one connected surface, while Movement Dictionary remains a separate reference entry. No detached model is placed inside a card; pointer and focus state move the complete semantic button as one shallow layered panel.",
         "globalPet": "The original tartan ghost is mounted once at app startup. Right-click, Context Menu key, or Shift+F10 opens a collision-aware local route menu for every top-level interface and utility route.",
     "dataPolicy": "derive visual status from existing state; never invent health or sync data"
   },
   "constraints": [
-    "Do not change Analysis Export, Cloud Sync, or Data Health protocol semantics.",
+    "Do not change Analysis Export or Movement Dictionary protocol semantics; Cloud Sync and Data Health protocols remain unchanged while their presentation is redesigned.",
     "Do not add a second source of truth or copy formal data into the worktree.",
     "Do not add remote runtime dependencies; copied open-source assets must be local, license-documented, and scoped to Tools.",
     "The page title must name the utility surface; do not replace it with a campaign-style slogan.",
@@ -81,7 +81,7 @@
     "Keep the page usable at narrow widths and disable decorative motion for prefers-reduced-motion."
   ],
   "acceptance": [
-    "The three existing tool routes remain reachable through their current data-tools-panel hooks.",
+    "Export and Archive Health remain the two primary operation surfaces; Sync and Data Check remain reachable through their current data-tools-panel hooks, and Movement Dictionary stays a separate reference entry.",
     "Desktop reads as one maintenance desk with a clear primary action.",
     "Mobile stacks the same content without horizontal overflow and preserves touch target size.",
     "Visual motion is non-blocking and uses only transform, opacity, or a bounded background spotlight.",

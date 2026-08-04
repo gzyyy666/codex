@@ -52,6 +52,75 @@ Date: 2026-07-06
 
 final result: passed
 
+---
+
+# Design QA - Tools v5 archive control surfaces
+
+Date: 2026-08-04
+
+## Evidence
+
+- Source visual truth: `C:\Users\26087\AppData\Local\Temp\codex-clipboard-79a3f4b8-9183-4287-a2fc-d778083b8bee.png`
+- Combined comparison input: `C:\Users\26087\.codex\visualizations\2026\08\04\tools-v5\qa-comparison.png`
+- Implementation screenshot, desktop: `C:\Users\26087\.codex\visualizations\2026\08\04\tools-v5\tools-wide.png`
+- Implementation screenshot, 1440px recheck: `C:\Users\26087\.codex\visualizations\2026\08\04\tools-v5\tools-initial-recheck-2.png`
+- Cloud Sync screenshot: `C:\Users\26087\.codex\visualizations\2026\08\04\tools-v5\cloud-sync.png`
+- Data Check screenshot: `C:\Users\26087\.codex\visualizations\2026\08\04\tools-v5\data-check.png`
+- Mobile screenshots: `C:\Users\26087\.codex\visualizations\2026\08\04\tools-v5\tools-mobile.png`, `cloud-sync-mobile.png`, `data-check-mobile.png`
+- Desktop viewport: 1743 x 979; implementation pixels match source pixels at 1743 x 979; device scale factor 1; no density normalization required.
+- Secondary desktop viewport: 1440 x 1200; mobile verification viewport reported by browser: 512 x 690 CSS px; no document horizontal overflow in either run.
+- State: Tools overview first frame, Cloud Sync not configured, Data Check archive clear, existing Export route, separate Movement Dictionary route.
+
+## Full-view comparison
+
+- The implementation preserves the project's paper / ink / mint / volt language, editorial serif hierarchy, local-first status, and archive contour field.
+- The prior three-card control arrangement is intentionally restructured: Export remains a separate operation; Archive Health owns Cloud Sync and Data Check; Movement Dictionary is a separate reference entry. This is an information-architecture change requested by the current design direction, not an accidental pixel drift.
+- The workbench now reads as one archive field with two real operation surfaces. The shared route line and pointer light connect those surfaces without introducing a detached 3D model.
+
+## Focused-region comparison
+
+- Upper field: source rail and route map are visible only when the desktop canvas has enough side space; at 1440px they are hidden to prevent overlap or clipping. The 1440px recheck shows the title, description, and state strip are cleanly separated.
+- Workbench: the Export surface retains the existing dark export affordance; Archive Health uses a light paper surface, a status pill, a Local -> Payload -> CloudBase route, and explicit Sync / Data Check actions.
+- Secondary surfaces: Cloud Sync leads with configuration/status, then preserves the existing diagnostic data; Data Check leads with scan result, route state, summary metrics, and the existing issue table/actions.
+
+## Required fidelity surfaces
+
+- Typography: existing editorial font stack and DM Sans UI text remain in use; new copy is compact and action-led rather than adding an oversized campaign headline.
+- Spacing and layout: the desktop workbench is asymmetrical but aligned; the side rails no longer clip at 1440px; mobile stacks the operation surfaces and keeps the workbench inside the viewport.
+- Colors and visual tokens: no new dominant hue was introduced; state accents map to existing mint / volt semantics and the surfaces stay on the paper canvas.
+- Image quality and asset fidelity: no new raster or illustration was introduced. Existing monogram, ghost companion, and export artwork remain local project assets; the 3D layer is DOM/CSS depth on the real controls.
+- Copy and content: protocol behavior and data wording remain intact; the page now explains why Sync and Data Check share Archive Health while Dictionary stays separate.
+- Icons: existing glyphs and local assets remain; no business action was replaced by a decorative CSS drawing.
+- Accessibility and motion: real buttons retain keyboard focus styles; the pointer controller has bounded local tilt, resets on leaving the stage, and `prefers-reduced-motion` disables decorative motion.
+
+## Interaction and browser verification
+
+- Pointer test: moving over the upper hero leaves the lower Export card at `0.000deg`; moving onto the card produces bounded local tilt (`1.930deg` in the probe), confirming the first-frame tilt regression is fixed.
+- Route test: clicking Open Cloud Sync reaches `#tools?panel=sync`; Data Check reaches `#tools?panel=health`; Export reaches `#tools?panel=export`; Movement Dictionary reaches `#dictionary`.
+- DOM test: overview exposes only `export` and `sync` as tool cards; Data Check remains a subroute rather than a third peer card.
+- Responsive test: desktop and mobile browser probes reported `scrollWidth === clientWidth`; no page-level horizontal overflow was observed.
+- Console test: the initial pass found only the missing favicon 404; the existing monogram was registered as the favicon and the follow-up render produced no `Runtime.exceptionThrown` or `Log.entryAdded` events.
+
+## Comparison history
+
+1. Initial 1440px pass showed the decorative source rails clipped at the viewport edges. The source rail and route map were then hidden below 1600px and kept at a fixed outer offset only when the desktop canvas had enough side room.
+2. The follow-up 1440px capture shows no rail clipping or hero overlap; the 1743px capture keeps the rails visible as intentional side structure.
+3. The mobile pass found no page-level overflow; the existing header nav remains horizontally scrollable at narrow widths, while Tools content itself stacks.
+4. After the favicon fix, the browser console pass was clean. No P0/P1/P2 findings remain.
+
+## Open questions
+
+- P3 only: after subjective review, the vertical reveal depth of the Archive Health surface can be tuned without changing its route, state model, or 3D architecture.
+
+## Implementation checklist
+
+- [x] Preserve existing Export and Movement Dictionary behavior.
+- [x] Redesign Cloud Sync and Data Check presentation without changing their protocol semantics.
+- [x] Keep 3D on the real DOM surfaces, not a separate model layer.
+- [x] Verify first-frame pointer behavior, route transitions, responsive width, reduced motion, and console cleanliness.
+
+final result: passed
+
 ## Follow-up correction — 2026-07-16
 
 - Runtime diagnosis found two presentation issues: the preview service had exited, and the Training page still carried an older opaque parent background while the new atmosphere layer used an over-scaled `cover` crop.

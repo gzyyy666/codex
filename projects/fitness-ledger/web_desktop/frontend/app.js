@@ -285,7 +285,9 @@ checksPage=async function(){
   try{
     state.dataCheck=await api('/api/data-check');
     const rows=state.dataCheck.issues||[];
-    main.innerHTML=`<section class="page page-grid checks-page"><div class="content">${pageHeader('Data Check','兼容视图：真实扫描本地记录，不会自动改写数据。')}${dataCheckSurfaceHtml(rows,{acknowledged:state.dataCheck.acknowledged_count||0})}</div><aside class="rail"><section class="rail-section" style="margin-top:0"><span class="eyebrow">处理原则</span><h2 style="font:400 24px var(--serif)">定位、修正、再确认</h2><p>检查只提供定位，不会自动修改正式记录。</p></section></aside></section>`;
+    const issueCount=rows.length;
+    const stateLabel=issueCount?'NEEDS REVIEW':'ARCHIVE CLEAR';
+    main.innerHTML=`<section class="page page-grid checks-page checks-page-v5" data-check-count="${issueCount}"><div class="content"><header class="check-system-head"><div><span class="eyebrow">ARCHIVE HEALTH / 03 CHECKS</span><h1>Data Check</h1><p>检查本地记录的结构完整性。它只负责定位与确认，不会自动改写正式数据。</p></div><span class="check-system-status ${issueCount?'is-review':'is-clear'}"><i></i>${stateLabel}</span></header><section class="check-route-strip" aria-label="检查路径"><div><span>LOCAL JSON</span><strong>Source</strong></div><b>→</b><div><span>DATA CHECK</span><strong>${issueCount?`${issueCount} issues`:'0 issues'}</strong></div><b>→</b><div><span>REVIEW</span><strong>${issueCount?'Action required':'Quiet state'}</strong></div></section><section class="check-summary-band"><div><span class="eyebrow">SCAN RESULT</span><h2>${issueCount?'需要你的判断':'当前无需处理'}</h2><p>${issueCount?'按日期和区域打开问题，修正后再确认。':'最近一次扫描没有未确认问题；检查入口保持安静。'}</p></div><dl><div><dt>UNRESOLVED</dt><dd>${issueCount}</dd></div><div><dt>ACKNOWLEDGED</dt><dd>${state.dataCheck.acknowledged_count||0}</dd></div><div><dt>GENERATED</dt><dd>${esc(state.dataCheck.generated_at||'—')}</dd></div></dl></section>${dataCheckSurfaceHtml(rows,{acknowledged:state.dataCheck.acknowledged_count||0})}</div><aside class="rail checks-rail"><section class="rail-section" style="margin-top:0"><span class="eyebrow">处理原则</span><h2 style="font:400 24px var(--serif)">定位、修正、再确认</h2><p>问题节点是入口，不是第二份数据。完成修复后回到这里确认。</p></section><section class="rail-section"><span class="eyebrow">MOTION RULE</span><p class="check-rail-note">扫描动效只沿检查路径推进；页面不会整体漂移。</p></section></aside></section>`;
   }catch(error){main.innerHTML=`<div class="loading-page"><h2>Data Check unavailable</h2><p>${esc(error.message)}</p></div>`}
 }
 
@@ -669,7 +671,7 @@ async function cloudSyncPage(){
   const checkRows=[['Schema','schema'],['Sync Version','sync_version'],['Payload Hash','payload_hash'],['Latest Record Date','latest_record_date'],['Collection Counts','collection_counts'],['Collection Hashes','collection_hashes']].map(([label,key])=>`<li class="${verificationChecks[key]||(!Object.keys(verificationChecks).length&&isVerified)?'is-ok':'is-pending'}"><span>${label}</span><b>${verificationChecks[key]||(!Object.keys(verificationChecks).length&&isVerified)?'✓ 已通过':'待验证'}</b></li>`).join('');
   const shortHash=status.payload_hash?`${String(status.payload_hash).slice(0,8)}…${String(status.payload_hash).slice(-4)}`:'待生成';
   const shortEnvironment=status.environment_id?`${String(status.environment_id).slice(0,10)}…`:'未配置';
-  main.innerHTML=`<section class="page cloud-sync-page cloud-sync-console" data-cloud-state="${esc(presentation[2])}">
+   main.innerHTML=`<section class="page cloud-sync-page cloud-sync-console cloud-sync-v5" data-cloud-state="${esc(presentation[2])}">
     <header class="cloud-sync-head">
       <div><span class="eyebrow">LOCAL-FIRST DATA SYNC CONSOLE</span><h1>Cloud Sync</h1><p>Keep the CloudBase read-only replica aligned with your local Fitness Ledger data.</p><small>将本地正式数据同步至 CloudBase，供微信小程序读取。</small></div>
       <span class="cloud-head-status"><i></i>${esc(presentation[0])}</span>
@@ -745,6 +747,7 @@ document.addEventListener('click',event=>{
 },true);
 
 document.addEventListener('click',event=>{const target=event.target.closest('[data-data-check-open],[data-tools-panel]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();if(target.dataset.dataCheckOpen!==undefined){openDataCheckOverlay();return}const panel=target.dataset.toolsPanel;if(panel==='health')navigate('tools',{panel:'health'});else navigate('tools',panel==='overview'?{}:{panel})},true);
+document.addEventListener('keydown',event=>{const target=event.target.closest?.('[data-tools-panel][role="link"]');if(!target||!['Enter',' '].includes(event.key))return;event.preventDefault();target.click()});
 
 document.addEventListener('click',event=>{
   const target=event.target.closest('[data-build-export],[data-copy-export],[data-download-export]');if(!target)return;
@@ -959,29 +962,34 @@ toolsPage=function experimentalToolsPage(){
   stopToolsCSS3DPanels();
   const panel=state.routeParams?.panel||'overview';
   if(panel==='export'){legacyToolsPage();requestAnimationFrame(()=>$('.analysis-export-page')?.insertAdjacentHTML('afterbegin','<button class="tools-route-back" data-tools-panel="overview">← Tools Lab</button>'));return}
-  if(panel==='sync'){legacyToolsPage();return}
- main.innerHTML=`<section class="page tools-experiment" data-tools-experiment="v4">
-    <header class="tools-experiment-hero">
-      <div class="tools-hero-rail tools-hero-rail-left" aria-hidden="true"><span class="tools-hero-rail-mark">01</span><span class="tools-hero-rail-rule"></span><span class="tools-hero-rail-label">SOURCE</span><strong>LOCAL JSON</strong><small>PRIMARY RECORD</small></div>
-      <div class="tools-hero-rail tools-hero-rail-right" aria-hidden="true"><span class="tools-hero-rail-label">ROUTE MAP / 03</span><div class="tools-hero-route-map"><i></i><b></b><i></i><b></b><i></i></div><small>EXPORT&nbsp;&nbsp;SYNC&nbsp;&nbsp;HEALTH</small></div>
-      <div class="tools-experiment-kicker"><span class="eyebrow">08 / TOOLS</span><span class="tools-route-note">LOCAL ARCHIVE / 03 UTILITIES</span></div>
-      <div class="tools-experiment-hero-grid">
-        <div class="tools-experiment-title"><h1>Tools</h1></div>
-        <aside class="tools-experiment-aside"><span>ONE LOCAL SOURCE</span><strong>Three exits.</strong></aside>
-      </div>
-      <div class="tools-metric-strip" aria-label="工具页状态"><div><span>SOURCE</span><strong>Local archive</strong></div><div><span>NETWORK</span><strong>Only when syncing</strong></div><div><span>HEALTH</span><strong>On demand</strong></div></div>
-    </header>
-    <section class="tools-lab-shell" aria-label="Tools 工作区">
-      <div class="tools-lab-head"><div><span class="eyebrow">TOOL INDEX / 03 ROUTES</span><h2>Choose a utility.</h2></div><div class="tools-health-meter" data-status="loading"><i></i><strong data-tools-health-count>—</strong><span>issues</span></div></div>
-      <div class="tools-lab-grid">
-         <button class="tools-card tools-card-featured" type="button" data-tools-panel="export"><span class="tools-card-index">01 / EXPORT</span><span class="tools-card-glyph" aria-hidden="true">↗</span><div class="tools-card-copy"><span class="eyebrow">ANALYSIS EXPORT / V1.1</span><h3>Export the archive.</h3><p>将 Body、Diet、Training 与 Movement 整理成 Markdown / JSON。</p></div><footer><span>LOCAL ONLY</span><b>Open export <i>→</i></b></footer></button>
-         <button class="tools-card tools-card-sync" type="button" data-tools-panel="sync"><span class="tools-card-index">02 / SYNC</span><span class="tools-card-glyph" aria-hidden="true">⇄</span><div class="tools-card-copy"><span class="eyebrow">READ-ONLY REPLICA</span><h3>Mirror the archive.</h3><p>生成 Payload、上传 CloudBase，再校验只读副本。</p></div><footer><span>MANUAL / VERIFIED</span><b>Open sync <i>→</i></b></footer></button>
-         <button class="tools-card tools-card-health" type="button" data-tools-panel="health"><span class="tools-card-index">03 / HEALTH</span><span class="tools-card-glyph tools-card-glyph-pulse" aria-hidden="true">✦</span><div class="tools-card-copy"><span class="eyebrow">SILENT HEALTH</span><h3>Check the archive.</h3><p>正常状态保持安静，需要处理时回到对应记录。</p><div class="tools-health-inline"><i></i><strong data-tools-health-status>正在检查</strong></div></div><footer><span>CONTEXTUAL / SAFE</span><b>View health <i>→</i></b></footer></button>
-      </div>
-      <div class="tools-flow" aria-label="工具路径"><span>LOCAL</span><i>→</i><span>CHECK</span><i>→</i><span>EXIT</span><small>Local JSON remains the source.</small></div>
-    </section>
-    <footer class="tools-experiment-footer"><span>FITNESS LEDGER / TOOLS</span><p>One source. Three careful exits.</p></footer>
-  </section>`;
+  if(panel==='sync'){cloudSyncPage().then(()=>$('.cloud-sync-page')?.insertAdjacentHTML('afterbegin','<button class="tools-route-back" data-tools-panel="overview">← Tools</button>'));return}
+  if(panel==='health'){checksPage();return}
+  main.innerHTML=`<section class="page tools-experiment tools-experiment-v5" data-tools-experiment="v5">
+     <header class="tools-experiment-hero">
+       <div class="tools-hero-rail tools-hero-rail-left" aria-hidden="true"><span class="tools-hero-rail-mark">01</span><span class="tools-hero-rail-rule"></span><span class="tools-hero-rail-label">SOURCE</span><strong>LOCAL JSON</strong><small>PRIMARY RECORD</small></div>
+       <div class="tools-hero-rail tools-hero-rail-right" aria-hidden="true"><span class="tools-hero-rail-label">ROUTE MAP / 03</span><div class="tools-hero-route-map"><i></i><b></b><i></i><b></b><i></i></div><small>EXPORT&nbsp;&nbsp;ARCHIVE HEALTH&nbsp;&nbsp;REFERENCE</small></div>
+       <div class="tools-experiment-kicker"><span class="eyebrow">08 / TOOLS · LOCAL MAINTENANCE</span><span class="tools-route-note">LOCAL ARCHIVE / 02 OPERATIONS + 01 REFERENCE</span></div>
+       <div class="tools-experiment-hero-grid">
+         <div class="tools-experiment-title"><h1>Tools</h1><p class="tools-hero-description">A quiet control surface for exporting, checking, and synchronizing the archive. The local JSON remains the source of truth.</p></div>
+         <aside class="tools-experiment-aside"><span>ONE LOCAL SOURCE</span><strong>Two operations.<br>One reference.</strong><small>Movement Dictionary stays separate from data care.</small></aside>
+       </div>
+       <div class="tools-metric-strip" aria-label="工具页状态"><div><span>SOURCE</span><strong>Local archive</strong></div><div><span>NETWORK</span><strong>Only when syncing</strong></div><div><span>HEALTH</span><strong data-tools-health-status>On demand</strong></div></div>
+     </header>
+     <section class="tools-lab-shell tools-archive-stage" aria-label="Tools 工作区">
+       <div class="tools-lab-head tools-stage-head"><div><span class="eyebrow">TOOL INDEX / 02 OPERATIONS</span><h2>Keep the archive in order.</h2><p>Export remains a one-off snapshot. Archive Health connects Cloud Sync and Data Check around the same local source.</p></div><div class="tools-health-meter" data-status="loading"><i></i><strong data-tools-health-count>—</strong><span>issues</span></div></div>
+       <div class="tools-lab-grid tools-route-grid">
+          <button class="tools-card tools-card-featured tools-route-card-export" type="button" data-tools-panel="export"><span class="tools-card-index">01 / EXPORT</span><span class="tools-card-glyph" aria-hidden="true">↗</span><div class="tools-card-copy"><span class="eyebrow">ANALYSIS EXPORT / V1.1</span><h3>Export the archive.</h3><p>将 Body、Diet、Training 与 Movement 整理成 Markdown / JSON。</p></div><footer><span>LOCAL ONLY</span><b>Open export <i>→</i></b></footer></button>
+          <article class="tools-card tools-card-archive" data-tools-panel="sync" tabindex="0" role="link" aria-label="打开 Archive Health">
+            <header class="tools-archive-head"><span class="tools-card-index">02 / ARCHIVE HEALTH</span><span class="tools-archive-status"><i></i>LOCAL NEWER</span></header>
+            <div class="tools-archive-body"><div class="tools-card-copy"><span class="eyebrow">SYNC + DATA CHECK</span><h3>Care for the archive.</h3><p>先检查本地记录，再由你决定何时把新 Payload 同步到 CloudBase。</p><button class="tools-archive-cta" type="button" data-tools-panel="sync">Open Cloud Sync <i>→</i></button></div><div class="tools-archive-route" aria-label="Local to cloud route"><div><span>LOCAL</span><strong>Source</strong></div><i></i><div><span>PAYLOAD</span><strong>Ready</strong></div><i></i><div><span>CLOUDBASE</span><strong>Replica</strong></div></div></div>
+            <footer class="tools-archive-footer"><button type="button" class="tools-subroute" data-tools-panel="health">Data Check <i>→</i></button><span>LOCAL SOURCE / READ-ONLY REPLICA</span></footer>
+          </article>
+       </div>
+       <div class="tools-reference-strip"><div><span class="eyebrow">REFERENCE / CONTROLLED VOCABULARY</span><strong>Movement Dictionary</strong><p>动作定义独立存在，不参与同步或检查流程。</p></div><button type="button" class="tools-reference-link" data-view="dictionary">Open dictionary <i>→</i></button></div>
+       <div class="tools-flow" aria-label="工具路径"><span>LOCAL</span><i>→</i><span>OPERATE</span><i>→</i><span>VERIFY</span><small>One source. Separate responsibilities.</small></div>
+     </section>
+     <footer class="tools-experiment-footer"><span>FITNESS LEDGER / TOOLS</span><p>Two operations. One reference. No second source of truth.</p></footer>
+   </section>`;
   renderArchiveHealth();
   if(panel==='health')queueMicrotask(openDataCheckOverlay);
   requestAnimationFrame(()=>{
@@ -1000,6 +1008,8 @@ renderArchiveHealth=function(){
   const meter=$('.tools-health-meter'),countNode=$('[data-tools-health-count]'),health=state.archiveHealth,count=Number(health?.issue_count||0),status=health?.status==='NEEDS_REVIEW'&&count>0?'review':health?.status==='UNAVAILABLE'?'unavailable':health?.status?'ok':'loading';
   if(meter)meter.dataset.status=status;
   if(countNode)countNode.textContent=status==='unavailable'?'—':status==='loading'?'…':String(count);
+  const archiveStatus=$('.tools-archive-status');
+  if(archiveStatus){archiveStatus.dataset.status=status;archiveStatus.innerHTML=`<i></i>${status==='review'?'NEEDS REVIEW':status==='unavailable'?'CHECK UNAVAILABLE':'LOCAL NEWER'}`}
 };
 
 // Keep the Tools surface tactile without adding a component runtime or a continuous animation loop.
