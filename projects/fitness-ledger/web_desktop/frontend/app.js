@@ -941,6 +941,7 @@ trainingPage=function(...args){trainingPageWithOptionalFocusPanel(...args);if(!s
 document.addEventListener('click',event=>{const target=event.target.closest('[data-build-identity],[data-build-copy-sha]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();if(target.dataset.buildIdentity!==undefined){openBuildIdentity();return}if(target.dataset.buildCopySha!==undefined){const sha=state.buildInfo?.commit_sha||'';if(!sha)return;const copy=navigator.clipboard?.writeText?navigator.clipboard.writeText(sha):Promise.reject(new Error('clipboard unavailable'));copy.then(()=>showToast('完整 Commit SHA 已复制。')).catch(()=>showToast('当前环境无法访问剪贴板。'))}},true);
 window.addEventListener('popstate',()=>renderRoute(parseRoute(),history.state||{}));window.addEventListener('hashchange',()=>{const route=parseRoute();if(route.view!==state.view||route.params.toString()!==new URLSearchParams(state.routeParams||{}).toString())renderRoute(route,history.state||{})});load();
 loadBuildInfo();
+import('./tools-css3d-panels.js').then(({mountGlobalArchivePet})=>mountGlobalArchivePet()).catch(()=>{});
 function analysisExportPrimaryAction(){const root=analysisExportRoot();if(root?.dataset.inputMode==='json')validateAnalysisExportProtocol();else exportFormalSemanticDataPackage()}
 document.addEventListener('click',event=>{const target=event.target.closest('[data-analysis-export-example],[data-analysis-export-validate],[data-analysis-export-preview],[data-analysis-export-confirm],[data-analysis-export-mode],[data-analysis-export-paste],[data-analysis-export-file],[data-analysis-export-format],[data-analysis-export-clear],[data-analysis-export-natural-preview],[data-analysis-export-natural-confirm],[data-analysis-export-candidate-continue],[data-analysis-export-prompt],[data-analysis-export-back],[data-analysis-export-next]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();if(target.dataset.analysisExportMode){setAnalysisExportProtocolMode(target.dataset.analysisExportMode);return}if(target.dataset.analysisExportPrompt!==undefined){const input=$('#analysis-export-natural-language');if(input){input.value=target.dataset.intent||'';input.dispatchEvent(new Event('input',{bubbles:true}));input.focus()}return}if(target.dataset.analysisExportNaturalPreview!==undefined){analysisExportPrimaryAction();return}if(target.dataset.analysisExportNaturalConfirm!==undefined||target.dataset.analysisExportConfirm!==undefined){const root=analysisExportRoot();if(root?.dataset.inputMode==='json')exportAnalysisExportProtocol();else confirmFormalSemanticDataPackage();return}if(target.dataset.analysisExportCandidateContinue!==undefined){continueFormalSemanticCandidateSelection();return}if(target.dataset.analysisExportBack!==undefined){analysisExportBack();return}if(target.dataset.analysisExportNext!==undefined){analysisExportAdvance();return}if(target.dataset.analysisExportPaste!==undefined){const input=$('#analysis-export-request');if(!input)return;if(navigator.clipboard?.readText){navigator.clipboard.readText().then(value=>{input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();showToast('已粘贴 Request。')}).catch(()=>{input.focus();showToast('当前无法访问剪贴板，请直接粘贴。')})}else{input.focus();showToast('请直接粘贴到 JSON 编辑区。')}return}if(target.dataset.analysisExportFile!==undefined){$('#analysis-export-file')?.click();return}if(target.dataset.analysisExportFormat!==undefined){const input=$('#analysis-export-request');if(!input)return;try{input.value=JSON.stringify(JSON.parse(input.value),null,2);input.dispatchEvent(new Event('input',{bubbles:true}));showToast('Request 已格式化。')}catch(error){showToast(`JSON 格式化失败：${error.message}`)}return}if(target.dataset.analysisExportClear!==undefined){const input=$('#analysis-export-request');if(input){input.value='';input.dispatchEvent(new Event('input',{bubbles:true}));input.focus()}return}if(target.dataset.analysisExportExample!==undefined){const input=$('#analysis-export-request');if(input){input.value=JSON.stringify(ANALYSIS_EXPORT_EXAMPLE,null,2);input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();showToast('示例 Request 已载入。')}return}if(target.dataset.analysisExportValidate!==undefined){validateAnalysisExportProtocol();return}if(target.dataset.analysisExportPreview!==undefined){previewAnalysisExportProtocol();return}},true);
 document.addEventListener('change',event=>{if(event.target.id==='analysis-export-file'){const file=event.target.files?.[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{const input=$('#analysis-export-request');if(input){input.value=String(reader.result||'');input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();showToast('Request 文件已读取。')}};reader.onerror=()=>showToast('无法读取该文件。');reader.readAsText(file,'utf-8');return}if(event.target.matches('[data-natural-candidate-all]')){document.querySelectorAll('[data-natural-candidate]').forEach(item=>{item.checked=event.target.checked});return}if(event.target.id==='analysis-export-confirm'){const button=$('[data-analysis-export-confirm]');if(button)button.disabled=!event.target.checked}},true);
@@ -950,3 +951,68 @@ document.addEventListener('keydown',event=>{if(!['analysis-export-request','anal
 
 
 window.addEventListener('resize',()=>{if(state.view==='training')requestAnimationFrame(layoutTrainingGrid)});
+
+// Experimental Tools Lab: keep the stable export/sync routes, but let the overview be a visual playground.
+const legacyToolsPage=toolsPage;
+const stopToolsCSS3DPanels=()=>{const cleanup=window.__fitnessLedgerTools3DCleanup;if(typeof cleanup==='function'){cleanup();window.__fitnessLedgerTools3DCleanup=null}};
+toolsPage=function experimentalToolsPage(){
+  stopToolsCSS3DPanels();
+  const panel=state.routeParams?.panel||'overview';
+  if(panel==='export'){legacyToolsPage();requestAnimationFrame(()=>$('.analysis-export-page')?.insertAdjacentHTML('afterbegin','<button class="tools-route-back" data-tools-panel="overview">← Tools Lab</button>'));return}
+  if(panel==='sync'){legacyToolsPage();return}
+ main.innerHTML=`<section class="page tools-experiment" data-tools-experiment="v4">
+    <header class="tools-experiment-hero">
+      <div class="tools-hero-rail tools-hero-rail-left" aria-hidden="true"><span class="tools-hero-rail-mark">01</span><span class="tools-hero-rail-rule"></span><span class="tools-hero-rail-label">SOURCE</span><strong>LOCAL JSON</strong><small>PRIMARY RECORD</small></div>
+      <div class="tools-hero-rail tools-hero-rail-right" aria-hidden="true"><span class="tools-hero-rail-label">ROUTE MAP / 03</span><div class="tools-hero-route-map"><i></i><b></b><i></i><b></b><i></i></div><small>EXPORT&nbsp;&nbsp;SYNC&nbsp;&nbsp;HEALTH</small></div>
+      <div class="tools-experiment-kicker"><span class="eyebrow">08 / TOOLS</span><span class="tools-route-note">LOCAL ARCHIVE / 03 UTILITIES</span></div>
+      <div class="tools-experiment-hero-grid">
+        <div class="tools-experiment-title"><h1>Tools</h1></div>
+        <aside class="tools-experiment-aside"><span>ONE LOCAL SOURCE</span><strong>Three exits.</strong></aside>
+      </div>
+      <div class="tools-metric-strip" aria-label="工具页状态"><div><span>SOURCE</span><strong>Local archive</strong></div><div><span>NETWORK</span><strong>Only when syncing</strong></div><div><span>HEALTH</span><strong>On demand</strong></div></div>
+    </header>
+    <section class="tools-lab-shell" aria-label="Tools 工作区">
+      <div class="tools-lab-head"><div><span class="eyebrow">TOOL INDEX / 03 ROUTES</span><h2>Choose a utility.</h2></div><div class="tools-health-meter" data-status="loading"><i></i><strong data-tools-health-count>—</strong><span>issues</span></div></div>
+      <div class="tools-lab-grid">
+         <button class="tools-card tools-card-featured" type="button" data-tools-panel="export"><span class="tools-card-index">01 / EXPORT</span><span class="tools-card-glyph" aria-hidden="true">↗</span><div class="tools-card-copy"><span class="eyebrow">ANALYSIS EXPORT / V1.1</span><h3>Export the archive.</h3><p>将 Body、Diet、Training 与 Movement 整理成 Markdown / JSON。</p></div><footer><span>LOCAL ONLY</span><b>Open export <i>→</i></b></footer></button>
+         <button class="tools-card tools-card-sync" type="button" data-tools-panel="sync"><span class="tools-card-index">02 / SYNC</span><span class="tools-card-glyph" aria-hidden="true">⇄</span><div class="tools-card-copy"><span class="eyebrow">READ-ONLY REPLICA</span><h3>Mirror the archive.</h3><p>生成 Payload、上传 CloudBase，再校验只读副本。</p></div><footer><span>MANUAL / VERIFIED</span><b>Open sync <i>→</i></b></footer></button>
+         <button class="tools-card tools-card-health" type="button" data-tools-panel="health"><span class="tools-card-index">03 / HEALTH</span><span class="tools-card-glyph tools-card-glyph-pulse" aria-hidden="true">✦</span><div class="tools-card-copy"><span class="eyebrow">SILENT HEALTH</span><h3>Check the archive.</h3><p>正常状态保持安静，需要处理时回到对应记录。</p><div class="tools-health-inline"><i></i><strong data-tools-health-status>正在检查</strong></div></div><footer><span>CONTEXTUAL / SAFE</span><b>View health <i>→</i></b></footer></button>
+      </div>
+      <div class="tools-flow" aria-label="工具路径"><span>LOCAL</span><i>→</i><span>CHECK</span><i>→</i><span>EXIT</span><small>Local JSON remains the source.</small></div>
+    </section>
+    <footer class="tools-experiment-footer"><span>FITNESS LEDGER / TOOLS</span><p>One source. Three careful exits.</p></footer>
+  </section>`;
+  renderArchiveHealth();
+  if(panel==='health')queueMicrotask(openDataCheckOverlay);
+  requestAnimationFrame(()=>{
+    $('.tools-experiment')?.classList.add('is-ready');
+    if(location.protocol==='file:')return;
+     import('./tools-css3d-panels.js').then(({mountToolsCSS3DPanels})=>{
+       const stage=$('.tools-experiment');
+       if(stage)mountToolsCSS3DPanels(stage);
+     }).catch(error=>console.error('Tools CSS3D panels failed',error));
+  });
+};
+
+const baseRenderArchiveHealth=renderArchiveHealth;
+renderArchiveHealth=function(){
+  baseRenderArchiveHealth();
+  const meter=$('.tools-health-meter'),countNode=$('[data-tools-health-count]'),health=state.archiveHealth,count=Number(health?.issue_count||0),status=health?.status==='NEEDS_REVIEW'&&count>0?'review':health?.status==='UNAVAILABLE'?'unavailable':health?.status?'ok':'loading';
+  if(meter)meter.dataset.status=status;
+  if(countNode)countNode.textContent=status==='unavailable'?'—':status==='loading'?'…':String(count);
+};
+
+// Keep the Tools surface tactile without adding a component runtime or a continuous animation loop.
+let toolsSpotlightFrame=0,toolsSpotlightTarget=null;
+document.addEventListener('pointermove',event=>{
+  const surface=event.target.closest?.('.tools-actions,.tools-lab-shell,.tools-experiment-hero');
+  if(!surface||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
+  const rect=surface.getBoundingClientRect();
+  toolsSpotlightTarget={surface,x:event.clientX-rect.left,y:event.clientY-rect.top};
+  if(toolsSpotlightFrame)return;
+  toolsSpotlightFrame=requestAnimationFrame(()=>{
+    const target=toolsSpotlightTarget;
+      if(target?.surface?.isConnected){const prefix=target.surface.matches('.tools-lab-shell')?'--tools-lab-':target.surface.matches('.tools-experiment-hero')?'--tools-hero-':'--tools-spot-';target.surface.style.setProperty(`${prefix}x`,`${Math.round(target.x)}px`);target.surface.style.setProperty(`${prefix}y`,`${Math.round(target.y)}px`)}
+    toolsSpotlightTarget=null;toolsSpotlightFrame=0;
+  });
+},{passive:true});

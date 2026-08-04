@@ -1,0 +1,91 @@
+{
+  "surface": "web_desktop/frontend#tools",
+  "purpose": "Keep the tools page calm, local-first, and easy to scan on desktop and touch screens.",
+  "referenceHierarchy": [
+    {
+      "source": "project-design",
+      "authority": "DESIGN.md",
+      "use": "Primary visual source of truth: editorial hierarchy, neutral canvas, restrained semantic accents."
+    },
+    {
+      "source": "tasteskill",
+      "url": "https://www.tasteskill.dev/docs",
+      "use": "Audit lens: explicit hierarchy, consistent tokens, anti-slop restraint, and a clear reason for every visual element."
+    },
+    {
+      "source": "fevero",
+      "url": "https://fevero.eu/en/start-2/",
+      "use": "Mobile reference only: health states should be legible, quiet when normal, and obvious when attention is needed."
+    },
+    {
+      "source": "motion",
+      "url": "https://motion.dev/docs/react-accessibility",
+      "use": "Interaction reference: use transform and opacity for short feedback, and always honor reduced motion."
+    },
+    {
+      "source": "react-bits",
+      "url": "https://reactbits.dev/",
+      "use": "Pattern reference only: borrow soft aurora background movement, spotlight response, and card composition ideas without adding a React dependency."
+    },
+    {
+      "source": "radix-context-menu",
+      "url": "https://www.radix-ui.com/primitives/docs/components/context-menu",
+      "use": "Interaction reference for right-click / long-press menu anatomy, collision-aware placement, dismissal, focus, and keyboard navigation; implemented locally in vanilla JS."
+    },
+    {
+      "source": "three-css3d-renderer",
+      "url": "https://threejs.org/docs/pages/CSS3DRenderer.html",
+      "use": "Implementation source for hierarchical 3D transforms on ordinary DOM elements; the existing HTML buttons remain the accessible interaction authority."
+    },
+    {
+      "source": "three-mesh-ui",
+      "url": "https://felixmariotto.github.io/three-mesh-ui/",
+      "use": "Pattern reference for interactive 3D panels, nested surfaces, depth, and button feedback; adapted to the project's vanilla HTML/CSS surface instead of replacing business controls with canvas text."
+    },
+    {
+      "source": "mouse-follower",
+      "url": "https://github.com/ArtBIT/mouse-follower",
+      "use": "Implementation source for the small desktop companion's spring/inertia cursor following; the body and eyes are local project pixel sprites."
+    }
+  ],
+  "dials": {
+    "density": "medium-high",
+    "contrast": "high",
+    "roundness": "soft-asymmetric",
+    "motion": "quiet",
+    "accentCount": "one-semantic-accent-per-state"
+  },
+  "implementation": {
+    "runtime": "vanilla-js-css",
+    "reactBits": "reference-only",
+    "css3dPanels": "CSS3DRenderer-inspired DOM panel controller; each real tool button owns its perspective, extrusion, pointer tilt, sheen, focus depth, and pressed state",
+    "mousePet": "local adapted MIT mouse-follower spring/inertia behavior with the original local ghost sprite style",
+        "motion": "bounded archive-field spotlight plus short transform and opacity transitions",
+        "upperField": "Use the side whitespace for quiet, source-derived rails and a small route map; do not stretch the hero to fill it.",
+        "archiveField": "A low-contrast radial contour field, asymmetrical shell, route line, and shared pointer light visually connect the three panels without adding a separate 3D object.",
+        "archiveCore": "Export, Sync, and Health are the 3D surfaces themselves. No detached model is placed inside a card; pointer and focus state move the complete semantic button as one shallow layered panel.",
+        "globalPet": "The original tartan ghost is mounted once at app startup. Right-click, Context Menu key, or Shift+F10 opens a collision-aware local route menu for every top-level interface and utility route.",
+    "dataPolicy": "derive visual status from existing state; never invent health or sync data"
+  },
+  "constraints": [
+    "Do not change Analysis Export, Cloud Sync, or Data Health protocol semantics.",
+    "Do not add a second source of truth or copy formal data into the worktree.",
+    "Do not add remote runtime dependencies; copied open-source assets must be local, license-documented, and scoped to Tools.",
+    "The page title must name the utility surface; do not replace it with a campaign-style slogan.",
+    "Do not pair oversized display type with explanatory microcopy unless it clarifies a real action.",
+    "Use rounded pills only for real status or navigation; never as decorative labels.",
+    "Hover feedback may use color, border, or spotlight; do not lift every card by default.",
+    "Decorative marks must explain the archive surface or its three routes; no invented status, badges, or visual filler.",
+    "The background field must connect the panels visually without becoming a second content layer or changing semantic state.",
+    "Keep primary actions keyboard reachable with visible focus styles.",
+    "Keep the page usable at narrow widths and disable decorative motion for prefers-reduced-motion."
+  ],
+  "acceptance": [
+    "The three existing tool routes remain reachable through their current data-tools-panel hooks.",
+    "Desktop reads as one maintenance desk with a clear primary action.",
+    "Mobile stacks the same content without horizontal overflow and preserves touch target size.",
+    "Visual motion is non-blocking and uses only transform, opacity, or a bounded background spotlight.",
+    "The CSS3D layer enhances the real HTML buttons, cleans up on route changes, and degrades to a static accessible surface on touch and reduced-motion contexts.",
+    "The original ghost remains available across all routes, and its context menu reaches the existing navigation routes without introducing a second router."
+  ]
+}
