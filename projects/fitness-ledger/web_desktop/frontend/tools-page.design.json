@@ -25,7 +25,17 @@
     {
       "source": "react-bits",
       "url": "https://reactbits.dev/",
-      "use": "Pattern reference only: borrow soft aurora background movement, spotlight response, and card composition ideas without adding a React dependency."
+      "use": "Component reference only: borrow Spotlight Card, Glare Hover, Shiny Text, and compact control composition patterns without adding a React dependency."
+    },
+    {
+      "source": "invisigrid-motion-lab",
+      "url": "https://invisigrid.live/",
+      "use": "Motion reference only: borrow the restrained grid atmosphere, pointer-reactive lighting, category rail, and scroll reveal cadence without copying unrelated scenes."
+    },
+    {
+      "source": "collective-os",
+      "url": "https://collectiveos.vercel.app/",
+      "use": "Layout reference only: borrow the floating workspace shell, sidebar, KPI strip, dashboard content area, and progressive section hierarchy while keeping Fitness Ledger copy and data contracts."
     },
     {
       "source": "radix-context-menu",
@@ -57,26 +67,27 @@
   },
   "implementation": {
     "runtime": "vanilla-js-css",
-    "reactBits": "reference-only",
-    "css3dPanels": "CSS3DRenderer-inspired DOM panel controller; each real tool button owns its perspective, extrusion, pointer tilt, sheen, focus depth, and pressed state",
+    "template": "Collective OS dashboard anatomy adapted locally; no runtime dependency",
+    "reactBits": "Spotlight Card and Glare Hover patterns adapted locally in vanilla CSS",
+    "css3dPanels": "not mounted on the template adapter; semantic DOM controls remain the interaction authority",
     "mousePet": "local adapted MIT mouse-follower spring/inertia behavior with the original local ghost sprite style",
-        "motion": "bounded archive-field spotlight plus short transform and opacity transitions",
+        "motion": "Invisigrid Motion Lab-inspired grid atmosphere, pointer spotlight, and scroll reveal; bounded and reduced-motion safe",
         "upperField": "Use the side whitespace for quiet, source-derived rails and a small route map; do not stretch the hero to fill it.",
-        "archiveField": "A low-contrast radial contour field, asymmetrical shell, route line, and shared pointer light visually connect the two operation surfaces without adding a separate 3D object.",
-        "archiveCore": "Export remains a separate one-off operation. Archive Health owns Sync and Data Check as one connected surface, while Movement Dictionary remains a separate reference entry. No detached model is placed inside a card; pointer and focus state move the complete semantic button as one shallow layered panel.",
+        "archiveField": "Use the Collective OS sidebar, KPI strip, dashboard grid, border rhythm, status badges, and route rows as the shared maintenance surface; keep the paper canvas quiet and do not add a detached 3D layer.",
+        "archiveCore": "Export remains a separate one-off operation. Archive Health owns Sync and Data Check as two explicit action rows, while Movement Dictionary remains a separate reference entry. Sync keeps only state, route, action, verification, and progressive diagnostics.",
         "globalPet": "The original tartan ghost is mounted once at app startup. Right-click, Context Menu key, or Shift+F10 opens a collision-aware local route menu for every top-level interface and utility route.",
     "dataPolicy": "derive visual status from existing state; never invent health or sync data"
   },
   "constraints": [
     "Do not change Analysis Export or Movement Dictionary protocol semantics; Cloud Sync and Data Health protocols remain unchanged while their presentation is redesigned.",
     "Do not add a second source of truth or copy formal data into the worktree.",
-    "Do not add remote runtime dependencies; copied open-source assets must be local, license-documented, and scoped to Tools.",
+    "Do not add remote runtime dependencies; the MIT-licensed Gentelella page anatomy is adapted locally and documented in THIRD-PARTY-NOTICES.md.",
     "The page title must name the utility surface; do not replace it with a campaign-style slogan.",
     "Do not pair oversized display type with explanatory microcopy unless it clarifies a real action.",
     "Use rounded pills only for real status or navigation; never as decorative labels.",
-    "Hover feedback may use color, border, or spotlight; do not lift every card by default.",
+    "Use the template's border, status, and action-row feedback; do not lift every card or add decorative 3D motion.",
     "Decorative marks must explain the archive surface or its three routes; no invented status, badges, or visual filler.",
-    "The background field must connect the panels visually without becoming a second content layer or changing semantic state.",
+    "The paper canvas and shared border rhythm must connect the panels without becoming a second content layer or changing semantic state.",
     "Keep primary actions keyboard reachable with visible focus styles.",
     "Keep the page usable at narrow widths and disable decorative motion for prefers-reduced-motion."
   ],
@@ -84,8 +95,8 @@
     "Export and Archive Health remain the two primary operation surfaces; Sync and Data Check remain reachable through their current data-tools-panel hooks, and Movement Dictionary stays a separate reference entry.",
     "Desktop reads as one maintenance desk with a clear primary action.",
     "Mobile stacks the same content without horizontal overflow and preserves touch target size.",
-    "Visual motion is non-blocking and uses only transform, opacity, or a bounded background spotlight.",
-    "The CSS3D layer enhances the real HTML buttons, cleans up on route changes, and degrades to a static accessible surface on touch and reduced-motion contexts.",
+    "Visual motion is non-blocking and limited to short transform feedback on real controls.",
+    "The template adapter stays usable without a CSS3D or canvas layer on touch and reduced-motion contexts.",
     "The original ghost remains available across all routes, and its context menu reaches the existing navigation routes without introducing a second router."
   ]
 }

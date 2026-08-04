@@ -54,6 +54,59 @@ final result: passed
 
 ---
 
+# Design QA - Tools v6 Gentelella template adapter
+
+Date: 2026-08-04
+
+## Evidence
+
+- Template visual source: `https://gentelella.colorlib.com/`
+- Template architecture reference: `https://gentelella.colorlib.com/docs/architecture/`
+- Template source capture: `C:\Users\26087\.codex\visualizations\2026\08\04\019fcbd3-65f2-7242-a598-121bb22af36c\gentelella-reference.png`
+- Tools overview implementation: `C:\Users\26087\.codex\visualizations\2026\08\04\019fcbd3-65f2-7242-a598-121bb22af36c\tools-template-overview-final.png`
+- Cloud Sync implementation: `C:\Users\26087\.codex\visualizations\2026\08\04\019fcbd3-65f2-7242-a598-121bb22af36c\tools-template-sync-final.png`
+- Data Check implementation: `C:\Users\26087\.codex\visualizations\2026\08\04\019fcbd3-65f2-7242-a598-121bb22af36c\tools-template-health-final.png`
+- Mobile implementation: `C:\Users\26087\.codex\visualizations\2026\08\04\019fcbd3-65f2-7242-a598-121bb22af36c\tools-template-mobile-v2.png`
+- Desktop viewport: 1600 x 1000; interaction recheck: 1440 x 900
+- Mobile viewport: 512 x 690 CSS px
+- State: Tools overview; Cloud Sync not configured; Data Check archive clear with 0 unresolved and 5 acknowledged
+
+## Template comparison
+
+- The implementation follows the reference template's admin anatomy: breadcrumb/page header, status badge, operation panels, route/status handoff, verification summary, and progressive disclosure for advanced diagnostics.
+- Existing Fitness Ledger visual tokens remain the source of truth for paper, ink, editorial serif, DM Sans UI copy, mint, and volt accents. The template supplies structure and density; it does not introduce a second runtime or unrelated visual system.
+- Export is one operation card. Archive Health is one focused card with two equal, explicit actions: Cloud Sync and Data Check. The two actions share the local archive context but do not share responsibilities.
+- Data Check is now a full review-queue page. Cloud Sync is now a focused status/route page with only the necessary sync actions, verification summary, and an advanced diagnostic disclosure.
+
+## Interaction and browser verification
+
+- Route chain passed: Tools -> Data Check -> Cloud Sync -> Data Check -> Tools.
+- Separate route behavior passed: Movement Dictionary reaches `#dictionary`; Export reaches `#tools?panel=export`.
+- Desktop route snapshots reported `scrollWidth === clientWidth` at 1440 x 900.
+- Mobile route snapshots reported `body.scrollWidth === body.clientWidth === 497` and `documentElement.scrollWidth === documentElement.clientWidth === 497` for overview, Data Check, and Cloud Sync.
+- The active Tools navigation item is automatically scrolled into view on narrow screens.
+- `tools/web_polish_ui_test.py` passed with `FITNESS_LEDGER_WEB_POLISH_UI_OK`.
+- `node --check` passed for the changed app surface and existing CSS3D module; `tools-page.design.json` parsed successfully; `git diff --check` passed.
+- No formal CloudBase upload or formal-data write was executed.
+
+## Findings
+
+- P0: None.
+- P1: None.
+- P2: None.
+- P3: The adapter can be tuned further if a later review wants tighter copy localization or a different template page variant; the core hierarchy and routes are complete.
+
+## Implementation scope
+
+- Added a local `tools-template-adapter.css` layer and linked it from the existing frontend.
+- Kept the existing API contracts, data-check table/actions, export route, dictionary route, and sync diagnostics.
+- Removed the Tools overview's CSS3D panel mount for this template pass so the reference structure is readable without a decorative layer.
+- Documented the Gentelella v4 MIT reference and local-adapter approach in `THIRD-PARTY-NOTICES.md`.
+
+final result: passed
+
+---
+
 # Design QA - Tools v5 archive control surfaces
 
 Date: 2026-08-04
@@ -175,5 +228,51 @@ final result: passed
 ## Follow-up polish
 
 - P3 only: the exact background visibility can be tuned after subjective review without changing the asset or layout.
+
+final result: passed
+
+---
+
+# Design QA - Tools v7 three-source adaptation
+
+Date: 2026-08-04
+
+## Evidence
+
+- Layout source: `https://collectiveos.vercel.app/`
+- Motion source: `https://invisigrid.live/`
+- Component source: `https://reactbits.dev/`
+- Source captures: `C:\Users\26087\.codex\visualizations\2026\08\04\019fcbd3-65f2-7242-a598-121bb22af36c\references\collectiveos-1600-top.png`, `invisigrid-1600-top.png`, `reactbits-1600-top.png`, and their 390px captures
+- Tools overview implementation: `C:\Users\26087\.codex\visualizations\2026\08\04\019fcbd3-65f2-7242-a598-121bb22af36c\tools-template-v7-final.png`
+- Cloud Sync implementation: `C:\Users\26087\.codex\visualizations\2026\08\04\019fcbd3-65f2-7242-a598-121bb22af36c\tools-template-v7-sync-final.png`
+- Data Check implementation: `C:\Users\26087\.codex\visualizations\2026\08\04\019fcbd3-65f2-7242-a598-121bb22af36c\tools-template-v7-health-final.png`
+- Mobile implementation: `C:\Users\26087\.codex\visualizations\2026\08\04\019fcbd3-65f2-7242-a598-121bb22af36c\tools-template-v7-mobile.png`
+- Viewports: 1600 x 1000 source/render capture, 1440 x 900 interaction recheck, 390 x 844 mobile
+- State: Tools overview; archive clear; Cloud Sync not configured; Data Check remains a separate review queue
+
+## Source-to-surface comparison
+
+- Collective OS supplies the visible dashboard relationship: workspace rail, KPI strip, main operation area, and lower progressive sections. The source's copy, imagery, branding, and application code are not copied.
+- Invisigrid supplies the motion rule: one quiet grid atmosphere, pointer-reactive light, and short scroll reveal. It does not become a second content layer or replace semantic controls.
+- React Bits supplies the component behavior: Spotlight Card response on surfaces and Glare Hover feedback on action rows. These are local vanilla CSS/JS adaptations; no React runtime is added.
+- Fitness Ledger relationships remain unchanged: Export is separate; Archive Health owns Cloud Sync and Data Check; Movement Dictionary remains a reference route.
+
+## Interaction and browser verification
+
+- Sidebar route chain passed: Overview -> Data Check -> Cloud Sync -> Data Check -> Overview.
+- Separate sidebar routes passed: Movement Dictionary reaches `#dictionary`; Export reaches `#tools?panel=export`.
+- Desktop snapshots reported `scrollWidth === clientWidth === 1425` at 1440 x 900.
+- Mobile snapshot reported `body.scrollWidth === body.clientWidth === 375` and `documentElement.scrollWidth === documentElement.clientWidth === 375` at 390 x 844.
+- The top Tools nav and the new workspace rail keep their active entries reachable on mobile; the rail itself scrolls without widening the page.
+- Pointer and motion layers are bounded and removed from the reduced-motion path.
+- `tools/web_polish_ui_test.py` passed with `FITNESS_LEDGER_WEB_POLISH_UI_OK`; app syntax and design JSON validation passed; `git diff --check` passed.
+- No formal CloudBase upload or formal-data write was executed.
+
+## Findings
+
+- P0: None.
+- P1: None.
+- P2: None.
+- P3: The reference motion can be tuned further after subjective review, but no structural or interaction defect remains.
 
 final result: passed
