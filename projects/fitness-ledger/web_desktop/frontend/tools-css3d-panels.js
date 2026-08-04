@@ -244,7 +244,7 @@ export function mountToolsCSS3DPanels(page) {
   page.dataset.tools3dReady = 'true';
   page.dataset.tools3dStatus = finePointer ? 'ready' : 'static';
 
-  const pointer = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5, inside: false };
+  const pointer = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5, inside: false, card: null };
   const target = { x: 0, y: 0 };
   let activeRoute = null;
   let frame = 0;
@@ -277,13 +277,21 @@ export function mountToolsCSS3DPanels(page) {
     if (event.pointerType === 'touch') return;
     pointer.x = event.clientX;
     pointer.y = event.clientY;
-    pointer.inside = page.contains(event.target);
+    const stage = event.target?.closest?.('.tools-lab-shell');
+    pointer.inside = stage === shell;
+    pointer.card = pointer.inside ? event.target?.closest?.('.tools-card[data-tools-panel]') : null;
+    if (!pointer.inside) {
+      target.x = 0;
+      target.y = 0;
+      return;
+    }
     const rect = shell.getBoundingClientRect();
     target.x = clamp(((event.clientX - rect.left) / Math.max(rect.width, 1) - 0.5) * 2, -1, 1);
     target.y = clamp(((event.clientY - rect.top) / Math.max(rect.height, 1) - 0.5) * 2, -1, 1);
   };
   const onPointerLeave = () => {
     pointer.inside = false;
+    pointer.card = null;
     target.x = 0;
     target.y = 0;
     applyRouteState(null);
@@ -292,8 +300,8 @@ export function mountToolsCSS3DPanels(page) {
   page.addEventListener('pointerleave', onPointerLeave, { passive: true });
 
   const render = () => {
-    const shellX = target.x * 1.15;
-    const shellY = -target.y * 0.85;
+    const shellX = pointer.inside ? target.x * 0.58 : 0;
+    const shellY = pointer.inside ? -target.y * 0.44 : 0;
     shell.style.setProperty('--tools-shell-tilt-x', `${shellX.toFixed(3)}deg`);
     shell.style.setProperty('--tools-shell-tilt-y', `${shellY.toFixed(3)}deg`);
     page.style.setProperty('--tools-field-x', `${(50 + target.x * 28).toFixed(2)}%`);
@@ -303,9 +311,10 @@ export function mountToolsCSS3DPanels(page) {
       const rect = card.getBoundingClientRect();
       const localX = clamp((pointer.x - (rect.left + rect.width * 0.5)) / Math.max(rect.width * 0.5, 1), -1, 1);
       const localY = clamp((pointer.y - (rect.top + rect.height * 0.5)) / Math.max(rect.height * 0.5, 1), -1, 1);
-      const cardX = pointer.inside ? localX * 5.8 + target.x * 0.9 : 0;
-      const cardY = pointer.inside ? -localY * 5.1 - target.y * 0.7 : 0;
-      const cardZ = activeRoute === card.dataset.toolsPanel ? 18 : pointer.inside && Math.abs(localX) < 1 && Math.abs(localY) < 1 ? 7 : 0;
+      const isFocused = pointer.card === card;
+      const cardX = isFocused ? localX * 2.4 + target.x * 0.25 : 0;
+      const cardY = isFocused ? -localY * 2.1 - target.y * 0.18 : 0;
+      const cardZ = activeRoute === card.dataset.toolsPanel ? 10 : isFocused && Math.abs(localX) < 0.78 && Math.abs(localY) < 0.78 ? 4 : 0;
       setPanelValues(card, { x: cardX, y: cardY, z: cardZ, lx: 50 + localX * 34, ly: 50 + localY * 34 });
     });
     frame = requestAnimationFrame(render);

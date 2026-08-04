@@ -4,6 +4,17 @@ The Tools surface adapts interaction ideas and small behavior patterns from
 these open-source projects. The product data, copy, colors, and local ghost
 sprites remain project-owned.
 
+## Gentelella v4 page anatomy
+
+Source: https://github.com/ColorlibHQ/gentelella
+
+The Tools, Cloud Sync, and Data Check surfaces adapt the MIT-licensed
+Gentelella v4 admin page anatomy: shared page headers, status badges,
+operation panels, route/status rows, review queues, and progressive disclosure
+for diagnostics. The existing Fitness Ledger shell, local API contracts, and
+data semantics remain project-owned; Gentelella is not bundled as a runtime or
+dependency.
+
 ## Three.js CSS3DRenderer reference
 
 Source: https://threejs.org/docs/pages/CSS3DRenderer.html
@@ -39,6 +50,24 @@ The soft-aurora, spotlight, and compositional background patterns informed
 the low-contrast archive field. React Bits is not bundled; the local surface
 is implemented with project CSS and vanilla JavaScript. The repository is
 licensed MIT + Commons Clause; no React Bits source is copied into this app.
+
+## Motion Lab / Invisigrid reference
+
+Source: https://invisigrid.live/
+
+The Tools atmosphere adapts the site's documented motion patterns: a quiet
+grid, pointer-reactive lighting, restrained scroll reveals, and category-led
+navigation. No Motion Lab assets or runtime are bundled; the local layer uses
+existing project CSS and vanilla JavaScript and remains reduced-motion safe.
+
+## Collective OS reference
+
+Source: https://collectiveos.vercel.app/
+
+The Tools overview adapts the visible dashboard relationship of a workspace
+rail, KPI strip, content area, and progressive sections. The source's copy,
+images, branding, and application code are not copied; Fitness Ledger keeps its
+own data contracts, labels, assets, and navigation.
 
 ## Radix Context Menu reference
 
