@@ -50,7 +50,12 @@ def main() -> None:
                 f"--user-data-dir={profile}",
                 "--start-maximized",
                 "--no-first-run",
-            ]
+            ],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            close_fds=True,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
         process.wait()
     else:
