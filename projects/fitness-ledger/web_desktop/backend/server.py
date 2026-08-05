@@ -18,7 +18,12 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
-FRONTEND_DIR = Path(__file__).resolve().parents[1] / "frontend"
+configured_frontend_dir = str(os.environ.get("FITNESS_LEDGER_FRONTEND_DIR", "")).strip()
+FRONTEND_DIR = (
+    Path(configured_frontend_dir).expanduser().resolve()
+    if configured_frontend_dir
+    else Path(__file__).resolve().parents[1] / "frontend"
+)
 ASSET_DIR = PROJECT_DIR / "assets"
 if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
