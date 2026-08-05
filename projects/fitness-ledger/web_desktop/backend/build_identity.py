@@ -41,6 +41,7 @@ def _default_runner(args: list[str], cwd: Path) -> str:
         timeout=3,
         check=True,
         shell=False,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
     return result.stdout.strip()
 
@@ -182,6 +183,8 @@ def collect_build_info(
     root = Path(project_root).resolve()
     manifest = Path(manifest_path) if manifest_path else root / "web_desktop" / "runtime_build_info.json"
     command = runner or _default_runner
+    if manifest.is_file():
+        return _from_manifest(manifest, started)
     try:
         _run(command, ["git", "rev-parse", "--show-toplevel"], root)
     except Exception:

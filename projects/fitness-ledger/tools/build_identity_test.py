@@ -60,6 +60,9 @@ def test_formal_manifest_states() -> None:
         }
         manifest.write_text(json.dumps(payload), encoding="utf-8")
         assert collect_build_info(root, manifest_path=manifest)["status"] == "PUBLISHED"
+        def fail_git(*_args):
+            raise AssertionError("formal manifest should bypass Git")
+        assert collect_build_info(root, manifest_path=manifest, runner=fail_git)["status"] == "PUBLISHED"
         payload["push_verified"] = False
         manifest.write_text(json.dumps(payload), encoding="utf-8")
         assert collect_build_info(root, manifest_path=manifest)["status"] == "UNVERIFIED"
