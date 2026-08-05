@@ -38,6 +38,31 @@
       "use": "Layout reference only: borrow the floating workspace shell, sidebar, KPI strip, dashboard content area, and progressive section hierarchy while keeping Fitness Ledger copy and data contracts."
     },
     {
+      "source": "codrops-creative-hub",
+      "url": "https://tympanus.net/codrops/hub/all/",
+      "use": "Effect direction only: select bounded 3D/WebGL demos for the isolated Motion Lab; do not replace the archive workflow with a showcase landing page."
+    },
+    {
+      "source": "easy-bugs",
+      "url": "https://github.com/bandinopla/threejs-easybugs",
+      "use": "Implementation source for the Motion Lab head-and-bugs experiment: reuse the public BugRig, CCDIK, raycast cage, and instanced animation build with attribution."
+    },
+    {
+      "source": "3d-wave-grid",
+      "url": "https://github.com/franky-adl/3d-wave-grid",
+      "use": "Implementation source for the Motion Lab cursor ripple experiment: reuse the public Three.js/GLSL build and only adapt wrapper copy and palette."
+    },
+    {
+      "source": "bodybuilder-unity",
+      "url": "https://github.com/andrisgauracs/bodybuilder_unity",
+      "use": "Temporary full-body muscular GLB fallback for the Guardian Pose Deck; the pose controller is asset-agnostic and will accept an authorized Nick Walker GLB without a UI rewrite."
+    },
+    {
+      "source": "codrops-interactive-character",
+      "url": "https://tympanus.net/codrops/2019/10/14/how-to-create-an-interactive-3d-character-with-three-js/",
+      "use": "Open architecture reference for a full-body character that follows the cursor and triggers actions on click; adapted locally with the existing pet routing and reduced-motion boundary."
+    },
+    {
       "source": "radix-context-menu",
       "url": "https://www.radix-ui.com/primitives/docs/components/context-menu",
       "use": "Interaction reference for right-click / long-press menu anatomy, collision-aware placement, dismissal, focus, and keyboard navigation; implemented locally in vanilla JS."
@@ -70,12 +95,13 @@
     "template": "Collective OS dashboard anatomy adapted locally; no runtime dependency",
     "reactBits": "Spotlight Card and Glare Hover patterns adapted locally in vanilla CSS",
     "css3dPanels": "not mounted on the template adapter; semantic DOM controls remain the interaction authority",
-    "mousePet": "local adapted MIT mouse-follower spring/inertia behavior with the original local ghost sprite style",
-        "motion": "Invisigrid Motion Lab-inspired grid atmosphere, pointer spotlight, and scroll reveal; bounded and reduced-motion safe",
-        "upperField": "Use the side whitespace for quiet, source-derived rails and a small route map; do not stretch the hero to fill it.",
-        "archiveField": "Use the Collective OS sidebar, KPI strip, dashboard grid, border rhythm, status badges, and route rows as the shared maintenance surface; keep the paper canvas quiet and do not add a detached 3D layer.",
-        "archiveCore": "Export remains a separate one-off operation. Archive Health owns Sync and Data Check as two explicit action rows, while Movement Dictionary remains a separate reference entry. Sync keeps only state, route, action, verification, and progressive diagnostics.",
-        "globalPet": "The original tartan ghost is mounted once at app startup. Right-click, Context Menu key, or Shift+F10 opens a collision-aware local route menu for every top-level interface and utility route.",
+    "mousePet": "local adapted MIT mouse-follower spring/inertia behavior with a borderless full-body Guardian pet using the five low-poly static-pose assets and pointer messages sent into its Three.js mesh",
+    "motion": "Invisigrid Motion Lab-inspired grid atmosphere, pointer spotlight, and scroll reveal; bounded and reduced-motion safe",
+    "motionLab": "Isolated route with Easy Bugs for head/IK surface movement, 3D Wave Grid for cursor ripples, and a small global Guardian Pet backed by five low-poly static-pose assets. The full-body Pose Deck remains asset QA only; the pilot has no archive API access.",
+    "upperField": "Use the side whitespace for quiet, source-derived rails and a small route map; do not stretch the hero to fill it.",
+    "archiveField": "Use the Collective OS sidebar, KPI strip, dashboard grid, border rhythm, status badges, route rows, and a restrained Wave Grid accent inside an existing module; keep the paper canvas quiet and do not add a detached 3D layer.",
+    "archiveCore": "Export remains a separate one-off operation. Archive Health owns Sync and Data Check as two explicit action rows, while Movement Dictionary remains a separate reference entry. Sync keeps only state, route, action, verification, and progressive diagnostics.",
+    "globalPet": "The global guardian is a borderless 58px transparent full-body Three.js pet using the same five low-poly static-pose assets as the isolated Pose Deck. Pointer follow is sent into the scene; pose switching remains available from the pet menu, wheel, keyboard, custom event, postMessage, and window.__fitnessLedgerGuardianPet.",
     "dataPolicy": "derive visual status from existing state; never invent health or sync data"
   },
   "constraints": [
@@ -83,6 +109,7 @@
     "Do not add a second source of truth or copy formal data into the worktree.",
     "Do not add remote runtime dependencies; the MIT-licensed Gentelella page anatomy is adapted locally and documented in THIRD-PARTY-NOTICES.md.",
     "The page title must name the utility surface; do not replace it with a campaign-style slogan.",
+    "Motion Lab is an explicit experimental route; Sync, Data Check, and Export never host WebGPU/canvas demos. Movement Dictionary may host only a read-only Easy Bugs reference preview with no archive API access.",
     "Do not pair oversized display type with explanatory microcopy unless it clarifies a real action.",
     "Use rounded pills only for real status or navigation; never as decorative labels.",
     "Use the template's border, status, and action-row feedback; do not lift every card or add decorative 3D motion.",

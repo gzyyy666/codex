@@ -69,11 +69,61 @@ rail, KPI strip, content area, and progressive sections. The source's copy,
 images, branding, and application code are not copied; Fitness Ledger keeps its
 own data contracts, labels, assets, and navigation.
 
+## Easy Bugs demo
+
+Source: https://github.com/bandinopla/threejs-easybugs
+
+The Motion Lab bundles a production build of the public Easy Bugs demo. Its
+`BugRig`, CCDIK, raycast-cage, and instanced-animation implementation is
+licensed under MIT, Copyright (c) 2026 Pablo Bandinopla. The demo build is
+used as the read-only visual inside the Movement Dictionary preview; it does
+not read or write archive data. The local build is kept in
+`motion-lab/easybugs/`; Easy Bugs remains the isolated head/IK reference and
+dictionary preview. The global pet now uses a direct transparent canvas from
+the separate `motion-lab/guardian/` full-body scene, avoiding an opaque iframe
+compositing layer.
+
+The bundled `man.packed.glb` and `roach.packed.glb` files are separate
+third-party model assets and are not covered by the Easy Bugs MIT license.
+The demo credits the head scan to yaro.pro and the cockroach to the linked
+Sketchfab page; those attribution links are retained in the demo. Confirm
+the model licenses before moving this experiment into a formal business
+surface.
+
+## 3D Wave Grid demo
+
+Source: https://github.com/franky-adl/3d-wave-grid
+Article: https://tympanus.net/codrops/2026/07/09/building-an-interactive-wave-propagation-cube-grid-with-three-js/
+
+The Motion Lab bundles the public 3D Wave Grid build in
+`motion-lab/wave-grid/`. The Three.js, GLSL, GSAP, and interaction source is
+MIT-licensed, Copyright (c) 2026 franky-adl. The local wrapper changes only
+the surrounding copy and palette for Fitness Ledger; the demo remains
+isolated from archive data and is used only as a low-opacity accent inside the
+existing Archive Health module.
+
+## Guardian pose deck / Three.js + bodybuilder asset
+
+Sources:
+- https://threejs.org/
+- https://github.com/andrisgauracs/bodybuilder_unity
+- https://tympanus.net/codrops/2019/10/14/how-to-create-an-interactive-3d-character-with-three-js/
+
+The Guardian Pose Deck bundles the Three.js ES module runtime, GLTF loader,
+and five low-poly static-pose GLBs for a local full-body preview. The global
+pet uses the same low-poly asset catalog through a direct transparent canvas
+mount. Its optional fallback is the
+MIT-licensed exaggerated bodybuilder asset by Andris Gauracs, converted from
+the repository's FBX for local GLB loading and paired with its included
+texture. Codrops' open interactive-character pattern supplies the mouse-follow
+and click-to-animation architecture. This fallback is not a representation of
+Nick Walker; the low-poly static catalog is the default review asset.
+
 ## Radix Context Menu reference
 
 Source: https://www.radix-ui.com/primitives/docs/components/context-menu
 
-The global ghost menu follows the documented context-menu behavior: pointer
+The global Guardian menu follows the documented context-menu behavior: pointer
 anchoring, collision-aware placement, dismissal, and keyboard activation.
 Radix itself is not bundled because this project is vanilla JavaScript.
 

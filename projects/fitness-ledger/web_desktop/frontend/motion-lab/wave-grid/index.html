@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>FL Motion Lab / Wave Grid</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap"
+            rel="stylesheet"
+        />
+      <script type="module" crossorigin src="./assets/index-O80gBCN-.js"></script>
+      <link rel="stylesheet" crossorigin href="./assets/index-Bjp30YE1.css">
+      <style>
+        html.embed-mode,
+        html.embed-mode body {
+          overflow: hidden;
+          background: #071024;
+        }
+        html.embed-mode .overlay {
+          display: none;
+        }
+      </style>
+      <script>
+        if (new URLSearchParams(location.search).has('embed')) {
+          document.documentElement.classList.add('embed-mode');
+        }
+      </script>
+    </head>
+    <body>
+        <div class="overlay">
+            <div class="top-nav">
+                <div class="nav-logo">
+                    <a href="#">FL / MOTION LAB</a>
+                </div>
+                <div class="nav-content">
+                    <div class="nav-links">
+                        <a href="#" class="animated-link">
+                            <span class="link-content">
+                            <span class="link-text">TOOLS</span>
+                            <span class="link-text">TOOLS</span>
+                            </span>
+                        </a>
+                        <a href="#" class="animated-link">
+                            <span class="link-content">
+                            <span class="link-text">WAVE FIELD</span>
+                            <span class="link-text">WAVE FIELD</span>
+                            </span>
+                        </a>
+                        <a href="#" class="animated-link">
+                            <span class="link-content">
+                            <span class="link-text">LOCAL ONLY</span>
+                            <span class="link-text">LOCAL ONLY</span>
+                            </span>
+                        </a>
+                    </div>
+                    <div class="nav-socials">
+                        <a href="#" class="animated-link">
+                            <span class="link-content">
+                            <span class="link-text">CURSOR / RIPPLE</span>
+                            <span class="link-text">CURSOR / RIPPLE</span>
+                            </span>
+                        </a>
+                        <a href="#" class="animated-link">
+                            <span class="link-content">
+                            <span class="link-text">THREE.JS + GLSL</span>
+                            <span class="link-text">THREE.JS + GLSL</span>
+                            </span>
+                        </a>
+                    </div>
+                    <div class="nav-time">
+                        <p id="local-time">FL / LOCAL SURFACE</p>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-section">
+                <div class="spacer"></div>
+                <h1>
+                    Wave propagation as a quiet archive surface.
+                    <span class="secondary">
+                        A Codrops open-source demo adapted to the Fitness Ledger
+                        Motion Lab.
+                    </span>
+                </h1>
+                <div class="spacer-back"></div>
+            </div>
+            <div class="bottom-bar">
+                <div class="bar-location">
+                    <p>TOOLS / EXPERIMENTAL</p>
+                </div>
+                <div class="bar-projects">
+                        <a href="https://github.com/franky-adl/3d-wave-grid" class="animated-link">
+                        <span class="link-content">
+                            <span class="link-text">VIEW SOURCE<img class="arrow-icon" src="./arrow.svg" alt="Arrow" /></span>
+                            <span class="link-text">VIEW SOURCE<img class="arrow-icon" src="./arrow.svg" alt="Arrow" /></span>
+                        </span>
+                    </a>
+                </div>
+                <div class="bar-availability">
+                        <a href="https://tympanus.net/codrops/2026/07/09/building-an-interactive-wave-propagation-cube-grid-with-three-js/" class="animated-link">
+                        <span class="link-content">
+                            <span class="link-text">CODE / ARTICLE<img class="arrow-icon" src="./arrow.svg" alt="Arrow" /></span>
+                            <span class="link-text">CODE / ARTICLE<img class="arrow-icon" src="./arrow.svg" alt="Arrow" /></span>
+                        </span>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <canvas class="webgl"></canvas>
+    </body>
+</html>

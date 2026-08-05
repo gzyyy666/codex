@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FL Guardian Pose Deck</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script>
+      if (new URLSearchParams(location.search).get('embed') === 'pet') {
+        document.documentElement.classList.add('pet-mode');
+      }
+    </script>
+  </head>
+  <body>
+    <main class="guardian-shell" data-guardian-app>
+      <header class="guardian-head">
+        <div>
+          <span class="eyebrow">GUARDIAN / STATIC POSE DECK</span>
+          <h1>Five ways to hold the work.</h1>
+          <p>Local static-pose preview. Each pose uses a prepared low-poly model; no training records are read or written.</p>
+        </div>
+        <div class="guardian-status" data-guardian-status>LOADING LOW-POLY</div>
+      </header>
+
+      <section class="guardian-stage" aria-label="3D guardian pose preview">
+        <div class="guardian-canvas-wrap">
+          <canvas data-guardian-canvas></canvas>
+          <div class="guardian-stage-mark">FL / LOCAL ONLY</div>
+          <div class="guardian-stage-hint">DRAG TO ORBIT / CLICK TO ADVANCE</div>
+        </div>
+        <aside class="guardian-copy">
+          <span class="eyebrow">CURRENT STUDY</span>
+          <strong data-guardian-pose-name>Front standing</strong>
+          <p data-guardian-pose-copy>Open the shoulders and back width like a training route unfolding in front of you.</p>
+          <div class="guardian-meta"><span data-guardian-pose-index>02 / 05</span><span>SPACE / NEXT</span></div>
+        </aside>
+      </section>
+
+      <nav class="guardian-pose-list" aria-label="Bodybuilding mandatory poses" data-guardian-pose-list></nav>
+
+        <footer class="guardian-foot">
+        <span>LOCAL ONLY / LOW-POLY STATIC POSE ASSETS</span>
+        <span>LEFT / RIGHT OR 1-5 TO SWITCH / SPACE TO ADVANCE</span>
+      </footer>
+    </main>
+    <script type="module">
+      const modelMode = new URLSearchParams(location.search).get('petModel');
+      const buildVersion = '20260806-v21';
+      import(`${modelMode === 'legacy' ? './pose-deck.js' : './pet-guardian-static.js'}?v=${buildVersion}`).catch(error => {
+        console.error('[Guardian] controller load failed', error);
+        const status = document.querySelector('[data-guardian-status]');
+        if (status) status.textContent = `LOAD ERROR · ${error.message}`;
+      });
+    </script>
+  </body>
+</html>
