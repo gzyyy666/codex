@@ -215,7 +215,7 @@ renderDictionary=function(){
 function parseRoute(){const raw=location.hash.slice(1)||'home',separator=raw.indexOf('?'),view=separator<0?raw:raw.slice(0,separator);return {view:view||'home',params:new URLSearchParams(separator<0?'':raw.slice(separator+1))}}
 function routeHash(view,params={}){const query=new URLSearchParams(Object.entries(params).filter(([,value])=>value!==undefined&&value!==null&&value!==''));const suffix=query.toString();return `#${view}${suffix?`?${suffix}`:''}`}
 function resetRouteUiState(){state.selectedBodyPart=null;state.trainingQuery='';state.trainingOrder='recent';state.movementSelection='';state.movementQuery=''}
-function renderRoute(route=parseRoute(),entryState=history.state||{}){const legacy=route.view==='checks'?'health':route.view==='export'?'export':route.view==='cloud-sync'?'sync':'';if(legacy)route={view:'tools',params:new URLSearchParams({panel:legacy})};state.view=route.view;state.routeParams=Object.fromEntries(route.params);state.routeState=entryState;resetRouteUiState();$$('.nav-item').forEach(b=>b.classList.toggle('is-active',b.dataset.view===state.view));const activeNav=document.querySelector('.nav-item.is-active');const navRail=activeNav?.parentElement;if(activeNav&&navRail&&navRail.scrollWidth>navRail.clientWidth)activeNav.scrollIntoView({block:'nearest',inline:'center'});window.scrollTo(0,0);({home:homePage,quick:quickPage,body:bodyPage,diet:dietPage,training:trainingPage,movements:movementPage,checks:checksPage,dictionary:dictionaryPage,tools:toolsPage}[state.view]||homePage)();if(legacy==='health')queueMicrotask(openDataCheckOverlay)}
+function renderRoute(route=parseRoute(),entryState=history.state||{}){if(route.view!=='guardian'){window.__fitnessLedgerGuardianPageCleanup?.();document.body.classList.remove('guardian-route')}const legacy=route.view==='checks'?'health':route.view==='export'?'export':route.view==='cloud-sync'?'sync':'';if(legacy)route={view:'tools',params:new URLSearchParams({panel:legacy})};state.view=route.view;state.routeParams=Object.fromEntries(route.params);state.routeState=entryState;resetRouteUiState();$$('.nav-item').forEach(b=>b.classList.toggle('is-active',b.dataset.view===state.view));const activeNav=document.querySelector('.nav-item.is-active');const navRail=activeNav?.parentElement;if(activeNav&&navRail&&navRail.scrollWidth>navRail.clientWidth)activeNav.scrollIntoView({block:'nearest',inline:'center'});window.scrollTo(0,0);({home:homePage,quick:quickPage,body:bodyPage,diet:dietPage,training:trainingPage,movements:movementPage,checks:checksPage,dictionary:dictionaryPage,tools:toolsPage,guardian:guardianPetPage}[state.view]||homePage)();window.dispatchEvent(new CustomEvent('fitness-ledger-pet:route-change',{detail:{view:state.view,panel:state.routeParams?.panel||null}}));if(legacy==='health')queueMicrotask(openDataCheckOverlay)}
 async function load(){try{await refreshWebState();const route=parseRoute();history.replaceState({view:route.view},'',location.href);renderRoute(route,history.state||{});void loadArchiveHealth()}catch(e){main.innerHTML=`<div class="loading-page"><h2>Local data service unavailable</h2><p>${esc(e.message)}</p></div>`}}
 function navigate(v,params={},options={}){const legacy=v==='checks'?'health':v==='export'?'export':v==='cloud-sync'?'sync':'';if(legacy){v='tools';params={...params,panel:legacy}}const entry={view:v},hash=routeHash(v,params);if(options.replace)history.replaceState(entry,'',hash);else history.pushState(entry,'',hash);renderRoute({view:v,params:new URLSearchParams(Object.entries(params))},entry)}
 function openMovementFromTraining(movementId){const id=String(movementId||'').trim();if(!id)return;navigate('movements',{movement_id:id})}
@@ -927,7 +927,7 @@ trainingPage=function(...args){trainingPageWithOptionalFocusPanel(...args);if(!s
 document.addEventListener('click',event=>{const target=event.target.closest('[data-build-identity],[data-build-copy-sha]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();if(target.dataset.buildIdentity!==undefined){openBuildIdentity();return}if(target.dataset.buildCopySha!==undefined){const sha=state.buildInfo?.commit_sha||'';if(!sha)return;const copy=navigator.clipboard?.writeText?navigator.clipboard.writeText(sha):Promise.reject(new Error('clipboard unavailable'));copy.then(()=>showToast('完整 Commit SHA 已复制。')).catch(()=>showToast('当前环境无法访问剪贴板。'))}},true);
 window.addEventListener('popstate',()=>renderRoute(parseRoute(),history.state||{}));window.addEventListener('hashchange',()=>{const route=parseRoute();if(route.view!==state.view||route.params.toString()!==new URLSearchParams(state.routeParams||{}).toString())renderRoute(route,history.state||{})});load();
 loadBuildInfo();
-import('./tools-css3d-panels.js').then(({mountGlobalArchivePet})=>mountGlobalArchivePet()).catch(()=>{});
+import('./tools-css3d-panels.js?v=20260806-v21').then(({mountGlobalArchivePet})=>mountGlobalArchivePet()).catch(error=>console.error('[Tools pet] bootstrap failed',error));
 function analysisExportPrimaryAction(){const root=analysisExportRoot();if(root?.dataset.inputMode==='json')validateAnalysisExportProtocol();else exportFormalSemanticDataPackage()}
 document.addEventListener('click',event=>{const target=event.target.closest('[data-analysis-export-example],[data-analysis-export-validate],[data-analysis-export-preview],[data-analysis-export-confirm],[data-analysis-export-mode],[data-analysis-export-paste],[data-analysis-export-file],[data-analysis-export-format],[data-analysis-export-clear],[data-analysis-export-natural-preview],[data-analysis-export-natural-confirm],[data-analysis-export-candidate-continue],[data-analysis-export-prompt],[data-analysis-export-back],[data-analysis-export-next]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();if(target.dataset.analysisExportMode){setAnalysisExportProtocolMode(target.dataset.analysisExportMode);return}if(target.dataset.analysisExportPrompt!==undefined){const input=$('#analysis-export-natural-language');if(input){input.value=target.dataset.intent||'';input.dispatchEvent(new Event('input',{bubbles:true}));input.focus()}return}if(target.dataset.analysisExportNaturalPreview!==undefined){analysisExportPrimaryAction();return}if(target.dataset.analysisExportNaturalConfirm!==undefined||target.dataset.analysisExportConfirm!==undefined){const root=analysisExportRoot();if(root?.dataset.inputMode==='json')exportAnalysisExportProtocol();else confirmFormalSemanticDataPackage();return}if(target.dataset.analysisExportCandidateContinue!==undefined){continueFormalSemanticCandidateSelection();return}if(target.dataset.analysisExportBack!==undefined){analysisExportBack();return}if(target.dataset.analysisExportNext!==undefined){analysisExportAdvance();return}if(target.dataset.analysisExportPaste!==undefined){const input=$('#analysis-export-request');if(!input)return;if(navigator.clipboard?.readText){navigator.clipboard.readText().then(value=>{input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();showToast('已粘贴 Request。')}).catch(()=>{input.focus();showToast('当前无法访问剪贴板，请直接粘贴。')})}else{input.focus();showToast('请直接粘贴到 JSON 编辑区。')}return}if(target.dataset.analysisExportFile!==undefined){$('#analysis-export-file')?.click();return}if(target.dataset.analysisExportFormat!==undefined){const input=$('#analysis-export-request');if(!input)return;try{input.value=JSON.stringify(JSON.parse(input.value),null,2);input.dispatchEvent(new Event('input',{bubbles:true}));showToast('Request 已格式化。')}catch(error){showToast(`JSON 格式化失败：${error.message}`)}return}if(target.dataset.analysisExportClear!==undefined){const input=$('#analysis-export-request');if(input){input.value='';input.dispatchEvent(new Event('input',{bubbles:true}));input.focus()}return}if(target.dataset.analysisExportExample!==undefined){const input=$('#analysis-export-request');if(input){input.value=JSON.stringify(ANALYSIS_EXPORT_EXAMPLE,null,2);input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();showToast('示例 Request 已载入。')}return}if(target.dataset.analysisExportValidate!==undefined){validateAnalysisExportProtocol();return}if(target.dataset.analysisExportPreview!==undefined){previewAnalysisExportProtocol();return}},true);
 document.addEventListener('change',event=>{if(event.target.id==='analysis-export-file'){const file=event.target.files?.[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{const input=$('#analysis-export-request');if(input){input.value=String(reader.result||'');input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();showToast('Request 文件已读取。')}};reader.onerror=()=>showToast('无法读取该文件。');reader.readAsText(file,'utf-8');return}if(event.target.matches('[data-natural-candidate-all]')){document.querySelectorAll('[data-natural-candidate]').forEach(item=>{item.checked=event.target.checked});return}if(event.target.id==='analysis-export-confirm'){const button=$('[data-analysis-export-confirm]');if(button)button.disabled=!event.target.checked}},true);
@@ -943,6 +943,74 @@ window.addEventListener('resize',()=>{if(state.view==='training')requestAnimatio
 const legacyToolsPage=toolsPage;
 const stopToolsCSS3DPanels=()=>{const cleanup=window.__fitnessLedgerTools3DCleanup;if(typeof cleanup==='function'){cleanup();window.__fitnessLedgerTools3DCleanup=null}};
 const stopToolsMotion=()=>{const cleanup=window.__fitnessLedgerToolsMotionCleanup;if(typeof cleanup==='function'){cleanup();window.__fitnessLedgerToolsMotionCleanup=null}};
+function updateMovementMotionPreview(){
+  const preview=document.querySelector('[data-movement-motion-preview]');
+  if(!preview)return;
+  const rows=Array.isArray(state.dictionary)?state.dictionary.filter(item=>item.active!==false):[];
+  const groups=[...new Set(rows.map(item=>groupLabel(item.muscle_group||'Unclassified')))].slice(0,3);
+  const count=preview.querySelector('[data-motion-dictionary-count]');
+  const scope=preview.querySelector('[data-motion-dictionary-scope]');
+  if(count)count.textContent=(rows.length||'—')+' CANONICAL MOVEMENTS';
+  if(scope)scope.textContent=groups.length?groups.join(' · '):'LOCAL MOVEMENT INDEX';
+}
+function mountMovementMotionPreview(){
+  const toolbar=document.querySelector('.dictionary-toolbar');
+  if(!toolbar||toolbar.parentElement.querySelector('[data-movement-motion-preview]'))return;
+  const preview=document.createElement('section');
+  preview.className='dictionary-motion-preview';
+  preview.dataset.movementMotionPreview='true';
+  preview.innerHTML=['<div class="dictionary-motion-preview-copy"><span class="eyebrow">REFERENCE / SURFACE STUDY</span><h2>动作从名字开始，也从表面开始。</h2><p>Easy Bugs 的头部与虫群只作为动作词典的视觉参考，不修改动作、不读取训练记录。</p><div class="dictionary-motion-preview-meta"><strong data-motion-dictionary-count>LOCAL MOVEMENT INDEX</strong><span data-motion-dictionary-scope>LOCAL MOVEMENT INDEX</span></div><a href="https://github.com/bandinopla/threejs-easybugs" target="_blank" rel="noreferrer">MIT SOURCE / EASY BUGS ↗</a></div><div class="dictionary-motion-preview-frame"><iframe title="Easy Bugs movement reference" src="motion-lab/easybugs/index.html?embed=1" loading="lazy" tabindex="-1"></iframe></div>'].join('');
+  toolbar.parentElement.insertBefore(preview,toolbar);
+  updateMovementMotionPreview();
+}
+function updateToolsArchiveMotion(){
+  const surfaces=[...document.querySelectorAll('[data-motion-surface]')];
+  if(!surfaces.length)return;
+  const health=state.archiveHealth||{};
+  const issueCount=Number(health.issue_count||0);
+  const status=health.status==='NEEDS_REVIEW'?issueCount+' ITEMS NEED REVIEW':health.status==='UNAVAILABLE'?'CHECK UNAVAILABLE':'LOCAL ROUTE READY';
+  surfaces.forEach(surface=>{
+    surface.dataset.status=health.status||'LOADING';
+    surface.dataset.motionLabel=surface.dataset.motionSurface==='wave-grid-check'?'DATA CHECK / '+status:status;
+  });
+}
+function mountToolsArchiveMotion(){
+  const targets=[
+    ['sync','wave-grid','Archive health wave accent'],
+    ['health','wave-grid-check','Data check wave accent']
+  ];
+  targets.forEach(([panelName,surfaceName,title])=>{
+    const panel=document.querySelector(`.admin-action-row[data-tools-panel="${panelName}"]`);
+    if(!panel||panel.querySelector('[data-motion-surface]'))return;
+    panel.classList.add('has-motion-surface');
+    panel.dataset.motionSurface=surfaceName;
+    const field=document.createElement('iframe');
+    field.title=title;
+    field.src='motion-lab/wave-grid/index.html?embed=module';
+    field.loading='lazy';
+    field.tabIndex=-1;
+    field.setAttribute('aria-hidden','true');
+    field.className='admin-action-motion-field';
+    const scrim=document.createElement('div');
+    scrim.className='admin-action-motion-scrim';
+    scrim.setAttribute('aria-hidden','true');
+    panel.append(field,scrim);
+  });
+  updateToolsArchiveMotion();
+}
+function refreshMotionLaunchCopy(){
+  const launch=document.querySelector('.admin-motion-launch');
+  if(!launch)return;
+  const copy=launch.querySelector('p');
+  const action=launch.querySelector('[data-tools-panel="motion"] span');
+  if(copy)copy.textContent='Easy Bugs 与 Codrops Wave Grid 各自负责一个动作：表面参考与指针波场；真正记录仍由本地档案控制。';
+  if(action)action.textContent='→';
+  launch.remove();
+}
+const stableDictionaryPage=dictionaryPage;
+dictionaryPage=function(){stableDictionaryPage();mountMovementMotionPreview()};
+const stableLoadDictionary=loadDictionary;
+loadDictionary=async function(){await stableLoadDictionary();updateMovementMotionPreview()};
 function mountToolsDashboardChrome(){
   const root=document.querySelector('.tools-template-v6'),grid=root?.querySelector('.admin-tool-grid');
   if(!root||!grid||root.dataset.dashboardMounted)return;
@@ -952,7 +1020,7 @@ function mountToolsDashboardChrome(){
   const rail=document.createElement('aside');
   rail.className='admin-workspace-rail';
   rail.setAttribute('aria-label','Tools workspace');
-  rail.innerHTML=`<div class="admin-workspace-brand"><span>TOOLS / WORKSPACE</span><strong>Archive desk</strong></div><div class="admin-workspace-group"><span class="admin-workspace-label">MAIN</span><button type="button" class="admin-workspace-nav is-active" data-view="tools"><i>⌂</i>Overview</button><button type="button" class="admin-workspace-nav" data-tools-panel="health"><i>◌</i>Data Check</button><button type="button" class="admin-workspace-nav" data-tools-panel="sync"><i>↗</i>Cloud Sync</button></div><div class="admin-workspace-group"><span class="admin-workspace-label">REFERENCE</span><button type="button" class="admin-workspace-nav" data-tools-panel="export"><i>□</i>Export</button><button type="button" class="admin-workspace-nav" data-view="dictionary"><i>⌘</i>Movement Dictionary</button></div><div class="admin-workspace-footer"><span class="admin-status-badge admin-health-status"><i></i>LOCAL-FIRST</span><small>Local JSON is the source of truth.</small></div>`;
+   rail.innerHTML=`<div class="admin-workspace-brand"><span>TOOLS / WORKSPACE</span><strong>Archive desk</strong></div><div class="admin-workspace-group"><span class="admin-workspace-label">MAIN</span><button type="button" class="admin-workspace-nav is-active" data-view="tools"><i>⌂</i>Overview</button><button type="button" class="admin-workspace-nav" data-tools-panel="health"><i>◌</i>Data Check</button><button type="button" class="admin-workspace-nav" data-tools-panel="sync"><i>↗</i>Cloud Sync</button></div><div class="admin-workspace-group"><span class="admin-workspace-label">REFERENCE</span><button type="button" class="admin-workspace-nav" data-tools-panel="export"><i>□</i>Export</button><button type="button" class="admin-workspace-nav" data-tools-panel="motion"><i>✦</i>Motion Lab</button><button type="button" class="admin-workspace-nav" data-view="dictionary"><i>⌘</i>Movement Dictionary</button></div><div class="admin-workspace-footer"><span class="admin-status-badge admin-health-status"><i></i>LOCAL-FIRST</span><small>Local JSON is the source of truth.</small></div>`;
   root.insertBefore(rail,grid);
   const kpi=document.createElement('section');
   kpi.className='admin-kpi-strip';
@@ -974,17 +1042,54 @@ function mountToolsMotion(root){
   nodes.forEach(node=>observer.observe(node));
   window.__fitnessLedgerToolsMotionCleanup=()=>observer.disconnect();
 }
+function motionLabPage(){
+    main.innerHTML=`<section class="page motion-lab-page" data-motion-lab-page><header class="motion-lab-header"><div><button class="tools-route-back" data-tools-panel="overview">← Tools</button><div class="admin-breadcrumb"><span>08 / TOOLS</span><i>/</i><strong>MOTION LAB</strong></div><h1>Motion Lab</h1><p>从 Codrops Creative Hub 选定方向，再接入对应的公开实现。这里是隔离试点，不参与记录、检查或同步。</p></div><div class="motion-lab-header-meta"><span class="admin-status-badge"><i></i>EXPERIMENTAL</span><small>LOCAL ONLY · NO DATA ACCESS</small></div></header><section class="motion-lab-grid"><article class="motion-lab-demo motion-lab-demo-head"><header><div><span class="admin-kicker">01 / EASY BUGS · THREE.JS</span><h2>Surface-aware movement.</h2><p>建模头像 + 虫群。保留原 demo 的 BugRig、CCDIK 与实例动画结构。</p></div><span class="motion-lab-index">HEAD / IK</span></header><div class="motion-lab-frame"><iframe title="Easy Bugs 3D head demo" src="motion-lab/easybugs/index.html" loading="eager" allow="webgpu"></iframe></div><footer><span>MIT CODE · SEPARATE MODEL ATTRIBUTION</span><a href="https://github.com/bandinopla/threejs-easybugs" target="_blank" rel="noreferrer">SOURCE ↗</a></footer></article><article class="motion-lab-demo motion-lab-demo-wave"><header><div><span class="admin-kicker">02 / 3D WAVE GRID · CODROPS</span><h2>Cursor as a data ripple.</h2><p>保留公开 GLSL 波传播实现，用于 Tools 的环境层，不承载业务状态。</p></div><span class="motion-lab-index">GRID / GLSL</span></header><div class="motion-lab-frame"><iframe title="3D Wave Grid demo" src="motion-lab/wave-grid/index.html" loading="eager"></iframe></div><footer><span>MIT CODE · ADAPTED FL PALETTE</span><a href="https://github.com/franky-adl/3d-wave-grid" target="_blank" rel="noreferrer">SOURCE ↗</a></footer></article></section><section class="guardian-pet-pilot" data-motion-reveal="guardian-pet"><header><div><span class="admin-kicker">03 / GUARDIAN PET PILOT / THREE.JS</span><h2>The guardian lives on the cursor.</h2><p>A small transparent full-body pet for the FL surface. The default pilot pins it to the lower-right so it stays visible; add petFollow=1 to preview cursor-follow behavior. This pilot exposes the two verified footed poses first; the five-pose contract stays ready for the next GLB drop.</p></div><span class="motion-lab-index">GLOBAL / FOOTED PILOT</span></header><div class="guardian-pet-pilot-body"><div class="guardian-pet-pilot-orbit" aria-hidden="true"><span>FL</span><i></i></div><div class="guardian-pet-pilot-copy"><strong>Move your pointer to find it.</strong><p>Right-click or click the pet for routes. Use wheel or LEFT / RIGHT for pose switching.</p><div class="guardian-pet-pilot-contract"><code>fitness-ledger-pet:set-pose</code><code>window.__fitnessLedgerGuardianPet.setPose()</code></div></div></div><footer><span>GLOBAL PET / FOOTED PILOT / 4K MAPS</span><a href="?guardianPet=20260805-v6&amp;petModel=lowpoly-static#tools?panel=motion" target="_blank" rel="noreferrer">FL REVIEW ?</a><a href="motion-lab/guardian/index.html?petModel=lowpoly-static" target="_blank" rel="noreferrer">ASSET QA ?</a></footer></section><section class="motion-lab-notes"><div><span class="admin-kicker">WHY THIS BOUNDARY</span><h2>效果独立，业务稳定。</h2></div><p>Motion Lab demos load only local static build artifacts.</p><div class="motion-lab-links"><a href="https://tympanus.net/codrops/hub/all/" target="_blank" rel="noreferrer">Codrops Creative Hub ↗</a><a href="https://tympanus.net/codrops/2026/07/09/building-an-interactive-wave-propagation-cube-grid-with-three-js/" target="_blank" rel="noreferrer">Wave Grid article ↗</a><a href="https://sketchfab.com/3d-models/head-scan-13-photogrammetry-5e6d2804405449e6b3bd96cd12d8b1ab" target="_blank" rel="noreferrer">Head model attribution ↗</a></div></section></section>`;
+   requestAnimationFrame(()=>$('.motion-lab-page')?.classList.add('is-entered'));
+}
+const baseMotionLabPage=motionLabPage;
+motionLabPage=function(){
+  baseMotionLabPage();
+  const pilot=document.querySelector('.guardian-pet-pilot');
+  if(!pilot)return;
+  const copy=pilot.querySelector('.guardian-pet-pilot-copy p');
+  if(copy)copy.textContent='Seven full-body poses are available. The pet stays independent from navigation: drag it to place it, then use the wheel or arrow keys to switch poses.';
+  const title=pilot.querySelector('.guardian-pet-pilot-copy strong');
+  if(title)title.textContent='Drag it. Choose a pose.';
+  const index=pilot.querySelector('.motion-lab-index');
+  if(index)index.textContent='GLOBAL / 7 POSES';
+  const review=pilot.querySelector('a[href*="guardianPet"]');
+  if(review){review.href='?guardianPet=20260806-v21&petModel=lowpoly-static#home';review.textContent='FL REVIEW ↗'}
+  const qa=pilot.querySelector('a[href*="motion-lab/guardian"]');
+  if(qa)qa.textContent='ASSET QA ↗';
+};
+function guardianPetPage(){
+  window.__fitnessLedgerGuardianPageCleanup?.();
+  document.body.classList.add('guardian-route');
+  main.innerHTML=`<section class="guardian-pet-page" data-guardian-pet-page><header class="guardian-pet-page-head"><div><span class="admin-kicker">09 / GUARDIAN PET / THREE.JS</span><h1>Guardian Pet</h1><p>FL ??????????????????????????????????? Tools?</p></div><span class="guardian-pet-page-status" data-guardian-page-status>LOADING FOOTED PILOT</span></header><section class="guardian-pet-live"><div class="guardian-pet-live-stage"><canvas data-guardian-canvas data-guardian-page aria-label="Guardian Pet 3D preview"></canvas><span class="guardian-pet-live-mark">VISIBLE / LOCAL ONLY</span><span class="guardian-pet-live-hint">CLICK / WHEEL / LEFT RIGHT</span></div><aside class="guardian-pet-live-copy"><span class="admin-kicker">INTERACTION CONTRACT</span><h2>Small, always present.</h2><p>????????????????????????????????????????????</p><div class="guardian-pet-contract"><code>fitness-ledger-pet:set-pose</code><code>window.__fitnessLedgerGuardianPet.setPose()</code></div><button class="guardian-pet-page-tool" type="button" data-view="tools">BACK TO TOOLS</button></aside></section></section>`;
+  const canvas=document.querySelector('[data-guardian-page]'),status=document.querySelector('[data-guardian-page-status]'),poseName=document.querySelector('[data-guardian-pet-page] h2');
+  let controller=null;
+  const cleanup=()=>{controller?.dispose?.();document.body.classList.remove('guardian-route');if(window.__fitnessLedgerGuardianPageCleanup===cleanup)window.__fitnessLedgerGuardianPageCleanup=null};
+  window.__fitnessLedgerGuardianPageCleanup=cleanup;
+   import('./motion-lab/guardian/pet-guardian-static.js?v=20260806-v21').then(({mountGuardianPet})=>{
+    if(window.__fitnessLedgerGuardianPageCleanup!==cleanup)return;
+    controller=mountGuardianPet(canvas,{onReady:detail=>{if(status)status.textContent='VISIBLE / '+Number(detail.assets||1)+' FOOTED ASSET'},onPoseChange:detail=>{if(poseName)poseName.textContent=detail.name||detail.pose||'Guardian Pet'}});
+  }).catch(error=>{if(status)status.textContent='LOAD ERROR / '+(error.message||'Guardian controller unavailable');console.error('[Guardian page] controller load failed',error)});
+}
 toolsPage=function experimentalToolsPage(){
   stopToolsCSS3DPanels();
   stopToolsMotion();
   const panel=state.routeParams?.panel||'overview';
-  if(panel==='export'){legacyToolsPage();requestAnimationFrame(()=>$('.analysis-export-page')?.insertAdjacentHTML('afterbegin','<button class="tools-route-back" data-tools-panel="overview">← Tools Lab</button>'));return}
-  if(panel==='sync'){cloudSyncPage();return}
-  if(panel==='health'){checksPage();return}
-  main.innerHTML=`<section class="page admin-page admin-tools-page tools-template-v6" data-tools-template="collective-os-dashboard-v1"><header class="admin-page-header"><div><div class="admin-breadcrumb"><span>08 / TOOLS</span><i>/</i><strong>LOCAL MAINTENANCE</strong></div><h1>Tools</h1><p>Export, check, and synchronize the archive from one local source.</p></div><div class="admin-header-actions"><span class="admin-status-badge admin-health-status" data-tools-health-status><i></i>正在检查</span><button class="admin-button admin-button-outline" data-view="dictionary">Movement Dictionary <span>→</span></button></div></header><section class="admin-tool-grid"><button class="admin-panel admin-operation-card admin-export-card" type="button" data-tools-panel="export"><header class="admin-panel-header"><div><span class="admin-kicker">01 / ANALYSIS EXPORT</span><h2>Export the archive.</h2></div><span class="admin-card-arrow">↗</span></header><p>将 Body、Diet、Training 与 Movement 整理成 Markdown / JSON，用于本地分析和归档。</p><div class="admin-card-footer"><span>LOCAL ONLY · V1.1</span><strong>Open Export <i>→</i></strong></div></button><article class="admin-panel admin-operation-card admin-health-card" data-tools-panel="sync" tabindex="0" role="link" aria-label="打开 Archive Health"><header class="admin-panel-header"><div><span class="admin-kicker">02 / ARCHIVE HEALTH</span><h2>Keep the archive in order.</h2><p>Sync 和 Data Check 共享本地上下文，但各自只做一件事。</p></div><span class="admin-status-badge admin-health-status" data-tools-health-status><i></i>正在检查</span></header><div class="admin-health-actions"><button class="admin-action-row" type="button" data-tools-panel="sync"><span>01</span><div><strong>Cloud Sync</strong><small>生成、上传并校验只读 Payload。</small></div><i>→</i></button><button class="admin-action-row" type="button" data-tools-panel="health"><span>02</span><div><strong>Data Check</strong><small>扫描、定位并确认本地结构问题。</small></div><i>→</i></button></div><div class="admin-card-footer"><span>LOCAL JSON → READ-ONLY REPLICA</span><strong>Open Archive Health <i>→</i></strong></div></article></section><section class="admin-lower-grid"><article class="admin-panel admin-route-panel"><header class="admin-panel-header"><div><span class="admin-kicker">ARCHIVE ROUTE</span><h2>One source. Clear handoffs.</h2></div><span class="admin-panel-meta">LOCAL-FIRST</span></header><div class="admin-route-track"><div class="admin-route-node is-source"><span>01</span><strong>Local JSON</strong><small>Primary record</small></div><i></i><div class="admin-route-node"><span>02</span><strong>Payload</strong><small>Prepared on sync</small></div><i></i><div class="admin-route-node"><span>03</span><strong>CloudBase</strong><small>Read-only replica</small></div></div><p class="admin-panel-note">本地 JSON 仍是唯一正式数据源；网络只在手动同步时参与。</p></article><aside class="admin-panel admin-reference-card"><span class="admin-kicker">REFERENCE / CONTROLLED VOCABULARY</span><h2>Movement Dictionary</h2><p>动作定义独立存在，不参与同步或检查流程。</p><button class="admin-button admin-button-outline" data-view="dictionary">Open Dictionary <span>→</span></button></aside></section></section>`;
+   if(panel==='export'){legacyToolsPage();requestAnimationFrame(()=>$('.analysis-export-page')?.insertAdjacentHTML('afterbegin','<button class="tools-route-back" data-tools-panel="overview">← Tools Lab</button>'));return}
+   if(panel==='sync'){cloudSyncPage();return}
+   if(panel==='health'){checksPage();return}
+   if(panel==='motion'){motionLabPage();return}
+  main.innerHTML=`<section class="page admin-page admin-tools-page tools-template-v6" data-tools-template="collective-os-dashboard-v1"><header class="admin-page-header"><div><div class="admin-breadcrumb"><span>08 / TOOLS</span><i>/</i><strong>LOCAL MAINTENANCE</strong></div><h1>Tools</h1><p>Export, check, and synchronize the archive from one local source.</p></div><div class="admin-header-actions"><span class="admin-status-badge admin-health-status" data-tools-health-status><i></i>正在检查</span><button class="admin-button admin-button-outline" data-view="dictionary">Movement Dictionary <span>→</span></button></div></header><section class="admin-tool-grid"><button class="admin-panel admin-operation-card admin-export-card" type="button" data-tools-panel="export"><header class="admin-panel-header"><div><span class="admin-kicker">01 / ANALYSIS EXPORT</span><h2>Export the archive.</h2></div><span class="admin-card-arrow">↗</span></header><p>将 Body、Diet、Training 与 Movement 整理成 Markdown / JSON，用于本地分析和归档。</p><div class="admin-card-footer"><span>LOCAL ONLY · V1.1</span><strong>Open Export <i>→</i></strong></div></button><article class="admin-panel admin-operation-card admin-health-card" data-tools-panel="sync" tabindex="0" role="link" aria-label="打开 Archive Health"><header class="admin-panel-header"><div><span class="admin-kicker">02 / ARCHIVE HEALTH</span><h2>Keep the archive in order.</h2><p>Sync 和 Data Check 共享本地上下文，但各自只做一件事。</p></div><span class="admin-status-badge admin-health-status" data-tools-health-status><i></i>正在检查</span></header><div class="admin-health-actions"><button class="admin-action-row" type="button" data-tools-panel="sync"><span>01</span><div><strong>Cloud Sync</strong><small>生成、上传并校验只读 Payload。</small></div><i>→</i></button><button class="admin-action-row" type="button" data-tools-panel="health"><span>02</span><div><strong>Data Check</strong><small>扫描、定位并确认本地结构问题。</small></div><i>→</i></button></div><div class="admin-card-footer"><span>LOCAL JSON → READ-ONLY REPLICA</span><strong>Open Archive Health <i>→</i></strong></div></article></section><section class="admin-lower-grid"><article class="admin-panel admin-route-panel"><header class="admin-panel-header"><div><span class="admin-kicker">ARCHIVE ROUTE</span><h2>One source. Clear handoffs.</h2></div><span class="admin-panel-meta">LOCAL-FIRST</span></header><div class="admin-route-track"><div class="admin-route-node is-source"><span>01</span><strong>Local JSON</strong><small>Primary record</small></div><i></i><div class="admin-route-node"><span>02</span><strong>Payload</strong><small>Prepared on sync</small></div><i></i><div class="admin-route-node"><span>03</span><strong>CloudBase</strong><small>Read-only replica</small></div></div><p class="admin-panel-note">本地 JSON 仍是唯一正式数据源；网络只在手动同步时参与。</p></article><aside class="admin-panel admin-reference-card"><span class="admin-kicker">REFERENCE / CONTROLLED VOCABULARY</span><h2>Movement Dictionary</h2><p>动作定义独立存在，不参与同步或检查流程。</p><button class="admin-button admin-button-outline" data-view="dictionary">Open Dictionary <span>→</span></button></aside></section></section><section class="admin-panel admin-motion-launch" data-motion-reveal="motion-lab"><div><span class="admin-kicker">EXPERIMENTAL / MOTION LAB</span><h2>Borrow the effect. Keep the archive calm.</h2><p>Easy Bugs ? Codrops Wave Grid ????????????????????????????????</p></div><button class="admin-button admin-button-outline" data-tools-panel="motion">Open Motion Lab <span>?</span></button></section>`;
    mountToolsDashboardChrome();
    mountToolsMotion(document.querySelector('.tools-template-v6'));
+   mountToolsArchiveMotion();
+   refreshMotionLaunchCopy();
    renderArchiveHealth();
+   updateToolsArchiveMotion();
   if(panel==='health')queueMicrotask(openDataCheckOverlay);
 };
 

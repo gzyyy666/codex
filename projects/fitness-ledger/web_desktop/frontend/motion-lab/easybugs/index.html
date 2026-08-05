@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>FL Motion Lab / Easy Bugs</title>
+		<meta
+			name="description"
+			content="A dynamic interactive demo showcasing threejs-instancedanimatedmesh animation blending, keyframe events, and timeline scripts."
+		/>
+		<script type="module" crossorigin src="./assets/index-TO0zHMXY.js"></script>
+		<link rel="stylesheet" crossorigin href="./assets/index-_8n-7M-E.css">
+		<style>
+			html.embed-mode,
+			html.embed-mode body {
+				overflow: hidden;
+				background: #071024;
+			}
+			html.embed-mode .credits {
+				display: none;
+			}
+		html.pet-mode,
+			html.pet-mode body {
+				background: transparent;
+			}
+		</style>
+		<script>
+			const easybugsParams = new URLSearchParams(location.search);
+			if (easybugsParams.has('embed')) {
+				document.documentElement.classList.add('embed-mode');
+			}
+			if (easybugsParams.get('embed') === 'pet') {
+				document.documentElement.classList.add('pet-mode');
+			}
+		</script>
+	</head>
+	<body>
+		<div class="credits">
+			<ul>
+				<li>
+					Implementation:
+					<a
+						href="https://github.com/bandinopla/threejs-easybugs"
+						target="_blank"
+						>Github Repo</a
+					>
+				</li>
+				<li>
+					Demo source:
+					<a
+						href="https://github.com/bandinopla/threejs-easybugs/blob/main/demo/demo.ts"
+						target="_blank"
+						>source code</a
+					>
+				</li>
+				<li>
+					Original demo by
+					<a href="https://x.com/bandinopla" target="_blank"
+						>Bandinopla</a
+					>
+				</li>
+				<li>
+					Man's head
+					<a
+						href="https://sketchfab.com/3d-models/head-scan-13-photogrammetry-5e6d2804405449e6b3bd96cd12d8b1ab"
+						target="_blank"
+						>yaro.pro</a
+					>
+				</li>
+				<li>
+					Cockroach
+					<a
+						href="https://sketchfab.com/3d-models/cockroach-64ec45b65a224895b1d4ee5fd4f0ee42"
+						target="_blank"
+						>kenchoo(???)</a
+					>
+				</li>
+			</ul>
+		</div>
+		<div id="canvas-container"></div>
+
+	</body>
+</html>

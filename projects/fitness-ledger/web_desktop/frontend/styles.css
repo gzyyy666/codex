@@ -1350,6 +1350,17 @@ button.nav-item[data-view="dictionary"].is-active{background-color:#000!importan
 .dictionary-toolbar{grid-template-columns:minmax(320px,1fr) 150px auto;max-width:100%;margin:10px 0 14px}
 .dictionary-sheet{overflow:visible;border:0;border-radius:0;background:transparent;box-shadow:none}
 .dictionary-sheet-head{display:none}
+.dictionary-motion-preview{display:grid;grid-template-columns:minmax(0,.86fr) minmax(300px,1.14fr);gap:0;margin:0 0 18px;overflow:hidden;border:1px solid rgba(24,21,16,.18);border-radius:10px 30px 10px 30px;background:#09152d;color:#eef4ff;box-shadow:0 18px 42px rgba(20,28,52,.12)}
+.dictionary-motion-preview-copy{display:flex;flex-direction:column;justify-content:center;gap:9px;padding:24px 28px;background:linear-gradient(145deg,rgba(9,21,45,.98),rgba(17,32,62,.9))}
+.dictionary-motion-preview-copy .eyebrow{color:#83aaff}
+.dictionary-motion-preview-copy h2{max-width:420px;margin:0;font:400 clamp(25px,3vw,42px)/.98 var(--font-editorial);letter-spacing:-.045em}
+.dictionary-motion-preview-copy p{max-width:440px;margin:0;color:rgba(238,244,255,.68);font-size:12px;line-height:1.7}
+.dictionary-motion-preview-copy>a{align-self:flex-start;margin-top:3px;color:#8cb4ff;font-size:9px;letter-spacing:.1em;text-decoration:none}
+.dictionary-motion-preview-copy>a:hover{color:#77d8ca}
+.dictionary-motion-preview-meta{display:flex;flex-wrap:wrap;gap:7px 14px;margin-top:5px;color:rgba(238,244,255,.58);font-size:9px;letter-spacing:.1em}
+.dictionary-motion-preview-meta strong{color:#77d8ca;font-size:10px}
+.dictionary-motion-preview-frame{min-height:260px;border-left:1px solid rgba(168,192,255,.14);background:#071024}
+.dictionary-motion-preview-frame iframe{display:block;width:100%;height:100%;min-height:260px;border:0}
 #dictionary-rows{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:11px}
 .dictionary-row-compact{display:grid;grid-template-columns:1fr auto;grid-template-rows:auto minmax(42px,1fr) auto auto;gap:5px 8px;align-items:start;min-width:0;min-height:154px;padding:13px 14px 12px;border:1px solid rgba(24,21,16,.16);border-radius:8px;background:rgba(255,252,244,.82);box-shadow:0 8px 18px rgba(35,29,18,.045),inset 0 1px rgba(255,255,255,.76);backdrop-filter:blur(3px)}
 .dictionary-row-compact:hover{transform:translateY(-2px);background:rgba(255,253,247,.94);box-shadow:0 13px 24px rgba(35,29,18,.08),inset 0 1px #fff}
@@ -1369,6 +1380,7 @@ button.nav-item[data-view="dictionary"].is-active{background-color:#000!importan
 @media(max-width:960px){#dictionary-rows{grid-template-columns:repeat(3,minmax(0,1fr))}.dictionary-hero{grid-template-columns:1fr}.dictionary-hero .btn{justify-self:start}}
 @media(max-width:700px){#dictionary-rows{grid-template-columns:repeat(2,minmax(0,1fr))}.dictionary-toolbar{grid-template-columns:1fr}.dictionary-row-compact{min-width:0}.dictionary-icon-actions button span{display:none}}
 @media(max-width:440px){#dictionary-rows{grid-template-columns:1fr}}
+@media(max-width:760px){.dictionary-motion-preview{grid-template-columns:1fr;border-radius:10px 22px 10px 22px}.dictionary-motion-preview-frame{min-height:220px;border-top:1px solid rgba(168,192,255,.14);border-left:0}.dictionary-motion-preview-frame iframe{min-height:220px}.dictionary-motion-preview-copy{padding:20px}.dictionary-motion-preview-copy h2{font-size:31px}}
 
 /* Shared write review: selected Review Scroll direction. */
 .review-scroll-page{
