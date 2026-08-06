@@ -85,7 +85,7 @@ export function mountGuardianPet(canvas, options = {}) {
   const petMode = params.get('embed') === 'pet' || options.petMode === true;
   const poseSequence = poseIds.map((_, index) => index);
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(24, 1, 0.1, 100);
+  const camera = new THREE.PerspectiveCamera(26, 1, 0.1, 100);
   const cameraHome = new THREE.Vector3(8.6, 0.26, 0.08);
   const cameraLookAtHome = new THREE.Vector3(0, 0.04, 0);
   camera.position.copy(cameraHome);
@@ -148,6 +148,7 @@ export function mountGuardianPet(canvas, options = {}) {
   }
 
   const cursor = { x: 0, y: 0, energy: 0 };
+  const viewRotation = { x: 0, y: 0 };
   const models = new Map();
   let activePose = poseSequence.includes(0) ? 0 : poseSequence[0];
   let activeRoot = null;
@@ -235,7 +236,7 @@ export function mountGuardianPet(canvas, options = {}) {
     root.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(root);
     const size = box.getSize(new THREE.Vector3());
-    const scale = 3.65 / Math.max(size.y, size.x, size.z, 0.0001);
+    const scale = 3.58 / Math.max(size.y, size.x, size.z, 0.0001);
     root.scale.setScalar(scale);
     root.updateMatrixWorld(true);
     const scaledBox = new THREE.Box3().setFromObject(root);
@@ -354,6 +355,11 @@ export function mountGuardianPet(canvas, options = {}) {
     cursor.energy = THREE.MathUtils.clamp(Number(energy) || 0, 0, 1);
   };
 
+  const setViewRotation = ({ x = 0, y = 0 } = {}) => {
+    viewRotation.x = THREE.MathUtils.clamp(Number(x) || 0, -1, 1);
+    viewRotation.y = THREE.MathUtils.clamp(Number(y) || 0, -1, 1);
+  };
+
   const onCanvasPointerMove = event => {
     if (petMode) return;
     const rect = canvas.getBoundingClientRect();
@@ -381,15 +387,18 @@ export function mountGuardianPet(canvas, options = {}) {
     const targetYawOffset = cursor.x * 0.065 + Math.sin(now / 2600) * 0.01;
     const targetPitch = -cursor.y * 0.018;
     if (petMode) {
-      const cameraX = cameraHome.x + cursor.x * 0.32;
-      const cameraY = cameraHome.y - cursor.y * 0.14;
-      const cameraZ = cameraHome.z + cursor.x * 0.1;
+      const orbitRadius = Math.hypot(cameraHome.x, cameraHome.z);
+      const orbitHome = Math.atan2(cameraHome.z, cameraHome.x);
+      const orbitAngle = orbitHome + viewRotation.x * 0.22 + cursor.x * 0.035;
+      const cameraX = orbitRadius * Math.cos(orbitAngle);
+      const cameraY = cameraHome.y - viewRotation.y * 0.28 - cursor.y * 0.08;
+      const cameraZ = orbitRadius * Math.sin(orbitAngle);
       camera.position.x += (cameraX - camera.position.x) * 0.055;
       camera.position.y += (cameraY - camera.position.y) * 0.055;
       camera.position.z += (cameraZ - camera.position.z) * 0.055;
       camera.lookAt(
         cameraLookAtHome.x + cursor.x * 0.045,
-        cameraLookAtHome.y - cursor.y * 0.05,
+        cameraLookAtHome.y - viewRotation.y * 0.08 - cursor.y * 0.035,
         cameraLookAtHome.z
       );
       keyLight.position.x = keyLightHome.x + cursor.x * 0.5;
@@ -456,6 +465,7 @@ export function mountGuardianPet(canvas, options = {}) {
 
   return {
     setPointer,
+    setViewRotation,
     setPose,
     previousPose: (options = {}) => {
       const slot = poseSequence.indexOf(activePose);

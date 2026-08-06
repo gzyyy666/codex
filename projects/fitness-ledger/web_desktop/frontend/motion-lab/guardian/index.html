@@ -45,7 +45,7 @@
     </main>
     <script type="module">
       const modelMode = new URLSearchParams(location.search).get('petModel');
-      const buildVersion = '20260806-v22';
+      const buildVersion = '20260806-v24';
       import(`${modelMode === 'legacy' ? './pose-deck.js' : './pet-guardian-static.js'}?v=${buildVersion}`).catch(error => {
         console.error('[Guardian] controller load failed', error);
         const status = document.querySelector('[data-guardian-status]');
