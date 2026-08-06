@@ -222,7 +222,7 @@ function mountLegacyMousePet() {
   document.body.appendChild(body);
   syncNavPetPosition();
   const petModel = window.__fitnessLedgerPetModel || new URLSearchParams(window.location.search).get('petModel') || 'lowpoly-static';
-  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260806-v24' : './motion-lab/guardian/pet-guardian-static.js?v=20260806-v24';
+  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260806-v25' : './motion-lab/guardian/pet-guardian-static.js?v=20260806-v25';
   const setPetPose = (pose, options) => {
     if (guardianPet) return guardianPet.setPose(pose, options);
     pendingPose = { pose, options };
@@ -472,11 +472,11 @@ function mountMousePet() {
 
   body.className = 'tools-pet-follower tools-pet-guardian tools-pet-floating';
   body.dataset.petPosition = 'free';
-  body.dataset.petHint = 'DRAG ROTATE · SHIFT + DRAG MOVE · WHEEL POSE';
+  body.dataset.petHint = 'PAUSE POINTER ? FACE CURSOR ? DRAG VIEW ? SHIFT + DRAG MOVE ? WHEEL POSE';
   body.setAttribute('role', 'button');
   body.setAttribute('tabindex', '0');
-  body.setAttribute('aria-label', 'Fitness Ledger guardian pet. Drag to rotate. Shift-drag to move. Wheel or ← → to change pose.');
-  body.title = 'Drag: rotate · Shift + drag: move · Wheel or ← →: change pose · Double-click: reset rotation';
+  body.setAttribute('aria-label', 'Fitness Ledger guardian pet. Pause the pointer to let the pet face it. Drag to rotate the view. Shift-drag to move. Wheel or ? ? to change pose.');
+  body.title = 'Pause pointer: pet turns toward cursor ? Drag: rotate view ? Shift + drag: move ? Wheel or ? ?: change pose ? Double-click: reset view';
   Object.assign(body.style, {
     position: 'fixed',
     top: '0px',
@@ -546,14 +546,14 @@ function mountMousePet() {
 
   const petQuery = new URLSearchParams(window.location.search);
   const petModel = window.__fitnessLedgerPetModel || petQuery.get('petModel') || 'lowpoly-static';
-  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260806-v24' : './motion-lab/guardian/pet-guardian-static.js?v=20260806-v24';
+  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260806-v25' : './motion-lab/guardian/pet-guardian-static.js?v=20260806-v25';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
       petMode: true,
       onReady: detail => {
         body.dataset.ready = 'true';
-        body.title = `${detail.poses || 0} poses · Drag: rotate · Shift + drag: move · Wheel or ← →`;
+        body.title = `${detail.poses || 0} poses ? Pause pointer to face cursor ? Drag: rotate view ? Shift + drag: move ? Wheel or ? ?`;
         applyRoutePose();
       },
       onError: error => {
@@ -562,7 +562,7 @@ function mountMousePet() {
       },
       onPoseChange: detail => {
         body.dataset.pose = detail.pose;
-        body.setAttribute('aria-label', `Fitness Ledger guardian pet · ${detail.name}. Drag to rotate. Shift-drag to move. Wheel or ← → to change pose.`);
+        body.setAttribute('aria-label', `Fitness Ledger guardian pet ? ${detail.name}. Pause the pointer to let the pet face it. Drag to rotate the view. Shift-drag to move. Wheel or ? ? to change pose.`);
         if (['pet-wheel', 'pet-keyboard', 'canvas-click'].includes(detail.source)) manualOverrides.set(currentView(), detail.pose);
       }
     });
@@ -601,6 +601,31 @@ function mountMousePet() {
       event.preventDefault();
       guardianPet?.previousPose({ source: 'pet-keyboard' });
     }
+  };
+  const pointer = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5, lastMoveAt: performance.now() };
+  let followFrame = 0;
+  const onPagePointerMove = event => {
+    if (event.pointerType === 'touch') return;
+    const moved = Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y);
+    pointer.x = event.clientX;
+    pointer.y = event.clientY;
+    if (moved >= 2) pointer.lastMoveAt = performance.now();
+  };
+  const updatePointerFollow = time => {
+    const rect = body.getBoundingClientRect();
+    const centerX = rect.left + rect.width * 0.5;
+    const centerY = rect.top + rect.height * 0.5;
+    const pointerX = (pointer.x / Math.max(window.innerWidth, 1)) * 2 - 1;
+    const pointerY = -((pointer.y / Math.max(window.innerHeight, 1)) * 2 - 1);
+    const stationary = time - pointer.lastMoveAt >= 260;
+    guardianPet?.setPointer({ x: pointerX, y: pointerY, energy: 0 });
+    if (stationary && !drag) {
+      guardianPet?.setFollowTarget?.({
+        x: clamp((pointer.x - centerX) / Math.max(window.innerWidth * 0.32, 260), -1, 1),
+        y: clamp((pointer.y - centerY) / Math.max(window.innerHeight * 0.26, 180), -1, 1)
+      });
+    }
+    followFrame = requestAnimationFrame(updatePointerFollow);
   };
   let viewRotation = { x: 0, y: 0 };
   const onPointerDown = event => {
@@ -652,7 +677,9 @@ function mountMousePet() {
   body.addEventListener('pointerup', onPointerUp);
   body.addEventListener('pointercancel', onPointerUp);
   body.addEventListener('dblclick', onDoubleClick);
+  window.addEventListener('pointermove', onPagePointerMove, { passive: true });
   window.addEventListener('resize', onResize);
+  followFrame = requestAnimationFrame(updatePointerFollow);
 
   return () => {
     if (disposed) return;
@@ -666,6 +693,8 @@ function mountMousePet() {
     body.removeEventListener('pointerup', onPointerUp);
     body.removeEventListener('pointercancel', onPointerUp);
     body.removeEventListener('dblclick', onDoubleClick);
+    window.removeEventListener('pointermove', onPagePointerMove);
+    cancelAnimationFrame(followFrame);
     guardianPet?.dispose();
     if (window.__fitnessLedgerGuardianPet === guardianPet) window.__fitnessLedgerGuardianPet = null;
     body.remove();

@@ -149,6 +149,8 @@ export function mountGuardianPet(canvas, options = {}) {
 
   const cursor = { x: 0, y: 0, energy: 0 };
   const viewRotation = { x: 0, y: 0 };
+  const followTarget = { x: 0, y: 0 };
+  const followAim = { x: 0, y: 0 };
   const models = new Map();
   let activePose = poseSequence.includes(0) ? 0 : poseSequence[0];
   let activeRoot = null;
@@ -355,6 +357,11 @@ export function mountGuardianPet(canvas, options = {}) {
     cursor.energy = THREE.MathUtils.clamp(Number(energy) || 0, 0, 1);
   };
 
+  const setFollowTarget = ({ x = 0, y = 0 } = {}) => {
+    followTarget.x = THREE.MathUtils.clamp(Number(x) || 0, -1, 1);
+    followTarget.y = THREE.MathUtils.clamp(Number(y) || 0, -1, 1);
+  };
+
   const setViewRotation = ({ x = 0, y = 0 } = {}) => {
     viewRotation.x = THREE.MathUtils.clamp(Number(x) || 0, -1, 1);
     viewRotation.y = THREE.MathUtils.clamp(Number(y) || 0, -1, 1);
@@ -384,14 +391,16 @@ export function mountGuardianPet(canvas, options = {}) {
     if (disposed) return;
     frame = requestAnimationFrame(animate);
     const breath = Math.sin(now / 1200) * 0.012;
-    const targetYawOffset = cursor.x * 0.065 + Math.sin(now / 2600) * 0.01;
-    const targetPitch = -cursor.y * 0.018;
+    followAim.x += (followTarget.x - followAim.x) * 0.018;
+    followAim.y += (followTarget.y - followAim.y) * 0.018;
+    const targetYawOffset = followAim.x * 0.34 + Math.sin(now / 2600) * 0.01;
+    const targetPitch = -followAim.y * 0.055;
     if (petMode) {
       const orbitRadius = Math.hypot(cameraHome.x, cameraHome.z);
       const orbitHome = Math.atan2(cameraHome.z, cameraHome.x);
-      const orbitAngle = orbitHome + viewRotation.x * 0.22 + cursor.x * 0.035;
+      const orbitAngle = orbitHome + viewRotation.x * 0.3 + cursor.x * 0.035;
       const cameraX = orbitRadius * Math.cos(orbitAngle);
-      const cameraY = cameraHome.y - viewRotation.y * 0.28 - cursor.y * 0.08;
+      const cameraY = cameraHome.y - viewRotation.y * 0.22 - cursor.y * 0.08;
       const cameraZ = orbitRadius * Math.sin(orbitAngle);
       camera.position.x += (cameraX - camera.position.x) * 0.055;
       camera.position.y += (cameraY - camera.position.y) * 0.055;
@@ -465,6 +474,7 @@ export function mountGuardianPet(canvas, options = {}) {
 
   return {
     setPointer,
+    setFollowTarget,
     setViewRotation,
     setPose,
     previousPose: (options = {}) => {
