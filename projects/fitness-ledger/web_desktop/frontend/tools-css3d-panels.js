@@ -62,7 +62,7 @@ function mountPetMenu(body, { onPose } = {}) {
   menu.setAttribute('aria-label', 'Fitness Ledger guardian pet menu');
   menu.setAttribute('role', 'menu');
   const routeGroups = [...petNavigation, reviewPetMode ? { ...petPoseNavigation, routes: petPoseNavigation.routes.filter(route => ['side-chest', 'most-muscular'].includes(route.pose)) } : petPoseNavigation];
-  menu.innerHTML = `<header><span class="eyebrow">PET ROUTER / LOCAL</span><strong>Go somewhere.</strong></header>${routeGroups.map((group) => `<section><span class="tools-pet-menu-label">${group.label}</span>${group.routes.map((route) => route.pose ? `<button type="button" role="menuitem" class="tools-pet-menu-item" data-pet-pose="${route.pose}"><span>${route.label}</span><small>${route.meta}</small></button>` : `<button type="button" role="menuitem" class="tools-pet-menu-item" data-pet-route-view="${route.view}"${route.panel?` data-pet-route-panel="${route.panel}"`:''}><span>${route.label}</span><small>${route.meta}</small></button>`).join('')}</section>`).join('')}`;
+  menu.innerHTML = `<header><span class="eyebrow">PET ROUTER / LOCAL</span><strong>Find the next surface.</strong></header>${routeGroups.map((group) => `<section><span class="tools-pet-menu-label">${group.label}</span>${group.routes.map((route) => route.pose ? `<button type="button" role="menuitem" class="tools-pet-menu-item" data-pet-pose="${route.pose}"><span>${route.label}</span><small>${route.meta}</small></button>` : `<button type="button" role="menuitem" class="tools-pet-menu-item" data-pet-route-view="${route.view}"${route.panel?` data-pet-route-panel="${route.panel}"`:''}><span>${route.label}</span><small>${route.meta}</small></button>`).join('')}</section>`).join('')}`;
   document.body.appendChild(menu);
 
   const close = () => {
@@ -222,7 +222,7 @@ function mountLegacyMousePet() {
   document.body.appendChild(body);
   syncNavPetPosition();
   const petModel = window.__fitnessLedgerPetModel || new URLSearchParams(window.location.search).get('petModel') || 'lowpoly-static';
-  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260806-v25' : './motion-lab/guardian/pet-guardian-static.js?v=20260806-v25';
+  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260806-v26' : './motion-lab/guardian/pet-guardian-static.js?v=20260806-v26';
   const setPetPose = (pose, options) => {
     if (guardianPet) return guardianPet.setPose(pose, options);
     pendingPose = { pose, options };
@@ -457,12 +457,22 @@ function mountFloatingPetMenu(body, { onPose, onResetPosition } = {}) {
   };
 }
 
+function createTrophyNavigator() {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'tools-pet-navigator';
+  button.setAttribute('aria-label', 'FL champion navigator. Click to open navigation.');
+  button.title = 'Champion navigator · Click to open FL routes';
+  button.innerHTML = `<span class="tools-pet-navigator-aura" aria-hidden="true"></span><svg viewBox="0 0 90 118" aria-hidden="true" focusable="false"><defs><linearGradient id="guardian-trophy-bronze" x1="15%" y1="5%" x2="85%" y2="95%"><stop offset="0" stop-color="#fff1b0"/><stop offset=".2" stop-color="#cf8d3c"/><stop offset=".46" stop-color="#784018"/><stop offset=".68" stop-color="#e2a85b"/><stop offset="1" stop-color="#4a2615"/></linearGradient><linearGradient id="guardian-trophy-base" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#3d2317"/><stop offset=".45" stop-color="#b87532"/><stop offset="1" stop-color="#5b3018"/></linearGradient></defs><g fill="url(#guardian-trophy-bronze)" stroke="#3f2415" stroke-width="1.25" stroke-linejoin="round"><circle cx="45" cy="14" r="7"/><path d="M36 23c-3 7-4 14-2 20 2 7 7 11 11 12 5-1 10-5 12-12 2-6 1-13-2-20-6 2-13 2-19 0z"/><path d="M33 26c-7 1-13 4-17 9-2 3-1 6 2 7l16 1 2-8zM57 26c7 1 13 4 17 9 2 3 1 6-2 7l-16 1-2-8z"/><path d="M37 51l-7 23 9 6 6-22 6 22 9-6-7-23c-5 3-11 3-16 0z"/><path d="M30 74l-5 16 13 4 4-13zM60 74l5 16-13 4-4-13z"/></g><path d="M27 34L70 98" fill="none" stroke="#f2c477" stroke-width="2.7" stroke-linecap="round"/><circle cx="25" cy="31" r="5" fill="url(#guardian-trophy-bronze)" stroke="#3f2415" stroke-width="1.25"/><circle cx="71" cy="100" r="5" fill="url(#guardian-trophy-bronze)" stroke="#3f2415" stroke-width="1.25"/><path d="M17 94h56l7 7H10z" fill="url(#guardian-trophy-base)" stroke="#3f2415" stroke-width="1.25"/><path d="M24 101h42v7H24z" fill="#8a5427" stroke="#3f2415" stroke-width="1.25"/><path d="M33 105h24" stroke="#f0c174" stroke-width="1.1" stroke-linecap="round" opacity=".75"/></svg>`;
+  return button;
+}
+
 function mountMousePet() {
   const body = document.createElement('div');
   const guardian = document.createElement('canvas');
-  const width = 176;
-  const height = 176;
-  const margin = 16;
+  const width = 204;
+  const height = 204;
+  const margin = 18;
   const position = readGuardianPetPosition();
   const manualOverrides = new Map();
   let guardianPet;
@@ -472,11 +482,11 @@ function mountMousePet() {
 
   body.className = 'tools-pet-follower tools-pet-guardian tools-pet-floating';
   body.dataset.petPosition = 'free';
-  body.dataset.petHint = 'PAUSE POINTER ? FACE CURSOR ? DRAG VIEW ? SHIFT + DRAG MOVE ? WHEEL POSE';
+  body.dataset.petHint = 'PAUSE POINTER | FACE CURSOR | DRAG MOVE | ALT + DRAG VIEW | WHEEL POSE';
   body.setAttribute('role', 'button');
   body.setAttribute('tabindex', '0');
-  body.setAttribute('aria-label', 'Fitness Ledger guardian pet. Pause the pointer to let the pet face it. Drag to rotate the view. Shift-drag to move. Wheel or ? ? to change pose.');
-  body.title = 'Pause pointer: pet turns toward cursor ? Drag: rotate view ? Shift + drag: move ? Wheel or ? ?: change pose ? Double-click: reset view';
+  body.setAttribute('aria-label', 'Fitness Ledger guardian pet. Pause pointer to face cursor. Drag to move. Alt-drag to rotate view. Wheel or left/right to change pose.');
+  body.title = 'Pause pointer: pet turns toward cursor | Drag: move | Alt + drag: rotate view | Wheel or left/right: change pose | Double-click: reset view';
   Object.assign(body.style, {
     position: 'fixed',
     top: '0px',
@@ -510,6 +520,8 @@ function mountMousePet() {
   body.appendChild(contactShadow);
   body.appendChild(guardian);
   document.body.appendChild(body);
+  const navigator = createTrophyNavigator();
+  document.body.appendChild(navigator);
 
   const viewportMax = () => ({ x: Math.max(0, window.innerWidth - width - margin * 2), y: Math.max(0, window.innerHeight - height - margin * 2) });
   const applyPosition = () => {
@@ -541,19 +553,27 @@ function mountMousePet() {
     pendingPose = { pose, options };
     return undefined;
   };
+  const navigatorMenu = mountPetMenu(navigator, { onPose: pose => setPetPose(pose, { source: 'pet-menu' }) });
+  const onNavigatorClick = event => {
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = navigator.getBoundingClientRect();
+    navigator.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: rect.right, clientY: rect.top }));
+  };
+  navigator.addEventListener('click', onNavigatorClick);
   const onRouteChange = event => applyRoutePose(event.detail || {});
   window.addEventListener('fitness-ledger-pet:route-change', onRouteChange);
 
   const petQuery = new URLSearchParams(window.location.search);
   const petModel = window.__fitnessLedgerPetModel || petQuery.get('petModel') || 'lowpoly-static';
-  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260806-v25' : './motion-lab/guardian/pet-guardian-static.js?v=20260806-v25';
+  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260806-v26' : './motion-lab/guardian/pet-guardian-static.js?v=20260806-v26';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
       petMode: true,
       onReady: detail => {
         body.dataset.ready = 'true';
-        body.title = `${detail.poses || 0} poses ? Pause pointer to face cursor ? Drag: rotate view ? Shift + drag: move ? Wheel or ? ?`;
+        body.title = `${detail.poses || 0} poses | Pause pointer to face cursor | Drag: move | Alt + drag: rotate view | Wheel or left/right`;
         applyRoutePose();
       },
       onError: error => {
@@ -562,7 +582,7 @@ function mountMousePet() {
       },
       onPoseChange: detail => {
         body.dataset.pose = detail.pose;
-        body.setAttribute('aria-label', `Fitness Ledger guardian pet ? ${detail.name}. Pause the pointer to let the pet face it. Drag to rotate the view. Shift-drag to move. Wheel or ? ? to change pose.`);
+        body.setAttribute('aria-label', `Fitness Ledger guardian pet | ${detail.name}. Pause pointer to face cursor. Drag to move. Alt-drag to rotate view. Wheel or left/right to change pose.`);
         if (['pet-wheel', 'pet-keyboard', 'canvas-click'].includes(detail.source)) manualOverrides.set(currentView(), detail.pose);
       }
     });
@@ -603,6 +623,7 @@ function mountMousePet() {
     }
   };
   const pointer = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5, lastMoveAt: performance.now() };
+  const navigatorFollower = { x: pointer.x + 22, y: pointer.y + 22, tx: pointer.x + 22, ty: pointer.y + 22 };
   let followFrame = 0;
   const onPagePointerMove = event => {
     if (event.pointerType === 'touch') return;
@@ -615,6 +636,12 @@ function mountMousePet() {
     const rect = body.getBoundingClientRect();
     const centerX = rect.left + rect.width * 0.5;
     const centerY = rect.top + rect.height * 0.5;
+    navigatorFollower.tx = clamp(pointer.x + 22, 8, window.innerWidth - 82);
+    navigatorFollower.ty = clamp(pointer.y + 20, 8, window.innerHeight - 112);
+    navigatorFollower.x += (navigatorFollower.tx - navigatorFollower.x) * 0.12;
+    navigatorFollower.y += (navigatorFollower.ty - navigatorFollower.y) * 0.12;
+    const navigatorTilt = clamp((navigatorFollower.tx - navigatorFollower.x) * 0.12, -8, 8);
+    navigator.style.transform = `translate3d(${Math.round(navigatorFollower.x)}px, ${Math.round(navigatorFollower.y)}px, 0) rotate(${navigatorTilt.toFixed(2)}deg)`;
     const pointerX = (pointer.x / Math.max(window.innerWidth, 1)) * 2 - 1;
     const pointerY = -((pointer.y / Math.max(window.innerHeight, 1)) * 2 - 1);
     const stationary = time - pointer.lastMoveAt >= 260;
@@ -631,8 +658,7 @@ function mountMousePet() {
   const onPointerDown = event => {
     if (event.button !== 0) return;
     const rect = body.getBoundingClientRect();
-    const move = event.shiftKey || event.altKey;
-    const rotate = !move;
+    const rotate = event.altKey;
     drag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: rect.left, originY: rect.top, moved: false, rotate, startRotation: { ...viewRotation } };
     body.setPointerCapture?.(event.pointerId);
     body.classList.toggle('is-rotating', rotate);
@@ -695,6 +721,9 @@ function mountMousePet() {
     body.removeEventListener('dblclick', onDoubleClick);
     window.removeEventListener('pointermove', onPagePointerMove);
     cancelAnimationFrame(followFrame);
+    navigator.removeEventListener('click', onNavigatorClick);
+    navigatorMenu();
+    navigator.remove();
     guardianPet?.dispose();
     if (window.__fitnessLedgerGuardianPet === guardianPet) window.__fitnessLedgerGuardianPet = null;
     body.remove();

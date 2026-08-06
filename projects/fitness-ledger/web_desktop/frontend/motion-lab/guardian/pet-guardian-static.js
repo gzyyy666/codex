@@ -85,7 +85,7 @@ export function mountGuardianPet(canvas, options = {}) {
   const petMode = params.get('embed') === 'pet' || options.petMode === true;
   const poseSequence = poseIds.map((_, index) => index);
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(26, 1, 0.1, 100);
+  const camera = new THREE.PerspectiveCamera(28, 1, 0.1, 100);
   const cameraHome = new THREE.Vector3(8.6, 0.26, 0.08);
   const cameraLookAtHome = new THREE.Vector3(0, 0.04, 0);
   camera.position.copy(cameraHome);
@@ -238,7 +238,7 @@ export function mountGuardianPet(canvas, options = {}) {
     root.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(root);
     const size = box.getSize(new THREE.Vector3());
-    const scale = 3.58 / Math.max(size.y, size.x, size.z, 0.0001);
+    const scale = 3.82 / Math.max(size.y, size.x, size.z, 0.0001);
     root.scale.setScalar(scale);
     root.updateMatrixWorld(true);
     const scaledBox = new THREE.Box3().setFromObject(root);
