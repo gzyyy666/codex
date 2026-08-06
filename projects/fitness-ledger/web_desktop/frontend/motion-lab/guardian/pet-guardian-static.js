@@ -86,8 +86,10 @@ export function mountGuardianPet(canvas, options = {}) {
   const poseSequence = poseIds.map((_, index) => index);
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(24, 1, 0.1, 100);
-  camera.position.set(8.6, 0.26, 0.08);
-  camera.lookAt(0, 0.04, 0);
+  const cameraHome = new THREE.Vector3(8.6, 0.26, 0.08);
+  const cameraLookAtHome = new THREE.Vector3(0, 0.04, 0);
+  camera.position.copy(cameraHome);
+  camera.lookAt(cameraLookAtHome);
 
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -99,6 +101,8 @@ export function mountGuardianPet(canvas, options = {}) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.08;
 
   scene.add(new THREE.HemisphereLight(0xe8e4d8, 0x1b2530, 2.25));
   const keyLight = new THREE.DirectionalLight(0xffe6c4, 3.1);
@@ -110,6 +114,29 @@ export function mountGuardianPet(canvas, options = {}) {
   const rimLight = new THREE.DirectionalLight(0xa8bfd0, 1.7);
   rimLight.position.set(-4.2, 3.0, -4.8);
   scene.add(rimLight);
+
+  const keyLightHome = keyLight.position.clone();
+  const ambientMotes = petMode ? (() => {
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array([
+      -0.42, 0.48, -0.46, -0.18, 1.24, 0.54, -0.34, 2.08, 0.12,
+      -0.16, 2.78, -0.52, -0.44, 1.76, 0.58, -0.28, 0.92, -0.62,
+      -0.52, 2.52, 0.42, -0.08, 0.26, 0.36
+    ]);
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    const material = new THREE.PointsMaterial({
+      color: 0xf0d69f,
+      size: 0.018,
+      transparent: true,
+      opacity: 0.16,
+      depthWrite: false,
+      sizeAttenuation: true
+    });
+    const points = new THREE.Points(geometry, material);
+    points.renderOrder = -1;
+    scene.add(points);
+    return points;
+  })() : null;
 
   const controls = petMode ? null : new OrbitControls(camera, canvas);
   if (controls) {
@@ -197,8 +224,8 @@ export function mountGuardianPet(canvas, options = {}) {
   const normalizeMaterial = material => {
     if (!material) return;
     material.metalness = 0;
-    material.roughness = 0.5;
-    material.color?.setRGB?.(0.8, 0.8, 0.8);
+    material.roughness = 0.38;
+    material.color?.setRGB?.(0.9, 0.9, 0.9);
     if ('specularIntensity' in material) material.specularIntensity = 1;
     material.needsUpdate = true;
   };
@@ -208,7 +235,7 @@ export function mountGuardianPet(canvas, options = {}) {
     root.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(root);
     const size = box.getSize(new THREE.Vector3());
-    const scale = 3.45 / Math.max(size.y, size.x, size.z, 0.0001);
+    const scale = 3.65 / Math.max(size.y, size.x, size.z, 0.0001);
     root.scale.setScalar(scale);
     root.updateMatrixWorld(true);
     const scaledBox = new THREE.Box3().setFromObject(root);
@@ -284,6 +311,7 @@ export function mountGuardianPet(canvas, options = {}) {
   const setPose = (input, immediateOrOptions = false, source = 'api') => {
     const optionsObject = typeof immediateOrOptions === 'object' ? immediateOrOptions : null;
     const changeSource = optionsObject?.source || source;
+    const immediate = optionsObject?.immediate === true || immediateOrOptions === true;
     activePose = resolvePoseIndex(input, poseSequence);
     updateMeta(activePose);
     const target = rootForPose(activePose);
@@ -295,7 +323,9 @@ export function mountGuardianPet(canvas, options = {}) {
     }
     activeRoot = target;
     hideOtherRoots(activeRoot);
-    setOpacity(activeRoot, 1);
+    activeRoot.userData.guardianTransitionAt = immediate ? 0 : performance.now();
+    activeRoot.userData.guardianTransitionProgress = immediate ? 1 : 0;
+    setOpacity(activeRoot, immediate ? 1 : 0.84);
     emitPoseChange(activePose, changeSource);
   };
 
@@ -347,17 +377,40 @@ export function mountGuardianPet(canvas, options = {}) {
   const animate = now => {
     if (disposed) return;
     frame = requestAnimationFrame(animate);
-    const breath = Math.sin(now / 1200) * 0.006;
-    const targetYawOffset = cursor.x * 0.12 + Math.sin(now / 2600) * 0.014;
-    const targetPitch = -cursor.y * 0.025;
+    const breath = Math.sin(now / 1200) * 0.012;
+    const targetYawOffset = cursor.x * 0.065 + Math.sin(now / 2600) * 0.01;
+    const targetPitch = -cursor.y * 0.018;
+    if (petMode) {
+      const cameraX = cameraHome.x + cursor.x * 0.32;
+      const cameraY = cameraHome.y - cursor.y * 0.14;
+      const cameraZ = cameraHome.z + cursor.x * 0.1;
+      camera.position.x += (cameraX - camera.position.x) * 0.055;
+      camera.position.y += (cameraY - camera.position.y) * 0.055;
+      camera.position.z += (cameraZ - camera.position.z) * 0.055;
+      camera.lookAt(
+        cameraLookAtHome.x + cursor.x * 0.045,
+        cameraLookAtHome.y - cursor.y * 0.05,
+        cameraLookAtHome.z
+      );
+      keyLight.position.x = keyLightHome.x + cursor.x * 0.5;
+      keyLight.position.y = keyLightHome.y - cursor.y * 0.25;
+      if (ambientMotes) ambientMotes.rotation.y = Math.sin(now / 5200) * 0.08;
+    }
     models.forEach(root => {
       if (!root.visible) return;
       const targetYaw = root.userData.guardianBaseRotationY + targetYawOffset;
       root.rotation.y += (targetYaw - root.rotation.y) * 0.07;
       root.rotation.x += (targetPitch - root.rotation.x) * 0.06;
-      root.position.y = root.userData.guardianBaseY + breath;
-      const pulse = 1 + Math.sin(now / 1200) * 0.0006;
-      root.scale.setScalar(root.userData.guardianBaseScale * pulse);
+      const transitionAt = root.userData.guardianTransitionAt;
+      const transitionProgress = transitionAt ? THREE.MathUtils.clamp((now - transitionAt) / 220, 0, 1) : 1;
+      const eased = 1 - Math.pow(1 - transitionProgress, 3);
+      if (root === activeRoot && transitionAt) {
+        setOpacity(root, 0.84 + eased * 0.16);
+        if (transitionProgress >= 1) root.userData.guardianTransitionAt = 0;
+      }
+      root.position.y = root.userData.guardianBaseY + breath + (1 - eased) * 0.045;
+      const pulse = 1 + Math.sin(now / 1200) * 0.0022;
+      root.scale.setScalar(root.userData.guardianBaseScale * (0.965 + eased * 0.035) * pulse);
     });
     controls?.update();
     renderer.render(scene, camera);

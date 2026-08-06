@@ -222,7 +222,7 @@ function mountLegacyMousePet() {
   document.body.appendChild(body);
   syncNavPetPosition();
   const petModel = window.__fitnessLedgerPetModel || new URLSearchParams(window.location.search).get('petModel') || 'lowpoly-static';
-  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260806-v21' : './motion-lab/guardian/pet-guardian-static.js?v=20260806-v21';
+  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260806-v22' : './motion-lab/guardian/pet-guardian-static.js?v=20260806-v22';
   const setPetPose = (pose, options) => {
     if (guardianPet) return guardianPet.setPose(pose, options);
     pendingPose = { pose, options };
@@ -460,8 +460,8 @@ function mountFloatingPetMenu(body, { onPose, onResetPosition } = {}) {
 function mountMousePet() {
   const body = document.createElement('div');
   const guardian = document.createElement('canvas');
-  const width = 132;
-  const height = 132;
+  const width = 156;
+  const height = 156;
   const margin = 16;
   const position = readGuardianPetPosition();
   const manualOverrides = new Map();
@@ -504,6 +504,10 @@ function mountMousePet() {
     transform: 'none',
     transformOrigin: '50% 50%'
   });
+  const contactShadow = document.createElement('span');
+  contactShadow.className = 'tools-pet-contact-shadow';
+  contactShadow.setAttribute('aria-hidden', 'true');
+  body.appendChild(contactShadow);
   body.appendChild(guardian);
   document.body.appendChild(body);
 
@@ -542,7 +546,7 @@ function mountMousePet() {
 
   const petQuery = new URLSearchParams(window.location.search);
   const petModel = window.__fitnessLedgerPetModel || petQuery.get('petModel') || 'lowpoly-static';
-  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260806-v21' : './motion-lab/guardian/pet-guardian-static.js?v=20260806-v21';
+  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260806-v22' : './motion-lab/guardian/pet-guardian-static.js?v=20260806-v22';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
