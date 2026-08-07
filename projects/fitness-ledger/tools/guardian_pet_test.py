@@ -117,7 +117,7 @@ def test_shader_and_wiring_contract() -> None:
     assert "const duration = 5600" in tools and "const phase = progress < 0.5" in tools
     assert "championSequenceActive" in tools and "is-champion-sequence" in tools
     assert "silent-awaiting-audio-asset" in tools and "browser-voice-fallback" not in tools
-    assert "championHoldTimer" in tools and "holdTriggered" in tools and "triggerChampionHold" in tools
+    assert "championAudioCueFrame" in tools and "watchChampionAudioCue" in tools and "holdTriggered" in tools and "triggerChampionHold" in tools
     assert "body.addEventListener('wheel', onPetWheel" in tools and "body.addEventListener('pointerdown', onPointerDown" in tools
     assert "MutationObserver" in tools and "cursorMode === 'trophy'" in tools
     assert "mountLegacyMousePet" not in tools

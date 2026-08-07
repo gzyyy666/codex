@@ -10,7 +10,7 @@
  * https://github.com/ArtBIT/mouse-follower
  */
 
-import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v80';
+import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v81';
 
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia?.('(pointer: coarse)').matches !== true;
@@ -576,7 +576,7 @@ function mountMousePet() {
   let championAudioContext = null;
   let championAudioGain = null;
   let championAudioMetadataHandler = null;
-  let championHoldTimer = 0;
+  let championAudioCueFrame = 0;
   let championEffectTimer = 0;
   let championDisplayFrame = 0;
   let championSequenceActive = false;
@@ -601,13 +601,14 @@ function mountMousePet() {
   Object.assign(navigator.style, { top: '0px', left: '0px' });
   document.body.appendChild(navigator);
 
-  const clearChampionHoldTimer = () => {
-    if (!championHoldTimer) return;
-    window.clearTimeout(championHoldTimer);
-    championHoldTimer = 0;
+  const clearChampionAudioCue = () => {
+    if (!championAudioCueFrame) return;
+    window.cancelAnimationFrame(championAudioCueFrame);
+    championAudioCueFrame = 0;
   };
   const stopChampionAudio = () => {
     if (!championAudio) return;
+    clearChampionAudioCue();
     if (championAudioMetadataHandler) {
       championAudio.removeEventListener('loadedmetadata', championAudioMetadataHandler);
       championAudioMetadataHandler = null;
@@ -685,6 +686,19 @@ function mountMousePet() {
       return;
     }
     body.dataset.championAudio = 'silent-awaiting-audio-asset';
+  };
+  const watchChampionAudioCue = () => {
+    if (disposed || !championAudio || !drag || drag.moved || drag.rotate || drag.holdTriggered) {
+      championAudioCueFrame = 0;
+      return;
+    }
+    const cueAt = championAudioLeadTrimSeconds + championEffectDelayMs / 1000;
+    if (championAudio.currentTime >= cueAt - 0.02) {
+      championAudioCueFrame = 0;
+      triggerChampionHold();
+      return;
+    }
+    championAudioCueFrame = window.requestAnimationFrame(watchChampionAudioCue);
   };
   const triggerChampionHold = () => {
     if (disposed || !drag || drag.moved || drag.rotate || drag.holdTriggered) return;
@@ -772,7 +786,7 @@ function mountMousePet() {
   window.addEventListener('fitness-ledger-pet:body-regions', onBodyRegions);
 
   const petQuery = new URLSearchParams(window.location.search);
-  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v80';
+  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v81';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
@@ -900,13 +914,10 @@ function mountMousePet() {
     const rect = body.getBoundingClientRect();
     const rotate = event.altKey;
     drag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: rect.left, originY: rect.top, moved: false, holdTriggered: false, rotate, startRotation: { ...viewRotation } };
-    clearChampionHoldTimer();
+    clearChampionAudioCue();
     if (!rotate) {
       playChampionCallout();
-      championHoldTimer = window.setTimeout(() => {
-        championHoldTimer = 0;
-        triggerChampionHold();
-      }, championEffectDelayMs);
+      championAudioCueFrame = window.requestAnimationFrame(watchChampionAudioCue);
     }
     body.setPointerCapture?.(event.pointerId);
     body.classList.toggle('is-rotating', rotate);
@@ -921,7 +932,7 @@ function mountMousePet() {
     const dx = event.clientX - drag.startX;
     const dy = event.clientY - drag.startY;
     if (!drag.moved && Math.hypot(dx, dy) < 6) return;
-    clearChampionHoldTimer();
+    clearChampionAudioCue();
     if (!drag.holdTriggered) stopChampionAudio();
     drag.moved = true;
     if (drag.rotate) {
@@ -938,13 +949,13 @@ function mountMousePet() {
     if (!drag || drag.pointerId !== event.pointerId) return;
     if (championSequenceActive) {
       event.preventDefault();
-      clearChampionHoldTimer();
+      clearChampionAudioCue();
       body.releasePointerCapture?.(event.pointerId);
       body.classList.remove('is-dragging', 'is-rotating');
       drag = null;
       return;
     }
-    clearChampionHoldTimer();
+    clearChampionAudioCue();
     if (!drag.holdTriggered) stopChampionAudio();
     if (drag.moved && !drag.rotate) {
       const rect = body.getBoundingClientRect();
@@ -988,7 +999,7 @@ function mountMousePet() {
     body.removeEventListener('dblclick', onDoubleClick);
     window.removeEventListener('pointermove', onPagePointerMove);
     cancelAnimationFrame(followFrame);
-    clearChampionHoldTimer();
+    clearChampionAudioCue();
     window.clearTimeout(championEffectTimer);
     window.cancelAnimationFrame(championDisplayFrame);
     stopChampionAudio();
