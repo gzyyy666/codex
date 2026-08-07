@@ -1,8 +1,8 @@
-import * as THREE from './three.module.min.js?v=20260807-v62';
-import { GLTFLoader } from './GLTFLoader.js?v=20260807-v62';
-import { OrbitControls } from './OrbitControls.js?v=20260807-v62';
-import { degreesToRadians, patchGuardianMaterial } from './guardian-shader-deformation.js?v=20260807-v62';
-import { createGuardianPresentationManager } from './guardian-presentation-manager.js?v=20260807-v62';
+import * as THREE from './three.module.min.js?v=20260807-v63';
+import { GLTFLoader } from './GLTFLoader.js?v=20260807-v63';
+import { OrbitControls } from './OrbitControls.js?v=20260807-v63';
+import { degreesToRadians, patchGuardianMaterial } from './guardian-shader-deformation.js?v=20260807-v63';
+import { createGuardianPresentationManager } from './guardian-presentation-manager.js?v=20260807-v63';
 
 const POSE_ORDER = Object.freeze([
   'standing',
@@ -81,6 +81,7 @@ export function mountGuardianPet(canvas, options = {}) {
   if (!canvas?.getContext) throw new TypeError('mountGuardianPet requires a canvas');
   const params = new URLSearchParams(location.search);
   const petMode = params.get('embed') === 'pet' || options.petMode === true;
+  const presentationScale = petMode ? 1.06 : 1;
   const media = window.matchMedia?.('(prefers-reduced-motion: reduce)');
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(31, 1, 0.05, 20);
@@ -419,7 +420,7 @@ export function mountGuardianPet(canvas, options = {}) {
     const eased = 1 - Math.pow(1 - transition, 3);
     if (transition >= 1) activeRecord.transitionAt = 0;
     activeRecord.group.position.set(state.offsetX, cfg.baseY + state.offsetY + (1 - eased) * 0.025, 0);
-    activeRecord.group.scale.setScalar(cfg.baseScale * state.zoom * (0.965 + eased * 0.035));
+    activeRecord.group.scale.setScalar(cfg.baseScale * presentationScale * state.zoom * (0.965 + eased * 0.035));
     activeRecord.group.rotation.y = degreesToRadians(state.yawOffset + state.viewRotation.x * 18) + wholeYaw;
     for (const patch of activeRecord.patches) {
       patch.set({

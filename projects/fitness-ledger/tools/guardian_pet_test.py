@@ -76,11 +76,17 @@ def test_shader_and_wiring_contract() -> None:
     assert "activeRecord.group.rotation.y" in renderer
     assert "activeRecord.group.rotation.x" not in renderer
     assert "uGuardianBaseYaw" not in renderer
+    assert "const presentationScale = petMode ? 1.06 : 1" in renderer
     tools = (ROOT / "web_desktop" / "frontend" / "tools-css3d-panels.js").read_text(encoding="utf-8")
     app = (ROOT / "web_desktop" / "frontend" / "app.js").read_text(encoding="utf-8")
     css = (ROOT / "web_desktop" / "frontend" / "final-pass.css").read_text(encoding="utf-8")
     for marker in ("fitness-ledger-pet:intent", "fitness-ledger-pet:body-regions", "presentationForSemanticEvent"):
         assert marker in tools
+    assert "const isGuardianRoute" in tools
+    assert "window.addEventListener('hashchange'" in tools
+    assert "navigatorTiltX" in tools and "navigatorTiltY" in tools
+    assert "Math.max(window.innerHeight / 1.8" in tools
+    assert "const stationary" not in tools
     for marker in ("training-save", "movement-focus", "analysis-result", "needs-review", "sync-result"):
         assert marker in app
     assert ".guardian-pet-hotspots" in css and "prefers-reduced-motion:reduce" in css

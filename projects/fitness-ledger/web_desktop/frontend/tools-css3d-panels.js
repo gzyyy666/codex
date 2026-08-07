@@ -10,7 +10,7 @@
  * https://github.com/ArtBIT/mouse-follower
  */
 
-import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v62';
+import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v63';
 
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia?.('(pointer: coarse)').matches !== true;
@@ -55,6 +55,7 @@ const petPoseNavigation = {
 };
 const petQuery = new URLSearchParams(window.location.search);
 const reviewPetMode = petQuery.has('guardianPet') || petQuery.get('petReview') === 'corner' || petQuery.get('petFollow') !== '1';
+const isGuardianRoute = () => (window.location.hash || '').replace(/^#/, '').split('?')[0] === 'guardian';
 
 function mountPetMenu(body, { onPose } = {}) {
   const menu = document.createElement('aside');
@@ -224,7 +225,7 @@ function mountLegacyMousePet() {
   document.body.appendChild(body);
   syncNavPetPosition();
   const petModel = window.__fitnessLedgerPetModel || new URLSearchParams(window.location.search).get('petModel') || 'lowpoly-static';
-  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v62' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v62';
+  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v63' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v63';
   const setPetPose = (pose, options) => {
     if (guardianPet) return guardianPet.setPose(pose, options);
     pendingPose = { pose, options };
@@ -463,9 +464,10 @@ function createTrophyNavigator() {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'tools-pet-navigator';
+  button.dataset.sprite = 'trophy-3d';
   button.setAttribute('aria-label', 'FL champion navigator. Click to open navigation.');
   button.title = 'Champion navigator · Click to open FL routes';
-  button.innerHTML = `<span class="tools-pet-navigator-aura" aria-hidden="true"></span><svg viewBox="0 0 90 118" aria-hidden="true" focusable="false"><defs><linearGradient id="guardian-trophy-bronze" x1="15%" y1="5%" x2="85%" y2="95%"><stop offset="0" stop-color="#fff1b0"/><stop offset=".2" stop-color="#cf8d3c"/><stop offset=".46" stop-color="#784018"/><stop offset=".68" stop-color="#e2a85b"/><stop offset="1" stop-color="#4a2615"/></linearGradient><linearGradient id="guardian-trophy-base" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#3d2317"/><stop offset=".45" stop-color="#b87532"/><stop offset="1" stop-color="#5b3018"/></linearGradient></defs><g fill="url(#guardian-trophy-bronze)" stroke="#3f2415" stroke-width="1.25" stroke-linejoin="round"><circle cx="45" cy="14" r="7"/><path d="M36 23c-3 7-4 14-2 20 2 7 7 11 11 12 5-1 10-5 12-12 2-6 1-13-2-20-6 2-13 2-19 0z"/><path d="M33 26c-7 1-13 4-17 9-2 3-1 6 2 7l16 1 2-8zM57 26c7 1 13 4 17 9 2 3 1 6-2 7l-16 1-2-8z"/><path d="M37 51l-7 23 9 6 6-22 6 22 9-6-7-23c-5 3-11 3-16 0z"/><path d="M30 74l-5 16 13 4 4-13zM60 74l5 16-13 4-4-13z"/></g><path d="M27 34L70 98" fill="none" stroke="#f2c477" stroke-width="2.7" stroke-linecap="round"/><circle cx="25" cy="31" r="5" fill="url(#guardian-trophy-bronze)" stroke="#3f2415" stroke-width="1.25"/><circle cx="71" cy="100" r="5" fill="url(#guardian-trophy-bronze)" stroke="#3f2415" stroke-width="1.25"/><path d="M17 94h56l7 7H10z" fill="url(#guardian-trophy-base)" stroke="#3f2415" stroke-width="1.25"/><path d="M24 101h42v7H24z" fill="#8a5427" stroke="#3f2415" stroke-width="1.25"/><path d="M33 105h24" stroke="#f0c174" stroke-width="1.1" stroke-linecap="round" opacity=".75"/></svg>`;
+  button.innerHTML = `<span class="tools-pet-navigator-aura" aria-hidden="true"></span><svg viewBox="0 0 90 118" aria-hidden="true" focusable="false"><defs><linearGradient id="guardian-trophy-bronze" x1="15%" y1="5%" x2="85%" y2="95%"><stop offset="0" stop-color="#fff1b0"/><stop offset=".2" stop-color="#cf8d3c"/><stop offset=".46" stop-color="#784018"/><stop offset=".68" stop-color="#e2a85b"/><stop offset="1" stop-color="#4a2615"/></linearGradient><linearGradient id="guardian-trophy-base" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#3d2317"/><stop offset=".45" stop-color="#b87532"/><stop offset="1" stop-color="#5b3018"/></linearGradient></defs><g fill="url(#guardian-trophy-bronze)" stroke="#3f2415" stroke-width="1.25" stroke-linejoin="round"><circle cx="45" cy="14" r="7"/><path d="M36 23c-3 7-4 14-2 20 2 7 7 11 11 12 5-1 10-5 12-12 2-6 1-13-2-20-6 2-13 2-19 0z"/><path d="M33 26c-7 1-13 4-17 9-2 3-1 6 2 7l16 1 2-8zM57 26c7 1 13 4 17 9 2 3 1 6-2 7l-16 1-2-8z"/><path d="M37 51l-7 23 9 6 6-22 6 22 9-6-7-23c-5 3-11 3-16 0z"/><path d="M30 74l-5 16 13 4 4-13zM60 74l5 16-13 4-4-13z"/></g><path d="M27 34L70 98" fill="none" stroke="#f2c477" stroke-width="2.7" stroke-linecap="round"/><circle cx="25" cy="31" r="5" fill="url(#guardian-trophy-bronze)" stroke="#3f2415" stroke-width="1.25"/><circle cx="71" cy="100" r="5" fill="url(#guardian-trophy-bronze)" stroke="#3f2415" stroke-width="1.25"/><path d="M17 94h56l7 7H10z" fill="url(#guardian-trophy-base)" stroke="#3f2415" stroke-width="1.25"/><path d="M24 101h42v7H24z" fill="#8a5427" stroke="#3f2415" stroke-width="1.25"/><path d="M33 105h24" stroke="#f0c174" stroke-width="1.1" stroke-linecap="round" opacity=".75"/><ellipse cx="41" cy="31" rx="4" ry="8" fill="#fff4c7" opacity=".24" transform="rotate(18 41 31)"/><path d="M31 49c8 4 18 4 27-1" fill="none" stroke="#fff1b0" stroke-width="1.2" stroke-linecap="round" opacity=".48"/><path d="M18 97h51" stroke="#f6c978" stroke-width="1" opacity=".36"/></svg>`;
   return button;
 }
 
@@ -739,7 +741,7 @@ function mountMousePet() {
 
   const petQuery = new URLSearchParams(window.location.search);
   const petModel = window.__fitnessLedgerPetModel || petQuery.get('petModel') || 'lowpoly-static';
-  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v62' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v62';
+  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v63' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v63';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
@@ -808,15 +810,13 @@ function mountMousePet() {
       guardianPet?.previousPose({ source: 'pet-keyboard' });
     }
   };
-  const pointer = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5, lastMoveAt: performance.now() };
+  const pointer = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5 };
   const navigatorFollower = { x: pointer.x + 22, y: pointer.y + 22, tx: pointer.x + 22, ty: pointer.y + 22 };
   let followFrame = 0;
   const onPagePointerMove = event => {
     if (event.pointerType === 'touch') return;
-    const moved = Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y);
     pointer.x = event.clientX;
     pointer.y = event.clientY;
-    if (moved >= 2) pointer.lastMoveAt = performance.now();
   };
   const updatePointerFollow = time => {
     const rect = body.getBoundingClientRect();
@@ -827,19 +827,16 @@ function mountMousePet() {
     navigatorFollower.x += (navigatorFollower.tx - navigatorFollower.x) * 0.12;
     navigatorFollower.y += (navigatorFollower.ty - navigatorFollower.y) * 0.12;
     const navigatorTilt = clamp((navigatorFollower.tx - navigatorFollower.x) * 0.12, -8, 8);
-    navigator.style.transform = `translate3d(${Math.round(navigatorFollower.x)}px, ${Math.round(navigatorFollower.y)}px, 0) rotate(${navigatorTilt.toFixed(2)}deg)`;
+    const navigatorTiltX = clamp((navigatorFollower.ty - navigatorFollower.y) * 0.09, -9, 9);
+    const navigatorTiltY = clamp((navigatorFollower.tx - navigatorFollower.x) * -0.09, -9, 9);
+    navigator.style.transform = `translate3d(${Math.round(navigatorFollower.x)}px, ${Math.round(navigatorFollower.y)}px, 0) perspective(720px) rotateX(${navigatorTiltX.toFixed(2)}deg) rotateY(${navigatorTiltY.toFixed(2)}deg) rotateZ(${navigatorTilt.toFixed(2)}deg)`;
     const pointerX = (pointer.x / Math.max(window.innerWidth, 1)) * 2 - 1;
     const pointerY = -((pointer.y / Math.max(window.innerHeight, 1)) * 2 - 1);
-    const stationary = time - pointer.lastMoveAt >= 260;
     guardianPet?.setPointer({ x: pointerX, y: pointerY, energy: 0 });
-    if (stationary && !drag) {
-      guardianPet?.setFollowTarget?.({
-        x: clamp((pointer.x - centerX) / Math.max(window.innerWidth * 0.32, 260), -1, 1),
-        y: clamp((pointer.y - centerY) / Math.max(window.innerHeight * 0.26, 180), -1, 1)
-      });
-    } else {
-      guardianPet?.setFollowTarget?.({ x: 0, y: 0 });
-    }
+    guardianPet?.setFollowTarget?.({
+      x: clamp((pointer.x - centerX) / Math.max(window.innerWidth * 0.5, width * 1.6), -1, 1),
+      y: clamp((pointer.y - centerY) / Math.max(window.innerHeight / 1.8, height * 1.6), -1, 1)
+    });
     followFrame = requestAnimationFrame(updatePointerFollow);
   };
   let viewRotation = { x: 0, y: 0 };
@@ -922,11 +919,23 @@ function mountMousePet() {
 }
 
 export function mountGlobalArchivePet() {
-  if (typeof window.__fitnessLedgerArchivePetCleanup === 'function') return window.__fitnessLedgerArchivePetCleanup;
-  const cleanup = mountMousePet();
-  window.__fitnessLedgerArchivePetCleanup = cleanup;
-  return cleanup;
+  if (isGuardianRoute()) {
+    window.__fitnessLedgerArchivePetCleanup?.();
+    return () => {};
+  }
+  if (typeof window.__fitnessLedgerArchivePetCleanup !== 'function') {
+    window.__fitnessLedgerArchivePetCleanup = mountMousePet();
+  }
+  return window.__fitnessLedgerArchivePetCleanup;
 }
+
+window.addEventListener('hashchange', () => {
+  if (isGuardianRoute()) {
+    window.__fitnessLedgerArchivePetCleanup?.();
+    return;
+  }
+  mountGlobalArchivePet();
+});
 
 function setPanelValues(card, values, immediate = false) {
   const factor = immediate ? 1 : 0.16;
