@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "mode": "shader_spatial_masks",
+  "requiresSkin": false,
+  "requiresAnimations": false,
+  "requiresNamedMeshNodes": false,
+  "coordinateOrder": [
+    "rotate original GLB by pose.baseYaw into canonical display space",
+    "apply upper-body extra yaw around waist pivot",
+    "apply upper-body pitch around waist pivot",
+    "apply head/neck yaw and pitch around neck pivot",
+    "apply whole-body pointer yaw on the outer Object3D/group"
+  ],
+  "regions": {
+    "upperBody": { "blend": { "type": "smoothstep", "startNormalizedY": 0.4, "endNormalizedY": 0.48 }, "pivotNormalized": [0.0, 0.45, 0.0] },
+    "headNeck": { "verticalBlend": { "type": "smoothstep", "startNormalizedY": 0.76, "endNormalizedY": 0.83 }, "horizontalLimit": { "innerNormalizedAbsX": 0.13, "outerNormalizedAbsX": 0.19 }, "pivotNormalized": [0.0, 0.8, 0.0] }
+  },
+  "normalization": { "defaultRigNorm": 1, "backLatSpreadRigNorm": 100 }
+}

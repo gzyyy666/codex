@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -26,8 +27,9 @@ def browser_contract() -> None:
         return
     index = (PROJECT / "web_desktop/frontend/index.html").read_text(encoding="utf-8")
     app = (PROJECT / "web_desktop/frontend/app.js").read_text(encoding="utf-8")
-    script = '<script type="module" src="app.js"></script>'
-    assert index.count(script) == 1
+    script_match = re.search(r'<script type="module" src="app\.js(?:\?[^" ]+)?"></script>', index)
+    assert script_match
+    script = script_match.group(0)
     harness = r"""
 const emptyState=()=>({
   today:{date:'2099-01-01'},recent:[],body:[],diet:[],training:[],dictionary:[],
@@ -127,6 +129,8 @@ document.body.appendChild(report);
 """
     with tempfile.TemporaryDirectory(prefix="fitness-ledger-movement-cache-browser-") as temp:
         page = Path(temp) / "index.html"
+        (page.parent / "motion-lab" / "guardian").mkdir(parents=True)
+        shutil.copy2(PROJECT / "web_desktop/frontend/motion-lab/guardian/guardian-business-adapters.js", page.parent / "motion-lab" / "guardian" / "guardian-business-adapters.js")
         page.write_text(index.replace(script, f"<script type=\"module\">\n{harness}\n{app}\n{assertions}\n</script>"), encoding="utf-8")
         output = subprocess.run(
             [str(edge), "--headless=new", "--disable-gpu", "--virtual-time-budget=6000", "--dump-dom", page.as_uri()],

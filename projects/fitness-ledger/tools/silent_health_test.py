@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import sys
 import subprocess
 import tempfile
@@ -128,11 +129,14 @@ healthReport.dataset.snapshots=encodeURIComponent(JSON.stringify(healthSnapshots
 healthReport.dataset.interaction=encodeURIComponent(JSON.stringify(interaction));
 document.body.appendChild(healthReport);
 """
-    script_tag = '<script type="module" src="app.js"></script>'
-    assert index_html.count(script_tag) == 1
+    script_match = re.search(r'<script type="module" src="app\.js(?:\?[^" ]+)?"></script>', index_html)
+    assert script_match
+    script_tag = script_match.group(0)
     test_html = index_html.replace(script_tag, f'<script type="module">\n{app_js}\n{harness}\n</script>')
     with tempfile.TemporaryDirectory(prefix="fitness-ledger-health-dom-") as temp:
         page = Path(temp) / "index.html"
+        (page.parent / "motion-lab" / "guardian").mkdir(parents=True)
+        shutil.copy2(PROJECT_DIR / "web_desktop/frontend/motion-lab/guardian/guardian-business-adapters.js", page.parent / "motion-lab" / "guardian" / "guardian-business-adapters.js")
         page.write_text(test_html, encoding="utf-8")
         result = subprocess.run(
             [str(edge), "--headless=new", "--disable-gpu", "--virtual-time-budget=3000", "--dump-dom", page.as_uri()],

@@ -1,0 +1,135 @@
+const DEG2RAD = Math.PI / 180;
+
+export function createGuardianUniforms() {
+  return {
+    uGuardianBaseYaw: { value: 0 },
+    uGuardianUpperYaw: { value: 0 },
+    uGuardianHeadYaw: { value: 0 },
+    uGuardianUpperPitch: { value: 0 },
+    uGuardianHeadPitch: { value: 0 },
+    uGuardianTime: { value: 0 },
+    uGuardianTension: { value: 0.62 },
+    uGuardianRigNorm: { value: 1 }
+  };
+}
+
+const GLSL_HEADER = /* glsl */ `
+uniform float uGuardianBaseYaw;
+uniform float uGuardianUpperYaw;
+uniform float uGuardianHeadYaw;
+uniform float uGuardianUpperPitch;
+uniform float uGuardianHeadPitch;
+uniform float uGuardianTime;
+uniform float uGuardianTension;
+uniform float uGuardianRigNorm;
+
+vec3 guardianRotY(vec3 p, float a) {
+  float c = cos(a);
+  float s = sin(a);
+  return vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z);
+}
+
+vec3 guardianRotX(vec3 p, float a) {
+  float c = cos(a);
+  float s = sin(a);
+  return vec3(p.x, c * p.y - s * p.z, s * p.y + c * p.z);
+}
+
+vec3 guardianTransformPosition(vec3 inputPosition) {
+  float rig = max(uGuardianRigNorm, 0.0001);
+  vec3 p = guardianRotY(inputPosition, uGuardianBaseYaw);
+  vec3 pn = p / rig;
+  float upperMask = smoothstep(0.40, 0.48, pn.y);
+  vec3 waistPivot = vec3(0.0, 0.45 * rig, 0.0);
+  p = mix(p, guardianRotY(p - waistPivot, uGuardianUpperYaw) + waistPivot, upperMask);
+  p = mix(p, guardianRotX(p - waistPivot, uGuardianUpperPitch) + waistPivot, upperMask);
+
+  pn = p / rig;
+  float headMask = smoothstep(0.76, 0.83, pn.y)
+                 * (1.0 - smoothstep(0.13, 0.19, abs(pn.x)));
+  vec3 neckPivot = vec3(0.0, 0.80 * rig, 0.0);
+  p = mix(p, guardianRotY(p - neckPivot, uGuardianHeadYaw) + neckPivot, headMask);
+  p = mix(p, guardianRotX(p - neckPivot, uGuardianHeadPitch) + neckPivot, headMask);
+
+  float breath = sin(uGuardianTime * 1.15) * 0.0010 * rig;
+  p.z += upperMask * (breath + 0.0015 * uGuardianTension * rig);
+  return p;
+}
+
+vec3 guardianTransformNormal(vec3 inputPosition, vec3 inputNormal) {
+  float rig = max(uGuardianRigNorm, 0.0001);
+  vec3 p = guardianRotY(inputPosition, uGuardianBaseYaw);
+  vec3 n = normalize(guardianRotY(inputNormal, uGuardianBaseYaw));
+  vec3 pn = p / rig;
+  float upperMask = smoothstep(0.40, 0.48, pn.y);
+  vec3 waistPivot = vec3(0.0, 0.45 * rig, 0.0);
+  p = mix(p, guardianRotY(p - waistPivot, uGuardianUpperYaw) + waistPivot, upperMask);
+  n = normalize(mix(n, guardianRotY(n, uGuardianUpperYaw), upperMask));
+  p = mix(p, guardianRotX(p - waistPivot, uGuardianUpperPitch) + waistPivot, upperMask);
+  n = normalize(mix(n, guardianRotX(n, uGuardianUpperPitch), upperMask));
+
+  pn = p / rig;
+  float headMask = smoothstep(0.76, 0.83, pn.y)
+                 * (1.0 - smoothstep(0.13, 0.19, abs(pn.x)));
+  n = normalize(mix(n, guardianRotY(n, uGuardianHeadYaw), headMask));
+  n = normalize(mix(n, guardianRotX(n, uGuardianHeadPitch), headMask));
+  return n;
+}
+`;
+
+export function patchGuardianMaterial(material, uniforms = createGuardianUniforms(), onError = null) {
+  if (!material || typeof material !== 'object') throw new TypeError('Three.js material required');
+  const previousOnBeforeCompile = material.onBeforeCompile;
+  const previousCacheKey = material.customProgramCacheKey?.bind(material);
+  let compiledShader = null;
+
+  material.onBeforeCompile = (shader, renderer) => {
+    previousOnBeforeCompile?.(shader, renderer);
+    try {
+      if (!shader.vertexShader.includes('void main() {') || !shader.vertexShader.includes('#include <begin_vertex>')) {
+        throw new Error('Guardian shader anchors are unavailable');
+      }
+      Object.assign(shader.uniforms, uniforms);
+      shader.vertexShader = shader.vertexShader.replace('void main() {', `${GLSL_HEADER}\nvoid main() {`);
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <beginnormal_vertex>',
+        '#include <beginnormal_vertex>\nobjectNormal = guardianTransformNormal(position, objectNormal);'
+      );
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        '#include <begin_vertex>\ntransformed = guardianTransformPosition(transformed);'
+      );
+      compiledShader = shader;
+    } catch (error) {
+      onError?.(error);
+      throw error;
+    }
+  };
+  material.customProgramCacheKey = () => `${previousCacheKey ? previousCacheKey() : ''}|fl-guardian-static-mask-v6.2`;
+  material.needsUpdate = true;
+
+  return {
+    material,
+    uniforms,
+    get compiledShader() { return compiledShader; },
+    set(values = {}) {
+      if (Number.isFinite(values.baseYaw)) uniforms.uGuardianBaseYaw.value = values.baseYaw;
+      if (Number.isFinite(values.upperYaw)) uniforms.uGuardianUpperYaw.value = values.upperYaw;
+      if (Number.isFinite(values.headYaw)) uniforms.uGuardianHeadYaw.value = values.headYaw;
+      if (Number.isFinite(values.upperPitch)) uniforms.uGuardianUpperPitch.value = values.upperPitch;
+      if (Number.isFinite(values.headPitch)) uniforms.uGuardianHeadPitch.value = values.headPitch;
+      if (Number.isFinite(values.timeSeconds)) uniforms.uGuardianTime.value = values.timeSeconds;
+      if (Number.isFinite(values.tension)) uniforms.uGuardianTension.value = values.tension;
+      if (Number.isFinite(values.rigNorm)) uniforms.uGuardianRigNorm.value = Math.max(values.rigNorm, 0.0001);
+    },
+    dispose() {
+      material.onBeforeCompile = previousOnBeforeCompile;
+      if (previousCacheKey) material.customProgramCacheKey = previousCacheKey;
+      else delete material.customProgramCacheKey;
+      material.needsUpdate = true;
+      compiledShader = null;
+    }
+  };
+}
+
+export const degreesToRadians = degrees => degrees * DEG2RAD;

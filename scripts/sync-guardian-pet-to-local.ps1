@@ -1,37 +1,49 @@
 [CmdletBinding(SupportsShouldProcess)]
 param(
   [string]$SourceRoot,
-  [string]$TargetRoot = 'C:\Users\26087\Documents\fl\nick-pet-handoff\project\web_desktop\frontend',
+  [string]$TargetRoot = 'C:\Users\26087\Documents\Codex\2026-06-16\vs-code-ai\work\fitness_tracker_app',
   [switch]$SkipBackup
 )
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 if (-not $SourceRoot) {
-  $SourceRoot = Join-Path $repoRoot 'projects\fitness-ledger\web_desktop\frontend'
+  $SourceRoot = Join-Path $repoRoot 'projects\fitness-ledger'
 }
 $SourceRoot = (Resolve-Path -LiteralPath $SourceRoot).Path
 $TargetRoot = [IO.Path]::GetFullPath($TargetRoot)
+if ($SourceRoot -eq $TargetRoot) { throw 'Guardian Pet sync source and formal target must be different directories.' }
 
 $relativeFiles = @(
-  'app.js',
-  'index.html',
-  'final-pass.css',
-  'tools-css3d-panels.js',
-  'motion-lab\guardian\index.html',
-  'motion-lab\guardian\pet-guardian-static.js',
-  'motion-lab\guardian\pet-guardian.js',
-  'motion-lab\guardian\three.module.min.js',
-  'motion-lab\guardian\GLTFLoader.js',
-  'motion-lab\guardian\OrbitControls.js',
-  'motion-lab\guardian\BufferGeometryUtils.js',
-  'motion-lab\guardian\assets\lowpoly\lowpoly-front-standing.glb',
-  'motion-lab\guardian\assets\lowpoly\lowpoly-side-chest.glb',
-  'motion-lab\guardian\assets\lowpoly\lowpoly-front-double-biceps.glb',
-  'motion-lab\guardian\assets\lowpoly\lowpoly-rear-double-biceps.glb',
-  'motion-lab\guardian\assets\lowpoly\lowpoly-rear-lat-spread.glb',
-  'motion-lab\guardian\assets\lowpoly\lowpoly-most-muscular.glb',
-  'motion-lab\guardian\assets\lowpoly\lowpoly-open-hand-crab.glb'
+  'ledger_commands.py',
+  'fitness_ledger_core\shared_view_models.py',
+  'web_desktop\backend\server.py',
+  'web_desktop\frontend\app.js',
+  'web_desktop\frontend\index.html',
+  'web_desktop\frontend\final-pass.css',
+  'web_desktop\frontend\tools-css3d-panels.js',
+  'web_desktop\frontend\motion-lab\guardian\index.html',
+  'web_desktop\frontend\motion-lab\guardian\pet-guardian-static.js',
+  'web_desktop\frontend\motion-lab\guardian\pet-guardian.js',
+  'web_desktop\frontend\motion-lab\guardian\guardian-business-adapters.js',
+  'web_desktop\frontend\motion-lab\guardian\guardian-intent-map.js',
+  'web_desktop\frontend\motion-lab\guardian\guardian-presentation-manager.js',
+  'web_desktop\frontend\motion-lab\guardian\guardian-shader-deformation.js',
+  'web_desktop\frontend\motion-lab\guardian\config\pose-config.json',
+  'web_desktop\frontend\motion-lab\guardian\config\node-map.json',
+  'web_desktop\frontend\motion-lab\guardian\config\camera-presets.json',
+  'web_desktop\frontend\motion-lab\guardian\config\intent-config.json',
+  'web_desktop\frontend\motion-lab\guardian\three.module.min.js',
+  'web_desktop\frontend\motion-lab\guardian\GLTFLoader.js',
+  'web_desktop\frontend\motion-lab\guardian\OrbitControls.js',
+  'web_desktop\frontend\motion-lab\guardian\BufferGeometryUtils.js',
+  'web_desktop\frontend\motion-lab\guardian\assets\lowpoly\lowpoly-front-standing.glb',
+  'web_desktop\frontend\motion-lab\guardian\assets\lowpoly\lowpoly-side-chest.glb',
+  'web_desktop\frontend\motion-lab\guardian\assets\lowpoly\lowpoly-front-double-biceps.glb',
+  'web_desktop\frontend\motion-lab\guardian\assets\lowpoly\lowpoly-rear-double-biceps.glb',
+  'web_desktop\frontend\motion-lab\guardian\assets\lowpoly\lowpoly-rear-lat-spread.glb',
+  'web_desktop\frontend\motion-lab\guardian\assets\lowpoly\lowpoly-most-muscular.glb',
+  'web_desktop\frontend\motion-lab\guardian\assets\lowpoly\lowpoly-open-hand-crab.glb'
 )
 
 $missing = @($relativeFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $SourceRoot $_) -PathType Leaf) })

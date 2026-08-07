@@ -13,7 +13,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Callable
 
-from fitness_ledger_core.shared_view_models import movement_in_progress
+from fitness_ledger_core.shared_view_models import LedgerViewModels, movement_in_progress
 from fitness_ledger_core.notes import normalize_note_text
 
 
@@ -2028,6 +2028,8 @@ class LedgerCommandService:
                         "ok": True, "status": "NO_CHANGES", "changed": False, "date": parsed["date"],
                         "save_mode": save_mode, "saved_movements": 0, "working_sets": 0,
                         "progress_excluded_count": 0,
+                        "record_id": None, "personal_records": [],
+                        "split_label": "", "movement_count": 0,
                         "body_updated": False, "diet_updated": False, "training_updated": False, "notes_updated": False,
                         "movements_added": 0, "movements_removed": 0,
                     }
@@ -2111,6 +2113,8 @@ class LedgerCommandService:
         saved_movements = 0
         progress_excluded_count = 0
         skipped = []
+        personal_records = []
+        training_record_id = None
         if training.get("split") or training.get("movements"):
             existing_days = [int(row.get("No.") or 0) for row in database.get("training_sessions", [])]
             day_number = replacement_day or (max(existing_days, default=0) + 1)
@@ -2143,16 +2147,22 @@ class LedgerCommandService:
                     continue
                 by_id, by_alias = _dictionary_indexes(dictionary)
                 movement = self._tracker_movement(database, definition, candidate)
-                movement.setdefault("history", []).append(
-                    {
-                        "id": str(uuid.uuid4()), "movement_id": definition["movement_id"], "date": entry_date,
-                        "training_day": day_number, "order": movement_data.get("order"), "sets": movement_data.get("sets", []),
-                        "cardio": movement_data.get("cardio") or {}, "raw": movement_data.get("raw", ""),
-                        "notes": normalize_note_text(movement_data.get("notes", "")),
-                        "exclude_from_progress": bool(movement_data.get("exclude_from_progress", False)),
-                        "source": "text entry",
-                    }
-                )
+                previous_history = list(movement.setdefault("history", []))
+                history_record = {
+                    "id": str(uuid.uuid4()), "movement_id": definition["movement_id"], "date": entry_date,
+                    "training_day": day_number, "order": movement_data.get("order"), "sets": movement_data.get("sets", []),
+                    "cardio": movement_data.get("cardio") or {}, "raw": movement_data.get("raw", ""),
+                    "notes": normalize_note_text(movement_data.get("notes", "")),
+                    "exclude_from_progress": bool(movement_data.get("exclude_from_progress", False)),
+                    "source": "text entry",
+                }
+                variant = str(movement_data.get("variant") or "").strip()
+                if variant:
+                    history_record["variant"] = variant
+                movement["history"].append(history_record)
+                personal_record = LedgerViewModels.personal_record_summary(definition, history_record, previous_history)
+                if personal_record:
+                    personal_records.append(personal_record)
                 display_name = definition.get("display_name") or movement_data.get("display_name") or candidate
                 summary_parts.append(f"第{movement_data.get('order')}个动作：{display_name}")
                 note = str(movement_data.get("notes", "")).strip().rstrip("，。?!！？")
@@ -2163,9 +2173,10 @@ class LedgerCommandService:
             training_notes = normalize_note_text(training.get("notes", ""))
             if save_mode == "append_training":
                 training_notes = f"同日追加训练。{training_notes}" if training_notes else "同日追加训练。"
+            training_record_id = str(uuid.uuid4())
             database.setdefault("training_sessions", []).append(
                 {
-                    "id": str(uuid.uuid4()), "No.": day_number, "Date": entry_date,
+                    "id": training_record_id, "No.": day_number, "Date": entry_date,
                     "Split": training.get("split", ""), "Raw Record": training.get("raw", ""),
                     "Standardized Summary": training.get("standardized_summary") or "；".join(summary_parts),
                     "Notes": training_notes,
@@ -2181,4 +2192,8 @@ class LedgerCommandService:
             "saved_movements": saved_movements,
             "progress_excluded_count": progress_excluded_count,
             "skipped_movements": skipped,
+            "record_id": training_record_id,
+            "personal_records": personal_records,
+            "split_label": str(training.get("split") or ""),
+            "movement_count": saved_movements,
         }

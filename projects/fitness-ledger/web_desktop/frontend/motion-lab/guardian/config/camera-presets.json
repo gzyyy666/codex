@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "presets": {
+    "idle": { "zoom": 1.0, "target": [0, 0.5, 0], "camera": [0, 0.5, 2.18], "transitionMs": 500 },
+    "celebration": { "zoom": 1.12, "target": [0, 0.52, 0], "camera": [0, 0.52, 2.02], "transitionMs": 350 },
+    "upper_front": { "zoom": 1.12, "target": [0, 0.61, 0], "camera": [0, 0.58, 2.04], "transitionMs": 420 },
+    "upper_back": { "zoom": 1.12, "target": [0, 0.61, 0], "camera": [0, 0.58, 2.04], "transitionMs": 420 },
+    "upper_side": { "zoom": 1.1, "target": [0, 0.59, 0], "camera": [0, 0.57, 2.07], "transitionMs": 420 },
+    "lower_body": { "zoom": 1.04, "target": [0, 0.32, 0], "camera": [0, 0.4, 2.16], "transitionMs": 420 },
+    "loading": { "zoom": 1.0, "target": [0, 0.5, 0], "camera": [0, 0.5, 2.18], "transitionMs": 300 }
+  }
+}

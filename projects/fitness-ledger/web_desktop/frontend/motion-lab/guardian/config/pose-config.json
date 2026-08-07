@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "acceptedVisualBaseline": "v6.2",
+  "deformationMode": "shader_spatial_masks",
+  "poses": {
+    "standing": { "file": "standing_front_relaxed.glb", "name": "正向站立", "subtitle": "Front relaxed · 正面静默位", "wholeYaw": 5.5, "upperYaw": 3.0, "headYaw": 10.5, "upperPitch": 6.2, "headPitch": 9.5, "baseScale": 1.08, "baseY": 0.0, "baseYaw": 0, "rigNorm": 1 },
+    "front_double_biceps": { "file": "front_double_biceps.glb", "name": "正展双肱二", "subtitle": "Front double biceps · 正面静默位", "wholeYaw": 5.5, "upperYaw": 2.8, "headYaw": 10.5, "upperPitch": 5.2, "headPitch": 8.5, "baseScale": 1.08, "baseY": 0.0, "baseYaw": -90, "rigNorm": 1 },
+    "crab_hands_apart": { "file": "most_muscular_hands_apart.glb", "name": "分手蟹式", "subtitle": "Most muscular (hands apart) · 正面静默位", "wholeYaw": 5.0, "upperYaw": 3.0, "headYaw": 10.5, "upperPitch": 6.4, "headPitch": 9.2, "baseScale": 1.08, "baseY": 0.0, "baseYaw": 0, "rigNorm": 1 },
+    "crab_hands_clasped": { "file": "most_muscular_hands_clasped.glb", "name": "并手蟹式", "subtitle": "Most muscular (clasped) · 正面静默位", "wholeYaw": 4.8, "upperYaw": 3.0, "headYaw": 10.5, "upperPitch": 6.4, "headPitch": 9.2, "baseScale": 1.08, "baseY": 0.0, "baseYaw": 0, "rigNorm": 1 },
+    "back_double_biceps": { "file": "back_double_biceps.glb", "name": "背展双肱二", "subtitle": "Back double biceps · 背面静默位", "wholeYaw": 4.5, "upperYaw": 2.6, "headYaw": 9.0, "upperPitch": 4.5, "headPitch": 7.2, "baseScale": 1.08, "baseY": 0.0, "baseYaw": -90, "rigNorm": 1 },
+    "back_lat_spread": { "file": "back_lat_spread.glb", "name": "背展背阔", "subtitle": "Back lat spread · 背面静默位", "wholeYaw": 4.5, "upperYaw": 2.5, "headYaw": 8.5, "upperPitch": 4.3, "headPitch": 7.0, "baseScale": 0.0108, "baseY": 0.0, "baseYaw": -90, "rigNorm": 100 },
+    "side_chest": { "file": "side_chest.glb", "name": "侧展胸", "subtitle": "Side chest · 侧展静默位", "wholeYaw": 4.8, "upperYaw": 2.8, "headYaw": 11.5, "upperPitch": 5.0, "headPitch": 8.5, "baseScale": 1.08, "baseY": 0.0, "baseYaw": 270, "rigNorm": 1 }
+  }
+}

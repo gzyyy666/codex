@@ -1,0 +1,153 @@
+from __future__ import annotations
+
+import json
+import struct
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from fitness_ledger_core.shared_view_models import LedgerViewModels
+from ledger_commands import LedgerCommandService
+
+
+GUARDIAN = ROOT / "web_desktop" / "frontend" / "motion-lab" / "guardian"
+
+
+def read_glb_json(path: Path) -> dict:
+    payload = path.read_bytes()
+    magic, version, declared_length = struct.unpack_from("<4sII", payload, 0)
+    assert magic == b"glTF" and version == 2 and declared_length == len(payload), path
+    chunk_length, chunk_type = struct.unpack_from("<II", payload, 12)
+    assert chunk_type == 0x4E4F534A, path
+    return json.loads(payload[20 : 20 + chunk_length].rstrip(b" \x00").decode("utf-8"))
+
+
+def test_assets_and_config() -> None:
+    config = json.loads((GUARDIAN / "config" / "pose-config.json").read_text(encoding="utf-8"))
+    assert config["acceptedVisualBaseline"] == "v6.2"
+    assert set(config["poses"]) == {
+        "standing",
+        "front_double_biceps",
+        "side_chest",
+        "back_double_biceps",
+        "back_lat_spread",
+        "crab_hands_clasped",
+        "crab_hands_apart",
+    }
+    assert config["poses"]["side_chest"]["baseYaw"] == 270
+    assert config["poses"]["back_lat_spread"]["baseScale"] == 0.0108
+    assert config["poses"]["back_lat_spread"]["rigNorm"] == 100
+    file_map = {
+        "standing_front_relaxed.glb": "lowpoly-front-standing.glb",
+        "front_double_biceps.glb": "lowpoly-front-double-biceps.glb",
+        "side_chest.glb": "lowpoly-side-chest.glb",
+        "back_double_biceps.glb": "lowpoly-rear-double-biceps.glb",
+        "back_lat_spread.glb": "lowpoly-rear-lat-spread.glb",
+        "most_muscular_hands_clasped.glb": "lowpoly-most-muscular.glb",
+        "most_muscular_hands_apart.glb": "lowpoly-open-hand-crab.glb",
+    }
+    for pose in config["poses"].values():
+        asset = GUARDIAN / "assets" / "lowpoly" / file_map[pose["file"]]
+        document = read_glb_json(asset)
+        assert not document.get("skins"), asset
+        assert not document.get("animations"), asset
+        assert document.get("meshes"), asset
+
+
+def test_shader_and_wiring_contract() -> None:
+    shader = (GUARDIAN / "guardian-shader-deformation.js").read_text(encoding="utf-8")
+    ordered = [
+        "guardianRotY(inputPosition, uGuardianBaseYaw)",
+        "uGuardianUpperYaw) + waistPivot",
+        "uGuardianUpperPitch) + waistPivot",
+        "uGuardianHeadYaw) + neckPivot",
+        "uGuardianHeadPitch) + neckPivot",
+        "float breath",
+    ]
+    positions = [shader.index(marker) for marker in ordered]
+    assert positions == sorted(positions)
+    renderer = (GUARDIAN / "pet-guardian-static.js").read_text(encoding="utf-8")
+    assert renderer.count("new THREE.WebGLRenderer") == 1
+    assert renderer.count("requestAnimationFrame(animate)") == 1
+    assert "activeRecord.group.rotation.y" in renderer
+    assert "activeRecord.group.rotation.x" not in renderer
+    assert "uGuardianBaseYaw" not in renderer
+    tools = (ROOT / "web_desktop" / "frontend" / "tools-css3d-panels.js").read_text(encoding="utf-8")
+    app = (ROOT / "web_desktop" / "frontend" / "app.js").read_text(encoding="utf-8")
+    css = (ROOT / "web_desktop" / "frontend" / "final-pass.css").read_text(encoding="utf-8")
+    for marker in ("fitness-ledger-pet:intent", "fitness-ledger-pet:body-regions", "presentationForSemanticEvent"):
+        assert marker in tools
+    for marker in ("training-save", "movement-focus", "analysis-result", "needs-review", "sync-result"):
+        assert marker in app
+    assert ".guardian-pet-hotspots" in css and "prefers-reduced-motion:reduce" in css
+
+
+def test_personal_record_semantics() -> None:
+    definition = {"movement_id": "bench", "display_name": "Bench Press", "active": True}
+    previous = {"id": "old", "sets": [{"weight": 100, "reps": 5, "sets": 1}]}
+    current = {"id": "new", "movement_id": "bench", "order": 1, "sets": [{"weight": 105, "reps": 4, "sets": 1}]}
+    summary = LedgerViewModels.personal_record_summary(definition, current, [previous])
+    assert summary and summary["newPr"] is True
+    assert summary["previousBest"] == 100 and summary["currentBest"] == 105
+    assert summary["deltaText"] == "+5 kg"
+    assert LedgerViewModels.personal_record_summary(definition, current, []) is None
+    assert LedgerViewModels.personal_record_summary(definition, {**current, "exclude_from_progress": True}, [previous]) is None
+    variant_previous = {**previous, "variant": "paused"}
+    assert LedgerViewModels.personal_record_summary(definition, {**current, "variant": "standard"}, [variant_previous]) is None
+    reps = LedgerViewModels.personal_record_summary(
+        {"movement_id": "pullup", "display_name": "Pull-up", "active": True},
+        {"id": "new-reps", "sets": [{"weight": 0, "reps": 12, "sets": 3}]},
+        [{"id": "old-reps", "sets": [{"weight": 0, "reps": 10, "sets": 3}]}],
+    )
+    assert reps and reps["metricType"] == "reps" and reps["deltaText"] == "+6 reps"
+
+
+def test_save_result_is_authoritative() -> None:
+    service = LedgerCommandService(Path("unused.json"), Path("unused-dictionary.json"), Path("unused-backups"), lambda *_: {})
+    database = {
+        "daily_records": [],
+        "diet_records": [],
+        "training_sessions": [],
+        "raw_entries": [],
+        "movements": {
+            "bench": {
+                "movement_id": "bench",
+                "name": "Bench Press",
+                "history": [{"id": "old", "movement_id": "bench", "date": "2026-08-01", "sets": [{"weight": 100, "reps": 5, "sets": 1}]}],
+            }
+        },
+    }
+    dictionary = {"movements": [{"movement_id": "bench", "display_name": "Bench Press", "aliases": ["bench"], "active": True}]}
+    parsed = {
+        "id": "raw-1",
+        "date": "2026-08-07",
+        "raw": "bench 105 x 4",
+        "body": {},
+        "diet": {},
+        "training": {
+            "split": "Chest",
+            "movements": [{"movement_id": "bench", "name": "bench", "order": 1, "sets": [{"weight": 105, "reps": 4, "sets": 1}]}],
+        },
+    }
+    result = service._apply_save(database, dictionary, parsed, "normal")
+    assert result["record_id"] == database["training_sessions"][0]["id"]
+    assert result["movement_count"] == 1 and result["split_label"] == "Chest"
+    assert len(result["personal_records"]) == 1
+    assert result["personal_records"][0]["recordId"] == database["movements"]["bench"]["history"][-1]["id"]
+
+
+def main() -> None:
+    test_assets_and_config()
+    test_shader_and_wiring_contract()
+    test_personal_record_semantics()
+    test_save_result_is_authoritative()
+    subprocess.run(["node", str(ROOT / "tools" / "guardian_pet_js_test.mjs")], cwd=ROOT, check=True)
+    print("guardian_pet_test: PASS")
+
+
+if __name__ == "__main__":
+    main()

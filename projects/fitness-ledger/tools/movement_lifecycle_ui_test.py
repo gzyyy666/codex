@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -76,10 +77,13 @@ report.dataset.value=encodeURIComponent(JSON.stringify({
   candidateCount:document.querySelectorAll('[data-custom-merge-target]').length
 }));document.body.appendChild(report);
 """
-    script = '<script type="module" src="app.js"></script>'
-    assert index.count(script) == 1
+    script_match = re.search(r'<script type="module" src="app\.js(?:\?[^" ]+)?"></script>', index)
+    assert script_match
+    script = script_match.group(0)
     with tempfile.TemporaryDirectory(prefix="fitness-ledger-lifecycle-browser-") as temp:
         page = Path(temp) / "index.html"
+        (page.parent / "motion-lab" / "guardian").mkdir(parents=True)
+        shutil.copy2(PROJECT / "web_desktop/frontend/motion-lab/guardian/guardian-business-adapters.js", page.parent / "motion-lab" / "guardian" / "guardian-business-adapters.js")
         page.write_text(index.replace(script, f'<script type="module">{app}\n{harness}</script>'), encoding="utf-8")
         output = subprocess.run(
             [str(edge), "--headless=new", "--disable-gpu", "--virtual-time-budget=3000", "--dump-dom", page.as_uri()],

@@ -1,0 +1,4 @@
+{
+  "schemaVersion": 1,
+  "priorities": { "route_default": 10, "home_entry": 20, "loading": 30, "save_success": 50, "milestone": 60, "new_pr": 70, "needs_review": 80, "fatal_error": 90 }
+}

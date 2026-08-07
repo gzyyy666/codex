@@ -94,6 +94,60 @@ class LedgerViewModels:
             "has_structured_sets": has_structured_sets,
         }
 
+    @classmethod
+    def history_performance(cls, history: dict) -> dict | None:
+        """Return the authoritative progress metric used by Movement Progress and PR checks."""
+        metrics = cls.history_metrics(history)
+        if not metrics["has_structured_sets"]:
+            return None
+        metric_type = "load" if metrics["max_weight"] > 0 else "reps"
+        return {
+            "metric_type": metric_type,
+            "value": metrics["max_weight"] if metric_type == "load" else metrics["total_reps"],
+            "variant": str(history.get("variant") or "").strip(),
+            "metrics": metrics,
+        }
+
+    @classmethod
+    def personal_record_summary(cls, definition: dict, current: dict, previous_history: list[dict]) -> dict | None:
+        """Compare one saved instance against prior eligible instances without inventing missing data."""
+        if not movement_in_progress(definition) or not history_in_progress(current):
+            return None
+        performance = cls.history_performance(current)
+        if not performance:
+            return None
+        comparable = []
+        for history in previous_history:
+            if not history_in_progress(history):
+                continue
+            previous = cls.history_performance(history)
+            if not previous:
+                continue
+            if previous["metric_type"] != performance["metric_type"] or previous["variant"] != performance["variant"]:
+                continue
+            comparable.append(previous["value"])
+        if not comparable:
+            return None
+        previous_best = max(comparable)
+        current_best = performance["value"]
+        if current_best <= previous_best:
+            return None
+        delta = current_best - previous_best
+        format_value = lambda value: str(int(value)) if float(value).is_integer() else f"{value:.2f}".rstrip("0").rstrip(".")
+        unit = "kg" if performance["metric_type"] == "load" else "reps"
+        return {
+            "recordId": str(current.get("id") or ""),
+            "newPr": True,
+            "movementId": str(definition.get("movement_id") or current.get("movement_id") or ""),
+            "movementName": str(definition.get("display_name") or definition.get("english_name") or ""),
+            "metricType": performance["metric_type"],
+            "previousBest": previous_best,
+            "currentBest": current_best,
+            "deltaText": f"+{format_value(delta)} {unit}",
+            "variant": performance["variant"],
+            "order": current.get("order"),
+        }
+
     def movement_history_by_id(self, movement_id: str, limit: int = 8, before_date: str = "") -> dict:
         tracker, dictionary = self.snapshot()
         by_id, _ = self.dictionary_indexes(dictionary)

@@ -10,6 +10,8 @@
  * https://github.com/ArtBIT/mouse-follower
  */
 
+import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v62';
+
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia?.('(pointer: coarse)').matches !== true;
 
@@ -42,13 +44,13 @@ const petNavigation = [
 const petPoseNavigation = {
   label: 'POSE SWITCH',
   routes: [
-    { pose: 'front-standing', label: 'Front standing', meta: '01 / POSE' },
-    { pose: 'front-double-biceps', label: 'Front double biceps', meta: '02 / POSE' },
-    { pose: 'side-chest', label: 'Side chest', meta: '03 / POSE' },
-    { pose: 'rear-double-biceps', label: 'Rear double biceps', meta: '04 / POSE' },
-    { pose: 'rear-lat-spread', label: 'Rear lat spread', meta: '05 / POSE' },
-    { pose: 'most-muscular', label: 'Most muscular', meta: '06 / POSE' },
-    { pose: 'open-hand-crab', label: 'Open-hand crab', meta: '07 / POSE' }
+    { pose: 'standing', label: 'Front standing', meta: '01 / POSE' },
+    { pose: 'front_double_biceps', label: 'Front double biceps', meta: '02 / POSE' },
+    { pose: 'side_chest', label: 'Side chest', meta: '03 / POSE' },
+    { pose: 'back_double_biceps', label: 'Rear double biceps', meta: '04 / POSE' },
+    { pose: 'back_lat_spread', label: 'Rear lat spread', meta: '05 / POSE' },
+    { pose: 'crab_hands_clasped', label: 'Most muscular', meta: '06 / POSE' },
+    { pose: 'crab_hands_apart', label: 'Open-hand crab', meta: '07 / POSE' }
   ]
 };
 const petQuery = new URLSearchParams(window.location.search);
@@ -61,7 +63,7 @@ function mountPetMenu(body, { onPose } = {}) {
   menu.dataset.open = 'false';
   menu.setAttribute('aria-label', 'Fitness Ledger guardian pet menu');
   menu.setAttribute('role', 'menu');
-  const routeGroups = [...petNavigation, reviewPetMode ? { ...petPoseNavigation, routes: petPoseNavigation.routes.filter(route => ['side-chest', 'most-muscular'].includes(route.pose)) } : petPoseNavigation];
+  const routeGroups = [...petNavigation, reviewPetMode ? { ...petPoseNavigation, routes: petPoseNavigation.routes.filter(route => ['side_chest', 'crab_hands_clasped'].includes(route.pose)) } : petPoseNavigation];
   menu.innerHTML = `<header><span class="eyebrow">PET ROUTER / LOCAL</span><strong>Find the next surface.</strong></header>${routeGroups.map((group) => `<section><span class="tools-pet-menu-label">${group.label}</span>${group.routes.map((route) => route.pose ? `<button type="button" role="menuitem" class="tools-pet-menu-item" data-pet-pose="${route.pose}"><span>${route.label}</span><small>${route.meta}</small></button>` : `<button type="button" role="menuitem" class="tools-pet-menu-item" data-pet-route-view="${route.view}"${route.panel?` data-pet-route-panel="${route.panel}"`:''}><span>${route.label}</span><small>${route.meta}</small></button>`).join('')}</section>`).join('')}`;
   document.body.appendChild(menu);
 
@@ -222,7 +224,7 @@ function mountLegacyMousePet() {
   document.body.appendChild(body);
   syncNavPetPosition();
   const petModel = window.__fitnessLedgerPetModel || new URLSearchParams(window.location.search).get('petModel') || 'lowpoly-static';
-  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260806-v26' : './motion-lab/guardian/pet-guardian-static.js?v=20260806-v26';
+  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v62' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v62';
   const setPetPose = (pose, options) => {
     if (guardianPet) return guardianPet.setPose(pose, options);
     pendingPose = { pose, options };
@@ -343,15 +345,15 @@ function mountLegacyMousePet() {
 
 const guardianPetPositionKey = 'fitness-ledger.guardian-pet.position.v1';
 const guardianPetRoutePoses = {
-  home: 'front-standing',
-  quick: 'most-muscular',
-  body: 'side-chest',
-  diet: 'front-standing',
-  training: 'front-double-biceps',
-  movements: 'rear-double-biceps',
-  tools: 'side-chest',
-  dictionary: 'open-hand-crab',
-  guardian: 'front-standing'
+  home: { poseId: 'standing', cameraPreset: 'idle' },
+  quick: { poseId: 'standing', cameraPreset: 'idle' },
+  body: { poseId: 'side_chest', cameraPreset: 'upper_side' },
+  diet: { poseId: 'standing', cameraPreset: 'idle' },
+  training: { poseId: 'front_double_biceps', cameraPreset: 'upper_front' },
+  movements: { poseId: 'back_double_biceps', cameraPreset: 'upper_back' },
+  tools: { poseId: 'side_chest', cameraPreset: 'upper_side' },
+  dictionary: { poseId: 'crab_hands_apart', cameraPreset: 'idle' },
+  guardian: { poseId: 'standing', cameraPreset: 'idle' }
 };
 
 const readGuardianPetPosition = () => {
@@ -467,6 +469,150 @@ function createTrophyNavigator() {
   return button;
 }
 
+const guardianHotspotDefinitions = [
+  { key: 'shoulders', label: 'Shoulders' },
+  { key: 'chest', label: 'Chest' },
+  { key: 'arms', label: 'Arms' },
+  { key: 'back', label: 'Back' },
+  { key: 'legs', label: 'Legs' }
+];
+
+function createGuardianPresentationSurface(body) {
+  const overlay = document.createElement('section');
+  const overlayTitle = document.createElement('strong');
+  const overlayLines = document.createElement('div');
+  const effect = document.createElement('span');
+  const fallback = document.createElement('div');
+  const hotspots = document.createElement('div');
+  const summaries = new Map();
+  let route = 'home';
+
+  overlay.className = 'guardian-pet-overlay';
+  overlay.hidden = true;
+  overlay.setAttribute('aria-live', 'polite');
+  overlay.append(overlayTitle, overlayLines);
+  effect.className = 'guardian-pet-effect';
+  effect.hidden = true;
+  effect.setAttribute('aria-hidden', 'true');
+  fallback.className = 'guardian-pet-fallback';
+  fallback.hidden = true;
+  fallback.setAttribute('role', 'status');
+  fallback.innerHTML = '<span aria-hidden="true">FL</span><strong>Guardian offline</strong><small>Archive controls remain available.</small>';
+  hotspots.className = 'guardian-pet-hotspots';
+  hotspots.setAttribute('aria-label', 'Body-region movement shortcuts');
+
+  guardianHotspotDefinitions.forEach(definition => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'guardian-pet-hotspot';
+    button.dataset.region = definition.key;
+    button.setAttribute('aria-label', `${definition.label}: no recorded movement yet`);
+    button.innerHTML = `<span>${definition.label}</span><small>0</small>`;
+    hotspots.appendChild(button);
+  });
+  body.append(effect, overlay, hotspots, fallback);
+
+  const showOverlay = (data, request = {}) => {
+    if (!data?.title && !data?.lines?.length) return;
+    overlayTitle.textContent = data.title || 'FITNESS LEDGER';
+    overlayLines.replaceChildren(...(data.lines || []).filter(Boolean).map(line => {
+      const node = document.createElement('span');
+      node.textContent = String(line);
+      return node;
+    }));
+    overlay.hidden = false;
+    overlay.dataset.kind = request.kind || 'route_default';
+  };
+  const hideOverlay = () => {
+    overlay.hidden = true;
+    delete overlay.dataset.kind;
+  };
+  const playEffect = name => {
+    if (!name || name === 'none') return;
+    effect.hidden = false;
+    effect.dataset.effect = name;
+    effect.replaceChildren(...Array.from({ length: name === 'soft_particles' ? 9 : 1 }, () => document.createElement('i')));
+  };
+  const stopEffect = () => {
+    effect.hidden = true;
+    delete effect.dataset.effect;
+    effect.replaceChildren();
+  };
+  const setFallback = (message = '') => {
+    fallback.hidden = false;
+    const canvas = body.querySelector('.tools-pet-guardian-canvas');
+    if (canvas) canvas.hidden = true;
+    const detail = fallback.querySelector('small');
+    if (detail && message) detail.textContent = message;
+  };
+  const setRegions = nextSummaries => {
+    summaries.clear();
+    (Array.isArray(nextSummaries) ? nextSummaries : []).forEach(summary => {
+      if (summary?.key) summaries.set(summary.key, summary);
+    });
+    hotspots.querySelectorAll('[data-region]').forEach(button => {
+      const definition = guardianHotspotDefinitions.find(item => item.key === button.dataset.region);
+      const summary = summaries.get(button.dataset.region) || {};
+      const count = Number(summary.count) || 0;
+      button.querySelector('small').textContent = String(count);
+      button.disabled = !summary.representativeMovementId;
+      button.setAttribute('aria-label', summary.representativeMovementId
+        ? `${definition.label}: ${count} movements. Open ${summary.representativeMovementName || 'representative movement'}.`
+        : `${definition.label}: no recorded movement yet`);
+    });
+  };
+  const setRoute = nextRoute => {
+    route = nextRoute || 'home';
+    hotspots.hidden = !['home', 'body'].includes(route);
+  };
+  const onHotspotClick = event => {
+    const button = event.target.closest('[data-region]');
+    const summary = summaries.get(button?.dataset.region);
+    if (!summary?.representativeMovementId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    location.hash = `#movements?movement_id=${encodeURIComponent(summary.representativeMovementId)}`;
+  };
+  const showHotspotHint = event => {
+    const button = event.target.closest?.('[data-region]');
+    const summary = summaries.get(button?.dataset.region);
+    if (!summary || window.__fitnessLedgerGuardianPet?.getState?.().presentation?.active) return;
+    const definition = guardianHotspotDefinitions.find(item => item.key === button.dataset.region);
+    showOverlay({ title: `${definition.label.toUpperCase()} ARCHIVE`, lines: [`${Number(summary.count) || 0} movements`, summary.representativeMovementName] });
+  };
+  const hideHotspotHint = event => {
+    if (event.relatedTarget?.closest?.('[data-region]')) return;
+    if (!window.__fitnessLedgerGuardianPet?.getState?.().presentation?.active) hideOverlay();
+  };
+  hotspots.addEventListener('click', onHotspotClick);
+  hotspots.addEventListener('pointerover', showHotspotHint);
+  hotspots.addEventListener('pointerout', hideHotspotHint);
+  hotspots.addEventListener('focusin', showHotspotHint);
+  hotspots.addEventListener('focusout', hideHotspotHint);
+  setRoute(route);
+
+  return {
+    showOverlay,
+    hideOverlay,
+    playEffect,
+    stopEffect,
+    setFallback,
+    setRegions,
+    setRoute,
+    cleanup() {
+      hotspots.removeEventListener('click', onHotspotClick);
+      hotspots.removeEventListener('pointerover', showHotspotHint);
+      hotspots.removeEventListener('pointerout', hideHotspotHint);
+      hotspots.removeEventListener('focusin', showHotspotHint);
+      hotspots.removeEventListener('focusout', hideHotspotHint);
+      overlay.remove();
+      effect.remove();
+      fallback.remove();
+      hotspots.remove();
+    }
+  };
+}
+
 function mountMousePet() {
   const body = document.createElement('div');
   const guardian = document.createElement('canvas');
@@ -478,12 +624,13 @@ function mountMousePet() {
   let guardianPet;
   let disposed = false;
   let pendingPose = null;
+  const pendingIntents = [];
   let drag = null;
 
   body.className = 'tools-pet-follower tools-pet-guardian tools-pet-floating';
   body.dataset.petPosition = 'free';
   body.dataset.petHint = 'PAUSE POINTER | FACE CURSOR | DRAG MOVE | ALT + DRAG VIEW | WHEEL POSE';
-  body.setAttribute('role', 'button');
+  body.setAttribute('role', 'region');
   body.setAttribute('tabindex', '0');
   body.setAttribute('aria-label', 'Fitness Ledger guardian pet. Pause pointer to face cursor. Drag to move. Alt-drag to rotate view. Wheel or left/right to change pose.');
   body.title = 'Pause pointer: pet turns toward cursor | Drag: move | Alt + drag: rotate view | Wheel or left/right: change pose | Double-click: reset view';
@@ -519,6 +666,8 @@ function mountMousePet() {
   contactShadow.setAttribute('aria-hidden', 'true');
   body.appendChild(contactShadow);
   body.appendChild(guardian);
+  const presentationSurface = createGuardianPresentationSurface(body);
+  presentationSurface.setRegions(window.__fitnessLedgerGuardianBodyRegions || []);
   document.body.appendChild(body);
   const navigator = createTrophyNavigator();
   document.body.appendChild(navigator);
@@ -544,9 +693,19 @@ function mountMousePet() {
 
   const currentView = () => (location.hash.slice(1).split('?')[0] || 'home');
   const applyRoutePose = ({ view = currentView() } = {}) => {
-    const pose = manualOverrides.get(view) || guardianPetRoutePoses[view] || 'front-standing';
-    setPetPose(pose, { source: 'route' });
-    body.dataset.routePose = pose;
+    const routeDefault = guardianPetRoutePoses[view] || guardianPetRoutePoses.home;
+    const poseId = manualOverrides.get(view) || routeDefault.poseId;
+    presentationSurface.setRoute(view);
+    body.dataset.route = view;
+    body.dataset.routePose = poseId;
+    if (guardianPet) {
+      void Promise.resolve(guardianPet.clearIntent?.('route-change')).then(() => {
+        if (guardianPet.setPageDefault) return guardianPet.setPageDefault({ poseId, cameraPreset: routeDefault.cameraPreset });
+        return guardianPet.setPose(poseId, { source: 'route' });
+      });
+    } else {
+      pendingPose = { pose: poseId, options: { source: 'route' }, cameraPreset: routeDefault.cameraPreset };
+    }
   };
   const setPetPose = (pose, options) => {
     if (guardianPet) return guardianPet.setPose(pose, options);
@@ -562,15 +721,33 @@ function mountMousePet() {
   };
   navigator.addEventListener('click', onNavigatorClick);
   const onRouteChange = event => applyRoutePose(event.detail || {});
+  const onGuardianIntent = event => {
+    const detail = event.detail || {};
+    if (detail.phase === 'finish') {
+      if (guardianPet) void guardianPet.finishIntent?.(detail.id, detail.reason || 'completed');
+      return;
+    }
+    const request = presentationForSemanticEvent(detail);
+    if (!request) return;
+    if (guardianPet?.setIntent) void guardianPet.setIntent(request);
+    else pendingIntents.push(request);
+  };
+  const onBodyRegions = event => presentationSurface.setRegions(event.detail?.regions);
   window.addEventListener('fitness-ledger-pet:route-change', onRouteChange);
+  window.addEventListener('fitness-ledger-pet:intent', onGuardianIntent);
+  window.addEventListener('fitness-ledger-pet:body-regions', onBodyRegions);
 
   const petQuery = new URLSearchParams(window.location.search);
   const petModel = window.__fitnessLedgerPetModel || petQuery.get('petModel') || 'lowpoly-static';
-  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260806-v26' : './motion-lab/guardian/pet-guardian-static.js?v=20260806-v26';
+  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v62' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v62';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
       petMode: true,
+      showOverlay: presentationSurface.showOverlay,
+      hideOverlay: presentationSurface.hideOverlay,
+      playEffect: presentationSurface.playEffect,
+      stopEffect: presentationSurface.stopEffect,
       onReady: detail => {
         body.dataset.ready = 'true';
         body.title = `${detail.poses || 0} poses | Pause pointer to face cursor | Drag: move | Alt + drag: rotate view | Wheel or left/right`;
@@ -579,6 +756,7 @@ function mountMousePet() {
       onError: error => {
         body.dataset.ready = 'error';
         body.title = error?.message || 'Guardian Pet model load error';
+        presentationSurface.setFallback('The 3D model could not be loaded. Archive controls remain available.');
       },
       onPoseChange: detail => {
         body.dataset.pose = detail.pose;
@@ -590,7 +768,14 @@ function mountMousePet() {
     if (pendingPose) {
       const queuedPose = pendingPose;
       pendingPose = null;
-      guardianPet.setPose(queuedPose.pose, queuedPose.options);
+      if (guardianPet.setPageDefault) void guardianPet.setPageDefault({ poseId: queuedPose.pose, cameraPreset: queuedPose.cameraPreset || 'idle' });
+      else void guardianPet.setPose(queuedPose.pose, queuedPose.options);
+    }
+    pendingIntents.splice(0).forEach(request => { if (guardianPet.setIntent) void guardianPet.setIntent(request); });
+    const pendingDetail = window.__fitnessLedgerGuardianPendingIntent;
+    if (pendingDetail) {
+      window.__fitnessLedgerGuardianPendingIntent = null;
+      onGuardianIntent({ detail: pendingDetail });
     }
     window.dispatchEvent(new CustomEvent('fitness-ledger-pet:ready', { detail: { controller: guardianPet, poseCatalog: guardianPet.getPoseCatalog?.() || [] } }));
     body.dataset.moduleReady = 'true';
@@ -598,6 +783,7 @@ function mountMousePet() {
     console.error('[Guardian pet] controller load failed', error);
     body.dataset.ready = 'error';
     body.title = error?.message || 'Guardian Pet module error';
+    presentationSurface.setFallback('The 3D module is unavailable. Archive controls remain available.');
   });
 
   const onPetWheel = event => {
@@ -651,12 +837,14 @@ function mountMousePet() {
         x: clamp((pointer.x - centerX) / Math.max(window.innerWidth * 0.32, 260), -1, 1),
         y: clamp((pointer.y - centerY) / Math.max(window.innerHeight * 0.26, 180), -1, 1)
       });
+    } else {
+      guardianPet?.setFollowTarget?.({ x: 0, y: 0 });
     }
     followFrame = requestAnimationFrame(updatePointerFollow);
   };
   let viewRotation = { x: 0, y: 0 };
   const onPointerDown = event => {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || event.target.closest('.guardian-pet-hotspot')) return;
     const rect = body.getBoundingClientRect();
     const rotate = event.altKey;
     drag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: rect.left, originY: rect.top, moved: false, rotate, startRotation: { ...viewRotation } };
@@ -693,7 +881,7 @@ function mountMousePet() {
   const onDoubleClick = event => {
     event.preventDefault();
     viewRotation = { x: 0, y: 0 };
-    guardianPet?.setViewRotation?.(viewRotation);
+    void guardianPet?.resetView?.();
   };
   const onResize = applyPosition;
   body.addEventListener('wheel', onPetWheel, { passive: false });
@@ -711,6 +899,8 @@ function mountMousePet() {
     if (disposed) return;
     disposed = true;
     window.removeEventListener('fitness-ledger-pet:route-change', onRouteChange);
+    window.removeEventListener('fitness-ledger-pet:intent', onGuardianIntent);
+    window.removeEventListener('fitness-ledger-pet:body-regions', onBodyRegions);
     window.removeEventListener('resize', onResize);
     body.removeEventListener('wheel', onPetWheel);
     body.removeEventListener('keydown', onPetKeyDown);
@@ -724,6 +914,7 @@ function mountMousePet() {
     navigator.removeEventListener('click', onNavigatorClick);
     navigatorMenu();
     navigator.remove();
+    presentationSurface.cleanup();
     guardianPet?.dispose();
     if (window.__fitnessLedgerGuardianPet === guardianPet) window.__fitnessLedgerGuardianPet = null;
     body.remove();
