@@ -10,7 +10,7 @@
  * https://github.com/ArtBIT/mouse-follower
  */
 
-import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v78';
+import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v79';
 
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia?.('(pointer: coarse)').matches !== true;
@@ -566,8 +566,8 @@ function mountMousePet() {
   // The supplied recording is the default; an injected URL or query parameter can replace it for review.
   const championAudioUrl = window.__fitnessLedgerChampionAudioUrl || new URLSearchParams(window.location.search).get('championAudio') || new URL('./assets/tools-pet/champion-callout.m4a', import.meta.url).href;
   const championCalloutText = 'And... new Olympia champion!';
-  const championAudioLeadTrimSeconds = Math.max(0, Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 1);
-  const championEffectDelayMs = Math.max(240, Number(window.__FitnessLedgerChampionEffectDelayMs) || 3000);
+  const championAudioLeadTrimSeconds = Math.max(0, Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 2.5);
+  const championEffectDelayMs = Math.max(240, Number(window.__FitnessLedgerChampionEffectDelayMs) || 1500);
   const championDisplayPose = 'crab_hands_apart';
   let championAudio = null;
   let championAudioContext = null;
@@ -575,7 +575,7 @@ function mountMousePet() {
   let championHoldTimer = 0;
   let championEffectTimer = 0;
   let championDisplayFrame = 0;
-  let championCelebrationArmed = false;
+  let championSequenceActive = false;
   const cursorTrail = document.createElement('div');
   cursorTrail.className = `tools-pet-cursor-trail${cursorMode === 'trophy' ? ' is-trophy' : ''}`;
   cursorTrail.dataset.petInstance = instanceId;
@@ -603,18 +603,25 @@ function mountMousePet() {
     championAudio.currentTime = 0;
   };
   const startChampionDisplay = () => {
-    if (disposed || !guardianPet) return;
+    if (disposed) return;
+    if (!guardianPet) {
+      championSequenceActive = false;
+      body.classList.remove('is-champion-sequence');
+      delete body.dataset.championSequence;
+      return;
+    }
     window.cancelAnimationFrame(championDisplayFrame);
     body.classList.add('is-champion-display');
     body.dataset.championDisplay = 'left-to-right-sweep';
     void guardianPet.setPose?.(championDisplayPose, { source: 'champion-display', immediate: false });
     const startedAt = performance.now();
-    const duration = 2600;
+    const duration = 5600;
     const sweep = now => {
       if (disposed || !guardianPet) return;
       const progress = clamp((now - startedAt) / duration, 0, 1);
-      const eased = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-      const x = -0.86 + eased * 1.72;
+      const phase = progress < 0.5 ? progress * 2 : (progress - 0.5) * 2;
+      const eased = phase < 0.5 ? 2 * phase * phase : 1 - Math.pow(-2 * phase + 2, 2) / 2;
+      const x = progress < 0.5 ? -0.86 + eased * 1.72 : 0.86 - eased * 1.72;
       const y = -0.7;
       guardianPet.setFollowTarget?.({ x, y });
       guardianPet.setPointer?.({ x, y, energy: 0.45 });
@@ -625,20 +632,17 @@ function mountMousePet() {
       championDisplayFrame = 0;
       body.classList.remove('is-champion-display');
       delete body.dataset.championDisplay;
+      championSequenceActive = false;
+      body.classList.remove('is-champion-sequence');
+      delete body.dataset.championSequence;
       applyRoutePose();
     };
     championDisplayFrame = window.requestAnimationFrame(sweep);
-  };
-  const onChampionAudioEnded = () => {
-    if (!championCelebrationArmed) return;
-    championCelebrationArmed = false;
-    startChampionDisplay();
   };
   const playChampionCallout = () => {
     if (championAudioUrl) {
       championAudio ||= new Audio(championAudioUrl);
       championAudio.preload = 'auto';
-      championAudio.onended = onChampionAudioEnded;
       championAudio.currentTime = 0;
       championAudio.volume = 1;
       try {
@@ -662,11 +666,14 @@ function mountMousePet() {
   const triggerChampionHold = () => {
     if (disposed || !drag || drag.moved || drag.rotate || drag.holdTriggered) return;
     drag.holdTriggered = true;
-    championCelebrationArmed = true;
+    championSequenceActive = true;
+    body.classList.add('is-champion-sequence');
+    body.dataset.championSequence = 'active';
     body.classList.add('is-champion-hold');
     body.dataset.championHold = 'triggered';
     body.dataset.championCallout = championCalloutText;
     presentationSurface.playEffect('champion_hold');
+    startChampionDisplay();
     window.clearTimeout(championEffectTimer);
     championEffectTimer = window.setTimeout(() => {
       body.classList.remove('is-champion-hold');
@@ -742,7 +749,7 @@ function mountMousePet() {
   window.addEventListener('fitness-ledger-pet:body-regions', onBodyRegions);
 
   const petQuery = new URLSearchParams(window.location.search);
-  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v78';
+  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v79';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
@@ -794,10 +801,12 @@ function mountMousePet() {
 
   const onPetWheel = event => {
     event.preventDefault();
+    if (championSequenceActive) return;
     if (event.deltaY > 0) guardianPet?.nextPose({ source: 'pet-wheel' });
     else guardianPet?.previousPose({ source: 'pet-wheel' });
   };
   const onPetKeyDown = event => {
+    if (championSequenceActive) return;
     if (event.shiftKey && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
       event.preventDefault();
       const rect = body.getBoundingClientRect();
@@ -847,24 +856,29 @@ function mountMousePet() {
         : '';
       cursorDots[index].style.transform = `translate3d(${Math.round(point.x)}px, ${Math.round(point.y)}px, 0)${trophyMotion}`;
     });
-    const pointerX = (pointer.x / Math.max(window.innerWidth, 1)) * 2 - 1;
-    const pointerY = -((pointer.y / Math.max(window.innerHeight, 1)) * 2 - 1);
-    guardianPet?.setPointer({ x: pointerX, y: pointerY, energy: 0 });
-    guardianPet?.setFollowTarget?.({
-      x: clamp((pointer.x - centerX) / Math.max(window.innerWidth * 0.5, width * 1.6), -1, 1),
-      y: -clamp((pointer.y - centerY) / Math.max(window.innerHeight / 1.8, height * 1.6), -1, 1)
-    });
+    if (!championSequenceActive) {
+      const pointerX = (pointer.x / Math.max(window.innerWidth, 1)) * 2 - 1;
+      const pointerY = -((pointer.y / Math.max(window.innerHeight, 1)) * 2 - 1);
+      guardianPet?.setPointer({ x: pointerX, y: pointerY, energy: 0 });
+      guardianPet?.setFollowTarget?.({
+        x: clamp((pointer.x - centerX) / Math.max(window.innerWidth * 0.5, width * 1.6), -1, 1),
+        y: -clamp((pointer.y - centerY) / Math.max(window.innerHeight / 1.8, height * 1.6), -1, 1)
+      });
+    }
     followFrame = requestAnimationFrame(updatePointerFollow);
   };
   let viewRotation = { x: 0, y: 0 };
   const onPointerDown = event => {
+    if (championSequenceActive) {
+      event.preventDefault();
+      return;
+    }
     if (event.button !== 0 || event.target.closest('.guardian-pet-hotspot')) return;
     const rect = body.getBoundingClientRect();
     const rotate = event.altKey;
     drag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: rect.left, originY: rect.top, moved: false, holdTriggered: false, rotate, startRotation: { ...viewRotation } };
     clearChampionHoldTimer();
     if (!rotate) {
-      championCelebrationArmed = false;
       playChampionCallout();
       championHoldTimer = window.setTimeout(() => {
         championHoldTimer = 0;
@@ -876,6 +890,10 @@ function mountMousePet() {
     body.classList.toggle('is-dragging', !rotate);
   };
   const onPointerMove = event => {
+    if (championSequenceActive) {
+      event.preventDefault();
+      return;
+    }
     if (!drag || drag.pointerId !== event.pointerId) return;
     const dx = event.clientX - drag.startX;
     const dy = event.clientY - drag.startY;
@@ -895,6 +913,14 @@ function mountMousePet() {
   };
   const onPointerUp = event => {
     if (!drag || drag.pointerId !== event.pointerId) return;
+    if (championSequenceActive) {
+      event.preventDefault();
+      clearChampionHoldTimer();
+      body.releasePointerCapture?.(event.pointerId);
+      body.classList.remove('is-dragging', 'is-rotating');
+      drag = null;
+      return;
+    }
     clearChampionHoldTimer();
     if (!drag.holdTriggered) stopChampionAudio();
     if (drag.moved && !drag.rotate) {
@@ -906,6 +932,7 @@ function mountMousePet() {
     drag = null;
   };
   const onDoubleClick = event => {
+    if (championSequenceActive) return;
     event.preventDefault();
     viewRotation = { x: 0, y: 0 };
     void guardianPet?.resetView?.();

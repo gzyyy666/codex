@@ -110,9 +110,11 @@ def test_shader_and_wiring_contract() -> None:
     assert "championAudioLeadTrimSeconds" in tools and "championEffectDelayMs" in tools
     assert "const championDisplayPose = 'crab_hands_apart'" in tools
     assert "championAudioGain.gain.value = 2.2" in tools and "championAudio.currentTime = championAudioLeadTrimSeconds" in tools
-    assert "Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 1" in tools
-    assert "Number(window.__FitnessLedgerChampionEffectDelayMs) || 3000" in tools
+    assert "Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 2.5" in tools
+    assert "Number(window.__FitnessLedgerChampionEffectDelayMs) || 1500" in tools
     assert "startChampionDisplay" in tools and "left-to-right-sweep" in tools
+    assert "const duration = 5600" in tools and "const phase = progress < 0.5" in tools
+    assert "championSequenceActive" in tools and "is-champion-sequence" in tools
     assert "silent-awaiting-audio-asset" in tools and "browser-voice-fallback" not in tools
     assert "championHoldTimer" in tools and "holdTriggered" in tools and "triggerChampionHold" in tools
     assert "body.addEventListener('wheel', onPetWheel" in tools and "body.addEventListener('pointerdown', onPointerDown" in tools
@@ -139,6 +141,7 @@ def test_shader_and_wiring_contract() -> None:
     assert 'data-effect="champion_hold"' in css and '.tools-pet-floating.is-champion-hold' in css
     assert '.tools-pet-cursor-trail{position:fixed;z-index:1000002' in css
     assert '.tools-pet-floating.is-champion-display' in css
+    assert '.tools-pet-floating.is-champion-sequence' in css
 
 
 def test_personal_record_semantics() -> None:
