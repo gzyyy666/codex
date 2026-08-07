@@ -80,6 +80,10 @@ def test_shader_and_wiring_contract() -> None:
     assert "state.targetZoom = Math.min(Number(preset.zoom) || 1, 1.02)" in renderer
     assert "Math.max(Number(preset.camera?.[2]) || 2.18, 2.45)" in renderer
     assert "guardianControllerRegistry" in renderer and "record.group.visible = false" in renderer
+    assert "const modelLoads = new Map()" in renderer
+    assert "if (modelLoads.has(poseId)) return modelLoads.get(poseId)" in renderer
+    assert "const modelRecords = new Set()" in renderer
+    assert "scenePoseRoots" in renderer and "trackedRoots" in renderer
     tools = (ROOT / "web_desktop" / "frontend" / "tools-css3d-panels.js").read_text(encoding="utf-8")
     acceptance = (ROOT / "web_desktop" / "frontend" / "guardian-acceptance.html").read_text(encoding="utf-8")
     app = (ROOT / "web_desktop" / "frontend" / "app.js").read_text(encoding="utf-8")

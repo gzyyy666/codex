@@ -162,6 +162,8 @@ export function mountGuardianPet(canvas, options = {}) {
     disposed: false
   };
   const models = new Map();
+  const modelLoads = new Map();
+  const modelRecords = new Set();
   const cameraGoal = camera.position.clone();
   const lookGoal = cameraLookAt.clone();
   const adjustedCameraGoal = camera.position.clone();
@@ -237,19 +239,25 @@ export function mountGuardianPet(canvas, options = {}) {
     scene.add(group);
     const record = { poseId, cfg, group, patches, transitionAt: 0 };
     models.set(poseId, record);
+    modelRecords.add(record);
     return record;
   };
 
-  const loadPose = async poseId => {
-    if (models.has(poseId)) return models.get(poseId);
-    configuration ||= await configurationPromise;
-    const cfg = configuration.poseConfig.poses?.[poseId];
-    if (!cfg) throw new Error(`Unknown guardian pose: ${poseId}`);
-    const gltf = await new GLTFLoader().loadAsync(assetUrl(cfg.file));
-    let meshCount = 0;
-    gltf.scene.traverse(object => { if (object.isMesh) meshCount += 1; });
-    if (!meshCount) throw new Error(`No mesh found in guardian pose ${poseId}`);
-    return prepareModel(gltf.scene, poseId, cfg);
+  const loadPose = poseId => {
+    if (models.has(poseId)) return Promise.resolve(models.get(poseId));
+    if (modelLoads.has(poseId)) return modelLoads.get(poseId);
+    const pending = (async () => {
+      configuration ||= await configurationPromise;
+      const cfg = configuration.poseConfig.poses?.[poseId];
+      if (!cfg) throw new Error(`Unknown guardian pose: ${poseId}`);
+      const gltf = await new GLTFLoader().loadAsync(assetUrl(cfg.file));
+      let meshCount = 0;
+      gltf.scene.traverse(object => { if (object.isMesh) meshCount += 1; });
+      if (!meshCount) throw new Error(`No mesh found in guardian pose ${poseId}`);
+      return prepareModel(gltf.scene, poseId, cfg);
+    })().finally(() => modelLoads.delete(poseId));
+    modelLoads.set(poseId, pending);
+    return pending;
   };
 
   const setPose = async (input, poseOptions = {}) => {
@@ -263,7 +271,7 @@ export function mountGuardianPet(canvas, options = {}) {
       return getState();
     }
     if (state.disposed || token !== poseToken) return getState();
-    models.forEach(record => { record.group.visible = record === next; });
+    modelRecords.forEach(record => { record.group.visible = record === next; });
     activeRecord = next;
     activeRecord.transitionAt = poseOptions.immediate || state.reducedMotion ? 0 : performance.now();
     state.poseId = poseId;
@@ -416,7 +424,7 @@ export function mountGuardianPet(canvas, options = {}) {
 
   const tick = now => {
     if (state.disposed || !activeRecord) return;
-    models.forEach(record => { if (record !== activeRecord && record.group.visible) record.group.visible = false; });
+    modelRecords.forEach(record => { if (record !== activeRecord && record.group.visible) record.group.visible = false; });
     const cfg = activeRecord.cfg;
     const horizontalFollow = state.reducedMotion ? 0.16 : 0.085;
     const verticalFollow = state.reducedMotion ? 0.16 : 0.075;
@@ -545,7 +553,7 @@ export function mountGuardianPet(canvas, options = {}) {
     controls?.dispose();
     const geometries = new Set();
     const textures = new Set();
-    models.forEach(record => {
+    modelRecords.forEach(record => {
       record.patches.forEach(patch => patch.dispose());
       record.group.traverse(object => {
         if (!object.isMesh) return;
@@ -562,6 +570,8 @@ export function mountGuardianPet(canvas, options = {}) {
     ambientMotes?.geometry?.dispose?.();
     ambientMotes?.material?.dispose?.();
     models.clear();
+    modelLoads.clear();
+    modelRecords.clear();
     renderer.dispose();
     scene.clear();
     guardianControllerRegistry.delete(api);
@@ -583,7 +593,16 @@ export function mountGuardianPet(canvas, options = {}) {
     resetView,
     getState,
     getPoseCatalog: () => POSE_ORDER.map((id, index) => ({ id, index, name: configuration?.poseConfig.poses?.[id]?.name || id })),
-    getDiagnostics: () => ({ ...getState(), loadedAssets: [...models.keys()], visibleRoots: [...models.values()].filter(record => record.group.visible).length, readyNotified, render: { ...renderer.info.render } }),
+    getDiagnostics: () => ({
+      ...getState(),
+      loadedAssets: [...models.keys()],
+      trackedRoots: modelRecords.size,
+      scenePoseRoots: scene.children.filter(child => child.name?.startsWith('guardian-pose:')).length,
+      visibleRoots: [...modelRecords].filter(record => record.group.visible).length,
+      inFlightLoads: modelLoads.size,
+      readyNotified,
+      render: { ...renderer.info.render }
+    }),
     setReducedMotion,
     previousPose: poseOptions => setPose(POSE_ORDER[(POSE_ORDER.indexOf(state.poseId) - 1 + POSE_ORDER.length) % POSE_ORDER.length], { ...poseOptions, source: poseOptions?.source || 'previous' }),
     nextPose: poseOptions => setPose(POSE_ORDER[(POSE_ORDER.indexOf(state.poseId) + 1) % POSE_ORDER.length], { ...poseOptions, source: poseOptions?.source || 'next' }),
