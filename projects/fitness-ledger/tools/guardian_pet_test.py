@@ -104,6 +104,9 @@ def test_shader_and_wiring_contract() -> None:
     assert "const archivePetRegistry" in tools and "const archivePetLease" in tools and "const disposeArchivePetInstances" in tools
     assert "archivePetCrossTabKey" in tools and "claimArchivePetCrossTab" in tools and "onArchivePetCrossTabStorage" in tools
     assert "tools-pet-cursor-trail" in tools and "cursorTrailPoints" in tools
+    assert "championAudioUrl" in tools and "championCalloutText" in tools
+    assert "championHoldTimer" in tools and "holdTriggered" in tools and "triggerChampionHold" in tools
+    assert "body.addEventListener('wheel', onPetWheel" in tools and "body.addEventListener('pointerdown', onPointerDown" in tools
     assert "MutationObserver" in tools and "cursorMode === 'trophy'" in tools
     assert "mountLegacyMousePet" not in tools
     assert "standaloneCanvas" not in renderer
@@ -122,6 +125,8 @@ def test_shader_and_wiring_contract() -> None:
     assert '.tools-pet-navigator{position:fixed;top:0;left:0;' in css
     assert '.tools-pet-floating{width:256px!important;height:256px!important' in css
     assert '@media(max-width:760px){.tools-pet-floating{width:208px!important;height:208px!important}' in css
+    assert '.guardian-pet-hotspot[data-region="back"]{right:74%;top:42%}' in css
+    assert 'data-effect="champion_hold"' in css and '.tools-pet-floating.is-champion-hold' in css
 
 
 def test_personal_record_semantics() -> None:

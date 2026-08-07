@@ -10,7 +10,7 @@
  * https://github.com/ArtBIT/mouse-follower
  */
 
-import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v73';
+import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v74';
 
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia?.('(pointer: coarse)').matches !== true;
@@ -522,11 +522,11 @@ function mountMousePet() {
   body.className = 'tools-pet-follower tools-pet-guardian tools-pet-floating';
   body.dataset.petInstance = instanceId;
   body.dataset.petPosition = 'free';
-  body.dataset.petHint = 'PAUSE POINTER | FACE CURSOR | DRAG MOVE | ALT + DRAG VIEW | WHEEL POSE';
+  body.dataset.petHint = 'PAUSE POINTER | FACE CURSOR | HOLD TROPHY | DRAG MOVE | ALT + DRAG VIEW | WHEEL POSE';
   body.setAttribute('role', 'region');
   body.setAttribute('tabindex', '0');
-  body.setAttribute('aria-label', 'Fitness Ledger guardian pet. Pause pointer to face cursor. Drag to move. Alt-drag to rotate view. Wheel or left/right to change pose.');
-  body.dataset.petStatus = 'Pause pointer: pet turns toward cursor | Drag: move | Alt + drag: rotate view | Wheel or left/right: change pose | Double-click: reset view';
+  body.setAttribute('aria-label', 'Fitness Ledger guardian pet. Pause pointer to face cursor. Hold the trophy over the pet for the champion effect. Drag to move. Alt-drag to rotate view. Wheel or left/right to change pose.');
+  body.dataset.petStatus = 'Pause pointer: pet turns toward cursor | Hold trophy: champion effect | Drag: move | Alt + drag: rotate view | Wheel or left/right: change pose | Double-click: reset view';
   Object.assign(body.style, {
     position: 'fixed',
     top: '0px',
@@ -563,6 +563,11 @@ function mountMousePet() {
   presentationSurface.setRegions(window.__fitnessLedgerGuardianBodyRegions || []);
   document.body.appendChild(body);
   const cursorMode = window.__fitnessLedgerPetCursor || new URLSearchParams(window.location.search).get('petCursor') || 'trophy';
+  const championAudioUrl = window.__fitnessLedgerChampionAudioUrl || new URLSearchParams(window.location.search).get('championAudio') || '';
+  const championCalloutText = 'And... new Olympia champion!';
+  let championAudio = null;
+  let championHoldTimer = 0;
+  let championEffectTimer = 0;
   const cursorTrail = document.createElement('div');
   cursorTrail.className = `tools-pet-cursor-trail${cursorMode === 'trophy' ? ' is-trophy' : ''}`;
   cursorTrail.dataset.petInstance = instanceId;
@@ -578,6 +583,49 @@ function mountMousePet() {
   navigator.hidden = cursorMode === 'trophy';
   Object.assign(navigator.style, { top: '0px', left: '0px' });
   document.body.appendChild(navigator);
+
+  const clearChampionHoldTimer = () => {
+    if (!championHoldTimer) return;
+    window.clearTimeout(championHoldTimer);
+    championHoldTimer = 0;
+  };
+  const playChampionCallout = () => {
+    if (championAudioUrl) {
+      championAudio ||= new Audio(championAudioUrl);
+      championAudio.currentTime = 0;
+      championAudio.volume = 0.92;
+      championAudio.play().catch(() => {});
+      body.dataset.championAudio = 'external-asset';
+      return;
+    }
+    if (!window.speechSynthesis || typeof window.SpeechSynthesisUtterance !== 'function') {
+      body.dataset.championAudio = 'silent-no-audio-source';
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(championCalloutText);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.78;
+    utterance.pitch = 0.72;
+    utterance.volume = 0.92;
+    window.speechSynthesis.speak(utterance);
+    body.dataset.championAudio = 'browser-voice-fallback';
+  };
+  const triggerChampionHold = () => {
+    if (disposed || !drag || drag.moved || drag.rotate || drag.holdTriggered) return;
+    drag.holdTriggered = true;
+    body.classList.add('is-champion-hold');
+    body.dataset.championHold = 'triggered';
+    presentationSurface.playEffect('champion_hold');
+    playChampionCallout();
+    window.clearTimeout(championEffectTimer);
+    championEffectTimer = window.setTimeout(() => {
+      body.classList.remove('is-champion-hold');
+      delete body.dataset.championHold;
+      presentationSurface.stopEffect();
+      championEffectTimer = 0;
+    }, 1700);
+  };
 
   const viewportMax = () => ({ x: Math.max(0, window.innerWidth - width - margin * 2), y: Math.max(0, window.innerHeight - height - margin * 2) });
   const applyPosition = () => {
@@ -645,7 +693,7 @@ function mountMousePet() {
   window.addEventListener('fitness-ledger-pet:body-regions', onBodyRegions);
 
   const petQuery = new URLSearchParams(window.location.search);
-  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v73';
+  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v74';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
@@ -656,7 +704,7 @@ function mountMousePet() {
       stopEffect: presentationSurface.stopEffect,
       onReady: detail => {
         body.dataset.ready = 'true';
-        body.dataset.petStatus = `${detail.poses || 0} poses | Pause pointer to face cursor | Drag: move | Alt + drag: rotate view | Wheel or left/right`;
+        body.dataset.petStatus = `${detail.poses || 0} poses | Pause pointer to face cursor | Hold trophy: champion effect | Drag: move | Alt + drag: rotate view | Wheel or left/right`;
         applyRoutePose();
       },
       onError: error => {
@@ -666,7 +714,7 @@ function mountMousePet() {
       },
       onPoseChange: detail => {
         body.dataset.pose = detail.pose;
-        body.setAttribute('aria-label', `Fitness Ledger guardian pet | ${detail.name}. Pause pointer to face cursor. Drag to move. Alt-drag to rotate view. Wheel or left/right to change pose.`);
+        body.setAttribute('aria-label', `Fitness Ledger guardian pet | ${detail.name}. Pause pointer to face cursor. Hold the trophy over the pet for the champion effect. Drag to move. Alt-drag to rotate view. Wheel or left/right to change pose.`);
         if (['pet-wheel', 'pet-keyboard', 'canvas-click'].includes(detail.source)) manualOverrides.set(currentView(), detail.pose);
       }
     });
@@ -764,7 +812,12 @@ function mountMousePet() {
     if (event.button !== 0 || event.target.closest('.guardian-pet-hotspot')) return;
     const rect = body.getBoundingClientRect();
     const rotate = event.altKey;
-    drag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: rect.left, originY: rect.top, moved: false, rotate, startRotation: { ...viewRotation } };
+    drag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: rect.left, originY: rect.top, moved: false, holdTriggered: false, rotate, startRotation: { ...viewRotation } };
+    clearChampionHoldTimer();
+    if (!rotate) championHoldTimer = window.setTimeout(() => {
+      championHoldTimer = 0;
+      triggerChampionHold();
+    }, 680);
     body.setPointerCapture?.(event.pointerId);
     body.classList.toggle('is-rotating', rotate);
     body.classList.toggle('is-dragging', !rotate);
@@ -774,6 +827,7 @@ function mountMousePet() {
     const dx = event.clientX - drag.startX;
     const dy = event.clientY - drag.startY;
     if (!drag.moved && Math.hypot(dx, dy) < 6) return;
+    clearChampionHoldTimer();
     drag.moved = true;
     if (drag.rotate) {
       viewRotation = {
@@ -787,6 +841,7 @@ function mountMousePet() {
   };
   const onPointerUp = event => {
     if (!drag || drag.pointerId !== event.pointerId) return;
+    clearChampionHoldTimer();
     if (drag.moved && !drag.rotate) {
       const rect = body.getBoundingClientRect();
       movePosition(rect.left, rect.top);
@@ -828,6 +883,11 @@ function mountMousePet() {
     body.removeEventListener('dblclick', onDoubleClick);
     window.removeEventListener('pointermove', onPagePointerMove);
     cancelAnimationFrame(followFrame);
+    clearChampionHoldTimer();
+    window.clearTimeout(championEffectTimer);
+    championAudio?.pause?.();
+    championAudio = null;
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
     navigator.removeEventListener('click', onNavigatorClick);
     navigatorMenu();
     navigator.remove();
