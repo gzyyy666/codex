@@ -10,7 +10,7 @@
  * https://github.com/ArtBIT/mouse-follower
  */
 
-import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v82';
+import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v83';
 
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia?.('(pointer: coarse)').matches !== true;
@@ -565,7 +565,7 @@ function mountMousePet() {
   const cursorMode = window.__fitnessLedgerPetCursor || new URLSearchParams(window.location.search).get('petCursor') || 'trophy';
   // The supplied recording is the default; an injected URL or query parameter can replace it for review.
   const championAudioOverride = window.__fitnessLedgerChampionAudioUrl || new URLSearchParams(window.location.search).get('championAudio');
-  const championAudioUrl = championAudioOverride || new URL('./assets/tools-pet/champion-callout-clean.m4a', import.meta.url).href;
+  const championAudioUrl = championAudioOverride || new URL('./assets/tools-pet/champion-callout-clean.m4a?rev=20260807-v83', import.meta.url).href;
   const championCalloutText = 'And... new Olympia champion!';
   // The default asset is physically trimmed to the elongated “And”; custom
   // assets can still opt into an explicit seek through the global override.
@@ -786,7 +786,7 @@ function mountMousePet() {
   window.addEventListener('fitness-ledger-pet:body-regions', onBodyRegions);
 
   const petQuery = new URLSearchParams(window.location.search);
-  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v82';
+  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v83';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
