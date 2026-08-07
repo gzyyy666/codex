@@ -10,7 +10,7 @@
  * https://github.com/ArtBIT/mouse-follower
  */
 
-import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v90';
+import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v91';
 
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia?.('(pointer: coarse)').matches !== true;
@@ -565,13 +565,14 @@ function mountMousePet() {
   const cursorMode = window.__fitnessLedgerPetCursor || new URLSearchParams(window.location.search).get('petCursor') || 'trophy';
   // The supplied recording is the default; an injected URL or query parameter can replace it for review.
   const championAudioOverride = window.__fitnessLedgerChampionAudioUrl || new URLSearchParams(window.location.search).get('championAudio');
-  const championAudioUrl = championAudioOverride || new URL('./assets/tools-pet/champion-callout-trimmed.m4a?rev=20260807-v90', import.meta.url).href;
+  const championAudioUrl = championAudioOverride || new URL('./assets/tools-pet/champion-callout-trimmed.m4a?rev=20260807-v91', import.meta.url).href;
   const championCalloutText = 'And... new Olympia champion!';
   // The asset is the supplied recording with its first ~1.5s removed without
   // re-encoding. “And” begins at 0s; the original ~3.9s “new” cue is now ~2.36s.
   // The recording's currentTime—not a wall-clock timeout—drives the effect.
   const championAudioLeadTrimSeconds = Math.max(0, Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 0);
   const championNewCueSeconds = Math.max(0.1, Number(window.__FitnessLedgerChampionNewCueSeconds) || 2.36);
+  const championSequenceCommitSeconds = Math.max(championAudioLeadTrimSeconds, championNewCueSeconds - 0.12);
   const championAndPlaybackRate = Math.min(1, Math.max(0.78, Number(window.__FitnessLedgerChampionAndPlaybackRate) || 1));
   const championNewPlaybackRate = Math.min(1, Math.max(0.78, Number(window.__FitnessLedgerChampionNewPlaybackRate) || 0.86));
   const championDisplayPose = 'crab_hands_apart';
@@ -608,12 +609,30 @@ function mountMousePet() {
     window.cancelAnimationFrame(championCueFrame);
     championCueFrame = 0;
   };
+  const setChampionChargeProgress = value => {
+    const progress = clamp(Number(value) || 0, 0, 1);
+    const serialized = progress.toFixed(4);
+    body.classList.add('is-champion-charging');
+    cursorTrail.classList.add('is-champion-charging');
+    body.style.setProperty('--champion-charge-progress', serialized);
+    cursorTrail.style.setProperty('--champion-charge-progress', serialized);
+    body.dataset.championCharge = serialized;
+  };
+  const resetChampionCharge = ({ keepCursorHidden = false } = {}) => {
+    body.classList.remove('is-champion-charging');
+    cursorTrail.classList.remove('is-champion-charging');
+    cursorTrail.classList.toggle('is-champion-locked', keepCursorHidden);
+    body.style.removeProperty('--champion-charge-progress');
+    cursorTrail.style.removeProperty('--champion-charge-progress');
+    delete body.dataset.championCharge;
+  };
   const stopChampionAudio = () => {
     if (!championAudio) return;
     championAudio.pause();
     championAudio.playbackRate = 1;
     if (championAudio.readyState >= 1) championAudio.currentTime = championAudioLeadTrimSeconds;
     body.dataset.championAudioState = 'idle';
+    resetChampionCharge();
   };
   const startChampionDisplay = () => {
     if (disposed) return;
@@ -621,6 +640,7 @@ function mountMousePet() {
       championSequenceActive = false;
       body.classList.remove('is-champion-sequence');
       delete body.dataset.championSequence;
+      resetChampionCharge();
       return;
     }
     window.cancelAnimationFrame(championDisplayFrame);
@@ -655,6 +675,7 @@ function mountMousePet() {
       championSequenceActive = false;
       body.classList.remove('is-champion-sequence');
       delete body.dataset.championSequence;
+      resetChampionCharge();
       applyRoutePose();
     };
     championDisplayFrame = window.requestAnimationFrame(sweep);
@@ -666,6 +687,10 @@ function mountMousePet() {
         championCueFrame = 0;
         return;
       }
+      const chargeProgress = championAudio
+        ? (championAudio.currentTime - championAudioLeadTrimSeconds) / Math.max(championNewCueSeconds - championAudioLeadTrimSeconds, 0.01)
+        : 0;
+      setChampionChargeProgress(chargeProgress);
       if (championAudio && championAudio.currentTime >= championNewCueSeconds) {
         championCueFrame = 0;
         triggerChampionHold();
@@ -685,6 +710,7 @@ function mountMousePet() {
       championAudio.playbackRate = championAndPlaybackRate;
       championAudio.preservesPitch = true;
       if ('webkitPreservesPitch' in championAudio) championAudio.webkitPreservesPitch = true;
+      setChampionChargeProgress(0);
       body.dataset.championAudioTrim = `${championAudioLeadTrimSeconds}s`;
       body.dataset.championAudioCue = `${championNewCueSeconds}s`;
       body.dataset.championAudioRate = String(championAndPlaybackRate);
@@ -703,6 +729,8 @@ function mountMousePet() {
   const triggerChampionHold = () => {
     if (disposed || !drag || drag.moved || drag.rotate || drag.holdTriggered) return;
     clearChampionCueWatch();
+    setChampionChargeProgress(1);
+    resetChampionCharge({ keepCursorHidden: true });
     drag.holdTriggered = true;
     championSequenceActive = true;
     body.classList.add('is-champion-sequence');
@@ -791,7 +819,7 @@ function mountMousePet() {
   window.addEventListener('fitness-ledger-pet:body-regions', onBodyRegions);
 
   const petQuery = new URLSearchParams(window.location.search);
-  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v90';
+  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v91';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
@@ -928,6 +956,9 @@ function mountMousePet() {
     body.classList.toggle('is-dragging', !rotate);
   };
   const onPointerMove = event => {
+    if (!championSequenceActive && drag && !drag.holdTriggered && championAudio?.currentTime >= championSequenceCommitSeconds) {
+      triggerChampionHold();
+    }
     if (championSequenceActive) {
       event.preventDefault();
       return;
@@ -951,6 +982,9 @@ function mountMousePet() {
   };
   const onPointerUp = event => {
     if (!drag || drag.pointerId !== event.pointerId) return;
+    if (!championSequenceActive && !drag.holdTriggered && championAudio?.currentTime >= championSequenceCommitSeconds) {
+      triggerChampionHold();
+    }
     if (championSequenceActive) {
       event.preventDefault();
       clearChampionCueWatch();

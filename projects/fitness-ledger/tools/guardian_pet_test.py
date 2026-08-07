@@ -113,6 +113,7 @@ def test_shader_and_wiring_contract() -> None:
     assert "championAudio.currentTime = championAudioLeadTrimSeconds" in tools and "championAudio.play()" in tools
     assert "Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 0" in tools
     assert "Number(window.__FitnessLedgerChampionNewCueSeconds) || 2.36" in tools
+    assert "championSequenceCommitSeconds" in tools and "championNewCueSeconds - 0.12" in tools
     assert "championAndPlaybackRate" in tools and "Number(window.__FitnessLedgerChampionAndPlaybackRate) || 1" in tools
     assert "championNewPlaybackRate" in tools and "championAudio.playbackRate = championNewPlaybackRate" in tools
     assert "championAudioTrim" in tools and "championAudioState" in tools and "play-requested" in tools
@@ -122,6 +123,8 @@ def test_shader_and_wiring_contract() -> None:
     assert "silent-awaiting-audio-asset" in tools and "browser-voice-fallback" not in tools
     assert "championCueFrame" in tools and "watchChampionNewCue" in tools and "clearChampionCueWatch" in tools
     assert "championAudio.currentTime >= championNewCueSeconds" in tools and "holdTriggered" in tools and "triggerChampionHold" in tools
+    assert "setChampionChargeProgress" in tools and "resetChampionCharge" in tools and "championCharge" in tools
+    assert tools.count("championAudio?.currentTime >= championSequenceCommitSeconds") == 2
     audio_block = tools[tools.index("const championAudioOverride"):tools.index("const viewportMax")]
     assert "AudioContext" not in audio_block
     trigger_block = tools[tools.index("const triggerChampionHold"):tools.index("const viewportMax")]
@@ -147,8 +150,13 @@ def test_shader_and_wiring_contract() -> None:
     assert '.tools-pet-navigator{position:fixed;top:0;left:0;' in css
     assert '.tools-pet-floating{width:256px!important;height:256px!important' in css
     assert '@media(max-width:760px){.tools-pet-floating{width:208px!important;height:208px!important}' in css
-    assert '.guardian-pet-hotspot[data-region="back"]{right:74%;top:42%}' in css
+    assert '.guardian-pet-hotspot[data-region="shoulders"]{left:59%;top:17%}' in css
+    assert '.guardian-pet-hotspot[data-region="chest"]{left:58%;top:29%}' in css
+    assert '.guardian-pet-hotspot[data-region="arms"]{left:65%;top:41%}' in css
+    assert '.guardian-pet-hotspot[data-region="back"]{right:74%;top:29%}' in css
+    assert '.guardian-pet-hotspot[data-region="legs"]{left:58%;top:62%}' in css
     assert 'data-effect="champion_hold"' in css and '.tools-pet-floating.is-champion-hold' in css
+    assert '.tools-pet-floating.is-champion-charging' in css and '.is-champion-locked .dot-1' in css
     assert '.tools-pet-cursor-trail{position:fixed;z-index:1000002' in css
     assert '.tools-pet-floating.is-champion-display' in css
     assert '.tools-pet-floating.is-champion-sequence' in css
