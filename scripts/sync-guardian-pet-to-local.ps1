@@ -20,6 +20,7 @@ $relativeFiles = @(
   'web_desktop\backend\server.py',
   'web_desktop\frontend\app.js',
   'web_desktop\frontend\index.html',
+  'web_desktop\frontend\guardian-acceptance.html',
   'web_desktop\frontend\final-pass.css',
   'web_desktop\frontend\tools-css3d-panels.js',
   'web_desktop\frontend\motion-lab\guardian\index.html',

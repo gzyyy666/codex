@@ -80,6 +80,7 @@ def test_shader_and_wiring_contract() -> None:
     assert "state.targetZoom = Math.min(Number(preset.zoom) || 1, 1.02)" in renderer
     assert "Math.max(Number(preset.camera?.[2]) || 2.18, 2.45)" in renderer
     tools = (ROOT / "web_desktop" / "frontend" / "tools-css3d-panels.js").read_text(encoding="utf-8")
+    acceptance = (ROOT / "web_desktop" / "frontend" / "guardian-acceptance.html").read_text(encoding="utf-8")
     app = (ROOT / "web_desktop" / "frontend" / "app.js").read_text(encoding="utf-8")
     css = (ROOT / "web_desktop" / "frontend" / "final-pass.css").read_text(encoding="utf-8")
     trophy_asset = ROOT / "web_desktop" / "frontend" / "assets" / "tools-pet" / "trophy-champion-v2.png"
@@ -95,6 +96,10 @@ def test_shader_and_wiring_contract() -> None:
     assert "const width = window.matchMedia?.('(max-width: 760px)').matches ? 208 : 256" in tools
     assert "Object.assign(navigator.style, { top: '0px', left: '0px' })" in tools
     assert "const removeArchivePetNodes" in tools
+    assert "const archivePetRegistry" in tools and "const disposeArchivePetInstances" in tools
+    assert "READ-ONLY · NO DATA WRITES" in acceptance
+    assert "presentationForSemanticEvent" in acceptance
+    assert "/api/save" not in acceptance
     assert "body.dataset.petStatus" in tools and "body.title" not in tools[tools.index("function mountMousePet"):tools.index("const removeArchivePetNodes")]
     assert "trophy-champion-v2.png" in tools
     assert trophy_asset.is_file() and trophy_asset.stat().st_size > 100_000

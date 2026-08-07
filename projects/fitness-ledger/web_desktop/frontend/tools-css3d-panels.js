@@ -10,7 +10,7 @@
  * https://github.com/ArtBIT/mouse-follower
  */
 
-import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v66';
+import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v68';
 
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia?.('(pointer: coarse)').matches !== true;
@@ -226,7 +226,7 @@ function mountLegacyMousePet() {
   document.body.appendChild(body);
   syncNavPetPosition();
   const petModel = window.__fitnessLedgerPetModel || new URLSearchParams(window.location.search).get('petModel') || 'lowpoly-static';
-  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v66' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v66';
+  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v68' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v68';
   const setPetPose = (pose, options) => {
     if (guardianPet) return guardianPet.setPose(pose, options);
     pendingPose = { pose, options };
@@ -345,6 +345,18 @@ function mountLegacyMousePet() {
 }
 
 const guardianPetPositionKey = 'fitness-ledger.guardian-pet.position.v1';
+const archivePetRegistry = window.__fitnessLedgerArchivePetRegistry instanceof Map
+  ? window.__fitnessLedgerArchivePetRegistry
+  : (window.__fitnessLedgerArchivePetRegistry = new Map());
+const archivePetControllers = window.__fitnessLedgerArchivePetControllers instanceof Set
+  ? window.__fitnessLedgerArchivePetControllers
+  : (window.__fitnessLedgerArchivePetControllers = new Set());
+let archivePetSequence = Number(window.__fitnessLedgerArchivePetSequence) || 0;
+const nextArchivePetId = () => {
+  archivePetSequence += 1;
+  window.__fitnessLedgerArchivePetSequence = archivePetSequence;
+  return `archive-pet-${Date.now().toString(36)}-${archivePetSequence.toString(36)}`;
+};
 const guardianPetRoutePoses = {
   home: { poseId: 'standing', cameraPreset: 'idle' },
   quick: { poseId: 'standing', cameraPreset: 'idle' },
@@ -621,6 +633,9 @@ function createGuardianPresentationSurface(body) {
 function mountMousePet() {
   const body = document.createElement('div');
   const guardian = document.createElement('canvas');
+  const instanceId = nextArchivePetId();
+  const instanceRecord = { cleanup: null, controller: null };
+  archivePetRegistry.set(instanceId, instanceRecord);
   const width = window.matchMedia?.('(max-width: 760px)').matches ? 208 : 256;
   const height = width;
   const margin = 18;
@@ -633,6 +648,7 @@ function mountMousePet() {
   let drag = null;
 
   body.className = 'tools-pet-follower tools-pet-guardian tools-pet-floating';
+  body.dataset.petInstance = instanceId;
   body.dataset.petPosition = 'free';
   body.dataset.petHint = 'PAUSE POINTER | FACE CURSOR | DRAG MOVE | ALT + DRAG VIEW | WHEEL POSE';
   body.setAttribute('role', 'region');
@@ -745,7 +761,7 @@ function mountMousePet() {
 
   const petQuery = new URLSearchParams(window.location.search);
   const petModel = window.__fitnessLedgerPetModel || petQuery.get('petModel') || 'lowpoly-static';
-  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v66' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v66';
+  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v68' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v68';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
@@ -770,6 +786,8 @@ function mountMousePet() {
         if (['pet-wheel', 'pet-keyboard', 'canvas-click'].includes(detail.source)) manualOverrides.set(currentView(), detail.pose);
       }
     });
+    instanceRecord.controller = guardianPet;
+    archivePetControllers.add(guardianPet);
     window.__fitnessLedgerGuardianPet = guardianPet;
     if (pendingPose) {
       const queuedPose = pendingPose;
@@ -919,10 +937,13 @@ function mountMousePet() {
     navigator.remove();
     presentationSurface.cleanup();
     guardianPet?.dispose();
+    if (guardianPet) archivePetControllers.delete(guardianPet);
     if (window.__fitnessLedgerGuardianPet === guardianPet) window.__fitnessLedgerGuardianPet = null;
     if (window.__fitnessLedgerArchivePetCleanup === cleanup) window.__fitnessLedgerArchivePetCleanup = null;
+    archivePetRegistry.delete(instanceId);
     body.remove();
   };
+  instanceRecord.cleanup = cleanup;
   return cleanup;
 }
 
@@ -930,19 +951,33 @@ const removeArchivePetNodes = () => {
   document.querySelectorAll('.tools-pet-floating, .tools-pet-navigator, .tools-pet-menu').forEach(node => node.remove());
 };
 
+const disposeArchivePetInstances = () => {
+  const records = [...archivePetRegistry.values()];
+  records.forEach(record => record.cleanup?.());
+  [...archivePetControllers].forEach(controller => controller?.dispose?.());
+  archivePetControllers.clear();
+  if (!isGuardianRoute() && !records.some(record => record.controller === window.__fitnessLedgerGuardianPet)) {
+    window.__fitnessLedgerGuardianPet?.dispose?.();
+  }
+  archivePetRegistry.clear();
+  window.__fitnessLedgerArchivePetCleanup = null;
+  removeArchivePetNodes();
+};
+
 const syncGlobalArchivePet = () => {
   const cleanup = window.__fitnessLedgerArchivePetCleanup;
   const floatingCount = document.querySelectorAll('.tools-pet-floating').length;
   const navigatorCount = document.querySelectorAll('.tools-pet-navigator').length;
   if (isGuardianRoute()) {
-    cleanup?.();
-    removeArchivePetNodes();
+    disposeArchivePetInstances();
     return null;
   }
-  if (floatingCount > 1 || navigatorCount > 1 || (floatingCount > 0 && typeof cleanup !== 'function')) {
-    cleanup?.();
-    removeArchivePetNodes();
-    window.__fitnessLedgerArchivePetCleanup = null;
+  const hasSingleLiveInstance = archivePetRegistry.size === 1
+    && floatingCount === 1
+    && navigatorCount === 1
+    && typeof cleanup === 'function';
+  if (!hasSingleLiveInstance) {
+    disposeArchivePetInstances();
   }
   if (typeof window.__fitnessLedgerArchivePetCleanup !== 'function') {
     window.__fitnessLedgerArchivePetCleanup = mountMousePet();
