@@ -89,10 +89,17 @@ def test_shader_and_wiring_contract() -> None:
     assert "Math.max(window.innerHeight / 1.8" in tools
     assert "y: -clamp((pointer.y - centerY)" in tools
     assert "const stationary" not in tools
+    assert "const width = window.matchMedia?.('(max-width: 760px)').matches ? 208 : 256" in tools
+    assert "Object.assign(navigator.style, { top: '0px', left: '0px' })" in tools
+    assert "const removeArchivePetNodes" in tools
+    assert "body.dataset.petStatus" in tools and "body.title" not in tools[tools.index("function mountMousePet"):tools.index("const removeArchivePetNodes")]
     for marker in ("training-save", "movement-focus", "analysis-result", "needs-review", "sync-result"):
         assert marker in app
     assert ".guardian-pet-hotspots" in css and "prefers-reduced-motion:reduce" in css
     assert '.tools-pet-navigator{display:block;width:58px;height:84px}' in css
+    assert '.tools-pet-navigator{position:fixed;top:0;left:0;' in css
+    assert '.tools-pet-floating{width:256px!important;height:256px!important' in css
+    assert '@media(max-width:760px){.tools-pet-floating{width:208px!important;height:208px!important}' in css
 
 
 def test_personal_record_semantics() -> None:
