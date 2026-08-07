@@ -89,7 +89,8 @@ def test_shader_and_wiring_contract() -> None:
     app = (ROOT / "web_desktop" / "frontend" / "app.js").read_text(encoding="utf-8")
     css = (ROOT / "web_desktop" / "frontend" / "final-pass.css").read_text(encoding="utf-8")
     trophy_asset = ROOT / "web_desktop" / "frontend" / "assets" / "tools-pet" / "trophy-champion-v2.png"
-    champion_audio = ROOT / "web_desktop" / "frontend" / "assets" / "tools-pet" / "champion-callout.m4a"
+    champion_audio = ROOT / "web_desktop" / "frontend" / "assets" / "tools-pet" / "champion-callout-clean.m4a"
+    champion_audio_source = ROOT / "web_desktop" / "frontend" / "assets" / "tools-pet" / "champion-callout.m4a"
     for marker in ("fitness-ledger-pet:intent", "fitness-ledger-pet:body-regions", "presentationForSemanticEvent"):
         assert marker in tools
     assert "const isGuardianRoute" in tools
@@ -106,11 +107,11 @@ def test_shader_and_wiring_contract() -> None:
     assert "archivePetCrossTabKey" in tools and "claimArchivePetCrossTab" in tools and "onArchivePetCrossTabStorage" in tools
     assert "tools-pet-cursor-trail" in tools and "cursorTrailPoints" in tools
     assert "championAudioUrl" in tools and "championCalloutText" in tools
-    assert "champion-callout.m4a" in tools
+    assert "champion-callout-clean.m4a" in tools
     assert "championAudioLeadTrimSeconds" in tools and "championEffectDelayMs" in tools
     assert "const championDisplayPose = 'crab_hands_apart'" in tools
     assert "championAudioGain.gain.value = 2.2" in tools and "championAudio.currentTime = championAudioLeadTrimSeconds" in tools
-    assert "Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 3.38" in tools
+    assert "Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 0" in tools
     assert "Number(window.__FitnessLedgerChampionEffectDelayMs) || 520" in tools
     assert "loadedmetadata" in tools and "championAudioTrim" in tools
     assert "startChampionDisplay" in tools and "left-to-right-sweep" in tools
@@ -131,6 +132,7 @@ def test_shader_and_wiring_contract() -> None:
     assert "trophy-champion-v2.png" in tools
     assert trophy_asset.is_file() and trophy_asset.stat().st_size > 100_000
     assert champion_audio.is_file() and champion_audio.stat().st_size > 1_000
+    assert champion_audio_source.is_file() and champion_audio_source.stat().st_size > champion_audio.stat().st_size
     for marker in ("training-save", "movement-focus", "analysis-result", "needs-review", "sync-result"):
         assert marker in app
     assert ".guardian-pet-hotspots" in css and "prefers-reduced-motion:reduce" in css

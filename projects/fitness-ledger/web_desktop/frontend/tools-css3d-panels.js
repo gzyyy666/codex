@@ -10,7 +10,7 @@
  * https://github.com/ArtBIT/mouse-follower
  */
 
-import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v81';
+import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v82';
 
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia?.('(pointer: coarse)').matches !== true;
@@ -564,12 +564,12 @@ function mountMousePet() {
   document.body.appendChild(body);
   const cursorMode = window.__fitnessLedgerPetCursor || new URLSearchParams(window.location.search).get('petCursor') || 'trophy';
   // The supplied recording is the default; an injected URL or query parameter can replace it for review.
-  const championAudioUrl = window.__fitnessLedgerChampionAudioUrl || new URLSearchParams(window.location.search).get('championAudio') || new URL('./assets/tools-pet/champion-callout.m4a', import.meta.url).href;
+  const championAudioOverride = window.__fitnessLedgerChampionAudioUrl || new URLSearchParams(window.location.search).get('championAudio');
+  const championAudioUrl = championAudioOverride || new URL('./assets/tools-pet/champion-callout-clean.m4a', import.meta.url).href;
   const championCalloutText = 'And... new Olympia champion!';
-  // The supplied recording carries a quiet lead-in before the elongated “And”.
-  // These offsets are measured from the original file: And starts at ~3.38s and
-  // “new Olympia champion” starts about 0.52s later.
-  const championAudioLeadTrimSeconds = Math.max(0, Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 3.38);
+  // The default asset is physically trimmed to the elongated “And”; custom
+  // assets can still opt into an explicit seek through the global override.
+  const championAudioLeadTrimSeconds = Math.max(0, Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 0);
   const championEffectDelayMs = Math.max(240, Number(window.__FitnessLedgerChampionEffectDelayMs) || 520);
   const championDisplayPose = 'crab_hands_apart';
   let championAudio = null;
@@ -786,7 +786,7 @@ function mountMousePet() {
   window.addEventListener('fitness-ledger-pet:body-regions', onBodyRegions);
 
   const petQuery = new URLSearchParams(window.location.search);
-  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v81';
+  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v82';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
