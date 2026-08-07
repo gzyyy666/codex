@@ -1,5 +1,5 @@
-import { apiDescription, call, signIn } from "./api.js?v=20260807-05";
-import { findLastCandidate } from "./candidateMatcher.js?v=20260807-05";
+import { apiDescription, call, signIn } from "./api.js?v=20260807-06";
+import { findLastCandidate } from "./candidateMatcher.js?v=20260807-06";
 
 const BODY_PARTS = [
   { id: "shoulders", cn: "肩", en: "SHOULDERS", tone: "amber" },
@@ -10,7 +10,7 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.0.0 · build 2026.08.07.05";
+const BUILD_VERSION = "PWA v1.0.0 · build 2026.08.07.06";
 const app = document.querySelector("#app");
 const state = {
   route: parseRoute(), loading: true, error: "", status: null, identity: null,
@@ -120,7 +120,7 @@ function renderLogin() {
 
 function renderCandidateHistory(history) {
   if (!Array.isArray(history) || !history.length) return `<div class="candidate-empty">暂无最近正式训练记录</div>`;
-  return history.slice(0, 1).map(record => {
+  return history.map(record => {
     const sets = Array.isArray(record.sets) ? record.sets : [];
     const setMarkup = sets.length
       ? `<div class="candidate-sets">${sets.map(renderCandidateSet).join("")}</div>`
@@ -130,7 +130,7 @@ function renderCandidateHistory(history) {
 }
 function renderNoteCandidate(candidate) {
   const partLabel = (candidate.body_parts || []).map(id => bodyPart(id).cn).join(" / ") || candidate.body_part_label || "跨部位";
-  return `<button class="candidate" data-action="candidate" data-id="${esc(candidate.movement_id)}"><span class="candidate-main"><b>${esc(candidate.display_name)}</b>${candidate.english_name ? `<small>${esc(candidate.english_name)}</small>` : ""}<span class="candidate-history-list">${renderCandidateHistory(candidate.previewHistory)}</span></span><span class="candidate-meta"><small>${esc(partLabel)}</small><strong>详情 →</strong></span></button>`;
+  return `<article class="candidate"><span class="candidate-main"><b>${esc(candidate.display_name)}</b>${candidate.english_name ? `<small>${esc(candidate.english_name)}</small>` : ""}<span class="candidate-history-list">${renderCandidateHistory(candidate.previewHistory)}</span></span><span class="candidate-meta"><small>${esc(partLabel)}</small></span></article>`;
 }
 
 function renderReference() {
@@ -385,7 +385,7 @@ async function updateCandidates() {
         if (historyLoaded) state.noteHistoryCache.set(movementId, Array.isArray(history) ? history : []);
       }
       if (request !== state.candidatesRequest || state.note !== noteSnapshot) return;
-      state.noteCandidates = [{ ...match, body_part_label: (match.body_parts || []).map(id => bodyPart(id).cn).join(" / "), previewHistory: Array.isArray(history) ? history.slice(0, 1) : [] }];
+      state.noteCandidates = [{ ...match, body_part_label: (match.body_parts || []).map(id => bodyPart(id).cn).join(" / "), previewHistory: Array.isArray(history) ? history : [] }];
       state.noteCandidatesLoading = false;
       refreshCandidateOverlay();
     } catch (_) { if (request !== state.candidatesRequest) return; state.noteCandidates = []; state.noteCandidatesLoading = false; refreshCandidateOverlay(); }
@@ -469,7 +469,7 @@ window.addEventListener("resize", scheduleCandidateOverlayPosition, { passive: t
 window.visualViewport?.addEventListener("resize", scheduleCandidateOverlayPosition, { passive: true });
 window.visualViewport?.addEventListener("scroll", scheduleCandidateOverlayPosition, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260807-05", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260807-06", { updateViaCache: "none" }).catch(() => {});
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();
   event.preventDefault();

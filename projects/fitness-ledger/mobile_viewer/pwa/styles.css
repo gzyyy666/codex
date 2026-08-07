@@ -150,7 +150,7 @@ button { color: inherit; cursor: pointer; }
   .notepad-dock-card h2 { font-size: 4.267vw; }
   .notepad-dock-card textarea { height: 26vw; max-height: 30vh; margin-top: 1.6vw; padding: 1.333vw 0; line-height: 1.42; }
   .candidate-overlay { top: var(--candidate-overlay-top, calc(env(safe-area-inset-top) + 174px)); height: auto; max-height: 214px; padding: 9px; }
-  .candidate-overlay .candidate-scroll { height: auto; max-height: 168px; margin-top: 4px; }
+  .candidate-overlay .candidate-scroll { height: auto; max-height: 168px; margin-top: 4px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; }
   .candidate-overlay .candidate-main > b { font-size: 3.733vw; }
   .candidate-overlay .candidate-main > small, .candidate-overlay .candidate-meta small { font-size: 2.267vw; }
   .candidate-overlay .candidate-meta { min-width: 13.867vw; }
