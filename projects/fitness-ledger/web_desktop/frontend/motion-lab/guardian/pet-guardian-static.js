@@ -15,13 +15,13 @@ const POSE_ORDER = Object.freeze([
 ]);
 
 const POSE_FILES = Object.freeze({
-  standing_front_relaxed.glb: 'lowpoly-front-standing.glb',
-  front_double_biceps.glb: 'lowpoly-front-double-biceps.glb',
-  side_chest.glb: 'lowpoly-side-chest.glb',
-  back_double_biceps.glb: 'lowpoly-rear-double-biceps.glb',
-  back_lat_spread.glb: 'lowpoly-rear-lat-spread.glb',
-  most_muscular_hands_clasped.glb: 'lowpoly-most-muscular.glb',
-  most_muscular_hands_apart.glb: 'lowpoly-open-hand-crab.glb'
+  'standing_front_relaxed.glb': 'lowpoly-front-standing.glb',
+  'front_double_biceps.glb': 'lowpoly-front-double-biceps.glb',
+  'side_chest.glb': 'lowpoly-side-chest.glb',
+  'back_double_biceps.glb': 'lowpoly-rear-double-biceps.glb',
+  'back_lat_spread.glb': 'lowpoly-rear-lat-spread.glb',
+  'most_muscular_hands_clasped.glb': 'lowpoly-most-muscular.glb',
+  'most_muscular_hands_apart.glb': 'lowpoly-open-hand-crab.glb'
 });
 
 const POSE_ALIASES = Object.freeze({
