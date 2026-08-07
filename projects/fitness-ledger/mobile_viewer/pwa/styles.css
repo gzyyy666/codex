@@ -38,6 +38,8 @@ button { color: inherit; cursor: pointer; }
   .notepad-card textarea { min-height: 132px; }
   .notepad-actions { gap: 10px; flex-wrap: wrap; }
   .notepad-actions button, .notepad-head button { min-height: 32px; }
+  .reference-page:has(.candidate-overlay:not(.collapsed)) .movement-list,
+  .reference-page:has(.candidate-overlay:not(.collapsed)) .session-list { margin-top: calc(3.733vw + var(--candidate-flow-space, 0px)); }
 }
 
 /* Sealed Mini Program parity: the PWA keeps the same local note flow,
@@ -54,7 +56,7 @@ button { color: inherit; cursor: pointer; }
 .notepad-dock-card { max-height: 66vh; overflow-y: auto; padding: 14px; border: 1px solid rgba(55,51,43,.2); border-radius: 6px 16px 16px 16px; background: rgba(252,249,242,.98); box-shadow: 0 12px 30px rgba(53,44,29,.2); }
 .notepad-dock-card h2 { margin: 4px 0 0; font-family: "Songti SC", Georgia, serif; font-size: 21px; font-weight: 400; }
 .notepad-dock-card textarea { display: block; width: 100%; height: 168px; max-height: 42vh; margin-top: 10px; padding: 10px 0; border: 0; border-top: 1px solid rgba(23,23,20,.17); border-bottom: 1px solid rgba(23,23,20,.12); background: transparent; outline: none; color: #27251f; font-size: 16px; line-height: 1.6; resize: vertical; -webkit-appearance: none; -webkit-user-select: text; user-select: text; }
-.candidate-overlay { position: fixed; z-index: 55; top: calc(env(safe-area-inset-top) + 182px); right: 9px; left: 9px; height: 166px; overflow: hidden; margin: 0; padding: 9px; border: 1px solid rgba(138,91,0,.18); border-radius: 9px; background: rgba(247,244,238,.98); box-shadow: 0 13px 32px rgba(53,44,29,.2); }
+.candidate-overlay { position: fixed; z-index: 55; top: var(--candidate-overlay-top, calc(env(safe-area-inset-top) + 182px)); right: 9px; left: 9px; height: 166px; overflow: hidden; margin: 0; padding: 9px; border: 1px solid rgba(138,91,0,.18); border-radius: 9px; background: rgba(247,244,238,.98); box-shadow: 0 13px 32px rgba(53,44,29,.2); }
 .reference-page .candidate-overlay { position: fixed; z-index: 55; right: auto; left: 50%; width: min(542px, calc(100vw - 18px)); transform: translateX(-50%); }
 .candidate-overlay .candidate-head { align-items: center; min-height: 18px; }
 .candidate-overlay .candidate-scroll { height: 120px; overflow-y: auto; margin-top: 5px; padding-right: 2px; }
@@ -134,24 +136,29 @@ button { color: inherit; cursor: pointer; }
   .compare-cell b { margin-top: 1.067vw; font-size: 2.933vw; }
   .movement-note, .session-note { margin-top: 2.4vw; font-size: 2.933vw; }
   .movement-action, .training-action, .slip-action, .diet-action { margin-top: 2.933vw; font-size: 2.933vw; }
-  .notepad-card { margin-bottom: 2.667vw; padding: 3.467vw; border-radius: 3.733vw; }
-  .notepad-card h2 { margin-top: 1.067vw; font-size: 5.6vw; }
-  .notepad-card textarea { min-height: 18.933vw; margin-top: 2.133vw; padding: 1.867vw 0; font-size: 16px; line-height: 1.55; }
-  .notepad-actions { gap: 2.667vw; margin-top: 2.4vw; }
-  .notepad-actions button, .notepad-head button { min-height: 8.533vw; font-size: 2.667vw; }
-  .notepad-status { margin-top: 1.867vw; font-size: 2.4vw; }
+  .notepad-card { margin-bottom: 1.067vw; padding: 2.667vw; border-radius: 3.2vw; }
+  .notepad-card .notepad-head { width: fit-content; max-width: 100%; gap: 2.133vw; }
+  .notepad-card .eyebrow { font-size: 2.133vw; letter-spacing: .4vw; }
+  .notepad-card h2 { margin-top: 0; font-size: 4vw; line-height: 1.12; }
+  .notepad-card textarea { min-height: 27vw; margin-top: 1.067vw; padding: 1.067vw 0; font-size: 16px; line-height: 1.35; }
+  .notepad-actions { width: fit-content; max-width: 100%; gap: 1.333vw; margin-top: .8vw; align-items: center; }
+  .notepad-actions button, .notepad-head button { min-width: 0; min-height: 5.333vw; font-size: 2.133vw; line-height: 1.1; white-space: nowrap; }
+  .notepad-status { min-height: 0; margin-top: .533vw; font-size: 2vw; }
   .notepad-dock-bar { padding: 2.133vw 2.667vw; font-size: 2.667vw; }
   .notepad-dock-bar span { font-size: 2.667vw; letter-spacing: .227vw; }
   .notepad-dock-bar b, .notepad-dock-bar strong { font-size: 2.667vw; }
-  .notepad-dock-card h2 { font-size: 4.8vw; }
-  .candidate-overlay .candidate-main > b { font-size: 4.133vw; }
+  .notepad-dock-card h2 { font-size: 4.267vw; }
+  .notepad-dock-card textarea { height: 26vw; max-height: 30vh; margin-top: 1.6vw; padding: 1.333vw 0; line-height: 1.42; }
+  .candidate-overlay { top: var(--candidate-overlay-top, calc(env(safe-area-inset-top) + 174px)); height: auto; max-height: 214px; padding: 9px; }
+  .candidate-overlay .candidate-scroll { height: auto; max-height: 168px; margin-top: 4px; }
+  .candidate-overlay .candidate-main > b { font-size: 3.733vw; }
   .candidate-overlay .candidate-main > small, .candidate-overlay .candidate-meta small { font-size: 2.267vw; }
   .candidate-overlay .candidate-meta { min-width: 13.867vw; }
   .candidate-overlay .candidate-meta small { margin-top: 0; }
-  .candidate-overlay .candidate-meta strong { font-size: 2.4vw; }
+  .candidate-overlay .candidate-meta strong { font-size: 2.267vw; }
   .candidate-set span { width: 5.867vw; font-size: 2.4vw; }
   .candidate-set-values { gap: .8vw; }
-  .candidate-set-values b { font-size: 2.4vw; line-height: 1.15; }
+  .candidate-set-values b { font-size: 2.267vw; line-height: 1.15; }
   .archive-tools { gap: 1.333vw; margin-top: 3.733vw; padding: 1.2vw; border-radius: 3.2vw; }
   .archive-tools input { height: 9.333vw; padding: 0 2.667vw; font-size: 16px; }
   .archive-tools button { padding: 2.133vw 1.067vw; border-radius: 2.133vw; font-size: 2.933vw; }
