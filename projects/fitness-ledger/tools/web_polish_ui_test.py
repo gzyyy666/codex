@@ -107,9 +107,15 @@ navigate('diet');
 await wait(80);
 const dietReturnedToSlipOffset=[...document.querySelectorAll('.diet-slip')].every(node=>!node.className.includes('diet-tone-')&&!node.className.includes('diet-offset-'));
 
+navigate('tools');
+await wait(120);
+const archiveHealthActions=document.querySelectorAll('.admin-health-actions .admin-action-row').length===2;
+const archiveHealthEmbedsNoDocuments=document.querySelectorAll('.admin-health-actions iframe').length===0;
+const archiveHealthUsesLocalAccents=document.querySelectorAll('.admin-health-actions .admin-action-motion-field[data-motion-accent]').length===2;
+
 const report=document.createElement('div');
 report.id='web-polish-report';
-report.dataset.value=encodeURIComponent(JSON.stringify({movementIndexFiltersEmpty,movementCountUsesProgress,bodyStableAfterSort,bodyStableAfterInsert,bodyUsesStableClasses,bodyUsesMultipleWarmTones,bodyAvoidsAdjacentTone,dietReturnedToSlipOffset,movementNames,firstMap,secondMap,thirdMap}));
+report.dataset.value=encodeURIComponent(JSON.stringify({movementIndexFiltersEmpty,movementCountUsesProgress,bodyStableAfterSort,bodyStableAfterInsert,bodyUsesStableClasses,bodyUsesMultipleWarmTones,bodyAvoidsAdjacentTone,dietReturnedToSlipOffset,archiveHealthActions,archiveHealthEmbedsNoDocuments,archiveHealthUsesLocalAccents,movementNames,firstMap,secondMap,thirdMap}));
 document.body.appendChild(report);
 }catch(error){
   const report=document.createElement('div');
@@ -143,6 +149,9 @@ document.body.appendChild(report);
         "bodyUsesMultipleWarmTones",
         "bodyAvoidsAdjacentTone",
         "dietReturnedToSlipOffset",
+        "archiveHealthActions",
+        "archiveHealthEmbedsNoDocuments",
+        "archiveHealthUsesLocalAccents",
     )), report
 
 

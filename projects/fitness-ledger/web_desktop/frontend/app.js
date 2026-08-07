@@ -1005,19 +1005,16 @@ function updateToolsArchiveMotion(){
 }
 function mountToolsArchiveMotion(){
   const targets=[
-    ['sync','wave-grid','Archive health wave accent'],
-    ['health','wave-grid-check','Data check wave accent']
+    ['sync','wave-grid'],
+    ['health','wave-grid-check']
   ];
-  targets.forEach(([panelName,surfaceName,title])=>{
+  targets.forEach(([panelName,surfaceName])=>{
     const panel=document.querySelector(`.admin-action-row[data-tools-panel="${panelName}"]`);
     if(!panel||panel.querySelector('[data-motion-surface]'))return;
     panel.classList.add('has-motion-surface');
     panel.dataset.motionSurface=surfaceName;
-    const field=document.createElement('iframe');
-    field.title=title;
-    field.src='motion-lab/wave-grid/index.html?embed=module';
-    field.loading='lazy';
-    field.tabIndex=-1;
+    const field=document.createElement('div');
+    field.dataset.motionAccent=surfaceName;
     field.setAttribute('aria-hidden','true');
     field.className='admin-action-motion-field';
     const scrim=document.createElement('div');
