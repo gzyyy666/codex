@@ -10,7 +10,7 @@
  * https://github.com/ArtBIT/mouse-follower
  */
 
-import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v88';
+import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v89';
 
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia?.('(pointer: coarse)').matches !== true;
@@ -565,12 +565,13 @@ function mountMousePet() {
   const cursorMode = window.__fitnessLedgerPetCursor || new URLSearchParams(window.location.search).get('petCursor') || 'trophy';
   // The supplied recording is the default; an injected URL or query parameter can replace it for review.
   const championAudioOverride = window.__fitnessLedgerChampionAudioUrl || new URLSearchParams(window.location.search).get('championAudio');
-  const championAudioUrl = championAudioOverride || new URL('./assets/tools-pet/champion-callout-final.m4a?rev=20260807-v88', import.meta.url).href;
+  const championAudioUrl = championAudioOverride || new URL('./assets/tools-pet/champion-callout.m4a?rev=20260807-v89', import.meta.url).href;
   const championCalloutText = 'And... new Olympia champion!';
-  // One deterministic timeline: audio starts at the elongated “And”, then the
-  // hold is confirmed at the 1.2s cue where the recording reaches “new”.
-  const championAudioLeadTrimSeconds = Math.max(0, Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 0);
+  // Use the supplied recording directly: seek only to the original elongated
+  // “And” onset, then confirm the hold at the 1.2s “new” cue.
+  const championAudioLeadTrimSeconds = Math.max(0, Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 3.1);
   const championEffectDelayMs = Math.max(240, Number(window.__FitnessLedgerChampionEffectDelayMs) || 1200);
+  const championNewPlaybackRate = Math.min(1, Math.max(0.78, Number(window.__FitnessLedgerChampionNewPlaybackRate) || 0.86));
   const championDisplayPose = 'crab_hands_apart';
   let championAudio = null;
   let championHoldTimer = 0;
@@ -606,6 +607,7 @@ function mountMousePet() {
   const stopChampionAudio = () => {
     if (!championAudio) return;
     championAudio.pause();
+    championAudio.playbackRate = 1;
     championAudio.currentTime = 0;
     body.dataset.championAudioState = 'idle';
   };
@@ -622,7 +624,14 @@ function mountMousePet() {
     body.dataset.championDisplay = 'left-to-right-sweep';
     void guardianPet.setPose?.(championDisplayPose, { source: 'champion-display', immediate: false });
     const startedAt = performance.now();
-    const duration = 5600;
+    // Keep the display inside the remaining original recording so the audio
+    // carries the full left-to-right / right-to-left sweep without being cut.
+    const audioRemainingMs = championAudio && Number.isFinite(championAudio.duration)
+      ? Math.max(0, ((championAudio.duration - championAudio.currentTime) / Math.max(championAudio.playbackRate, 0.01)) * 1000)
+      : 0;
+    const duration = audioRemainingMs > 0
+      ? Math.max(900, Math.min(2400, audioRemainingMs * 0.9))
+      : 2200;
     const sweep = now => {
       if (disposed || !guardianPet) return;
       const progress = clamp((now - startedAt) / duration, 0, 1);
@@ -659,7 +668,7 @@ function mountMousePet() {
       }).catch(() => {
         body.dataset.championAudioState = 'play-blocked';
       });
-      body.dataset.championAudio = 'final-asset';
+      body.dataset.championAudio = 'original-asset';
       return;
     }
     body.dataset.championAudio = 'silent-awaiting-audio-asset';
@@ -674,6 +683,10 @@ function mountMousePet() {
     body.dataset.championHold = 'triggered';
     body.dataset.championCallout = championCalloutText;
     presentationSurface.playEffect('champion_hold');
+    if (championAudio) {
+      championAudio.playbackRate = championNewPlaybackRate;
+      body.dataset.championAudioRate = String(championNewPlaybackRate);
+    }
     startChampionDisplay();
     window.clearTimeout(championEffectTimer);
     championEffectTimer = window.setTimeout(() => {
@@ -750,7 +763,7 @@ function mountMousePet() {
   window.addEventListener('fitness-ledger-pet:body-regions', onBodyRegions);
 
   const petQuery = new URLSearchParams(window.location.search);
-  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v88';
+  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v89';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
