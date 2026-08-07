@@ -30,6 +30,11 @@
     @keyframes gold-sweep { 0%{opacity:0;transform:translateX(-70%) skewX(-16deg)} 20%{opacity:1} 100%{opacity:0;transform:translateX(70%) skewX(-16deg)} }
     @keyframes particle { 0%{opacity:0;transform:translate(0,10px) scale(.4)} 18%{opacity:1} 100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.2)} }
     .stage[data-reduced="true"] * { animation:none !important; transition:none !important; }
+    .acceptance-cursor-trail { position:fixed; inset:0; z-index:30; pointer-events:none; }
+    .acceptance-cursor-dot { position:fixed; left:-4px; top:-4px; width:8px; height:8px; border-radius:50%; background:radial-gradient(circle at 35% 30%,#fff6c8 0 12%,#e5ad46 42%,#9b5a20 100%); box-shadow:0 0 10px #e5ad4677; opacity:.58; }
+    .acceptance-cursor-dot:nth-child(1){width:7px;height:7px;opacity:.82}.acceptance-cursor-dot:nth-child(2){opacity:.66}.acceptance-cursor-dot:nth-child(3){opacity:.54}.acceptance-cursor-dot:nth-child(4){opacity:.44}.acceptance-cursor-dot:nth-child(5){opacity:.35}.acceptance-cursor-dot:nth-child(6){opacity:.28}.acceptance-cursor-dot:nth-child(7){opacity:.22}.acceptance-cursor-dot:nth-child(8){opacity:.17}.acceptance-cursor-dot:nth-child(9){opacity:.12}
+    .acceptance-cursor-trail.is-trophy .acceptance-cursor-dot { display:none; }.acceptance-cursor-trail.is-trophy .acceptance-cursor-dot:first-child { display:block; left:-17px; top:-23px; width:34px; height:44px; border-radius:0; background:url('./assets/tools-pet/trophy-champion-v2.png') 50% 50%/contain no-repeat; filter:drop-shadow(0 5px 5px #3e1e0b59); box-shadow:none; opacity:.94; }
+    html[data-cursor-mode="trophy"], html[data-cursor-mode="trophy"] * { cursor:none!important; }
     .stage-footer { display:flex; justify-content:space-between; gap:12px; margin-top:12px; color:var(--muted); font-size:12px; }
     .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; background:#d49d38; }
     .status-dot.ready { background:#3f9b61; }
@@ -62,7 +67,7 @@
     </section>
     <section class="card">
       <div class="section"><h2>一键业务验收</h2><p class="hint">以下均为内存中的合成结果；不会调用保存接口。</p><div class="button-grid"><button class="primary" data-demo="all">▶ 全部自动播放</button><button data-demo="reset">清除效果 / 恢复</button><button data-demo="home">首页摘要</button><button data-demo="training">训练已保存</button><button data-demo="pr">触发新 PR</button><button data-demo="movement">Movement Progress</button><button data-demo="diet">饮食状态</button><button data-demo="weight">体重里程碑</button><button data-demo="analysis">结构化分析</button><button data-demo="loading">加载中</button><button data-demo="syncing">同步中 / 已完成</button><button data-demo="review">Needs Review</button></div></div>
-      <div class="section"><h2>姿势与视线</h2><p class="hint">拖动画布观察左右与上下俯仰；滚轮、方向键或下方按钮切换静态姿势。</p><div class="button-grid pose-grid" id="poses"></div><div class="controls"><label><input id="reduced" type="checkbox"> 减少动态</label><button id="stop">停止自动播放</button></div></div>
+      <div class="section"><h2>姿势与视线</h2><p class="hint">拖动画布观察左右与上下俯仰；滚轮、方向键或下方按钮切换静态姿势。</p><div class="button-grid pose-grid" id="poses"></div><div class="controls"><label><input id="reduced" type="checkbox"> 减少动态</label><label><input id="trophy-cursor" type="checkbox"> 奖杯光标</label><button id="stop">停止自动播放</button></div></div>
       <div class="section"><h2>验收日志</h2><pre class="log" id="log">等待模型 ready…</pre></div>
     </section>
   </main>
@@ -81,6 +86,16 @@
     const stateNode = document.querySelector('#state');
     const statusDot = document.querySelector('#status-dot');
     const effectLayer = document.querySelector('#effect-layer');
+    const cursorTrail = document.createElement('div');
+    cursorTrail.className = 'acceptance-cursor-trail';
+    cursorTrail.setAttribute('aria-hidden', 'true');
+    const cursorDots = Array.from({ length: 9 }, (_, index) => { const dot = document.createElement('i'); dot.className = 'acceptance-cursor-dot'; cursorTrail.appendChild(dot); return dot; });
+    document.body.appendChild(cursorTrail);
+    const cursor = { x: innerWidth * .5, y: innerHeight * .5 };
+    const cursorPoints = cursorDots.map((_, index) => ({ x: cursor.x, y: cursor.y, lag: .18 + index * .045 }));
+    addEventListener('pointermove', event => { if (event.pointerType !== 'touch') { cursor.x = event.clientX; cursor.y = event.clientY; } }, { passive: true });
+    const animateCursor = () => { cursorPoints.forEach((point, index) => { const target = index ? cursorPoints[index - 1] : cursor; point.x += (target.x - point.x) * (1 - point.lag); point.y += (target.y - point.y) * (1 - point.lag); cursorDots[index].style.transform = `translate3d(${Math.round(point.x)}px,${Math.round(point.y)}px,0)`; }); requestAnimationFrame(animateCursor); };
+    requestAnimationFrame(animateCursor);
     let sequenceToken = 0;
     let eventSequence = 0;
     let controller;
@@ -155,6 +170,7 @@
     document.querySelectorAll('[data-demo]').forEach(button => button.addEventListener('click', () => { const key = button.dataset.demo; if (key === 'reset') reset(); else if (key === 'all') runAll(); else demos[key]?.(); }));
     document.querySelector('#stop').addEventListener('click', () => { sequenceToken += 1; log('已停止自动播放'); });
     document.querySelector('#reduced').addEventListener('change', event => { stage.dataset.reduced = String(event.target.checked); controller.setReducedMotion(event.target.checked); log(`减少动态 → ${event.target.checked ? 'ON' : 'OFF'}`); });
+    document.querySelector('#trophy-cursor').addEventListener('change', event => { const enabled = event.target.checked; cursorTrail.classList.toggle('is-trophy', enabled); document.documentElement.dataset.cursorMode = enabled ? 'trophy' : ''; log(`奖杯光标 → ${enabled ? 'ON' : 'OFF'}`); });
   </script>
 </body>
 </html>
