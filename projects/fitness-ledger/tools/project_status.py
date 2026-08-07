@@ -16,7 +16,7 @@ from pathlib import Path
 PROJECT = Path(__file__).resolve().parents[1]
 CONFIG_FILE = PROJECT / "PROJECT_STATUS_CONFIG.json"
 TEXT_SUFFIXES = {
-    ".css", ".html", ".js", ".json", ".md", ".mjs", ".py", ".pyw", ".txt",
+    ".css", ".html", ".js", ".json", ".md", ".mjs", ".py", ".pyw", ".txt", ".webmanifest",
     ".wxml", ".wxss", ".xml", ".yaml", ".yml",
 }
 
