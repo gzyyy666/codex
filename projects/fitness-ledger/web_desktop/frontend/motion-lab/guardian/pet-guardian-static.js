@@ -76,9 +76,13 @@ const resolvePoseId = input => {
 };
 const assetUrl = file => new URL(`./assets/lowpoly/${POSE_FILES[file] || file}`, import.meta.url).href;
 const cloneState = state => JSON.parse(JSON.stringify(state));
+const guardianControllerRegistry = window.__fitnessLedgerGuardianControllerRegistry instanceof Set
+  ? window.__fitnessLedgerGuardianControllerRegistry
+  : (window.__fitnessLedgerGuardianControllerRegistry = new Set());
 
 export function mountGuardianPet(canvas, options = {}) {
   if (!canvas?.getContext) throw new TypeError('mountGuardianPet requires a canvas');
+  [...guardianControllerRegistry].forEach(controller => controller?.dispose?.());
   const params = new URLSearchParams(location.search);
   const petMode = params.get('embed') === 'pet' || options.petMode === true;
   const presentationScale = petMode ? 1.06 : 1;
@@ -412,6 +416,7 @@ export function mountGuardianPet(canvas, options = {}) {
 
   const tick = now => {
     if (state.disposed || !activeRecord) return;
+    models.forEach(record => { if (record !== activeRecord && record.group.visible) record.group.visible = false; });
     const cfg = activeRecord.cfg;
     const horizontalFollow = state.reducedMotion ? 0.16 : 0.085;
     const verticalFollow = state.reducedMotion ? 0.16 : 0.075;
@@ -559,9 +564,11 @@ export function mountGuardianPet(canvas, options = {}) {
     models.clear();
     renderer.dispose();
     scene.clear();
+    guardianControllerRegistry.delete(api);
+    if (window.__fitnessLedgerGuardianPet === api) window.__fitnessLedgerGuardianPet = null;
   };
 
-  return {
+  const api = {
     ready: readyPromise,
     loadPose,
     setPose,
@@ -582,6 +589,8 @@ export function mountGuardianPet(canvas, options = {}) {
     nextPose: poseOptions => setPose(POSE_ORDER[(POSE_ORDER.indexOf(state.poseId) + 1) % POSE_ORDER.length], { ...poseOptions, source: poseOptions?.source || 'next' }),
     dispose
   };
+  guardianControllerRegistry.add(api);
+  return api;
 }
 
 const standaloneCanvas = document.querySelector('[data-guardian-canvas]:not([data-guardian-page])');

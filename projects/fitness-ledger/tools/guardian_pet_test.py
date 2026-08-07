@@ -79,6 +79,7 @@ def test_shader_and_wiring_contract() -> None:
     assert "const presentationScale = petMode ? 1.06 : 1" in renderer
     assert "state.targetZoom = Math.min(Number(preset.zoom) || 1, 1.02)" in renderer
     assert "Math.max(Number(preset.camera?.[2]) || 2.18, 2.45)" in renderer
+    assert "guardianControllerRegistry" in renderer and "record.group.visible = false" in renderer
     tools = (ROOT / "web_desktop" / "frontend" / "tools-css3d-panels.js").read_text(encoding="utf-8")
     acceptance = (ROOT / "web_desktop" / "frontend" / "guardian-acceptance.html").read_text(encoding="utf-8")
     app = (ROOT / "web_desktop" / "frontend" / "app.js").read_text(encoding="utf-8")
@@ -99,6 +100,7 @@ def test_shader_and_wiring_contract() -> None:
     assert "const archivePetRegistry" in tools and "const archivePetLease" in tools and "const disposeArchivePetInstances" in tools
     assert "archivePetCrossTabKey" in tools and "claimArchivePetCrossTab" in tools and "onArchivePetCrossTabStorage" in tools
     assert "tools-pet-cursor-trail" in tools and "cursorTrailPoints" in tools
+    assert "MutationObserver" in tools and "cursorMode === 'trophy'" in tools
     assert "READ-ONLY · NO DATA WRITES" in acceptance
     assert "presentationForSemanticEvent" in acceptance
     assert "/api/save" not in acceptance

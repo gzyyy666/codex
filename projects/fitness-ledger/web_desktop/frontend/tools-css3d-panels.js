@@ -10,7 +10,7 @@
  * https://github.com/ArtBIT/mouse-follower
  */
 
-import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v70';
+import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v71';
 
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia?.('(pointer: coarse)').matches !== true;
@@ -279,7 +279,7 @@ function mountLegacyMousePet() {
   document.body.appendChild(body);
   syncNavPetPosition();
   const petModel = window.__fitnessLedgerPetModel || new URLSearchParams(window.location.search).get('petModel') || 'lowpoly-static';
-  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v70' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v70';
+  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v71' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v71';
   const setPetPose = (pose, options) => {
     if (guardianPet) return guardianPet.setPose(pose, options);
     pendingPose = { pose, options };
@@ -746,7 +746,7 @@ function mountMousePet() {
   const presentationSurface = createGuardianPresentationSurface(body);
   presentationSurface.setRegions(window.__fitnessLedgerGuardianBodyRegions || []);
   document.body.appendChild(body);
-  const cursorMode = window.__fitnessLedgerPetCursor || new URLSearchParams(window.location.search).get('petCursor') || 'trail';
+  const cursorMode = window.__fitnessLedgerPetCursor || new URLSearchParams(window.location.search).get('petCursor') || 'trophy';
   const cursorTrail = document.createElement('div');
   cursorTrail.className = `tools-pet-cursor-trail${cursorMode === 'trophy' ? ' is-trophy' : ''}`;
   cursorTrail.dataset.petInstance = instanceId;
@@ -759,6 +759,7 @@ function mountMousePet() {
   });
   document.body.appendChild(cursorTrail);
   const navigator = createTrophyNavigator();
+  navigator.hidden = cursorMode === 'trophy';
   Object.assign(navigator.style, { top: '0px', left: '0px' });
   document.body.appendChild(navigator);
 
@@ -829,7 +830,7 @@ function mountMousePet() {
 
   const petQuery = new URLSearchParams(window.location.search);
   const petModel = window.__fitnessLedgerPetModel || petQuery.get('petModel') || 'lowpoly-static';
-  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v70' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v70';
+  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v71' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v71';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
@@ -929,7 +930,10 @@ function mountMousePet() {
       const targetY = index === 0 ? pointer.y : cursorTrailPoints[index - 1].y;
       point.x += (targetX - point.x) * (1 - point.lag);
       point.y += (targetY - point.y) * (1 - point.lag);
-      cursorDots[index].style.transform = `translate3d(${Math.round(point.x)}px, ${Math.round(point.y)}px, 0)`;
+      const trophyMotion = cursorMode === 'trophy' && index === 0
+        ? ` rotateZ(${clamp((targetX - point.x) * 0.16, -12, 12).toFixed(2)}deg) translateY(${(Math.sin(time / 220) * 1.8).toFixed(2)}px) scale(${(0.96 + Math.sin(time / 280) * 0.035).toFixed(3)})`
+        : '';
+      cursorDots[index].style.transform = `translate3d(${Math.round(point.x)}px, ${Math.round(point.y)}px, 0)${trophyMotion}`;
     });
     const pointerX = (pointer.x / Math.max(window.innerWidth, 1)) * 2 - 1;
     const pointerY = -((pointer.y / Math.max(window.innerHeight, 1)) * 2 - 1);
@@ -1092,6 +1096,16 @@ export function mountGlobalArchivePet() { return syncGlobalArchivePet() || (() =
 
 window.addEventListener('hashchange', syncGlobalArchivePet);
 window.addEventListener('fitness-ledger-pet:route-change', syncGlobalArchivePet);
+let archivePetMutationScheduled = false;
+const archivePetDomObserver = typeof MutationObserver === 'function' && document.body ? new MutationObserver(() => {
+  if (archivePetMutationScheduled) return;
+  archivePetMutationScheduled = true;
+  queueMicrotask(() => {
+    archivePetMutationScheduled = false;
+    syncGlobalArchivePet();
+  });
+}) : null;
+archivePetDomObserver?.observe(document.body, { childList: true });
 
 function setPanelValues(card, values, immediate = false) {
   const factor = immediate ? 1 : 0.16;
