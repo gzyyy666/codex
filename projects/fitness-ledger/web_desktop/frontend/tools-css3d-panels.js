@@ -146,7 +146,7 @@ function mountPetMenu(body, { onPose } = {}) {
   document.addEventListener('pointerdown', onDocumentPointerDown, { passive: true });
   document.addEventListener('keydown', onDocumentKeyDown);
 
-  return () => {
+  const cleanup = () => {
     body.removeEventListener('contextmenu', onBodyContextMenu);
     body.removeEventListener('keydown', onBodyKeyDown);
     menu.removeEventListener('click', onMenuClick);
@@ -155,6 +155,7 @@ function mountPetMenu(body, { onPose } = {}) {
     document.removeEventListener('keydown', onDocumentKeyDown);
     menu.remove();
   };
+  return cleanup;
 }
 
 function mountLegacyMousePet() {
@@ -338,7 +339,6 @@ function mountLegacyMousePet() {
     body.removeEventListener('keydown', onPetKeyDown);
     guardianPet?.dispose();
     if (window.__fitnessLedgerGuardianPet === guardianPet) window.__fitnessLedgerGuardianPet = null;
-    if (window.__fitnessLedgerArchivePetCleanup === cleanup) window.__fitnessLedgerArchivePetCleanup = null;
     cleanupMenu();
     body.remove();
   };
@@ -835,7 +835,7 @@ function mountMousePet() {
     guardianPet?.setPointer({ x: pointerX, y: pointerY, energy: 0 });
     guardianPet?.setFollowTarget?.({
       x: clamp((pointer.x - centerX) / Math.max(window.innerWidth * 0.5, width * 1.6), -1, 1),
-      y: clamp((pointer.y - centerY) / Math.max(window.innerHeight / 1.8, height * 1.6), -1, 1)
+      y: -clamp((pointer.y - centerY) / Math.max(window.innerHeight / 1.8, height * 1.6), -1, 1)
     });
     followFrame = requestAnimationFrame(updatePointerFollow);
   };
@@ -892,7 +892,7 @@ function mountMousePet() {
   window.addEventListener('resize', onResize);
   followFrame = requestAnimationFrame(updatePointerFollow);
 
-  return () => {
+  const cleanup = () => {
     if (disposed) return;
     disposed = true;
     window.removeEventListener('fitness-ledger-pet:route-change', onRouteChange);
@@ -914,28 +914,27 @@ function mountMousePet() {
     presentationSurface.cleanup();
     guardianPet?.dispose();
     if (window.__fitnessLedgerGuardianPet === guardianPet) window.__fitnessLedgerGuardianPet = null;
+    if (window.__fitnessLedgerArchivePetCleanup === cleanup) window.__fitnessLedgerArchivePetCleanup = null;
     body.remove();
   };
+  return cleanup;
 }
 
-export function mountGlobalArchivePet() {
+const syncGlobalArchivePet = () => {
   if (isGuardianRoute()) {
     window.__fitnessLedgerArchivePetCleanup?.();
-    return () => {};
+    return null;
   }
   if (typeof window.__fitnessLedgerArchivePetCleanup !== 'function') {
     window.__fitnessLedgerArchivePetCleanup = mountMousePet();
   }
   return window.__fitnessLedgerArchivePetCleanup;
-}
+};
 
-window.addEventListener('hashchange', () => {
-  if (isGuardianRoute()) {
-    window.__fitnessLedgerArchivePetCleanup?.();
-    return;
-  }
-  mountGlobalArchivePet();
-});
+export function mountGlobalArchivePet() { return syncGlobalArchivePet() || (() => {}); }
+
+window.addEventListener('hashchange', syncGlobalArchivePet);
+window.addEventListener('fitness-ledger-pet:route-change', syncGlobalArchivePet);
 
 function setPanelValues(card, values, immediate = false) {
   const factor = immediate ? 1 : 0.16;

@@ -84,12 +84,15 @@ def test_shader_and_wiring_contract() -> None:
         assert marker in tools
     assert "const isGuardianRoute" in tools
     assert "window.addEventListener('hashchange'" in tools
+    assert "window.addEventListener('fitness-ledger-pet:route-change'" in tools
     assert "navigatorTiltX" in tools and "navigatorTiltY" in tools
     assert "Math.max(window.innerHeight / 1.8" in tools
+    assert "y: -clamp((pointer.y - centerY)" in tools
     assert "const stationary" not in tools
     for marker in ("training-save", "movement-focus", "analysis-result", "needs-review", "sync-result"):
         assert marker in app
     assert ".guardian-pet-hotspots" in css and "prefers-reduced-motion:reduce" in css
+    assert '.tools-pet-navigator{display:block;width:58px;height:84px}' in css
 
 
 def test_personal_record_semantics() -> None:
