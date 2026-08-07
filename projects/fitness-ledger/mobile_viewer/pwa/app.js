@@ -1,5 +1,5 @@
-import { apiDescription, call, signIn } from "./api.js?v=20260807-01";
-import { findLastCandidate } from "./candidateMatcher.js?v=20260807-01";
+import { apiDescription, call, signIn } from "./api.js?v=20260807-02";
+import { findLastCandidate } from "./candidateMatcher.js?v=20260807-02";
 
 const BODY_PARTS = [
   { id: "shoulders", cn: "肩", en: "SHOULDERS", tone: "amber" },
@@ -10,7 +10,7 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.0.0 · build 2026.08.07.01";
+const BUILD_VERSION = "PWA v1.0.0 · build 2026.08.07.02";
 const app = document.querySelector("#app");
 const state = {
   route: parseRoute(), loading: true, error: "", status: null, identity: null,
@@ -451,7 +451,7 @@ window.addEventListener("resize", scheduleCandidateOverlayPosition, { passive: t
 window.visualViewport?.addEventListener("resize", scheduleCandidateOverlayPosition, { passive: true });
 window.visualViewport?.addEventListener("scroll", scheduleCandidateOverlayPosition, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260807-01", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260807-02", { updateViaCache: "none" }).catch(() => {});
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();
   event.preventDefault();

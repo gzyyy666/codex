@@ -39,7 +39,7 @@ button { color: inherit; cursor: pointer; }
   .notepad-actions { gap: 10px; flex-wrap: wrap; }
   .notepad-actions button, .notepad-head button { min-height: 32px; }
   .reference-page:has(.candidate-overlay:not(.collapsed)) .movement-list,
-  .reference-page:has(.candidate-overlay:not(.collapsed)) .session-list { margin-top: 95px; }
+  .reference-page:has(.candidate-overlay:not(.collapsed)) .session-list { margin-top: 115px; }
 }
 
 /* Sealed Mini Program parity: the PWA keeps the same local note flow,
@@ -136,13 +136,13 @@ button { color: inherit; cursor: pointer; }
   .compare-cell b { margin-top: 1.067vw; font-size: 2.933vw; }
   .movement-note, .session-note { margin-top: 2.4vw; font-size: 2.933vw; }
   .movement-action, .training-action, .slip-action, .diet-action { margin-top: 2.933vw; font-size: 2.933vw; }
-  .notepad-card { margin-bottom: 2.133vw; padding: 3.067vw; border-radius: 3.2vw; }
-  .notepad-card .eyebrow { font-size: 2.4vw; letter-spacing: .48vw; }
-  .notepad-card h2 { margin-top: .533vw; font-size: 4.533vw; line-height: 1.15; }
-  .notepad-card textarea { min-height: 22vw; margin-top: 1.6vw; padding: 1.333vw 0; font-size: 16px; line-height: 1.42; }
-  .notepad-actions { gap: 1.867vw; margin-top: 1.333vw; }
-  .notepad-actions button, .notepad-head button { min-height: 6.4vw; font-size: 2.4vw; }
-  .notepad-status { min-height: 0; margin-top: 1.067vw; font-size: 2.133vw; }
+  .notepad-card { margin-bottom: 1.6vw; padding: 2.667vw; border-radius: 3.2vw; }
+  .notepad-card .eyebrow { font-size: 2.133vw; letter-spacing: .4vw; }
+  .notepad-card h2 { margin-top: 0; font-size: 4vw; line-height: 1.12; }
+  .notepad-card textarea { min-height: 18.5vw; margin-top: 1.067vw; padding: 1.067vw 0; font-size: 16px; line-height: 1.35; }
+  .notepad-actions { width: fit-content; max-width: 100%; gap: 1.333vw; margin-top: .8vw; align-items: center; }
+  .notepad-actions button, .notepad-head button { min-width: 0; min-height: 5.333vw; font-size: 2.133vw; line-height: 1.1; white-space: nowrap; }
+  .notepad-status { min-height: 0; margin-top: .533vw; font-size: 2vw; }
   .notepad-dock-bar { padding: 2.133vw 2.667vw; font-size: 2.667vw; }
   .notepad-dock-bar span { font-size: 2.667vw; letter-spacing: .227vw; }
   .notepad-dock-bar b, .notepad-dock-bar strong { font-size: 2.667vw; }
