@@ -1,7 +1,7 @@
 import * as THREE from './three.module.min.js?v=20260807-v63';
 import { GLTFLoader } from './GLTFLoader.js?v=20260807-v63';
 import { OrbitControls } from './OrbitControls.js?v=20260807-v63';
-import { degreesToRadians, patchGuardianMaterial } from './guardian-shader-deformation.js?v=20260807-v63';
+import { degreesToRadians, patchGuardianMaterial } from './guardian-shader-deformation.js?v=20260807-v64';
 import { createGuardianPresentationManager } from './guardian-presentation-manager.js?v=20260807-v63';
 
 const POSE_ORDER = Object.freeze([

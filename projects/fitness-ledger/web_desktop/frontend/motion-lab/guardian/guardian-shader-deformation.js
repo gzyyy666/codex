@@ -51,8 +51,10 @@ vec3 guardianTransformPosition(vec3 inputPosition) {
   p = mix(p, guardianRotY(p - neckPivot, uGuardianHeadYaw) + neckPivot, headMask);
   p = mix(p, guardianRotX(p - neckPivot, uGuardianHeadPitch) + neckPivot, headMask);
 
-  float breath = sin(uGuardianTime * 1.15) * 0.0010 * rig;
+  float breathWave = sin(uGuardianTime * 0.96);
+  float breath = breathWave * 0.0042 * rig;
   p.z += upperMask * (breath + 0.0015 * uGuardianTension * rig);
+  p.y += upperMask * breathWave * 0.0016 * rig;
   return p;
 }
 

@@ -70,6 +70,7 @@ def test_shader_and_wiring_contract() -> None:
     ]
     positions = [shader.index(marker) for marker in ordered]
     assert positions == sorted(positions)
+    assert "float breathWave = sin(uGuardianTime * 0.96)" in shader and "p.y += upperMask * breathWave" in shader
     renderer = (GUARDIAN / "pet-guardian-static.js").read_text(encoding="utf-8")
     assert renderer.count("new THREE.WebGLRenderer") == 1
     assert renderer.count("requestAnimationFrame(animate)") == 1
