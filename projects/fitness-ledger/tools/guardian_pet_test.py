@@ -97,6 +97,7 @@ def test_shader_and_wiring_contract() -> None:
     assert "Object.assign(navigator.style, { top: '0px', left: '0px' })" in tools
     assert "const removeArchivePetNodes" in tools
     assert "const archivePetRegistry" in tools and "const archivePetLease" in tools and "const disposeArchivePetInstances" in tools
+    assert "archivePetCrossTabKey" in tools and "claimArchivePetCrossTab" in tools and "onArchivePetCrossTabStorage" in tools
     assert "tools-pet-cursor-trail" in tools and "cursorTrailPoints" in tools
     assert "READ-ONLY · NO DATA WRITES" in acceptance
     assert "presentationForSemanticEvent" in acceptance

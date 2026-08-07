@@ -10,7 +10,7 @@
  * https://github.com/ArtBIT/mouse-follower
  */
 
-import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v69';
+import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v70';
 
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia?.('(pointer: coarse)').matches !== true;
@@ -56,6 +56,59 @@ const petPoseNavigation = {
 const petQuery = new URLSearchParams(window.location.search);
 const reviewPetMode = petQuery.has('guardianPet') || petQuery.get('petReview') === 'corner' || petQuery.get('petFollow') !== '1';
 const isGuardianRoute = () => (window.location.hash || '').replace(/^#/, '').split('?')[0] === 'guardian';
+const archivePetCrossTabKey = 'fitness-ledger.guardian-pet.owner.v1';
+const archivePetCrossTab = window.__fitnessLedgerArchivePetCrossTab && typeof window.__fitnessLedgerArchivePetCrossTab === 'object'
+  ? window.__fitnessLedgerArchivePetCrossTab
+  : (window.__fitnessLedgerArchivePetCrossTab = { id: `pet-tab-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`, owner: false, timer: null });
+const readArchivePetCrossTabOwner = () => {
+  try { return JSON.parse(localStorage.getItem(archivePetCrossTabKey) || 'null'); } catch { return null; }
+};
+const stopArchivePetCrossTabHeartbeat = () => {
+  if (archivePetCrossTab.timer !== null) clearInterval(archivePetCrossTab.timer);
+  archivePetCrossTab.timer = null;
+  archivePetCrossTab.owner = false;
+};
+const releaseArchivePetCrossTab = () => {
+  try {
+    if (readArchivePetCrossTabOwner()?.id === archivePetCrossTab.id) localStorage.removeItem(archivePetCrossTabKey);
+  } catch {}
+  stopArchivePetCrossTabHeartbeat();
+};
+const claimArchivePetCrossTab = () => {
+  const now = Date.now();
+  try {
+    const current = readArchivePetCrossTabOwner();
+    if (current?.id && current.id !== archivePetCrossTab.id && now - Number(current.ts || 0) < 2400) return false;
+    localStorage.setItem(archivePetCrossTabKey, JSON.stringify({ id: archivePetCrossTab.id, ts: now }));
+    if (readArchivePetCrossTabOwner()?.id !== archivePetCrossTab.id) return false;
+  } catch {
+    return true;
+  }
+  archivePetCrossTab.owner = true;
+  if (archivePetCrossTab.timer === null) {
+    archivePetCrossTab.timer = setInterval(() => {
+      if (!archivePetCrossTab.owner || isGuardianRoute()) return;
+      try { localStorage.setItem(archivePetCrossTabKey, JSON.stringify({ id: archivePetCrossTab.id, ts: Date.now() })); } catch {}
+    }, 700);
+  }
+  return true;
+};
+const onArchivePetCrossTabStorage = event => {
+  if (event.key !== archivePetCrossTabKey) return;
+  if (!event.newValue) {
+    window.setTimeout(() => { if (!isGuardianRoute()) syncGlobalArchivePet(); }, 0);
+    return;
+  }
+  try {
+    const next = JSON.parse(event.newValue);
+    if (next?.id && next.id !== archivePetCrossTab.id && Date.now() - Number(next.ts || 0) < 2400) {
+      stopArchivePetCrossTabHeartbeat();
+      disposeArchivePetInstances();
+    }
+  } catch {}
+};
+window.addEventListener('storage', onArchivePetCrossTabStorage);
+window.addEventListener('pagehide', releaseArchivePetCrossTab);
 
 function mountPetMenu(body, { onPose } = {}) {
   const menu = document.createElement('aside');
@@ -226,7 +279,7 @@ function mountLegacyMousePet() {
   document.body.appendChild(body);
   syncNavPetPosition();
   const petModel = window.__fitnessLedgerPetModel || new URLSearchParams(window.location.search).get('petModel') || 'lowpoly-static';
-  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v69' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v69';
+  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v70' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v70';
   const setPetPose = (pose, options) => {
     if (guardianPet) return guardianPet.setPose(pose, options);
     pendingPose = { pose, options };
@@ -776,7 +829,7 @@ function mountMousePet() {
 
   const petQuery = new URLSearchParams(window.location.search);
   const petModel = window.__fitnessLedgerPetModel || petQuery.get('petModel') || 'lowpoly-static';
-  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v69' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v69';
+  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v70' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v70';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
@@ -1011,6 +1064,12 @@ const syncGlobalArchivePet = () => {
   const navigatorCount = document.querySelectorAll('.tools-pet-navigator').length;
   const legacyPetCount = document.querySelectorAll('.tools-pet-nav').length;
   if (isGuardianRoute()) {
+    releaseArchivePetCrossTab();
+    disposeArchivePetInstances();
+    return null;
+  }
+  if (!claimArchivePetCrossTab()) {
+    stopArchivePetCrossTabHeartbeat();
     disposeArchivePetInstances();
     return null;
   }
