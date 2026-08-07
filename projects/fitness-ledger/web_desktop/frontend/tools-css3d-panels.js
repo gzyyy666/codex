@@ -10,7 +10,7 @@
  * https://github.com/ArtBIT/mouse-follower
  */
 
-import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v75';
+import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v76';
 
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia?.('(pointer: coarse)').matches !== true;
@@ -563,8 +563,8 @@ function mountMousePet() {
   presentationSurface.setRegions(window.__fitnessLedgerGuardianBodyRegions || []);
   document.body.appendChild(body);
   const cursorMode = window.__fitnessLedgerPetCursor || new URLSearchParams(window.location.search).get('petCursor') || 'trophy';
-  // Keep the callout silent until the user supplies a licensed recording. The future asset can be injected before mount or passed as ?championAudio=… .
-  const championAudioUrl = window.__fitnessLedgerChampionAudioUrl || new URLSearchParams(window.location.search).get('championAudio') || '';
+  // The supplied recording is the default; an injected URL or query parameter can replace it for review.
+  const championAudioUrl = window.__fitnessLedgerChampionAudioUrl || new URLSearchParams(window.location.search).get('championAudio') || new URL('./assets/tools-pet/champion-callout.m4a', import.meta.url).href;
   const championCalloutText = 'And... new Olympia champion!';
   let championAudio = null;
   let championHoldTimer = 0;
@@ -593,6 +593,7 @@ function mountMousePet() {
   const playChampionCallout = () => {
     if (championAudioUrl) {
       championAudio ||= new Audio(championAudioUrl);
+      championAudio.preload = 'auto';
       championAudio.currentTime = 0;
       championAudio.volume = 0.92;
       championAudio.play().catch(() => {});
@@ -684,7 +685,7 @@ function mountMousePet() {
   window.addEventListener('fitness-ledger-pet:body-regions', onBodyRegions);
 
   const petQuery = new URLSearchParams(window.location.search);
-  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v75';
+  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v76';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {

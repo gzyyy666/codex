@@ -89,6 +89,7 @@ def test_shader_and_wiring_contract() -> None:
     app = (ROOT / "web_desktop" / "frontend" / "app.js").read_text(encoding="utf-8")
     css = (ROOT / "web_desktop" / "frontend" / "final-pass.css").read_text(encoding="utf-8")
     trophy_asset = ROOT / "web_desktop" / "frontend" / "assets" / "tools-pet" / "trophy-champion-v2.png"
+    champion_audio = ROOT / "web_desktop" / "frontend" / "assets" / "tools-pet" / "champion-callout.m4a"
     for marker in ("fitness-ledger-pet:intent", "fitness-ledger-pet:body-regions", "presentationForSemanticEvent"):
         assert marker in tools
     assert "const isGuardianRoute" in tools
@@ -119,6 +120,7 @@ def test_shader_and_wiring_contract() -> None:
     assert "body.dataset.petStatus" in tools and "body.title" not in tools[tools.index("function mountMousePet"):tools.index("const removeArchivePetNodes")]
     assert "trophy-champion-v2.png" in tools
     assert trophy_asset.is_file() and trophy_asset.stat().st_size > 100_000
+    assert champion_audio.is_file() and champion_audio.stat().st_size > 1_000
     for marker in ("training-save", "movement-focus", "analysis-result", "needs-review", "sync-result"):
         assert marker in app
     assert ".guardian-pet-hotspots" in css and "prefers-reduced-motion:reduce" in css
