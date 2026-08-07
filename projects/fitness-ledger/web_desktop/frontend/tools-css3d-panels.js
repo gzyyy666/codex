@@ -563,6 +563,7 @@ function mountMousePet() {
   presentationSurface.setRegions(window.__fitnessLedgerGuardianBodyRegions || []);
   document.body.appendChild(body);
   const cursorMode = window.__fitnessLedgerPetCursor || new URLSearchParams(window.location.search).get('petCursor') || 'trophy';
+  // Keep the callout silent until the user supplies a licensed recording. The future asset can be injected before mount or passed as ?championAudio=… .
   const championAudioUrl = window.__fitnessLedgerChampionAudioUrl || new URLSearchParams(window.location.search).get('championAudio') || '';
   const championCalloutText = 'And... new Olympia champion!';
   let championAudio = null;
