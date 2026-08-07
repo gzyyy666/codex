@@ -117,6 +117,10 @@
       if (!controller) return;
       const request = requestFor(type, summary);
       if (!request) return;
+      // The production manager intentionally protects high-priority PR/milestone
+      // effects. The read-only lab clears the previous synthetic event so every
+      // button remains independently demonstrable.
+      await controller.clearIntent('acceptance-next');
       await controller.setIntent({ ...request, dedupeKey: undefined });
       log(`${label} → ${request.kind} / ${request.poseId}`);
     };
