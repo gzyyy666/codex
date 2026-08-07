@@ -10,7 +10,7 @@
  * https://github.com/ArtBIT/mouse-follower
  */
 
-import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v89';
+import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v90';
 
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia?.('(pointer: coarse)').matches !== true;
@@ -565,22 +565,26 @@ function mountMousePet() {
   const cursorMode = window.__fitnessLedgerPetCursor || new URLSearchParams(window.location.search).get('petCursor') || 'trophy';
   // The supplied recording is the default; an injected URL or query parameter can replace it for review.
   const championAudioOverride = window.__fitnessLedgerChampionAudioUrl || new URLSearchParams(window.location.search).get('championAudio');
-  const championAudioUrl = championAudioOverride || new URL('./assets/tools-pet/champion-callout.m4a?rev=20260807-v89', import.meta.url).href;
+  const championAudioUrl = championAudioOverride || new URL('./assets/tools-pet/champion-callout-trimmed.m4a?rev=20260807-v90', import.meta.url).href;
   const championCalloutText = 'And... new Olympia champion!';
-  // Use the supplied recording directly: seek only to the original elongated
-  // “And” onset, then confirm the hold at the 1.2s “new” cue.
-  const championAudioLeadTrimSeconds = Math.max(0, Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 3.1);
-  const championEffectDelayMs = Math.max(240, Number(window.__FitnessLedgerChampionEffectDelayMs) || 1200);
+  // The asset is the supplied recording with its first ~1.5s removed without
+  // re-encoding. “And” begins at 0s; the original ~3.9s “new” cue is now ~2.36s.
+  // The recording's currentTime—not a wall-clock timeout—drives the effect.
+  const championAudioLeadTrimSeconds = Math.max(0, Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 0);
+  const championNewCueSeconds = Math.max(0.1, Number(window.__FitnessLedgerChampionNewCueSeconds) || 2.36);
+  const championAndPlaybackRate = Math.min(1, Math.max(0.78, Number(window.__FitnessLedgerChampionAndPlaybackRate) || 1));
   const championNewPlaybackRate = Math.min(1, Math.max(0.78, Number(window.__FitnessLedgerChampionNewPlaybackRate) || 0.86));
   const championDisplayPose = 'crab_hands_apart';
   let championAudio = null;
-  let championHoldTimer = 0;
+  let championCueFrame = 0;
   let championEffectTimer = 0;
   let championDisplayFrame = 0;
   let championSequenceActive = false;
   if (championAudioUrl) {
     championAudio = new Audio(championAudioUrl);
     championAudio.preload = 'auto';
+    championAudio.preservesPitch = true;
+    if ('webkitPreservesPitch' in championAudio) championAudio.webkitPreservesPitch = true;
     championAudio.load();
   }
   const cursorTrail = document.createElement('div');
@@ -599,16 +603,16 @@ function mountMousePet() {
   Object.assign(navigator.style, { top: '0px', left: '0px' });
   document.body.appendChild(navigator);
 
-  const clearChampionHoldTimer = () => {
-    if (!championHoldTimer) return;
-    window.clearTimeout(championHoldTimer);
-    championHoldTimer = 0;
+  const clearChampionCueWatch = () => {
+    if (!championCueFrame) return;
+    window.cancelAnimationFrame(championCueFrame);
+    championCueFrame = 0;
   };
   const stopChampionAudio = () => {
     if (!championAudio) return;
     championAudio.pause();
     championAudio.playbackRate = 1;
-    championAudio.currentTime = 0;
+    if (championAudio.readyState >= 1) championAudio.currentTime = championAudioLeadTrimSeconds;
     body.dataset.championAudioState = 'idle';
   };
   const startChampionDisplay = () => {
@@ -655,26 +659,50 @@ function mountMousePet() {
     };
     championDisplayFrame = window.requestAnimationFrame(sweep);
   };
+  const watchChampionNewCue = () => {
+    clearChampionCueWatch();
+    const watch = () => {
+      if (disposed || !drag || drag.moved || drag.rotate || drag.holdTriggered) {
+        championCueFrame = 0;
+        return;
+      }
+      if (championAudio && championAudio.currentTime >= championNewCueSeconds) {
+        championCueFrame = 0;
+        triggerChampionHold();
+        return;
+      }
+      championCueFrame = window.requestAnimationFrame(watch);
+    };
+    championCueFrame = window.requestAnimationFrame(watch);
+  };
   const playChampionCallout = () => {
     if (championAudioUrl) {
       championAudio ||= new Audio(championAudioUrl);
       championAudio.preload = 'auto';
       championAudio.volume = 1;
+      championAudio.pause();
       championAudio.currentTime = championAudioLeadTrimSeconds;
+      championAudio.playbackRate = championAndPlaybackRate;
+      championAudio.preservesPitch = true;
+      if ('webkitPreservesPitch' in championAudio) championAudio.webkitPreservesPitch = true;
       body.dataset.championAudioTrim = `${championAudioLeadTrimSeconds}s`;
+      body.dataset.championAudioCue = `${championNewCueSeconds}s`;
+      body.dataset.championAudioRate = String(championAndPlaybackRate);
       body.dataset.championAudioState = 'play-requested';
       championAudio.play().then(() => {
         body.dataset.championAudioState = 'playing';
       }).catch(() => {
         body.dataset.championAudioState = 'play-blocked';
       });
-      body.dataset.championAudio = 'original-asset';
+      watchChampionNewCue();
+      body.dataset.championAudio = 'original-trimmed-asset';
       return;
     }
     body.dataset.championAudio = 'silent-awaiting-audio-asset';
   };
   const triggerChampionHold = () => {
     if (disposed || !drag || drag.moved || drag.rotate || drag.holdTriggered) return;
+    clearChampionCueWatch();
     drag.holdTriggered = true;
     championSequenceActive = true;
     body.classList.add('is-champion-sequence');
@@ -763,7 +791,7 @@ function mountMousePet() {
   window.addEventListener('fitness-ledger-pet:body-regions', onBodyRegions);
 
   const petQuery = new URLSearchParams(window.location.search);
-  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v89';
+  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v90';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
@@ -891,13 +919,9 @@ function mountMousePet() {
     const rect = body.getBoundingClientRect();
     const rotate = event.altKey;
     drag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: rect.left, originY: rect.top, moved: false, holdTriggered: false, rotate, startRotation: { ...viewRotation } };
-    clearChampionHoldTimer();
+    clearChampionCueWatch();
     if (!rotate) {
       playChampionCallout();
-      championHoldTimer = window.setTimeout(() => {
-        championHoldTimer = 0;
-        triggerChampionHold();
-      }, championEffectDelayMs);
     }
     body.setPointerCapture?.(event.pointerId);
     body.classList.toggle('is-rotating', rotate);
@@ -912,7 +936,7 @@ function mountMousePet() {
     const dx = event.clientX - drag.startX;
     const dy = event.clientY - drag.startY;
     if (!drag.moved && Math.hypot(dx, dy) < 6) return;
-    clearChampionHoldTimer();
+    clearChampionCueWatch();
     if (!drag.holdTriggered) stopChampionAudio();
     drag.moved = true;
     if (drag.rotate) {
@@ -929,13 +953,13 @@ function mountMousePet() {
     if (!drag || drag.pointerId !== event.pointerId) return;
     if (championSequenceActive) {
       event.preventDefault();
-      clearChampionHoldTimer();
+      clearChampionCueWatch();
       body.releasePointerCapture?.(event.pointerId);
       body.classList.remove('is-dragging', 'is-rotating');
       drag = null;
       return;
     }
-    clearChampionHoldTimer();
+    clearChampionCueWatch();
     if (!drag.holdTriggered) stopChampionAudio();
     if (drag.moved && !drag.rotate) {
       const rect = body.getBoundingClientRect();
@@ -979,7 +1003,7 @@ function mountMousePet() {
     body.removeEventListener('dblclick', onDoubleClick);
     window.removeEventListener('pointermove', onPagePointerMove);
     cancelAnimationFrame(followFrame);
-    clearChampionHoldTimer();
+    clearChampionCueWatch();
     window.clearTimeout(championEffectTimer);
     window.cancelAnimationFrame(championDisplayFrame);
     stopChampionAudio();
