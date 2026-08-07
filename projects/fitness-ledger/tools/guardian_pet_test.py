@@ -70,7 +70,9 @@ def test_shader_and_wiring_contract() -> None:
     ]
     positions = [shader.index(marker) for marker in ordered]
     assert positions == sorted(positions)
-    assert "float breathWave = sin(uGuardianTime * 0.96)" in shader and "p.y += upperMask * breathWave" in shader
+    assert "uGuardianBreath" in shader
+    assert "float breathMask" in shader and "chestExpansion" in shader
+    assert "p.y += breathMask * breathWave" in shader
     renderer = (GUARDIAN / "pet-guardian-static.js").read_text(encoding="utf-8")
     assert renderer.count("new THREE.WebGLRenderer") == 1
     assert renderer.count("requestAnimationFrame(animate)") == 1
@@ -78,6 +80,7 @@ def test_shader_and_wiring_contract() -> None:
     assert "activeRecord.group.rotation.x" not in renderer
     assert "uGuardianBaseYaw" not in renderer
     assert "const presentationScale = petMode ? 1.06 : 1" in renderer
+    assert "const breathLevel = state.reducedMotion ? 0 : clamp(1 - pointerLoad * 0.18, 0.72, 1)" in renderer
     assert "state.targetZoom = Math.min(Number(preset.zoom) || 1, 1.02)" in renderer
     assert "Math.max(Number(preset.camera?.[2]) || 2.18, 2.45)" in renderer
     assert "guardianControllerRegistry" in renderer and "record.group.visible = false" in renderer

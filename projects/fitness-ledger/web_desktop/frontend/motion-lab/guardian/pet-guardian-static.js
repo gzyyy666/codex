@@ -1,7 +1,7 @@
 import * as THREE from './three.module.min.js?v=20260807-v63';
 import { GLTFLoader } from './GLTFLoader.js?v=20260807-v63';
 import { OrbitControls } from './OrbitControls.js?v=20260807-v63';
-import { degreesToRadians, patchGuardianMaterial } from './guardian-shader-deformation.js?v=20260807-v64';
+import { degreesToRadians, patchGuardianMaterial } from './guardian-shader-deformation.js?v=20260807-v65';
 import { createGuardianPresentationManager } from './guardian-presentation-manager.js?v=20260807-v63';
 
 const POSE_ORDER = Object.freeze([
@@ -437,6 +437,8 @@ export function mountGuardianPet(canvas, options = {}) {
     const headYaw = degreesToRadians(state.aimX * state.response * cfg.headYaw * motionScale);
     const upperPitch = degreesToRadians(-state.aimY * state.response * cfg.upperPitch * motionScale);
     const headPitch = degreesToRadians(-state.aimY * state.response * cfg.headPitch * motionScale);
+    const pointerLoad = Math.min(1, Math.hypot(state.aimX, state.aimY));
+    const breathLevel = state.reducedMotion ? 0 : clamp(1 - pointerLoad * 0.18, 0.72, 1);
 
     const transition = activeRecord.transitionAt ? clamp((now - activeRecord.transitionAt) / 220, 0, 1) : 1;
     const eased = 1 - Math.pow(1 - transition, 3);
@@ -452,6 +454,7 @@ export function mountGuardianPet(canvas, options = {}) {
         upperPitch,
         headPitch,
         timeSeconds: state.reducedMotion ? 0 : now / 1000,
+        breath: breathLevel,
         tension: state.reducedMotion ? 0.12 : 0.62,
         rigNorm: cfg.rigNorm
       });

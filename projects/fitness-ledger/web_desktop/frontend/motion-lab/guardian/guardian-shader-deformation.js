@@ -8,6 +8,7 @@ export function createGuardianUniforms() {
     uGuardianUpperPitch: { value: 0 },
     uGuardianHeadPitch: { value: 0 },
     uGuardianTime: { value: 0 },
+    uGuardianBreath: { value: 1 },
     uGuardianTension: { value: 0.62 },
     uGuardianRigNorm: { value: 1 }
   };
@@ -20,6 +21,7 @@ uniform float uGuardianHeadYaw;
 uniform float uGuardianUpperPitch;
 uniform float uGuardianHeadPitch;
 uniform float uGuardianTime;
+uniform float uGuardianBreath;
 uniform float uGuardianTension;
 uniform float uGuardianRigNorm;
 
@@ -51,10 +53,13 @@ vec3 guardianTransformPosition(vec3 inputPosition) {
   p = mix(p, guardianRotY(p - neckPivot, uGuardianHeadYaw) + neckPivot, headMask);
   p = mix(p, guardianRotX(p - neckPivot, uGuardianHeadPitch) + neckPivot, headMask);
 
-  float breathWave = sin(uGuardianTime * 0.96);
-  float breath = breathWave * 0.0042 * rig;
-  p.z += upperMask * (breath + 0.0015 * uGuardianTension * rig);
-  p.y += upperMask * breathWave * 0.0016 * rig;
+  float breathWave = sin(uGuardianTime * 0.96) * max(uGuardianBreath, 0.0);
+  float breathMask = smoothstep(0.38, 0.52, pn.y) * (1.0 - smoothstep(0.82, 0.98, pn.y));
+  vec3 chestPivot = vec3(0.0, 0.50 * rig, 0.0);
+  float chestExpansion = 1.0 + breathWave * 0.008;
+  p.xz = mix(p.xz, chestPivot.xz + (p.xz - chestPivot.xz) * chestExpansion, breathMask);
+  p.z += breathMask * (breathWave * 0.009 * rig + 0.0015 * uGuardianTension * rig);
+  p.y += breathMask * breathWave * 0.0032 * rig;
   return p;
 }
 
@@ -121,6 +126,7 @@ export function patchGuardianMaterial(material, uniforms = createGuardianUniform
       if (Number.isFinite(values.upperPitch)) uniforms.uGuardianUpperPitch.value = values.upperPitch;
       if (Number.isFinite(values.headPitch)) uniforms.uGuardianHeadPitch.value = values.headPitch;
       if (Number.isFinite(values.timeSeconds)) uniforms.uGuardianTime.value = values.timeSeconds;
+      if (Number.isFinite(values.breath)) uniforms.uGuardianBreath.value = Math.max(values.breath, 0);
       if (Number.isFinite(values.tension)) uniforms.uGuardianTension.value = values.tension;
       if (Number.isFinite(values.rigNorm)) uniforms.uGuardianRigNorm.value = Math.max(values.rigNorm, 0.0001);
     },
