@@ -112,8 +112,8 @@ def test_shader_and_wiring_contract() -> None:
     assert "const championDisplayPose = 'crab_hands_apart'" in tools
     assert "championAudioGain.gain.value = 2.2" in tools and "championAudio.currentTime = championAudioLeadTrimSeconds" in tools
     assert "Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 0" in tools
-    assert "Number(window.__FitnessLedgerChampionEffectDelayMs) || 850" in tools
-    assert "loadedmetadata" in tools and "championAudioTrim" in tools
+    assert "Number(window.__FitnessLedgerChampionEffectDelayMs) || 1200" in tools
+    assert "loadedmetadata" in tools and "championAudioTrim" in tools and "championAudioState" in tools
     assert "startChampionDisplay" in tools and "left-to-right-sweep" in tools
     assert "const duration = 5600" in tools and "const phase = progress < 0.5" in tools
     assert "championSequenceActive" in tools and "is-champion-sequence" in tools

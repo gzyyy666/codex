@@ -10,7 +10,7 @@
  * https://github.com/ArtBIT/mouse-follower
  */
 
-import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v85';
+import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v86';
 
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia?.('(pointer: coarse)').matches !== true;
@@ -565,12 +565,12 @@ function mountMousePet() {
   const cursorMode = window.__fitnessLedgerPetCursor || new URLSearchParams(window.location.search).get('petCursor') || 'trophy';
   // The supplied recording is the default; an injected URL or query parameter can replace it for review.
   const championAudioOverride = window.__fitnessLedgerChampionAudioUrl || new URLSearchParams(window.location.search).get('championAudio');
-  const championAudioUrl = championAudioOverride || new URL('./assets/tools-pet/champion-callout-clean.m4a?rev=20260807-v85', import.meta.url).href;
+  const championAudioUrl = championAudioOverride || new URL('./assets/tools-pet/champion-callout-clean.m4a?rev=20260807-v86', import.meta.url).href;
   const championCalloutText = 'And... new Olympia champion!';
   // The default asset preserves the full elongated “And” lead-in. The cue is
   // aligned to the start of “new Olympia champion”, after the hold is confirmed.
   const championAudioLeadTrimSeconds = Math.max(0, Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 0);
-  const championEffectDelayMs = Math.max(240, Number(window.__FitnessLedgerChampionEffectDelayMs) || 850);
+  const championEffectDelayMs = Math.max(240, Number(window.__FitnessLedgerChampionEffectDelayMs) || 1200);
   const championDisplayPose = 'crab_hands_apart';
   let championAudio = null;
   let championAudioContext = null;
@@ -669,16 +669,20 @@ function mountMousePet() {
         }
         championAudioContext?.resume?.();
       } catch {}
-      const playFromCue = () => {
-        championAudioMetadataHandler = null;
-        championAudio.currentTime = championAudioLeadTrimSeconds;
+      const seekChampionAudio = () => {
+        try { championAudio.currentTime = championAudioLeadTrimSeconds; } catch {}
         body.dataset.championAudioTrim = `${championAudioLeadTrimSeconds}s`;
-        championAudio.play().catch(() => {});
       };
-      if (championAudio.readyState >= 1) {
-        playFromCue();
-      } else {
-        championAudioMetadataHandler = playFromCue;
+      seekChampionAudio();
+      const playResult = championAudio.play();
+      body.dataset.championAudioState = 'play-requested';
+      playResult?.then?.(() => { body.dataset.championAudioState = 'playing'; })
+        .catch?.(() => { body.dataset.championAudioState = 'play-blocked'; });
+      if (championAudio.readyState < 1) {
+        championAudioMetadataHandler = () => {
+          championAudioMetadataHandler = null;
+          if (championAudio.currentTime < championAudioLeadTrimSeconds - 0.05) seekChampionAudio();
+        };
         championAudio.addEventListener('loadedmetadata', championAudioMetadataHandler, { once: true });
         championAudio.load();
       }
@@ -786,7 +790,7 @@ function mountMousePet() {
   window.addEventListener('fitness-ledger-pet:body-regions', onBodyRegions);
 
   const petQuery = new URLSearchParams(window.location.search);
-  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v85';
+  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v86';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
