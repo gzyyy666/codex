@@ -157,6 +157,7 @@ def test_shader_and_wiring_contract() -> None:
     assert '.guardian-pet-hotspot[data-region="legs"]{left:58%;top:62%}' in css
     assert 'data-effect="champion_hold"' in css and '.tools-pet-floating.is-champion-hold' in css
     assert '.tools-pet-floating.is-champion-charging' in css and '.is-champion-locked .dot-1' in css
+    assert 'height:calc(10% + 78% * var(--champion-charge-progress,0))' in css and 'conic-gradient' not in css
     assert '.tools-pet-cursor-trail{position:fixed;z-index:1000002' in css
     assert '.tools-pet-floating.is-champion-display' in css
     assert '.tools-pet-floating.is-champion-sequence' in css
