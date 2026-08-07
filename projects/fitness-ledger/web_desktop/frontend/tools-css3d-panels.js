@@ -10,7 +10,7 @@
  * https://github.com/ArtBIT/mouse-follower
  */
 
-import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v68';
+import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v69';
 
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia?.('(pointer: coarse)').matches !== true;
@@ -226,7 +226,7 @@ function mountLegacyMousePet() {
   document.body.appendChild(body);
   syncNavPetPosition();
   const petModel = window.__fitnessLedgerPetModel || new URLSearchParams(window.location.search).get('petModel') || 'lowpoly-static';
-  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v68' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v68';
+  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v69' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v69';
   const setPetPose = (pose, options) => {
     if (guardianPet) return guardianPet.setPose(pose, options);
     pendingPose = { pose, options };
@@ -351,6 +351,9 @@ const archivePetRegistry = window.__fitnessLedgerArchivePetRegistry instanceof M
 const archivePetControllers = window.__fitnessLedgerArchivePetControllers instanceof Set
   ? window.__fitnessLedgerArchivePetControllers
   : (window.__fitnessLedgerArchivePetControllers = new Set());
+const archivePetLease = window.__fitnessLedgerArchivePetLease && typeof window.__fitnessLedgerArchivePetLease === 'object'
+  ? window.__fitnessLedgerArchivePetLease
+  : (window.__fitnessLedgerArchivePetLease = { id: null, cleanup: null, controller: null });
 let archivePetSequence = Number(window.__fitnessLedgerArchivePetSequence) || 0;
 const nextArchivePetId = () => {
   archivePetSequence += 1;
@@ -690,6 +693,18 @@ function mountMousePet() {
   const presentationSurface = createGuardianPresentationSurface(body);
   presentationSurface.setRegions(window.__fitnessLedgerGuardianBodyRegions || []);
   document.body.appendChild(body);
+  const cursorMode = window.__fitnessLedgerPetCursor || new URLSearchParams(window.location.search).get('petCursor') || 'trail';
+  const cursorTrail = document.createElement('div');
+  cursorTrail.className = `tools-pet-cursor-trail${cursorMode === 'trophy' ? ' is-trophy' : ''}`;
+  cursorTrail.dataset.petInstance = instanceId;
+  cursorTrail.setAttribute('aria-hidden', 'true');
+  const cursorDots = Array.from({ length: 9 }, (_, index) => {
+    const dot = document.createElement('i');
+    dot.className = `tools-pet-cursor-dot dot-${index + 1}`;
+    cursorTrail.appendChild(dot);
+    return dot;
+  });
+  document.body.appendChild(cursorTrail);
   const navigator = createTrophyNavigator();
   Object.assign(navigator.style, { top: '0px', left: '0px' });
   document.body.appendChild(navigator);
@@ -761,7 +776,7 @@ function mountMousePet() {
 
   const petQuery = new URLSearchParams(window.location.search);
   const petModel = window.__fitnessLedgerPetModel || petQuery.get('petModel') || 'lowpoly-static';
-  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v68' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v68';
+  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v69' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v69';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
@@ -788,6 +803,7 @@ function mountMousePet() {
     });
     instanceRecord.controller = guardianPet;
     archivePetControllers.add(guardianPet);
+    if (archivePetLease.id === instanceId) archivePetLease.controller = guardianPet;
     window.__fitnessLedgerGuardianPet = guardianPet;
     if (pendingPose) {
       const queuedPose = pendingPose;
@@ -833,6 +849,7 @@ function mountMousePet() {
     }
   };
   const pointer = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5 };
+  const cursorTrailPoints = cursorDots.map((_, index) => ({ x: pointer.x, y: pointer.y, lag: 0.18 + index * 0.045 }));
   const navigatorFollower = { x: pointer.x + 22, y: pointer.y + 22, tx: pointer.x + 22, ty: pointer.y + 22 };
   let followFrame = 0;
   const onPagePointerMove = event => {
@@ -854,6 +871,13 @@ function mountMousePet() {
     const navigatorTiltX = clamp((navigatorFollower.ty - navigatorFollower.y) * 0.09, -9, 9);
     const navigatorTiltY = clamp((navigatorFollower.tx - navigatorFollower.x) * -0.09, -9, 9);
     navigator.style.transform = `translate3d(${Math.round(navigatorFollower.x)}px, ${Math.round(navigatorFollower.y)}px, 0) perspective(720px) rotateX(${navigatorTiltX.toFixed(2)}deg) rotateY(${navigatorTiltY.toFixed(2)}deg) rotateZ(${navigatorTilt.toFixed(2)}deg)`;
+    cursorTrailPoints.forEach((point, index) => {
+      const targetX = index === 0 ? pointer.x : cursorTrailPoints[index - 1].x;
+      const targetY = index === 0 ? pointer.y : cursorTrailPoints[index - 1].y;
+      point.x += (targetX - point.x) * (1 - point.lag);
+      point.y += (targetY - point.y) * (1 - point.lag);
+      cursorDots[index].style.transform = `translate3d(${Math.round(point.x)}px, ${Math.round(point.y)}px, 0)`;
+    });
     const pointerX = (pointer.x / Math.max(window.innerWidth, 1)) * 2 - 1;
     const pointerY = -((pointer.y / Math.max(window.innerHeight, 1)) * 2 - 1);
     guardianPet?.setPointer({ x: pointerX, y: pointerY, energy: 0 });
@@ -935,24 +959,41 @@ function mountMousePet() {
     navigator.removeEventListener('click', onNavigatorClick);
     navigatorMenu();
     navigator.remove();
+    cursorTrail.remove();
+    if (document.documentElement.dataset.petCursorOwner === instanceId) {
+      delete document.documentElement.dataset.petCursor;
+      delete document.documentElement.dataset.petCursorOwner;
+    }
     presentationSurface.cleanup();
     guardianPet?.dispose();
     if (guardianPet) archivePetControllers.delete(guardianPet);
     if (window.__fitnessLedgerGuardianPet === guardianPet) window.__fitnessLedgerGuardianPet = null;
     if (window.__fitnessLedgerArchivePetCleanup === cleanup) window.__fitnessLedgerArchivePetCleanup = null;
     archivePetRegistry.delete(instanceId);
+    if (archivePetLease.id === instanceId) {
+      archivePetLease.id = null;
+      archivePetLease.cleanup = null;
+      archivePetLease.controller = null;
+    }
     body.remove();
   };
   instanceRecord.cleanup = cleanup;
+  if (archivePetLease.cleanup && archivePetLease.id !== instanceId) archivePetLease.cleanup();
+  archivePetLease.id = instanceId;
+  archivePetLease.cleanup = cleanup;
+  document.documentElement.dataset.petCursorOwner = instanceId;
+  document.documentElement.dataset.petCursor = cursorMode;
   return cleanup;
 }
 
 const removeArchivePetNodes = () => {
-  document.querySelectorAll('.tools-pet-floating, .tools-pet-navigator, .tools-pet-menu').forEach(node => node.remove());
+  document.querySelectorAll('.tools-pet-floating, .tools-pet-nav, .tools-pet-guardian, .tools-pet-navigator, .tools-pet-menu, .tools-pet-cursor-trail').forEach(node => node.remove());
 };
 
 const disposeArchivePetInstances = () => {
   const records = [...archivePetRegistry.values()];
+  const leaseCleanup = archivePetLease.cleanup;
+  if (typeof leaseCleanup === 'function' && !records.some(record => record.cleanup === leaseCleanup)) leaseCleanup();
   records.forEach(record => record.cleanup?.());
   [...archivePetControllers].forEach(controller => controller?.dispose?.());
   archivePetControllers.clear();
@@ -968,13 +1009,16 @@ const syncGlobalArchivePet = () => {
   const cleanup = window.__fitnessLedgerArchivePetCleanup;
   const floatingCount = document.querySelectorAll('.tools-pet-floating').length;
   const navigatorCount = document.querySelectorAll('.tools-pet-navigator').length;
+  const legacyPetCount = document.querySelectorAll('.tools-pet-nav').length;
   if (isGuardianRoute()) {
     disposeArchivePetInstances();
     return null;
   }
+  window.__fitnessLedgerGuardianPageCleanup?.();
   const hasSingleLiveInstance = archivePetRegistry.size === 1
     && floatingCount === 1
     && navigatorCount === 1
+    && legacyPetCount === 0
     && typeof cleanup === 'function';
   if (!hasSingleLiveInstance) {
     disposeArchivePetInstances();

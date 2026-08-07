@@ -96,7 +96,8 @@ def test_shader_and_wiring_contract() -> None:
     assert "const width = window.matchMedia?.('(max-width: 760px)').matches ? 208 : 256" in tools
     assert "Object.assign(navigator.style, { top: '0px', left: '0px' })" in tools
     assert "const removeArchivePetNodes" in tools
-    assert "const archivePetRegistry" in tools and "const disposeArchivePetInstances" in tools
+    assert "const archivePetRegistry" in tools and "const archivePetLease" in tools and "const disposeArchivePetInstances" in tools
+    assert "tools-pet-cursor-trail" in tools and "cursorTrailPoints" in tools
     assert "READ-ONLY · NO DATA WRITES" in acceptance
     assert "presentationForSemanticEvent" in acceptance
     assert "/api/save" not in acceptance
@@ -106,7 +107,7 @@ def test_shader_and_wiring_contract() -> None:
     for marker in ("training-save", "movement-focus", "analysis-result", "needs-review", "sync-result"):
         assert marker in app
     assert ".guardian-pet-hotspots" in css and "prefers-reduced-motion:reduce" in css
-    assert '.tools-pet-navigator{display:block;width:74px;height:98px}' in css
+    assert '.tools-pet-navigator{display:block;width:58px;height:78px}' in css
     assert '.tools-pet-navigator{position:fixed;top:0;left:0;' in css
     assert '.tools-pet-floating{width:256px!important;height:256px!important' in css
     assert '@media(max-width:760px){.tools-pet-floating{width:208px!important;height:208px!important}' in css
