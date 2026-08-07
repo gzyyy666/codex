@@ -106,6 +106,7 @@ def test_shader_and_wiring_contract() -> None:
     assert "archivePetCrossTabKey" in tools and "claimArchivePetCrossTab" in tools and "onArchivePetCrossTabStorage" in tools
     assert "tools-pet-cursor-trail" in tools and "cursorTrailPoints" in tools
     assert "championAudioUrl" in tools and "championCalloutText" in tools
+    assert "champion-callout.m4a" in tools
     assert "silent-awaiting-audio-asset" in tools and "browser-voice-fallback" not in tools
     assert "championHoldTimer" in tools and "holdTriggered" in tools and "triggerChampionHold" in tools
     assert "body.addEventListener('wheel', onPetWheel" in tools and "body.addEventListener('pointerdown', onPointerDown" in tools
