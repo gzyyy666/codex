@@ -112,13 +112,15 @@ def test_shader_and_wiring_contract() -> None:
     assert "const championDisplayPose = 'crab_hands_apart'" in tools
     assert "championAudioGain.gain.value = 2.2" in tools and "championAudio.currentTime = championAudioLeadTrimSeconds" in tools
     assert "Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 0" in tools
-    assert "Number(window.__FitnessLedgerChampionEffectDelayMs) || 520" in tools
+    assert "Number(window.__FitnessLedgerChampionEffectDelayMs) || 1200" in tools
     assert "loadedmetadata" in tools and "championAudioTrim" in tools
     assert "startChampionDisplay" in tools and "left-to-right-sweep" in tools
     assert "const duration = 5600" in tools and "const phase = progress < 0.5" in tools
     assert "championSequenceActive" in tools and "is-champion-sequence" in tools
     assert "silent-awaiting-audio-asset" in tools and "browser-voice-fallback" not in tools
     assert "championAudioCueFrame" in tools and "watchChampionAudioCue" in tools and "holdTriggered" in tools and "triggerChampionHold" in tools
+    trigger_block = tools[tools.index("const triggerChampionHold"):tools.index("const viewportMax")]
+    assert "stopChampionAudio" not in trigger_block
     assert "body.addEventListener('wheel', onPetWheel" in tools and "body.addEventListener('pointerdown', onPointerDown" in tools
     assert "MutationObserver" in tools and "cursorMode === 'trophy'" in tools
     assert "mountLegacyMousePet" not in tools
