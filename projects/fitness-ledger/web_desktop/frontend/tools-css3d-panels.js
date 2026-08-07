@@ -10,7 +10,7 @@
  * https://github.com/ArtBIT/mouse-follower
  */
 
-import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v87';
+import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v88';
 
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia?.('(pointer: coarse)').matches !== true;
@@ -565,18 +565,15 @@ function mountMousePet() {
   const cursorMode = window.__fitnessLedgerPetCursor || new URLSearchParams(window.location.search).get('petCursor') || 'trophy';
   // The supplied recording is the default; an injected URL or query parameter can replace it for review.
   const championAudioOverride = window.__fitnessLedgerChampionAudioUrl || new URLSearchParams(window.location.search).get('championAudio');
-  const championAudioUrl = championAudioOverride || new URL('./assets/tools-pet/champion-callout-clean.m4a?rev=20260807-v87', import.meta.url).href;
+  const championAudioUrl = championAudioOverride || new URL('./assets/tools-pet/champion-callout-final.m4a?rev=20260807-v88', import.meta.url).href;
   const championCalloutText = 'And... new Olympia champion!';
-  // The default asset preserves the full elongated “And” lead-in. The cue is
-  // aligned to the start of “new Olympia champion”, after the hold is confirmed.
+  // One deterministic timeline: audio starts at the elongated “And”, then the
+  // hold is confirmed at the 1.2s cue where the recording reaches “new”.
   const championAudioLeadTrimSeconds = Math.max(0, Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 0);
   const championEffectDelayMs = Math.max(240, Number(window.__FitnessLedgerChampionEffectDelayMs) || 1200);
   const championDisplayPose = 'crab_hands_apart';
   let championAudio = null;
-  let championAudioContext = null;
-  let championAudioGain = null;
-  let championAudioMetadataHandler = null;
-  let championAudioCueFrame = 0;
+  let championHoldTimer = 0;
   let championEffectTimer = 0;
   let championDisplayFrame = 0;
   let championSequenceActive = false;
@@ -601,20 +598,16 @@ function mountMousePet() {
   Object.assign(navigator.style, { top: '0px', left: '0px' });
   document.body.appendChild(navigator);
 
-  const clearChampionAudioCue = () => {
-    if (!championAudioCueFrame) return;
-    window.cancelAnimationFrame(championAudioCueFrame);
-    championAudioCueFrame = 0;
+  const clearChampionHoldTimer = () => {
+    if (!championHoldTimer) return;
+    window.clearTimeout(championHoldTimer);
+    championHoldTimer = 0;
   };
   const stopChampionAudio = () => {
     if (!championAudio) return;
-    clearChampionAudioCue();
-    if (championAudioMetadataHandler) {
-      championAudio.removeEventListener('loadedmetadata', championAudioMetadataHandler);
-      championAudioMetadataHandler = null;
-    }
     championAudio.pause();
     championAudio.currentTime = 0;
+    body.dataset.championAudioState = 'idle';
   };
   const startChampionDisplay = () => {
     if (disposed) return;
@@ -658,51 +651,18 @@ function mountMousePet() {
       championAudio ||= new Audio(championAudioUrl);
       championAudio.preload = 'auto';
       championAudio.volume = 1;
-      try {
-        const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
-        if (AudioContextCtor && !championAudioGain) {
-          championAudioContext = new AudioContextCtor();
-          const source = championAudioContext.createMediaElementSource(championAudio);
-          championAudioGain = championAudioContext.createGain();
-          championAudioGain.gain.value = 2.2;
-          source.connect(championAudioGain).connect(championAudioContext.destination);
-        }
-        championAudioContext?.resume?.();
-      } catch {}
-      const seekChampionAudio = () => {
-        try { championAudio.currentTime = championAudioLeadTrimSeconds; } catch {}
-        body.dataset.championAudioTrim = `${championAudioLeadTrimSeconds}s`;
-      };
-      if (championAudio.readyState < 1) {
-        championAudioMetadataHandler = () => {
-          championAudioMetadataHandler = null;
-          if (championAudio.currentTime < championAudioLeadTrimSeconds - 0.05) seekChampionAudio();
-        };
-        championAudio.addEventListener('loadedmetadata', championAudioMetadataHandler, { once: true });
-        championAudio.load();
-      }
-      seekChampionAudio();
-      const playResult = championAudio.play();
+      championAudio.currentTime = championAudioLeadTrimSeconds;
+      body.dataset.championAudioTrim = `${championAudioLeadTrimSeconds}s`;
       body.dataset.championAudioState = 'play-requested';
-      playResult?.then?.(() => { body.dataset.championAudioState = 'playing'; })
-        .catch?.(() => { body.dataset.championAudioState = 'play-blocked'; });
-      body.dataset.championAudio = 'external-asset';
+      championAudio.play().then(() => {
+        body.dataset.championAudioState = 'playing';
+      }).catch(() => {
+        body.dataset.championAudioState = 'play-blocked';
+      });
+      body.dataset.championAudio = 'final-asset';
       return;
     }
     body.dataset.championAudio = 'silent-awaiting-audio-asset';
-  };
-  const watchChampionAudioCue = () => {
-    if (disposed || !championAudio || !drag || drag.moved || drag.rotate || drag.holdTriggered) {
-      championAudioCueFrame = 0;
-      return;
-    }
-    const cueAt = championAudioLeadTrimSeconds + championEffectDelayMs / 1000;
-    if (championAudio.currentTime >= cueAt - 0.02) {
-      championAudioCueFrame = 0;
-      triggerChampionHold();
-      return;
-    }
-    championAudioCueFrame = window.requestAnimationFrame(watchChampionAudioCue);
   };
   const triggerChampionHold = () => {
     if (disposed || !drag || drag.moved || drag.rotate || drag.holdTriggered) return;
@@ -790,7 +750,7 @@ function mountMousePet() {
   window.addEventListener('fitness-ledger-pet:body-regions', onBodyRegions);
 
   const petQuery = new URLSearchParams(window.location.search);
-  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v87';
+  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v88';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
@@ -918,10 +878,13 @@ function mountMousePet() {
     const rect = body.getBoundingClientRect();
     const rotate = event.altKey;
     drag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: rect.left, originY: rect.top, moved: false, holdTriggered: false, rotate, startRotation: { ...viewRotation } };
-    clearChampionAudioCue();
+    clearChampionHoldTimer();
     if (!rotate) {
       playChampionCallout();
-      championAudioCueFrame = window.requestAnimationFrame(watchChampionAudioCue);
+      championHoldTimer = window.setTimeout(() => {
+        championHoldTimer = 0;
+        triggerChampionHold();
+      }, championEffectDelayMs);
     }
     body.setPointerCapture?.(event.pointerId);
     body.classList.toggle('is-rotating', rotate);
@@ -936,7 +899,7 @@ function mountMousePet() {
     const dx = event.clientX - drag.startX;
     const dy = event.clientY - drag.startY;
     if (!drag.moved && Math.hypot(dx, dy) < 6) return;
-    clearChampionAudioCue();
+    clearChampionHoldTimer();
     if (!drag.holdTriggered) stopChampionAudio();
     drag.moved = true;
     if (drag.rotate) {
@@ -953,13 +916,13 @@ function mountMousePet() {
     if (!drag || drag.pointerId !== event.pointerId) return;
     if (championSequenceActive) {
       event.preventDefault();
-      clearChampionAudioCue();
+      clearChampionHoldTimer();
       body.releasePointerCapture?.(event.pointerId);
       body.classList.remove('is-dragging', 'is-rotating');
       drag = null;
       return;
     }
-    clearChampionAudioCue();
+    clearChampionHoldTimer();
     if (!drag.holdTriggered) stopChampionAudio();
     if (drag.moved && !drag.rotate) {
       const rect = body.getBoundingClientRect();
@@ -1003,14 +966,11 @@ function mountMousePet() {
     body.removeEventListener('dblclick', onDoubleClick);
     window.removeEventListener('pointermove', onPagePointerMove);
     cancelAnimationFrame(followFrame);
-    clearChampionAudioCue();
+    clearChampionHoldTimer();
     window.clearTimeout(championEffectTimer);
     window.cancelAnimationFrame(championDisplayFrame);
     stopChampionAudio();
     championAudio?.removeAttribute?.('src');
-    championAudioContext?.close?.();
-    championAudioContext = null;
-    championAudioGain = null;
     championAudio = null;
     navigator.removeEventListener('click', onNavigatorClick);
     navigatorMenu();
