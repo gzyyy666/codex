@@ -10,7 +10,7 @@
  * https://github.com/ArtBIT/mouse-follower
  */
 
-import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v71';
+import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v72';
 
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia?.('(pointer: coarse)').matches !== true;
@@ -211,191 +211,7 @@ function mountPetMenu(body, { onPose } = {}) {
   return cleanup;
 }
 
-function mountLegacyMousePet() {
-  const pointer = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5 };
-  const follower = { x: pointer.x, y: pointer.y, tx: pointer.x, ty: pointer.y };
-  const body = document.createElement('div');
-  const guardian = document.createElement('canvas');
-  const petQuery = new URLSearchParams(window.location.search);
-  const navSlot = document.querySelector('[data-guardian-nav-slot]');
-  const navStatus = navSlot?.querySelector('[data-guardian-nav-status]');
-  const navMode = Boolean(navSlot);
-  const cornerMode = !navMode && petQuery.get('petFollow') !== '1';
-  let guardianPet;
-  let disposed = false;
-  let pendingPose = null;
-  const width = 120;
-  const height = 120;
-  const spring = reduceMotion ? 1 : 8;
-  const inertia = reduceMotion ? 1 : 30;
-
-  body.className = 'tools-pet-follower tools-pet-guardian tools-pet-nav';
-  body.dataset.petPosition = navMode ? 'nav' : cornerMode ? 'corner' : 'follow';
-  body.dataset.petHint = 'CLICK MENU · WHEEL / ← → POSE';
-  body.setAttribute('role', 'button');
-  body.setAttribute('tabindex', '0');
-  body.setAttribute('aria-label', 'Fitness Ledger guardian pet. Click for pose menu. Use wheel or left and right arrows to change pose.');
-  body.title = 'Click: pose menu · Wheel or ← →: change pose';
-  Object.assign(body.style, {
-    position: 'fixed',
-    top: '0px',
-    left: '0px',
-    width: `${width}px`,
-    height: `${height}px`,
-    flex: '0 0 auto',
-    pointerEvents: 'auto',
-    zIndex: '999999',
-    willChange: 'transform'
-  });
-  if (cornerMode) {
-    Object.assign(body.style, { top: 'auto', left: 'auto', right: '22px', bottom: '22px', transform: 'translate3d(0, 0, 0)' });
-  }
-
-  const syncNavPetPosition = () => {
-    if (!navMode || !navSlot) return;
-    const rect = navSlot.getBoundingClientRect();
-    body.style.left = `${Math.round(rect.left + rect.width * 0.5 - width * 0.5)}px`;
-    body.style.top = `${Math.round(rect.top + 2)}px`;
-  };
-
-  guardian.title = 'Fitness Ledger guardian pet';
-  guardian.className = 'tools-pet-guardian-canvas';
-  guardian.tabIndex = -1;
-  guardian.setAttribute('aria-hidden', 'true');
-  guardian.setAttribute('loading', 'eager');
-  Object.assign(guardian.style, {
-    position: 'absolute',
-    width: `${width}px`,
-    height: `${height}px`,
-    left: '0px',
-    top: '0px',
-    border: '0',
-    pointerEvents: 'none',
-    transform: 'none',
-    transformOrigin: '50% 50%'
-  });
-
-  body.appendChild(guardian);
-  document.body.appendChild(body);
-  syncNavPetPosition();
-  const petModel = window.__fitnessLedgerPetModel || new URLSearchParams(window.location.search).get('petModel') || 'lowpoly-static';
-  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v71' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v71';
-  const setPetPose = (pose, options) => {
-    if (guardianPet) return guardianPet.setPose(pose, options);
-    pendingPose = { pose, options };
-    return undefined;
-  };
-  import(petController).then(({ mountGuardianPet }) => {
-    if (disposed) return;
-    guardianPet = mountGuardianPet(guardian, {
-      petMode: true,
-      onReady: detail => {
-        body.dataset.ready = 'true';
-        if (navSlot) navSlot.dataset.petState = 'ready';
-        if (navStatus) navStatus.textContent = 'CLICK · WHEEL / ← →';
-        body.title = `${detail.poses || 0} poses · Click menu · Wheel or ← →`;
-      },
-      onError: error => {
-        body.dataset.ready = 'error';
-        if (navSlot) navSlot.dataset.petState = 'error';
-        if (navStatus) navStatus.textContent = 'PET MODEL ERROR';
-        body.title = error?.message || 'Guardian Pet model load error';
-      },
-      onPoseChange: detail => {
-        body.dataset.pose = detail.pose;
-        body.setAttribute('aria-label', `Fitness Ledger guardian pet · ${detail.name}`);
-      }
-    });
-    window.__fitnessLedgerGuardianPet = guardianPet;
-    if (pendingPose) {
-      const queuedPose = pendingPose;
-      pendingPose = null;
-      guardianPet.setPose(queuedPose.pose, queuedPose.options);
-    }
-    window.dispatchEvent(new CustomEvent('fitness-ledger-pet:ready', { detail: { controller: guardianPet, poseCatalog: guardianPet.getPoseCatalog?.() || [] } }));
-    body.dataset.moduleReady = 'true';
-  }).catch(error => {
-    console.error('[Guardian pet] controller load failed', error);
-    body.dataset.ready = 'error';
-    if (navSlot) navSlot.dataset.petState = 'error';
-    if (navStatus) navStatus.textContent = 'PET MODULE ERROR';
-  });
-  const cleanupMenu = mountPetMenu(body, { onPose: pose => setPetPose(pose, { source: 'pet-menu' }) });
-
-  const onBodyClick = (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const rect = body.getBoundingClientRect();
-    body.dispatchEvent(new MouseEvent('contextmenu', {
-      bubbles: true,
-      clientX: rect.left + rect.width,
-      clientY: rect.top + rect.height
-    }));
-  };
-  body.addEventListener('click', onBodyClick);
-
-  const onPetWheel = event => {
-    event.preventDefault();
-    if (event.deltaY > 0) guardianPet?.nextPose({ source: 'pet-wheel' });
-    else guardianPet?.previousPose({ source: 'pet-wheel' });
-  };
-  const onPetKeyDown = event => {
-    if (event.key === 'ArrowRight' || event.key === 'PageDown' || event.key === ']') {
-      event.preventDefault();
-      guardianPet?.nextPose();
-    } else if (event.key === 'ArrowLeft' || event.key === 'PageUp' || event.key === '[') {
-      event.preventDefault();
-      guardianPet?.previousPose();
-    }
-  };
-  body.addEventListener('wheel', onPetWheel, { passive: false });
-  body.addEventListener('keydown', onPetKeyDown);
-
-  const onPointerMove = (event) => {
-    if (event.pointerType === 'touch') return;
-    pointer.x = event.clientX;
-    pointer.y = event.clientY;
-  };
-
-  let frame = 0;
-  const tick = (time) => {
-    syncNavPetPosition();
-    const dx = pointer.x - follower.x;
-    const dy = pointer.y - follower.y;
-    follower.tx += dx / inertia;
-    follower.ty += dy / inertia;
-    follower.x += (follower.tx - follower.x) / spring;
-    follower.y += (follower.ty - follower.y) / spring;
-
-    const distance = Math.hypot(dx, dy);
-    body.style.setProperty('--pet-energy', `${Math.min(1, distance / 220).toFixed(3)}`);
-    guardianPet?.setPointer({
-      type: 'fitness-ledger-pet-pointer',
-      x: (pointer.x / Math.max(window.innerWidth, 1)) * 2 - 1,
-      y: -((pointer.y / Math.max(window.innerHeight, 1)) * 2 - 1),
-      energy: Math.min(1, distance / 220)
-    });
-    if (!navMode && !cornerMode) body.style.transform = `translate3d(${follower.x - width * 0.5 + 18}px, ${follower.y - height * 0.5 + 18}px, 0)`;
-    frame = requestAnimationFrame(tick);
-  };
-
-  window.addEventListener('pointermove', onPointerMove, { passive: true });
-  frame = requestAnimationFrame(tick);
-
-  return () => {
-    if (disposed) return;
-    disposed = true;
-    cancelAnimationFrame(frame);
-    window.removeEventListener('pointermove', onPointerMove);
-    body.removeEventListener('click', onBodyClick);
-    body.removeEventListener('wheel', onPetWheel);
-    body.removeEventListener('keydown', onPetKeyDown);
-    guardianPet?.dispose();
-    if (window.__fitnessLedgerGuardianPet === guardianPet) window.__fitnessLedgerGuardianPet = null;
-    cleanupMenu();
-    body.remove();
-  };
-}
+// Legacy nav-pet renderer removed. The global pet has one canonical WebGL host below.
 
 const guardianPetPositionKey = 'fitness-ledger.guardian-pet.position.v1';
 const archivePetRegistry = window.__fitnessLedgerArchivePetRegistry instanceof Map
@@ -829,8 +645,7 @@ function mountMousePet() {
   window.addEventListener('fitness-ledger-pet:body-regions', onBodyRegions);
 
   const petQuery = new URLSearchParams(window.location.search);
-  const petModel = window.__fitnessLedgerPetModel || petQuery.get('petModel') || 'lowpoly-static';
-  const petController = petModel === 'legacy' ? './motion-lab/guardian/pet-guardian.js?v=20260807-v71' : './motion-lab/guardian/pet-guardian-static.js?v=20260807-v71';
+  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v72';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {

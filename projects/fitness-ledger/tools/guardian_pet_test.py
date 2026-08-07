@@ -101,6 +101,10 @@ def test_shader_and_wiring_contract() -> None:
     assert "archivePetCrossTabKey" in tools and "claimArchivePetCrossTab" in tools and "onArchivePetCrossTabStorage" in tools
     assert "tools-pet-cursor-trail" in tools and "cursorTrailPoints" in tools
     assert "MutationObserver" in tools and "cursorMode === 'trophy'" in tools
+    assert "mountLegacyMousePet" not in tools
+    assert "standaloneCanvas" not in renderer
+    guardian_index = (GUARDIAN / "index.html").read_text(encoding="utf-8")
+    assert "pose-deck.js" not in guardian_index and "mountGuardianPet" in guardian_index
     assert "READ-ONLY · NO DATA WRITES" in acceptance
     assert "presentationForSemanticEvent" in acceptance
     assert "/api/save" not in acceptance

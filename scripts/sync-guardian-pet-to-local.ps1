@@ -25,7 +25,6 @@ $relativeFiles = @(
   'web_desktop\frontend\tools-css3d-panels.js',
   'web_desktop\frontend\motion-lab\guardian\index.html',
   'web_desktop\frontend\motion-lab\guardian\pet-guardian-static.js',
-  'web_desktop\frontend\motion-lab\guardian\pet-guardian.js',
   'web_desktop\frontend\motion-lab\guardian\guardian-business-adapters.js',
   'web_desktop\frontend\motion-lab\guardian\guardian-intent-map.js',
   'web_desktop\frontend\motion-lab\guardian\guardian-presentation-manager.js',

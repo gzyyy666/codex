@@ -592,6 +592,3 @@ export function mountGuardianPet(canvas, options = {}) {
   guardianControllerRegistry.add(api);
   return api;
 }
-
-const standaloneCanvas = document.querySelector('[data-guardian-canvas]:not([data-guardian-page])');
-if (standaloneCanvas) mountGuardianPet(standaloneCanvas);

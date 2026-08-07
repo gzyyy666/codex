@@ -44,9 +44,11 @@
       </footer>
     </main>
     <script type="module">
-      const modelMode = new URLSearchParams(location.search).get('petModel');
-      const buildVersion = '20260806-v26';
-      import(`${modelMode === 'legacy' ? './pose-deck.js' : './pet-guardian-static.js'}?v=${buildVersion}`).catch(error => {
+      const buildVersion = '20260807-v72';
+      import(`./pet-guardian-static.js?v=${buildVersion}`).then(({ mountGuardianPet }) => {
+        const canvas = document.querySelector('[data-guardian-canvas]');
+        if (canvas) mountGuardianPet(canvas);
+      }).catch(error => {
         console.error('[Guardian] controller load failed', error);
         const status = document.querySelector('[data-guardian-status]');
         if (status) status.textContent = `LOAD ERROR · ${error.message}`;
