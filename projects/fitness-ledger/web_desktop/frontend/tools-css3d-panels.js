@@ -10,7 +10,7 @@
  * https://github.com/ArtBIT/mouse-follower
  */
 
-import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v74';
+import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v75';
 
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia?.('(pointer: coarse)').matches !== true;
@@ -598,24 +598,14 @@ function mountMousePet() {
       body.dataset.championAudio = 'external-asset';
       return;
     }
-    if (!window.speechSynthesis || typeof window.SpeechSynthesisUtterance !== 'function') {
-      body.dataset.championAudio = 'silent-no-audio-source';
-      return;
-    }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(championCalloutText);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.78;
-    utterance.pitch = 0.72;
-    utterance.volume = 0.92;
-    window.speechSynthesis.speak(utterance);
-    body.dataset.championAudio = 'browser-voice-fallback';
+    body.dataset.championAudio = 'silent-awaiting-audio-asset';
   };
   const triggerChampionHold = () => {
     if (disposed || !drag || drag.moved || drag.rotate || drag.holdTriggered) return;
     drag.holdTriggered = true;
     body.classList.add('is-champion-hold');
     body.dataset.championHold = 'triggered';
+    body.dataset.championCallout = championCalloutText;
     presentationSurface.playEffect('champion_hold');
     playChampionCallout();
     window.clearTimeout(championEffectTimer);
@@ -693,7 +683,7 @@ function mountMousePet() {
   window.addEventListener('fitness-ledger-pet:body-regions', onBodyRegions);
 
   const petQuery = new URLSearchParams(window.location.search);
-  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v74';
+  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v75';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
@@ -887,7 +877,6 @@ function mountMousePet() {
     window.clearTimeout(championEffectTimer);
     championAudio?.pause?.();
     championAudio = null;
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
     navigator.removeEventListener('click', onNavigatorClick);
     navigatorMenu();
     navigator.remove();
