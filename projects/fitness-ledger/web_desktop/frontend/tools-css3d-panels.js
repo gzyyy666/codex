@@ -10,7 +10,7 @@
  * https://github.com/ArtBIT/mouse-follower
  */
 
-import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v79';
+import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v80';
 
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia?.('(pointer: coarse)').matches !== true;
@@ -566,16 +566,25 @@ function mountMousePet() {
   // The supplied recording is the default; an injected URL or query parameter can replace it for review.
   const championAudioUrl = window.__fitnessLedgerChampionAudioUrl || new URLSearchParams(window.location.search).get('championAudio') || new URL('./assets/tools-pet/champion-callout.m4a', import.meta.url).href;
   const championCalloutText = 'And... new Olympia champion!';
-  const championAudioLeadTrimSeconds = Math.max(0, Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 2.5);
-  const championEffectDelayMs = Math.max(240, Number(window.__FitnessLedgerChampionEffectDelayMs) || 1500);
+  // The supplied recording carries a quiet lead-in before the elongated “And”.
+  // These offsets are measured from the original file: And starts at ~3.38s and
+  // “new Olympia champion” starts about 0.52s later.
+  const championAudioLeadTrimSeconds = Math.max(0, Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 3.38);
+  const championEffectDelayMs = Math.max(240, Number(window.__FitnessLedgerChampionEffectDelayMs) || 520);
   const championDisplayPose = 'crab_hands_apart';
   let championAudio = null;
   let championAudioContext = null;
   let championAudioGain = null;
+  let championAudioMetadataHandler = null;
   let championHoldTimer = 0;
   let championEffectTimer = 0;
   let championDisplayFrame = 0;
   let championSequenceActive = false;
+  if (championAudioUrl) {
+    championAudio = new Audio(championAudioUrl);
+    championAudio.preload = 'auto';
+    championAudio.load();
+  }
   const cursorTrail = document.createElement('div');
   cursorTrail.className = `tools-pet-cursor-trail${cursorMode === 'trophy' ? ' is-trophy' : ''}`;
   cursorTrail.dataset.petInstance = instanceId;
@@ -599,6 +608,10 @@ function mountMousePet() {
   };
   const stopChampionAudio = () => {
     if (!championAudio) return;
+    if (championAudioMetadataHandler) {
+      championAudio.removeEventListener('loadedmetadata', championAudioMetadataHandler);
+      championAudioMetadataHandler = null;
+    }
     championAudio.pause();
     championAudio.currentTime = 0;
   };
@@ -643,7 +656,6 @@ function mountMousePet() {
     if (championAudioUrl) {
       championAudio ||= new Audio(championAudioUrl);
       championAudio.preload = 'auto';
-      championAudio.currentTime = 0;
       championAudio.volume = 1;
       try {
         const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
@@ -656,8 +668,19 @@ function mountMousePet() {
         }
         championAudioContext?.resume?.();
       } catch {}
-      championAudio.currentTime = championAudioLeadTrimSeconds;
-      championAudio.play().catch(() => {});
+      const playFromCue = () => {
+        championAudioMetadataHandler = null;
+        championAudio.currentTime = championAudioLeadTrimSeconds;
+        body.dataset.championAudioTrim = `${championAudioLeadTrimSeconds}s`;
+        championAudio.play().catch(() => {});
+      };
+      if (championAudio.readyState >= 1) {
+        playFromCue();
+      } else {
+        championAudioMetadataHandler = playFromCue;
+        championAudio.addEventListener('loadedmetadata', championAudioMetadataHandler, { once: true });
+        championAudio.load();
+      }
       body.dataset.championAudio = 'external-asset';
       return;
     }
@@ -749,7 +772,7 @@ function mountMousePet() {
   window.addEventListener('fitness-ledger-pet:body-regions', onBodyRegions);
 
   const petQuery = new URLSearchParams(window.location.search);
-  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v79';
+  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v80';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
