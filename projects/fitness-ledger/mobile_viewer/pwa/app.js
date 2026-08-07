@@ -1,5 +1,5 @@
-import { apiDescription, call, signIn } from "./api.js?v=20260807-02";
-import { findLastCandidate } from "./candidateMatcher.js?v=20260807-02";
+import { apiDescription, call, signIn } from "./api.js?v=20260807-04";
+import { findLastCandidate } from "./candidateMatcher.js?v=20260807-04";
 
 const BODY_PARTS = [
   { id: "shoulders", cn: "肩", en: "SHOULDERS", tone: "amber" },
@@ -10,7 +10,7 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.0.0 · build 2026.08.07.02";
+const BUILD_VERSION = "PWA v1.0.0 · build 2026.08.07.04";
 const app = document.querySelector("#app");
 const state = {
   route: parseRoute(), loading: true, error: "", status: null, identity: null,
@@ -157,20 +157,38 @@ let candidateOverlayFrame = 0;
 function syncCandidateOverlayPosition() {
   candidateOverlayFrame = 0;
   const noteCard = document.querySelector(".notepad-card");
+  const page = document.querySelector(".reference-page");
   if (!noteCard) {
     document.documentElement.style.removeProperty("--candidate-overlay-top");
+    page?.style.removeProperty("--candidate-flow-space");
     return;
   }
   const overlay = document.querySelector(".candidate-overlay:not(.collapsed)");
-  if (!overlay) return;
+  if (!overlay) {
+    page?.style.removeProperty("--candidate-flow-space");
+    return;
+  }
   const viewport = window.visualViewport;
   const viewportHeight = viewport?.height || window.innerHeight;
   const availableHeight = Math.max(150, Math.min(214, viewportHeight - 16));
   const cardBottom = noteCard.getBoundingClientRect().bottom;
   const top = Math.max(8, Math.min(cardBottom + 8, viewportHeight - availableHeight - 8));
   document.documentElement.style.setProperty("--candidate-overlay-top", `${Math.round(top)}px`);
-  overlay.style.height = `${Math.round(availableHeight)}px`;
-  overlay.querySelector(".candidate-scroll")?.style.setProperty("height", `${Math.max(104, Math.round(availableHeight - 46))}px`);
+  overlay.style.height = "auto";
+  overlay.style.maxHeight = `${Math.round(availableHeight)}px`;
+  const scroll = overlay.querySelector(".candidate-scroll");
+  if (scroll) {
+    scroll.style.height = "auto";
+    scroll.style.maxHeight = `${Math.max(104, Math.round(availableHeight - 46))}px`;
+  }
+  if (page) {
+    page.style.setProperty("--candidate-flow-space", "0px");
+    const contentList = page.querySelector(".movement-list, .session-list");
+    if (contentList) {
+      const needed = overlay.getBoundingClientRect().bottom + 8 - contentList.getBoundingClientRect().top;
+      page.style.setProperty("--candidate-flow-space", `${Math.max(0, Math.round(needed))}px`);
+    }
+  }
 }
 function scheduleCandidateOverlayPosition() {
   if (candidateOverlayFrame) return;
@@ -451,7 +469,7 @@ window.addEventListener("resize", scheduleCandidateOverlayPosition, { passive: t
 window.visualViewport?.addEventListener("resize", scheduleCandidateOverlayPosition, { passive: true });
 window.visualViewport?.addEventListener("scroll", scheduleCandidateOverlayPosition, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260807-02", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260807-04", { updateViaCache: "none" }).catch(() => {});
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();
   event.preventDefault();
