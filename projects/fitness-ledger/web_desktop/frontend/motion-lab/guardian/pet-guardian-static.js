@@ -289,9 +289,18 @@ export function mountGuardianPet(canvas, options = {}) {
     configuration ||= await configurationPromise;
     const preset = configuration.cameraConfig.presets?.[presetName] || configuration.cameraConfig.presets.idle;
     state.cameraPreset = configuration.cameraConfig.presets?.[presetName] ? presetName : 'idle';
-    state.targetZoom = Number(preset.zoom) || 1;
-    cameraGoal.fromArray(preset.camera || [0, 0.5, 2.18]);
-    lookGoal.fromArray(preset.target || [0, 0.5, 0]);
+    if (petMode) {
+      // The floating pet must keep the complete figure inside its transparent frame.
+      // Page presets are intentionally close-up; applying their zoom/distance here
+      // crops the head and feet on movement/body routes.
+      state.targetZoom = Math.min(Number(preset.zoom) || 1, 1.02);
+      cameraGoal.set(0, 0.5, Math.max(Number(preset.camera?.[2]) || 2.18, 2.45));
+      lookGoal.set(0, 0.5, 0);
+    } else {
+      state.targetZoom = Number(preset.zoom) || 1;
+      cameraGoal.fromArray(preset.camera || [0, 0.5, 2.18]);
+      lookGoal.fromArray(preset.target || [0, 0.5, 0]);
+    }
     if (state.reducedMotion) {
       state.zoom = state.targetZoom;
       camera.position.copy(cameraGoal);

@@ -77,9 +77,12 @@ def test_shader_and_wiring_contract() -> None:
     assert "activeRecord.group.rotation.x" not in renderer
     assert "uGuardianBaseYaw" not in renderer
     assert "const presentationScale = petMode ? 1.06 : 1" in renderer
+    assert "state.targetZoom = Math.min(Number(preset.zoom) || 1, 1.02)" in renderer
+    assert "Math.max(Number(preset.camera?.[2]) || 2.18, 2.45)" in renderer
     tools = (ROOT / "web_desktop" / "frontend" / "tools-css3d-panels.js").read_text(encoding="utf-8")
     app = (ROOT / "web_desktop" / "frontend" / "app.js").read_text(encoding="utf-8")
     css = (ROOT / "web_desktop" / "frontend" / "final-pass.css").read_text(encoding="utf-8")
+    trophy_asset = ROOT / "web_desktop" / "frontend" / "assets" / "tools-pet" / "trophy-champion-v2.png"
     for marker in ("fitness-ledger-pet:intent", "fitness-ledger-pet:body-regions", "presentationForSemanticEvent"):
         assert marker in tools
     assert "const isGuardianRoute" in tools
@@ -93,10 +96,12 @@ def test_shader_and_wiring_contract() -> None:
     assert "Object.assign(navigator.style, { top: '0px', left: '0px' })" in tools
     assert "const removeArchivePetNodes" in tools
     assert "body.dataset.petStatus" in tools and "body.title" not in tools[tools.index("function mountMousePet"):tools.index("const removeArchivePetNodes")]
+    assert "trophy-champion-v2.png" in tools
+    assert trophy_asset.is_file() and trophy_asset.stat().st_size > 100_000
     for marker in ("training-save", "movement-focus", "analysis-result", "needs-review", "sync-result"):
         assert marker in app
     assert ".guardian-pet-hotspots" in css and "prefers-reduced-motion:reduce" in css
-    assert '.tools-pet-navigator{display:block;width:58px;height:84px}' in css
+    assert '.tools-pet-navigator{display:block;width:74px;height:98px}' in css
     assert '.tools-pet-navigator{position:fixed;top:0;left:0;' in css
     assert '.tools-pet-floating{width:256px!important;height:256px!important' in css
     assert '@media(max-width:760px){.tools-pet-floating{width:208px!important;height:208px!important}' in css

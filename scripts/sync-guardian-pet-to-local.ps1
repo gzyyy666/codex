@@ -46,7 +46,8 @@ $relativeFiles = @(
   'web_desktop\frontend\motion-lab\guardian\assets\lowpoly\lowpoly-rear-double-biceps.glb',
   'web_desktop\frontend\motion-lab\guardian\assets\lowpoly\lowpoly-rear-lat-spread.glb',
   'web_desktop\frontend\motion-lab\guardian\assets\lowpoly\lowpoly-most-muscular.glb',
-  'web_desktop\frontend\motion-lab\guardian\assets\lowpoly\lowpoly-open-hand-crab.glb'
+  'web_desktop\frontend\motion-lab\guardian\assets\lowpoly\lowpoly-open-hand-crab.glb',
+  'web_desktop\frontend\assets\tools-pet\trophy-champion-v2.png'
 )
 
 $missing = @($relativeFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $SourceRoot $_) -PathType Leaf) })
