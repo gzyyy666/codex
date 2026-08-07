@@ -10,7 +10,7 @@
  * https://github.com/ArtBIT/mouse-follower
  */
 
-import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v77';
+import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-intent-map.js?v=20260807-v78';
 
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia?.('(pointer: coarse)').matches !== true;
@@ -566,8 +566,8 @@ function mountMousePet() {
   // The supplied recording is the default; an injected URL or query parameter can replace it for review.
   const championAudioUrl = window.__fitnessLedgerChampionAudioUrl || new URLSearchParams(window.location.search).get('championAudio') || new URL('./assets/tools-pet/champion-callout.m4a', import.meta.url).href;
   const championCalloutText = 'And... new Olympia champion!';
-  const championAudioLeadTrimSeconds = Math.max(0, Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 0.18);
-  const championEffectDelayMs = Math.max(240, Number(window.__FitnessLedgerChampionEffectDelayMs) || 900);
+  const championAudioLeadTrimSeconds = Math.max(0, Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 1);
+  const championEffectDelayMs = Math.max(240, Number(window.__FitnessLedgerChampionEffectDelayMs) || 3000);
   const championDisplayPose = 'crab_hands_apart';
   let championAudio = null;
   let championAudioContext = null;
@@ -647,7 +647,7 @@ function mountMousePet() {
           championAudioContext = new AudioContextCtor();
           const source = championAudioContext.createMediaElementSource(championAudio);
           championAudioGain = championAudioContext.createGain();
-          championAudioGain.gain.value = 1.7;
+          championAudioGain.gain.value = 2.2;
           source.connect(championAudioGain).connect(championAudioContext.destination);
         }
         championAudioContext?.resume?.();
@@ -742,7 +742,7 @@ function mountMousePet() {
   window.addEventListener('fitness-ledger-pet:body-regions', onBodyRegions);
 
   const petQuery = new URLSearchParams(window.location.search);
-  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v77';
+  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v78';
   import(petController).then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {

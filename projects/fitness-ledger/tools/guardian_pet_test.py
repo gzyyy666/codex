@@ -109,7 +109,9 @@ def test_shader_and_wiring_contract() -> None:
     assert "champion-callout.m4a" in tools
     assert "championAudioLeadTrimSeconds" in tools and "championEffectDelayMs" in tools
     assert "const championDisplayPose = 'crab_hands_apart'" in tools
-    assert "championAudioGain.gain.value = 1.7" in tools and "championAudio.currentTime = championAudioLeadTrimSeconds" in tools
+    assert "championAudioGain.gain.value = 2.2" in tools and "championAudio.currentTime = championAudioLeadTrimSeconds" in tools
+    assert "Number(window.__FitnessLedgerChampionAudioLeadTrimSeconds) || 1" in tools
+    assert "Number(window.__FitnessLedgerChampionEffectDelayMs) || 3000" in tools
     assert "startChampionDisplay" in tools and "left-to-right-sweep" in tools
     assert "silent-awaiting-audio-asset" in tools and "browser-voice-fallback" not in tools
     assert "championHoldTimer" in tools and "holdTriggered" in tools and "triggerChampionHold" in tools
