@@ -89,27 +89,49 @@ export function patchGuardianMaterial(material, uniforms = createGuardianUniform
   const previousOnBeforeCompile = material.onBeforeCompile;
   const previousCacheKey = material.customProgramCacheKey?.bind(material);
   let compiledShader = null;
+  let disabled = false;
+
+  const restoreHooks = () => {
+    material.onBeforeCompile = previousOnBeforeCompile;
+    if (previousCacheKey) material.customProgramCacheKey = previousCacheKey;
+    else delete material.customProgramCacheKey;
+    material.needsUpdate = true;
+  };
+
+  const disable = () => {
+    if (disabled) return;
+    disabled = true;
+    compiledShader = null;
+    restoreHooks();
+  };
 
   material.onBeforeCompile = (shader, renderer) => {
-    previousOnBeforeCompile?.(shader, renderer);
+    if (disabled) {
+      previousOnBeforeCompile?.(shader, renderer);
+      return;
+    }
     try {
-      if (!shader.vertexShader.includes('void main() {') || !shader.vertexShader.includes('#include <begin_vertex>')) {
-        throw new Error('Guardian shader anchors are unavailable');
+      previousOnBeforeCompile?.(shader, renderer);
+      const source = shader.vertexShader;
+      if (!source.includes('void main() {') || !source.includes('#include <begin_vertex>')) {
+        disable();
+        return;
       }
       Object.assign(shader.uniforms, uniforms);
-      shader.vertexShader = shader.vertexShader.replace('void main() {', `${GLSL_HEADER}\nvoid main() {`);
-      shader.vertexShader = shader.vertexShader.replace(
+      let vertexShader = source.replace('void main() {', `${GLSL_HEADER}\nvoid main() {`);
+      vertexShader = vertexShader.replace(
         '#include <beginnormal_vertex>',
         '#include <beginnormal_vertex>\nobjectNormal = guardianTransformNormal(position, objectNormal);'
       );
-      shader.vertexShader = shader.vertexShader.replace(
+      vertexShader = vertexShader.replace(
         '#include <begin_vertex>',
         '#include <begin_vertex>\ntransformed = guardianTransformPosition(transformed);'
       );
+      shader.vertexShader = vertexShader;
       compiledShader = shader;
     } catch (error) {
-      onError?.(error);
-      throw error;
+      console.warn('[Guardian] shader deformation disabled; original material retained', error);
+      disable();
     }
   };
   material.customProgramCacheKey = () => `${previousCacheKey ? previousCacheKey() : ''}|fl-guardian-static-mask-v6.2`;
@@ -120,6 +142,7 @@ export function patchGuardianMaterial(material, uniforms = createGuardianUniform
     uniforms,
     get compiledShader() { return compiledShader; },
     set(values = {}) {
+      if (disabled) return;
       if (Number.isFinite(values.baseYaw)) uniforms.uGuardianBaseYaw.value = values.baseYaw;
       if (Number.isFinite(values.upperYaw)) uniforms.uGuardianUpperYaw.value = values.upperYaw;
       if (Number.isFinite(values.headYaw)) uniforms.uGuardianHeadYaw.value = values.headYaw;
@@ -130,11 +153,9 @@ export function patchGuardianMaterial(material, uniforms = createGuardianUniform
       if (Number.isFinite(values.tension)) uniforms.uGuardianTension.value = values.tension;
       if (Number.isFinite(values.rigNorm)) uniforms.uGuardianRigNorm.value = Math.max(values.rigNorm, 0.0001);
     },
+    disable,
     dispose() {
-      material.onBeforeCompile = previousOnBeforeCompile;
-      if (previousCacheKey) material.customProgramCacheKey = previousCacheKey;
-      else delete material.customProgramCacheKey;
-      material.needsUpdate = true;
+      disable();
       compiledShader = null;
     }
   };

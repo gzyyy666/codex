@@ -177,10 +177,39 @@ function updateSyncNav(){
 }
 function showSaveReceipt(result,error){const receipt=$('#save-receipt');if(!receipt)return;clearTimeout(state.receiptTimer);if(error){receipt.innerHTML=`<span>SAVE NEEDS ATTENTION</span><strong>${esc(error)}</strong>`}else if(result.status==='NO_CHANGES'){receipt.innerHTML='<span>NO CHANGES TO SAVE</span>'}else{const verb=result.status==='UPDATED'?'UPDATED':'SAVED',facts=[],date=result.date||result.record?.Date||result.history?.date||'';if(result.saved_movements)facts.push(`${result.saved_movements} movements · ${result.working_sets||0} working sets`);if(Number(result.progress_excluded_count||0)>0)facts.push(`${result.progress_excluded_count} 个动作仅保留训练记录`);if(result.body_updated&&result.diet_updated)facts.push('Body and diet updated');else if(result.training_updated)facts.push('Training updated');receipt.innerHTML=`<span>${esc(String(date||'RECORD').toUpperCase())} ${verb}</span>${facts.map(x=>`<strong>${esc(x)}</strong>`).join('')}${state.syncStatus?.sync_status==='LOCAL_NEWER'?'<small>Cloud copy pending</small>':''}`};receipt.classList.add('is-visible');state.receiptTimer=setTimeout(()=>receipt.classList.remove('is-visible'),4200)}
 async function refreshWebState(){[state.today,state.recent,state.body,state.diet,state.training,state.movements,state.dictionary,state.movementGroups,state.syncStatus]=await Promise.all([api('/api/today'),api('/api/recent?limit=5'),api('/api/body?limit=100'),api('/api/diet?limit=100'),api('/api/training?limit=100'),api('/api/movements?limit=100'),api('/api/dictionary'),api('/api/movement-groups'),api('/api/cloud-sync/status')]);updateSyncNav();publishGuardianBodyRegions()}
-async function saveWebReview(){if(state.saving)return;const review=collectReviewForm();if(!review)return;state.saving=true;const mode=$('#review-save-mode')?.value||null;const button=$('[data-review-save]');button.disabled=true;button.textContent='正在保存…';try{const result=await postApi('/api/save',{review_id:state.reviewPayload.review_id,review,save_mode:mode});if(result.status!=='NO_CHANGES'){state.reviewPayload=null;state.draftRaw=''}await refreshWebState();navigate('quick');showSaveReceipt(result)}catch(error){showSaveReceipt(null,error.message||'保存失败，原文件保持不变。');button.disabled=false;button.textContent='确认并保存';if(error.status===409){showToast('该日期已有记录，请选择覆盖或追加训练。');$('#review-save-mode')?.focus()}}finally{state.saving=false}}
+async function saveWebReview(saveMode=null){
+  if(state.saving)return;
+  const review=collectReviewForm();
+  if(!review)return;
+  if(reviewDuplicateCount()&&!saveMode){openSaveModeDialog();return}
+  state.saving=true;
+  const button=$('[data-review-save]');
+  if(button){button.disabled=true;button.textContent='正在保存…'}
+  try{
+    let result;
+    try{
+      result=await postApi('/api/save',{review_id:state.reviewPayload.review_id,review,save_mode:saveMode});
+    }catch(error){
+      showSaveReceipt(null,error.message||'保存失败，原文件保持不变。');
+      if(button){button.disabled=false;button.textContent='确认并保存'}
+      if(error.status===409){showToast('该日期已有记录，请重新选择保存方式。');openSaveModeDialog()}
+      return;
+    }
+    if(result.status!=='NO_CHANGES'){state.reviewPayload=null;state.draftRaw=''}
+    if(result.status!=='NO_CHANGES'&&(result.training_updated||Number(result.saved_movements||0)>0)){
+      try{invalidateMovementUsage()}catch(error){console.warn('[Daily Entry] save committed; movement cache refresh failed',error)}
+    }
+    try{await refreshWebState()}catch(error){console.warn('[Daily Entry] save committed; archive refresh failed',error);showToast('记录已保存，但页面状态刷新失败，请稍后刷新查看。')}
+    try{navigate('quick')}catch(error){console.warn('[Daily Entry] save committed; route refresh failed',error)}
+    try{showSaveReceipt(result)}catch(error){console.warn('[Daily Entry] save receipt failed',error)}
+    try{
+      if(result.status!=='NO_CHANGES'&&result.training_updated)emitGuardianIntent('training-save',buildTrainingSaveSummary(result),{id:`training-save:${result.record_id||result.date}`});
+      emitGuardianWeightMilestone();
+    }catch(error){console.warn('[Daily Entry] save presentation skipped',error)}
+  }finally{state.saving=false}
+}
 function reviewDuplicateCount(){const duplicates=state.reviewPayload?.duplicates||{};return Object.values(duplicates).reduce((sum,value)=>sum+Number(value||0),0)}
 function openSaveModeDialog(){document.querySelector('#save-mode-dialog')?.remove();document.body.insertAdjacentHTML('beforeend',`<dialog id="save-mode-dialog" class="save-mode-dialog" aria-labelledby="save-mode-title" aria-describedby="save-mode-copy"><form method="dialog" class="save-mode-sheet"><header><span class="eyebrow">SAVE DECISION / 同日记录</span><button class="save-mode-close" value="cancel" aria-label="关闭保存方式选择">×</button></header><div class="save-mode-heading"><span aria-hidden="true">!</span><div><h2 id="save-mode-title">该日期已有记录</h2><p id="save-mode-copy">请选择本次内容的保存方式。原记录会在你确认之前保持不变。</p></div></div><div class="save-mode-options"><button type="button" class="save-mode-option is-selective" data-save-mode-choice="append_training"><span><small>推荐</small><strong>选择性保存</strong></span><p>保留现有 Body 与 Diet，仅将本次训练作为同日另一条训练记录追加。</p><b aria-hidden="true">→</b></button><button type="button" class="save-mode-option is-overwrite" data-save-mode-choice="overwrite"><span><small>完整替换</small><strong>覆盖保存</strong></span><p>使用当前 Review 内容覆盖该日期已有的 Body、Diet 与 Training。</p><b aria-hidden="true">→</b></button></div><footer><button class="btn btn-light" value="cancel">取消 / 返回 Review</button><small>选择后才会执行保存；写入前仍沿用现有备份机制。</small></footer></form></dialog>`);const dialog=$('#save-mode-dialog');dialog.addEventListener('click',event=>{const option=event.target.closest('[data-save-mode-choice]');if(!option)return;const mode=option.dataset.saveModeChoice;dialog.close();saveWebReview(mode)});dialog.addEventListener('close',()=>dialog.remove(),{once:true});dialog.showModal();requestAnimationFrame(()=>dialog.querySelector('.is-selective')?.focus())}
-saveWebReview=async function(saveMode=null){if(state.saving)return;const review=collectReviewForm();if(!review)return;if(reviewDuplicateCount()&&!saveMode){openSaveModeDialog();return}state.saving=true;const button=$('[data-review-save]');button.disabled=true;button.textContent='正在保存…';try{const result=await postApi('/api/save',{review_id:state.reviewPayload.review_id,review,save_mode:saveMode});if(result.status!=='NO_CHANGES'){state.reviewPayload=null;state.draftRaw=''}if(result.status!=='NO_CHANGES'&&(result.training_updated||Number(result.saved_movements||0)>0))invalidateMovementUsage();await refreshWebState();navigate('quick');if(result.status!=='NO_CHANGES'&&result.training_updated)emitGuardianIntent('training-save',buildTrainingSaveSummary(result),{id:`training-save:${result.record_id||result.date}`});emitGuardianWeightMilestone();showSaveReceipt(result)}catch(error){showSaveReceipt(null,error.message||'保存失败，原文件保持不变。');button.disabled=false;button.textContent='确认并保存';if(error.status===409){showToast('该日期已有记录，请重新选择保存方式。');openSaveModeDialog()}}finally{state.saving=false}};
 const writableQuickPage=quickPage;
 quickPage=function(){writableQuickPage();const textarea=$('#raw-entry');if(textarea&&state.draftRaw)textarea.value=state.draftRaw}
 

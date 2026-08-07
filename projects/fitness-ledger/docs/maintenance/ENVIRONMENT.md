@@ -54,8 +54,8 @@ formal identity; the file is intentionally Git-ignored and missing or incomplete
 metadata renders `BUILD UNKNOWN` rather than inventing a published build.
 
 The Git baseline/integration workflow may generate that manifest only after a
-fresh Git audit and an explicit confirmation that the deployed commit was pushed
-to `origin/main`:
+fresh Git audit, a clean source worktree, and an explicit confirmation that the
+deployed commit was pushed to `origin/main`:
 
 ```powershell
 python tools/generate_runtime_build_info.py `
@@ -67,10 +67,15 @@ python tools/generate_runtime_build_info.py `
 
 The tool reads real `HEAD`, `main`, and `origin/main`, writes atomically as UTF-8,
 and performs no Push, Merge, Tag, data write, or formal writeback beyond the
-explicit `--output` file. `PUBLISHED` is shown only when `push_verified=true`
-and the recorded commit equals the recorded `origin_main_sha`; Worktree builds
-always remain `PREVIEW`, including dirty previews. After deploying changed Web
-code, restart the Web service so `server_started_at` identifies the new process.
+explicit `--output` file. By default it refuses to generate a formal manifest
+from a dirty worktree, because a commit-only identity cannot describe an
+uncommitted overlay. If an intentional local overlay must be reviewed, use
+`--allow-dirty-overlay`; the manifest then records `working_tree_dirty` and the
+changed paths explicitly, and remains `UNVERIFIED`. `PUBLISHED` is shown only
+when `push_verified=true` and the recorded commit equals the recorded
+`origin_main_sha`. After copying the committed source tree to the formal
+directory, regenerate the manifest there and restart the Web service so
+`server_started_at` identifies the new process.
 
 ## Local-Only Files
 

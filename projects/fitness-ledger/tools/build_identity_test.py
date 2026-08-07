@@ -36,12 +36,14 @@ def test_preview_clean_and_dirty() -> None:
         ("status", "--porcelain"): "",
         ("describe", "--tags", "--exact-match", "HEAD"): "",
     }
-    clean = collect_build_info(Path("."), runner=fake_git(mapping), server_started_at="started")
-    assert clean["status"] == "PREVIEW" and clean["dirty"] is False
-    mapping[("status", "--porcelain")] = " M web_desktop/app.js"
-    dirty = collect_build_info(Path("."), runner=fake_git(mapping), server_started_at="started")
-    assert dirty["status"] == "PREVIEW" and dirty["dirty"] is True
-    assert dirty["status"] != "PUBLISHED"
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        clean = collect_build_info(root, runner=fake_git(mapping), server_started_at="started")
+        assert clean["status"] == "PREVIEW" and clean["dirty"] is False
+        mapping[("status", "--porcelain")] = " M web_desktop/app.js"
+        dirty = collect_build_info(root, runner=fake_git(mapping), server_started_at="started")
+        assert dirty["status"] == "PREVIEW" and dirty["dirty"] is True
+        assert dirty["status"] != "PUBLISHED"
 
 
 def test_formal_manifest_states() -> None:
@@ -66,12 +68,17 @@ def test_formal_manifest_states() -> None:
         payload["push_verified"] = False
         manifest.write_text(json.dumps(payload), encoding="utf-8")
         assert collect_build_info(root, manifest_path=manifest)["status"] == "UNVERIFIED"
+        payload["working_tree_dirty"] = True
+        manifest.write_text(json.dumps(payload), encoding="utf-8")
+        assert collect_build_info(root, manifest_path=manifest)["dirty"] is True
         manifest.write_text("{broken", encoding="utf-8")
         assert collect_build_info(root, manifest_path=manifest)["status"] == "UNKNOWN"
 
 
 def test_unknown_git_and_endpoint() -> None:
-    unknown = collect_build_info(Path("."), runner=lambda *_: (_ for _ in ()).throw(RuntimeError("no git")))
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        unknown = collect_build_info(root, runner=lambda *_: (_ for _ in ()).throw(RuntimeError("no git")))
     assert unknown["status"] == "UNKNOWN"
     service = LedgerWebService(build_info_override={"mode": "preview", "status": "PREVIEW", "commit_sha": "c" * 40, "short_sha": "c" * 7, "branch": "review", "dirty": False})
     server = create_server("127.0.0.1", 0, service)

@@ -79,10 +79,12 @@ const cloneState = state => JSON.parse(JSON.stringify(state));
 const guardianControllerRegistry = window.__fitnessLedgerGuardianControllerRegistry instanceof Set
   ? window.__fitnessLedgerGuardianControllerRegistry
   : (window.__fitnessLedgerGuardianControllerRegistry = new Set());
-
+const guardianControllerByCanvas = window.__fitnessLedgerGuardianControllerByCanvas instanceof WeakMap
+  ? window.__fitnessLedgerGuardianControllerByCanvas
+  : (window.__fitnessLedgerGuardianControllerByCanvas = new WeakMap());
 export function mountGuardianPet(canvas, options = {}) {
   if (!canvas?.getContext) throw new TypeError('mountGuardianPet requires a canvas');
-  [...guardianControllerRegistry].forEach(controller => controller?.dispose?.());
+  guardianControllerByCanvas.get(canvas)?.dispose?.();
   const params = new URLSearchParams(location.search);
   const petMode = params.get('embed') === 'pet' || options.petMode === true;
   const presentationScale = petMode ? 1.06 : 1;
@@ -170,6 +172,7 @@ export function mountGuardianPet(canvas, options = {}) {
   const adjustedLookGoal = cameraLookAt.clone();
   let configuration = null;
   let activeRecord = null;
+  let shaderDeformationDisabled = false;
   let frame = 0;
   let poseToken = 0;
   let visible = document.visibilityState !== 'hidden';
@@ -231,7 +234,7 @@ export function mountGuardianPet(canvas, options = {}) {
         if ('roughness' in clone) clone.roughness = 0.38;
         clone.userData.guardianBaseTransparent = clone.transparent === true;
         clone.userData.guardianBaseOpacity = Number.isFinite(clone.opacity) ? clone.opacity : 1;
-        patches.push(patchGuardianMaterial(clone, undefined, notifyFailure));
+        if (!shaderDeformationDisabled) patches.push(patchGuardianMaterial(clone, undefined, notifyFailure));
         return clone;
       });
       object.material = Array.isArray(object.material) ? materials : materials[0];
@@ -348,9 +351,11 @@ export function mountGuardianPet(canvas, options = {}) {
     reducedMotion: state.reducedMotion
   });
 
-  const restore = async saved => {
-    if (!saved || state.disposed) return;
+  const restore = async (saved, options = {}) => {
+    const stillCurrent = () => !state.disposed && options.isCurrent?.() !== false;
+    if (!saved || !stillCurrent()) return;
     if (saved.poseId) await setPose(saved.poseId, { source: 'restore', immediate: state.reducedMotion });
+    if (!stillCurrent()) return;
     Object.assign(state, {
       pointerX: saved.pointerX ?? 0,
       pointerY: saved.pointerY ?? 0,
@@ -365,6 +370,7 @@ export function mountGuardianPet(canvas, options = {}) {
       yawOffset: saved.yawOffset ?? 0
     });
     state.viewRotation = { x: saved.viewRotation?.x ?? 0, y: saved.viewRotation?.y ?? 0 };
+    if (!stillCurrent()) return;
     await setCameraPreset(saved.cameraPreset || 'idle');
   };
 
@@ -379,11 +385,9 @@ export function mountGuardianPet(canvas, options = {}) {
     stopEffect: options.stopEffect
   });
 
-  const setPageDefault = async ({ poseId = 'standing', cameraPreset = 'idle' } = {}) => {
+  const setPageDefault = ({ poseId = 'standing', cameraPreset = 'idle' } = {}) => {
     const desired = { ...snapshot(), poseId: resolvePoseId(poseId), cameraPreset };
-    presentation.setPageDefault(desired);
-    if (!presentation.getState().active) await restore(desired);
-    return getState();
+    return presentation.setPageDefault(desired).then(() => getState());
   };
 
   const setReducedMotion = value => {
@@ -480,6 +484,18 @@ export function mountGuardianPet(canvas, options = {}) {
     try {
       renderer.render(scene, camera);
     } catch (error) {
+      if (!shaderDeformationDisabled) {
+        shaderDeformationDisabled = true;
+        modelRecords.forEach(record => record.patches.forEach(patch => patch.disable?.()));
+        try {
+          renderer.render(scene, camera);
+          console.warn('[Guardian pet] shader deformation fallback enabled; original GLB materials retained', error);
+          return;
+        } catch (fallbackError) {
+          notifyFailure(fallbackError);
+          return;
+        }
+      }
       notifyFailure(error);
     }
   };
@@ -577,6 +593,7 @@ export function mountGuardianPet(canvas, options = {}) {
     modelRecords.clear();
     renderer.dispose();
     scene.clear();
+    if (guardianControllerByCanvas.get(canvas) === api) guardianControllerByCanvas.delete(canvas);
     guardianControllerRegistry.delete(api);
     if (window.__fitnessLedgerGuardianPet === api) window.__fitnessLedgerGuardianPet = null;
   };
@@ -603,6 +620,7 @@ export function mountGuardianPet(canvas, options = {}) {
       scenePoseRoots: scene.children.filter(child => child.name?.startsWith('guardian-pose:')).length,
       visibleRoots: [...modelRecords].filter(record => record.group.visible).length,
       inFlightLoads: modelLoads.size,
+      shaderDeformation: shaderDeformationDisabled ? 'fallback' : 'enabled',
       readyNotified,
       render: { ...renderer.info.render }
     }),
@@ -611,6 +629,7 @@ export function mountGuardianPet(canvas, options = {}) {
     nextPose: poseOptions => setPose(POSE_ORDER[(POSE_ORDER.indexOf(state.poseId) + 1) % POSE_ORDER.length], { ...poseOptions, source: poseOptions?.source || 'next' }),
     dispose
   };
+  guardianControllerByCanvas.set(canvas, api);
   guardianControllerRegistry.add(api);
   return api;
 }

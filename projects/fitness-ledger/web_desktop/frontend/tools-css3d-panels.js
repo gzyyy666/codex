@@ -780,10 +780,8 @@ function mountMousePet() {
     body.dataset.route = view;
     body.dataset.routePose = poseId;
     if (guardianPet) {
-      void Promise.resolve(guardianPet.clearIntent?.('route-change')).then(() => {
-        if (guardianPet.setPageDefault) return guardianPet.setPageDefault({ poseId, cameraPreset: routeDefault.cameraPreset });
-        return guardianPet.setPose(poseId, { source: 'route' });
-      });
+      if (guardianPet.setPageDefault) void guardianPet.setPageDefault({ poseId, cameraPreset: routeDefault.cameraPreset });
+      else void guardianPet.setPose(poseId, { source: 'route' });
     } else {
       pendingPose = { pose: poseId, options: { source: 'route' }, cameraPreset: routeDefault.cameraPreset };
     }

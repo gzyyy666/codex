@@ -84,6 +84,9 @@ def test_shader_and_wiring_contract() -> None:
     assert "state.targetZoom = Math.min(Number(preset.zoom) || 1, 1.02)" in renderer
     assert "Math.max(Number(preset.camera?.[2]) || 2.18, 2.45)" in renderer
     assert "guardianControllerRegistry" in renderer and "record.group.visible = false" in renderer
+    assert "const guardianControllerByCanvas" in renderer
+    assert "guardianControllerByCanvas.get(canvas)?.dispose?.()" in renderer
+    assert "guardianControllerByCanvas.get(canvas) === api" in renderer
     assert "const modelLoads = new Map()" in renderer
     assert "if (modelLoads.has(poseId)) return modelLoads.get(poseId)" in renderer
     assert "const modelRecords = new Set()" in renderer
@@ -91,6 +94,9 @@ def test_shader_and_wiring_contract() -> None:
     tools = (ROOT / "web_desktop" / "frontend" / "tools-css3d-panels.js").read_text(encoding="utf-8")
     acceptance = (ROOT / "web_desktop" / "frontend" / "guardian-acceptance.html").read_text(encoding="utf-8")
     app = (ROOT / "web_desktop" / "frontend" / "app.js").read_text(encoding="utf-8")
+    assert app.count("async function saveWebReview") == 1
+    assert "saveWebReview=async function" not in app
+    assert "save committed; archive refresh failed" in app
     css = (ROOT / "web_desktop" / "frontend" / "final-pass.css").read_text(encoding="utf-8")
     trophy_asset = ROOT / "web_desktop" / "frontend" / "assets" / "tools-pet" / "trophy-champion-v2.png"
     champion_audio = ROOT / "web_desktop" / "frontend" / "assets" / "tools-pet" / "champion-callout-trimmed.m4a"
@@ -100,6 +106,7 @@ def test_shader_and_wiring_contract() -> None:
     assert "const isGuardianRoute" in tools
     assert "window.addEventListener('hashchange'" in tools
     assert "window.addEventListener('fitness-ledger-pet:route-change'" in tools
+    assert "void guardianPet.clearIntent?.('route-change')" not in tools
     assert "navigatorTiltX" in tools and "navigatorTiltY" in tools
     assert "Math.max(window.innerHeight / 1.8" in tools
     assert "y: -clamp((pointer.y - centerY)" in tools

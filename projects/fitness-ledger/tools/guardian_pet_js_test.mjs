@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { buildBodyRegionSummaries, buildDietStatus, buildHomeEntrySummary, buildMovementPresentationSummary, buildTrainingSaveSummary, buildWeightMilestone } from '../web_desktop/frontend/motion-lab/guardian/guardian-business-adapters.js';
 import { presentationForSemanticEvent, presentationForTrainingSave } from '../web_desktop/frontend/motion-lab/guardian/guardian-intent-map.js';
 import { createGuardianPresentationManager } from '../web_desktop/frontend/motion-lab/guardian/guardian-presentation-manager.js';
+import { patchGuardianMaterial } from '../web_desktop/frontend/motion-lab/guardian/guardian-shader-deformation.js';
 
 const home = buildHomeEntrySummary({
   today: { body: { 'Weight (kg)': 67.5 } },
@@ -61,5 +62,67 @@ assert.equal(visual.poseId, 'standing', 'an interrupted chain restores the origi
 assert.equal(await manager.apply({ id: 'duplicate', kind: 'new_pr', dedupeKey: 'record-1' }), false);
 assert.equal(overlays.length >= 2, true);
 manager.dispose();
+
+let releaseRestore;
+let signalRestoreStarted;
+const restoreGate = new Promise(resolve => { releaseRestore = resolve; });
+const restoreStarted = new Promise(resolve => { signalRestoreStarted = resolve; });
+let serializedVisual = { poseId: 'standing', cameraPreset: 'idle' };
+const serializedManager = createGuardianPresentationManager({
+  snapshot: () => ({ ...serializedVisual }),
+  restore: async snapshot => { signalRestoreStarted(); await restoreGate; serializedVisual = { ...snapshot }; },
+  setPose: async poseId => { serializedVisual.poseId = poseId; },
+  setCameraPreset: async cameraPreset => { serializedVisual.cameraPreset = cameraPreset; },
+  showOverlay: () => {},
+  hideOverlay: () => {},
+  playEffect: () => {},
+  stopEffect: () => {}
+});
+await serializedManager.apply({ id: 'route-serial', kind: 'route_default', poseId: 'side_chest', restore: 'previous' });
+const finishing = serializedManager.finish('route-serial');
+await restoreStarted;
+const queuedSave = serializedManager.apply({ id: 'save-serial', kind: 'save_success', poseId: 'crab_hands_apart', restore: 'previous' });
+releaseRestore();
+assert.equal(await finishing, true, 'restore should complete before the next presentation starts');
+assert.equal(await queuedSave, true, 'queued save presentation should still run');
+assert.equal(serializedVisual.poseId, 'crab_hands_apart', 'a queued save must not be overwritten by stale restore');
+serializedManager.dispose();
+
+
+let releasePageDefault;
+let signalPageDefaultStarted;
+const pageDefaultGate = new Promise(resolve => { releasePageDefault = resolve; });
+const pageDefaultStarted = new Promise(resolve => { signalPageDefaultStarted = resolve; });
+let lifecycleVisual = { poseId: 'standing', cameraPreset: 'idle' };
+const lifecycleManager = createGuardianPresentationManager({
+  snapshot: () => ({ ...lifecycleVisual }),
+  restore: async snapshot => {
+    if (snapshot.poseId === 'side_chest') {
+      signalPageDefaultStarted();
+      await pageDefaultGate;
+    }
+    lifecycleVisual = { ...snapshot };
+  },
+  setPose: async poseId => { lifecycleVisual.poseId = poseId; },
+  setCameraPreset: async cameraPreset => { lifecycleVisual.cameraPreset = cameraPreset; },
+  showOverlay: () => {},
+  hideOverlay: () => {},
+  playEffect: () => {},
+  stopEffect: () => {}
+});
+const queuedPageDefault = lifecycleManager.setPageDefault({ poseId: 'side_chest', cameraPreset: 'page' });
+await pageDefaultStarted;
+const queuedSaveAfterRoute = lifecycleManager.apply({ id: 'save-after-route', kind: 'save_success', poseId: 'crab_hands_apart', restore: 'previous' });
+releasePageDefault();
+assert.equal(await queuedPageDefault, true, 'page defaults should restore through the presentation queue');
+assert.equal(await queuedSaveAfterRoute, true, 'save intent should wait for an in-flight route default');
+assert.equal(lifecycleVisual.poseId, 'crab_hands_apart', 'a save intent must win after the route default it follows');
+lifecycleManager.dispose();
+
+const fallbackMaterial = { onBeforeCompile: undefined, customProgramCacheKey: () => 'base', needsUpdate: false };
+const fallbackPatch = patchGuardianMaterial(fallbackMaterial);
+assert.doesNotThrow(() => fallbackMaterial.onBeforeCompile({ vertexShader: 'void main() {}', uniforms: {} }, {}), 'unsupported shader anchors should fail open');
+assert.equal(fallbackPatch.compiledShader, null);
+fallbackPatch.dispose();
 
 console.log('guardian_pet_js_test: PASS');

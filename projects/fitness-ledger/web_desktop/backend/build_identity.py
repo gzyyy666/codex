@@ -113,6 +113,9 @@ def _from_manifest(path: Path, server_started_at: str) -> dict:
     commit = payload["commit_sha"].strip()
     origin = payload["origin_main_sha"].strip()
     published = payload["push_verified"] is True and commit == origin
+    dirty = payload.get("working_tree_dirty")
+    if not isinstance(dirty, bool):
+        dirty = False
     return _public(
         mode="formal",
         status="PUBLISHED" if published else "UNVERIFIED",
@@ -124,7 +127,7 @@ def _from_manifest(path: Path, server_started_at: str) -> dict:
         push_verified=payload["push_verified"],
         generated_at=payload["generated_at"].strip(),
         server_started_at=server_started_at,
-        dirty=False,
+        dirty=dirty,
         tag=str(payload.get("tag") or "").strip(),
     )
 

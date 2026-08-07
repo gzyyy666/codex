@@ -18,13 +18,20 @@ export function createGuardianPresentationManager(adapter, options = {}) {
   let timer = null;
   let disposed = false;
   const dedupe = new Set();
+  let operationQueue = Promise.resolve();
+
+  const enqueue = task => {
+    const result = operationQueue.then(task, task);
+    operationQueue = result.catch(() => {});
+    return result;
+  };
 
   const clearTimer = () => {
     if (timer !== null) clearTimeout(timer);
     timer = null;
   };
 
-  async function apply(request) {
+  async function applyNow(request) {
     if (disposed) return false;
     if (!request?.id) throw new Error('Presentation request requires id');
     const priority = request.priority ?? priorities[request.kind] ?? 10;
@@ -41,14 +48,29 @@ export function createGuardianPresentationManager(adapter, options = {}) {
     if (request.dedupeKey) dedupe.add(request.dedupeKey);
 
     if (request.poseId) await adapter.setPose(request.poseId, { source: 'intent' });
+    if (disposed || active?.id !== request.id) return false;
     if (request.cameraPreset) await adapter.setCameraPreset?.(request.cameraPreset, request);
+    if (disposed || active?.id !== request.id) return false;
     adapter.showOverlay?.(request.overlay || null, request);
     adapter.playEffect?.(request.effect || 'none', request);
     if (Number.isFinite(request.durationMs)) timer = setTimeout(() => void finish(request.id), request.durationMs);
     return true;
   }
 
-  async function finish(id, reason = 'timeout') {
+  function apply(request) {
+    return enqueue(() => applyNow(request)).catch(() => {
+      if (active?.id === request?.id) {
+        clearTimer();
+        adapter.stopEffect?.(active.effect || 'none', active);
+        adapter.hideOverlay?.(active, 'error');
+        active = null;
+        restoreSnapshot = null;
+      }
+      return false;
+    });
+  }
+
+  async function finishNow(id, reason = 'timeout') {
     if (disposed || !active || active.id !== id) return false;
     const finished = active;
     clearTimer();
@@ -56,26 +78,48 @@ export function createGuardianPresentationManager(adapter, options = {}) {
     adapter.hideOverlay?.(finished, reason);
     active = null;
     const restore = finished.restore || 'previous';
-    if (restore === 'previous' && restoreSnapshot) await adapter.restore?.(restoreSnapshot);
-    else if (restore === 'page_default' && pageDefault) await adapter.restore?.(pageDefault);
+    const snapshot = restoreSnapshot;
     restoreSnapshot = null;
+    if (restore === 'previous' && snapshot) await adapter.restore?.(snapshot);
+    else if (restore === 'page_default' && pageDefault) await adapter.restore?.(pageDefault);
     return true;
+  }
+
+  function finish(id, reason = 'timeout') {
+    return enqueue(() => finishNow(id, reason)).catch(() => false);
   }
 
   function setPageDefault(snapshot) {
     pageDefault = snapshot ? { ...snapshot } : null;
+    const desired = pageDefault ? { ...pageDefault } : null;
+    return enqueue(async () => {
+      if (disposed) return false;
+      clearTimer();
+      if (active) {
+        adapter.stopEffect?.(active.effect || 'none', active);
+        adapter.hideOverlay?.(active, 'route-change');
+        active = null;
+      } else {
+        adapter.hideOverlay?.(null, 'route-change');
+      }
+      restoreSnapshot = null;
+      if (desired) await adapter.restore?.(desired);
+      return true;
+    }).catch(() => false);
   }
 
   function setPriorities(next = {}) {
     Object.assign(priorities, next);
   }
 
-  async function clear(reason = 'clear') {
-    if (active) return finish(active.id, reason);
-    clearTimer();
-    adapter.hideOverlay?.(null, reason);
-    restoreSnapshot = null;
-    return true;
+  function clear(reason = 'clear') {
+    return enqueue(() => {
+      if (active) return finishNow(active.id, reason);
+      clearTimer();
+      adapter.hideOverlay?.(null, reason);
+      restoreSnapshot = null;
+      return true;
+    }).catch(() => false);
   }
 
   function getState() {

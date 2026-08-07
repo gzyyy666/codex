@@ -30,7 +30,13 @@ def git(args: list[str], repo: Path) -> str:
     return result.stdout.strip()
 
 
-def build_manifest(repo: Path, *, push_verified: bool, tag: str = "") -> dict:
+def build_manifest(
+    repo: Path,
+    *,
+    push_verified: bool,
+    tag: str = "",
+    allow_dirty_overlay: bool = False,
+) -> dict:
     commit = git(["rev-parse", "HEAD"], repo)
     branch = git(["symbolic-ref", "--short", "HEAD"], repo)
     main_sha = git(["rev-parse", "main"], repo)
@@ -39,6 +45,18 @@ def build_manifest(repo: Path, *, push_verified: bool, tag: str = "") -> dict:
         raise RuntimeError("HEAD, branch, main and origin/main are all required.")
     if push_verified and commit != origin_sha:
         raise RuntimeError("--push-verified requires HEAD to equal origin/main.")
+    status = git(["status", "--porcelain=v1"], repo)
+    changed_files = [line for line in status.splitlines() if line]
+    if changed_files and not allow_dirty_overlay:
+        preview = "\n".join(changed_files[:20])
+        suffix = "\n..." if len(changed_files) > 20 else ""
+        raise RuntimeError(
+            "The source worktree is dirty. Commit the deployed files first, "
+            "or explicitly pass --allow-dirty-overlay.\n"
+            f"Changed paths:\n{preview}{suffix}"
+        )
+    if push_verified and changed_files:
+        raise RuntimeError("--push-verified cannot be used with a dirty worktree.")
     return {
         "schema_version": 1,
         "mode": "formal",
@@ -48,6 +66,8 @@ def build_manifest(repo: Path, *, push_verified: bool, tag: str = "") -> dict:
         "origin_main_sha": origin_sha,
         "push_verified": bool(push_verified),
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "working_tree_dirty": bool(changed_files),
+        "working_tree_changes": changed_files,
         **({"tag": tag} if tag else {}),
     }
 
@@ -76,9 +96,19 @@ def main() -> int:
     parser.add_argument("--output", required=True, type=Path, help="Manifest output path")
     parser.add_argument("--repo", type=Path, default=Path.cwd(), help="Git checkout to inspect")
     parser.add_argument("--push-verified", action="store_true", help="Explicitly confirm HEAD was pushed to origin/main")
+    parser.add_argument(
+        "--allow-dirty-overlay",
+        action="store_true",
+        help="Record an uncommitted worktree overlay explicitly instead of rejecting it",
+    )
     parser.add_argument("--tag", default="", help="Optional annotated/release tag")
     args = parser.parse_args()
-    manifest = build_manifest(args.repo.resolve(), push_verified=args.push_verified, tag=args.tag.strip())
+    manifest = build_manifest(
+        args.repo.resolve(),
+        push_verified=args.push_verified,
+        tag=args.tag.strip(),
+        allow_dirty_overlay=args.allow_dirty_overlay,
+    )
     atomic_write(args.output, manifest)
     print(json.dumps({"output": str(args.output.resolve()), "commit_sha": manifest["commit_sha"], "push_verified": manifest["push_verified"]}, ensure_ascii=False))
     return 0
