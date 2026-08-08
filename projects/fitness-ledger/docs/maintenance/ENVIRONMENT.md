@@ -21,10 +21,14 @@ The path is not a data contract. Code should resolve files relative to the proje
 
 - Desktop: `stable_app.pyw`
 - Web: `web_desktop/launcher.pyw`
+- Formal Web desktop shortcut: `web_desktop/launch-desktop.vbs` in the formal directory
 - Web service directly: `python web_desktop/backend/server.py`
 - Mobile viewer: `start_mobile_viewer.py`
 
-Desktop shortcuts are local convenience files and are not repository authority.
+Desktop shortcuts are local convenience files, but the Web Preview shortcut must
+target the formal directory's versioned `web_desktop/launch-desktop.vbs`. Review
+handoff directories are not runtime authority and must not be used as the Web
+desktop shortcut target.
 
 ## Required Validation
 
