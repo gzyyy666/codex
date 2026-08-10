@@ -23,6 +23,10 @@ as the latest business baseline. The resulting paths are:
 The live environment variable `FITNESS_LEDGER_FORMAL_DIR` and the desktop
 shortcut must resolve to `D:\FitnessLedger\app`.
 
+`project_status.py` compares the formal runtime against the current committed
+`HEAD` snapshot. It still reports `HEAD`, local `main`, and `origin/main`
+separately, so a task branch can be verified without hiding integration drift.
+
 ## What belongs in Git
 
 Keep maintained Python, JavaScript, WXML/WXSS, HTML/CSS, source assets,

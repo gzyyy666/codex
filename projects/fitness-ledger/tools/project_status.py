@@ -17,7 +17,7 @@ PROJECT = Path(__file__).resolve().parents[1]
 CONFIG_FILE = PROJECT / "PROJECT_STATUS_CONFIG.json"
 TEXT_SUFFIXES = {
     ".css", ".html", ".js", ".json", ".md", ".mjs", ".py", ".pyw", ".txt", ".webmanifest",
-    ".wxml", ".wxss", ".xml", ".yaml", ".yml",
+    ".wxml", ".wxss", ".xml", ".yaml", ".yml", ".vbs",
 }
 
 
@@ -68,6 +68,7 @@ def same_deployed_content(relative_path: str, source: bytes, target: bytes) -> b
 
 def deployment_state(git_root: Path, formal: Path, config: dict) -> dict:
     prefix = str(config["project_prefix"]).replace("\\", "/").rstrip("/")
+    deployment_ref = str(config.get("deployment_ref") or "main")
     included = tuple(
         str(item).replace("\\", "/").lstrip("/")
         for item in config.get("deployment_include_prefixes", [])
@@ -76,7 +77,7 @@ def deployment_state(git_root: Path, formal: Path, config: dict) -> dict:
         str(item).replace("\\", "/").lstrip("/")
         for item in config.get("excluded_deployment_prefixes", [])
     )
-    archive = run_git(git_root, "archive", "--format=tar", "main", prefix, text=False)
+    archive = run_git(git_root, "archive", "--format=tar", deployment_ref, prefix, text=False)
     compared = 0
     missing: list[str] = []
     different: list[str] = []
@@ -102,6 +103,7 @@ def deployment_state(git_root: Path, formal: Path, config: dict) -> dict:
                 different.append(relative)
     return {
         "status": "CURRENT" if not missing and not different else "DRIFT",
+        "ref": deployment_ref,
         "compared_files": compared,
         "missing": missing,
         "different": different,

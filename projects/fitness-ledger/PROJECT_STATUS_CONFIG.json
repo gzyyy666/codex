@@ -4,6 +4,7 @@
   "formal_directory": "D:\\FitnessLedger\\app",
   "shared_state_directory": "D:\\FitnessLedger\\source\\projects\\fitness-ledger\\.codex",
   "project_prefix": "projects/fitness-ledger",
+  "deployment_ref": "HEAD",
   "service_url": "http://127.0.0.1:8766",
   "deployment_include_prefixes": [
     "stable_app.pyw",
