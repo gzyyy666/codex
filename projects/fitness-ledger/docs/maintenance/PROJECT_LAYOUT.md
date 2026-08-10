@@ -27,6 +27,19 @@ shortcut must resolve to `D:\FitnessLedger\app`.
 `HEAD` snapshot. It still reports `HEAD`, local `main`, and `origin/main`
 separately, so a task branch can be verified without hiding integration drift.
 
+## Desktop entry points
+
+The maintained desktop entries are:
+
+- `C:\Users\26087\Desktop\Fitness Ledger.lnk` -> `D:\FitnessLedger\app\stable_app.pyw`
+- `C:\Users\26087\Desktop\Fitness Ledger Web.lnk` ->
+  `D:\FitnessLedger\app\web_desktop\launch-desktop.vbs`
+- `C:\Users\26087\Desktop\Fitness Ledger 项目.lnk` -> `D:\FitnessLedger\source`
+
+Legacy FL desktop files are moved to
+`D:\FitnessLedger\archive\desktop-cleanup-20260810`; do not restore them as
+active launchers.
+
 ## What belongs in Git
 
 Keep maintained Python, JavaScript, WXML/WXSS, HTML/CSS, source assets,
