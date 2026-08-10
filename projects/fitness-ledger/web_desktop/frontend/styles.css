@@ -1340,8 +1340,8 @@ button.nav-item[data-view="dictionary"].is-active{background-color:#000!importan
 @media(max-width:760px){.dictionary-icon-actions button span{display:none}.dictionary-sheet-head,.dictionary-row-compact{min-width:720px}.record-edit-form{grid-template-columns:1fr}.record-edit-form label.is-wide,.record-edit-note{grid-column:auto}.trajectory-entry{padding-right:0}.trajectory-edit{position:static;transform:none;margin-top:10px}}
 
 /* Dictionary functional grid, matched to the approved compact reference. */
-.dictionary-page{max-width:none;padding:28px max(32px,calc((100vw - 1260px)/2)) 90px;background:var(--paper)}
-.dictionary-page::after{content:"";position:absolute;z-index:-1;inset:0;background:url("assets/movement-archive-collage.png") center top/100% auto no-repeat;opacity:.24;border:0;border-radius:0;box-shadow:none;transform:none;pointer-events:none}
+.dictionary-page{max-width:none;padding:28px max(32px,calc((100vw - 1260px)/2)) 90px;background-color:var(--paper);background-image:linear-gradient(rgba(248,245,237,.76),rgba(248,245,237,.76)),url("assets/movement-archive-collage.png");background-repeat:no-repeat,repeat-y;background-position:center top,center top;background-size:100% 100%,100% auto}
+.dictionary-page::after{content:none}
 .dictionary-page::before{right:max(18px,calc((100vw - 1400px)/2));top:220px}
 .dictionary-hero{max-width:100%;grid-template-columns:minmax(0,780px) auto;justify-content:space-between;align-items:end;margin:0 0 20px;text-align:left;padding:0 0 18px;border-bottom:0}
 .page .dictionary-hero{max-width:none;margin:0 0 20px;text-align:left}
