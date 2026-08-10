@@ -429,6 +429,10 @@
   margin-top: 14px;
 }
 
+.admin-lower-grid-reference-only {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .admin-route-panel,
 .admin-reference-card {
   min-height: 190px;
@@ -1243,6 +1247,26 @@
   background: linear-gradient(90deg, rgba(255, 253, 247, 0.88), rgba(255, 253, 247, 0.54) 72%, rgba(255, 253, 247, 0.34));
 }
 
+.admin-action-row[data-motion-surface="wave-grid"] {
+  background: rgba(255, 253, 247, .84);
+  color: var(--ink);
+}
+
+.admin-action-row[data-motion-surface="wave-grid"] > span,
+.admin-action-row[data-motion-surface="wave-grid"] small,
+.admin-action-row[data-motion-surface="wave-grid"] > i {
+  color: rgba(38, 33, 25, .72);
+}
+
+.admin-action-row[data-motion-surface="wave-grid"] strong {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.admin-action-row[data-motion-surface="wave-grid"] .admin-action-motion-scrim {
+  background: linear-gradient(90deg, rgba(255, 253, 247, .62), rgba(255, 253, 247, .26) 72%, rgba(255, 253, 247, .1));
+}
+
 .admin-action-row[data-status="NEEDS_REVIEW"] .admin-action-motion-field {
   background:
     radial-gradient(circle at 78% 50%, rgba(151, 94, 61, 0.2) 0 2px, transparent 3px),
@@ -1394,7 +1418,9 @@
   grid-template-columns: 192px minmax(0, 1fr);
   grid-template-rows: auto auto auto auto;
   column-gap: 15px;
-  overflow: clip;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
   isolation: isolate;
   background-image: linear-gradient(rgba(38, 33, 25, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(38, 33, 25, .035) 1px, transparent 1px);
   background-size: 32px 32px;
@@ -1409,7 +1435,7 @@
 }
 
 .collectiveos-dashboard::before {
-  inset: 0;
+  inset: 0 calc(50% - 50vw);
   background: radial-gradient(circle at var(--tools-spot-x, 72%) var(--tools-spot-y, 18%), rgba(255, 218, 110, .28), transparent 27rem);
   opacity: .58;
   transition: opacity .25s ease;
@@ -1644,13 +1670,13 @@
   position: absolute;
 }
 
-.motion-lab-stage.is-motion-ready [data-motion-reveal] {
+.tools-motion-stage.is-motion-ready [data-motion-reveal] {
   opacity: .01;
   transform: translateY(12px);
   transition: opacity .48s ease, transform .48s var(--ease);
 }
 
-.motion-lab-stage.is-motion-ready [data-motion-reveal].is-visible {
+.tools-motion-stage.is-motion-ready [data-motion-reveal].is-visible {
   opacity: 1;
   transform: translateY(0);
 }
@@ -1718,11 +1744,11 @@
   .collectiveos-dashboard::before,
   .rb-spotlight-card::before,
   .rb-glare-target::after,
-  .motion-lab-stage.is-motion-ready [data-motion-reveal] {
+  .tools-motion-stage.is-motion-ready [data-motion-reveal] {
     transition: none;
   }
 
-  .motion-lab-stage.is-motion-ready [data-motion-reveal] {
+  .tools-motion-stage.is-motion-ready [data-motion-reveal] {
     opacity: 1;
     transform: none;
   }

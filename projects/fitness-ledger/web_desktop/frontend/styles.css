@@ -1341,7 +1341,7 @@ button.nav-item[data-view="dictionary"].is-active{background-color:#000!importan
 
 /* Dictionary functional grid, matched to the approved compact reference. */
 .dictionary-page{max-width:none;padding:28px max(32px,calc((100vw - 1260px)/2)) 90px;background:var(--paper)}
-.dictionary-page::after{content:"";position:fixed;z-index:-1;inset:80px 0 0;background:url("assets/movement-archive-collage.png") center top/cover no-repeat;opacity:.24;border:0;border-radius:0;box-shadow:none;transform:none;pointer-events:none}
+.dictionary-page::after{content:"";position:absolute;z-index:-1;inset:0;background:url("assets/movement-archive-collage.png") center top/100% auto no-repeat;opacity:.24;border:0;border-radius:0;box-shadow:none;transform:none;pointer-events:none}
 .dictionary-page::before{right:max(18px,calc((100vw - 1400px)/2));top:220px}
 .dictionary-hero{max-width:100%;grid-template-columns:minmax(0,780px) auto;justify-content:space-between;align-items:end;margin:0 0 20px;text-align:left;padding:0 0 18px;border-bottom:0}
 .page .dictionary-hero{max-width:none;margin:0 0 20px;text-align:left}
