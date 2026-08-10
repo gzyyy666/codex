@@ -16,7 +16,6 @@ def main() -> None:
         PWA / "index.html",
         PWA / "manifest.webmanifest",
         PWA / "app.js",
-        PWA / "candidateMatcher.js",
         PWA / "api.js",
         PWA / "styles.css",
         PWA / "sw.js",
@@ -51,11 +50,6 @@ def main() -> None:
     assert "noteHistoryCache" in app_source
     assert 'data-candidate-region' in app_source
     assert 'PWA v1.0.0' in app_source
-    assert 'candidateMatcher.js?v=20260807-06' in app_source
-    assert 'return history.map(record =>' in app_source
-    assert 'previewHistory: Array.isArray(history) ? history : []' in app_source
-    assert '详情 →' not in app_source
-    assert 'CANDIDATE_ALIAS_OVERRIDES' in (PWA / "candidateMatcher.js").read_text(encoding="utf-8")
     candidate_update = app_source.split("async function updateCandidates()", 1)[1].split("async function openNoteCandidate", 1)[0]
     assert "render()" not in candidate_update, "candidate recognition must not redraw the whole page"
     assert 'autocomplete="off"' in app_source and 'autocorrect="off"' in app_source
@@ -82,8 +76,8 @@ def main() -> None:
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'includes("/api/")' in service_worker
-    assert 'fitness-ledger-pwa-v27' in service_worker
-    assert 'register("./sw.js?v=20260807-06", { updateViaCache: "none" })' in app_source
+    assert 'fitness-ledger-pwa-v21' in service_worker
+    assert 'register("./sw.js?v=20260803-21", { updateViaCache: "none" })' in app_source
     desktop_icon = ROOT / "assets" / "fitness-ledger-monogram-v3.png"
     pwa_icon = PWA / "icons" / "fitness-ledger.png"
     assert hashlib.sha256(desktop_icon.read_bytes()).digest() == hashlib.sha256(pwa_icon.read_bytes()).digest()

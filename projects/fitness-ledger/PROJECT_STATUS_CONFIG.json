@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "main_worktree": "C:\\Users\\26087\\Documents\\Codex\\github-memory",
-  "formal_directory": "C:\\Users\\26087\\Documents\\Codex\\2026-06-16\\vs-code-ai\\work\\fitness_tracker_app",
-  "shared_state_directory": "C:\\Users\\26087\\Documents\\Codex\\github-memory\\projects\\fitness-ledger\\.codex",
+  "main_worktree": "D:\\FitnessLedger\\source",
+  "formal_directory": "D:\\FitnessLedger\\app",
+  "shared_state_directory": "D:\\FitnessLedger\\source\\projects\\fitness-ledger\\.codex",
   "project_prefix": "projects/fitness-ledger",
   "service_url": "http://127.0.0.1:8766",
   "deployment_include_prefixes": [

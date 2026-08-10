@@ -103,10 +103,13 @@ def extract_note_sections(raw: str) -> dict[str, str]:
         if matched:
             if matched[0] == "daily_notes" and in_training:
                 next_line = raw_lines[index + 1].strip() if index + 1 < len(raw_lines) else ""
-                # Historical input sometimes used an unindented action note.
-                # Keep that compatibility only when the next line clearly
-                # starts another action; otherwise this is the Daily scope.
-                if re.match(r"^\d+\s*[.)、。]", next_line):
+                # An unindented, populated `notes:` inside the training
+                # section is an action note.  The training parser owns that
+                # scope; keeping it out of daily notes prevents action text
+                # from swallowing the rest of the training block.  Preserve
+                # the legacy empty-label form for a trailing Daily Notes
+                # block, unless it clearly precedes another numbered action.
+                if matched[1].strip() or re.match(r"^\d+\s*[.)、。]", next_line):
                     current = None
                     continue
                 in_training = False

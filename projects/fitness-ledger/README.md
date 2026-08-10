@@ -2,6 +2,15 @@
 
 Local Windows desktop tracker for body data, diet, training sessions, and movement progress.
 
+The standardized installation lives under `D:\FitnessLedger`:
+
+- Git workspace: `D:\FitnessLedger\source`
+- Formal runtime and protected data: `D:\FitnessLedger\app`
+- Historical and QA archive: `D:\FitnessLedger\archive`
+
+Open the Git workspace for source changes. Do not treat the formal `app` copy
+or its `data` directory as a Git checkout.
+
 The project also includes a browser UI, a sanitized cloud-replica preparation layer, and a WeChat read-only viewer skeleton. The Git mirror contains no CloudBase credentials; whether a formal working directory is connected depends on its explicit AppID, env_id, collections, and OpenID allowlist configuration and must be checked through the live status/report.
 
 ## Current entry workflow
@@ -26,3 +35,6 @@ The original text is always preserved in `data/tracker.json`.
 - Automatic backups: `data/backups/`
 - Imported historical source: `data/history_import.json`
 - The original desktop Excel workbook is not modified by the app.
+
+For the complete path, authority, cleanup, and rollback contract, read
+`docs/maintenance/PROJECT_LAYOUT.md`.

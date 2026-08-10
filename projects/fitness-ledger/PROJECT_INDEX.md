@@ -16,6 +16,8 @@
 | `CHANGELOG.md` | Durable change history. | Long-term |
 | `PROJECT_CONTEXT.md` | Product and architecture context. | Documentation |
 | `README.md` | User-facing project overview. | Documentation |
+| `docs/maintenance/PROJECT_LAYOUT.md` | Standard D: drive layout, authority boundaries, and rollback contract. | Long-term |
+| `docs/maintenance/RESOURCE_AUDIT.md` | Confirmed resource cleanup and retained-resource decisions. | Long-term |
 
 ## Folders
 
@@ -60,6 +62,8 @@
 ## Maintenance File Set
 
 - `FITNESS_LEDGER_MAINTENANCE.md`: safety rules and validation commands.
+- `docs/design/STYLE_BIBLE.md`: current Web visual and interaction authority.
+- `docs/design/evidence/2026-08-10/`: anonymous current-baseline screenshots.
 - `PROJECT_BOOTSTRAP.md`: low-token startup context and request routing.
 - `PROJECT_INDEX.md`: file and folder map.
 - `FUNCTION_INDEX.md`: function responsibility and future-change routing.

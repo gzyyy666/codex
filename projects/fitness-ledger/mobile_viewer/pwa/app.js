@@ -1,5 +1,4 @@
-import { apiDescription, call, signIn } from "./api.js?v=20260807-06";
-import { findLastCandidate } from "./candidateMatcher.js?v=20260807-06";
+import { apiDescription, call, signIn } from "./api.js?v=20260803-18";
 
 const BODY_PARTS = [
   { id: "shoulders", cn: "肩", en: "SHOULDERS", tone: "amber" },
@@ -10,7 +9,7 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.0.0 · build 2026.08.07.06";
+const BUILD_VERSION = "PWA v1.0.0 · build 2026.08.03.23";
 const app = document.querySelector("#app");
 const state = {
   route: parseRoute(), loading: true, error: "", status: null, identity: null,
@@ -118,9 +117,31 @@ function renderLogin() {
   return `<main class="page auth-page"><div class="eyebrow">PRIVATE WEB ACCESS / CLOUDBASE</div><h1 class="title">登录每日健身</h1><p class="intro">这是个人只读训练档案。登录只用于验证网页访问身份，不会修改小程序数据。</p><form class="auth-card" data-login><label>账号<input name="username" autocomplete="username" required></label><label>密码<input name="password" type="password" autocomplete="current-password" required></label><button class="auth-submit" type="submit" ${state.authBusy ? "disabled" : ""}>${state.authBusy ? "登录中…" : "登录"}</button>${state.authMessage ? `<p class="auth-error">${esc(state.authMessage)}</p>` : ""}</form></main>`;
 }
 
+function normalizeCandidateText(value) {
+  return String(value || "").toLocaleLowerCase().replace(/\s+/g, " ").trim();
+}
+function usableCandidateTerm(value) {
+  const term = normalizeCandidateText(value);
+  if (!term) return "";
+  const compactLength = term.replace(/\s/g, "").length;
+  if (/[\u3400-\u9fff]/.test(term)) return compactLength >= 2 ? term : "";
+  return compactLength >= 3 ? term : "";
+}
+function findLastCandidate(note, catalog) {
+  const source = normalizeCandidateText(note);
+  if (!source) return null;
+  const matches = (catalog || []).map(item => {
+    const terms = [item.display_name, item.english_name, ...(item.aliases || [])].map(usableCandidateTerm).filter(Boolean);
+    const hits = terms.map(term => ({ term, position: source.indexOf(term) })).filter(hit => hit.position >= 0);
+    hits.sort((a, b) => b.position - a.position || b.term.length - a.term.length);
+    return hits.length ? { ...item, matched_term: hits[0].term, matched_position: hits[0].position } : null;
+  }).filter(Boolean);
+  matches.sort((a, b) => b.matched_position - a.matched_position || b.matched_term.length - a.matched_term.length);
+  return matches[0] || null;
+}
 function renderCandidateHistory(history) {
   if (!Array.isArray(history) || !history.length) return `<div class="candidate-empty">暂无最近正式训练记录</div>`;
-  return history.map(record => {
+  return history.slice(0, 3).map(record => {
     const sets = Array.isArray(record.sets) ? record.sets : [];
     const setMarkup = sets.length
       ? `<div class="candidate-sets">${sets.map(renderCandidateSet).join("")}</div>`
@@ -130,7 +151,7 @@ function renderCandidateHistory(history) {
 }
 function renderNoteCandidate(candidate) {
   const partLabel = (candidate.body_parts || []).map(id => bodyPart(id).cn).join(" / ") || candidate.body_part_label || "跨部位";
-  return `<article class="candidate"><span class="candidate-main"><b>${esc(candidate.display_name)}</b>${candidate.english_name ? `<small>${esc(candidate.english_name)}</small>` : ""}<span class="candidate-history-list">${renderCandidateHistory(candidate.previewHistory)}</span></span><span class="candidate-meta"><small>${esc(partLabel)}</small></span></article>`;
+  return `<button class="candidate" data-action="candidate" data-id="${esc(candidate.movement_id)}"><span class="candidate-main"><b>${esc(candidate.display_name)}</b>${candidate.english_name ? `<small>${esc(candidate.english_name)}</small>` : ""}<span class="candidate-history-list">${renderCandidateHistory(candidate.previewHistory)}</span></span><span class="candidate-meta"><small>${esc(partLabel)}</small><strong>详情 →</strong></span></button>`;
 }
 
 function renderReference() {
@@ -153,51 +174,9 @@ function renderCandidateOverlay() {
   if (state.noteCandidatesCollapsed) return `<section class="candidates candidate-overlay collapsed"><button class="candidate-edge" data-action="toggle-candidates" aria-label="展开动作候选"><span class="candidate-edge-dot"></span></button></section>`;
   return `<section class="candidates candidate-overlay"><div class="candidate-head"><span>可能相关动作 · 最近记录</span><button data-action="toggle-candidates">收起</button></div>${state.noteCandidatesLoading ? `<div class="candidate-loading">正在识别动作库…</div>` : `<div class="candidate-scroll">${state.noteCandidates.map(renderNoteCandidate).join("")}</div>`}</section>`;
 }
-let candidateOverlayFrame = 0;
-function syncCandidateOverlayPosition() {
-  candidateOverlayFrame = 0;
-  const noteCard = document.querySelector(".notepad-card");
-  const page = document.querySelector(".reference-page");
-  if (!noteCard) {
-    document.documentElement.style.removeProperty("--candidate-overlay-top");
-    page?.style.removeProperty("--candidate-flow-space");
-    return;
-  }
-  const overlay = document.querySelector(".candidate-overlay:not(.collapsed)");
-  if (!overlay) {
-    page?.style.removeProperty("--candidate-flow-space");
-    return;
-  }
-  const viewport = window.visualViewport;
-  const viewportHeight = viewport?.height || window.innerHeight;
-  const availableHeight = Math.max(150, Math.min(214, viewportHeight - 16));
-  const cardBottom = noteCard.getBoundingClientRect().bottom;
-  const top = Math.max(8, Math.min(cardBottom + 8, viewportHeight - availableHeight - 8));
-  document.documentElement.style.setProperty("--candidate-overlay-top", `${Math.round(top)}px`);
-  overlay.style.height = "auto";
-  overlay.style.maxHeight = `${Math.round(availableHeight)}px`;
-  const scroll = overlay.querySelector(".candidate-scroll");
-  if (scroll) {
-    scroll.style.height = "auto";
-    scroll.style.maxHeight = `${Math.max(104, Math.round(availableHeight - 46))}px`;
-  }
-  if (page) {
-    page.style.setProperty("--candidate-flow-space", "0px");
-    const contentList = page.querySelector(".movement-list, .session-list");
-    if (contentList) {
-      const needed = overlay.getBoundingClientRect().bottom + 8 - contentList.getBoundingClientRect().top;
-      page.style.setProperty("--candidate-flow-space", `${Math.max(0, Math.round(needed))}px`);
-    }
-  }
-}
-function scheduleCandidateOverlayPosition() {
-  if (candidateOverlayFrame) return;
-  candidateOverlayFrame = window.requestAnimationFrame(syncCandidateOverlayPosition);
-}
 function refreshCandidateOverlay() {
   const region = document.querySelector("[data-candidate-region]");
   if (region) region.innerHTML = renderCandidateOverlay();
-  scheduleCandidateOverlayPosition();
 }
 function updateNoteStatus(message = "已自动保存") {
   document.querySelectorAll("[data-note-status]").forEach(element => { element.textContent = message; });
@@ -385,7 +364,7 @@ async function updateCandidates() {
         if (historyLoaded) state.noteHistoryCache.set(movementId, Array.isArray(history) ? history : []);
       }
       if (request !== state.candidatesRequest || state.note !== noteSnapshot) return;
-      state.noteCandidates = [{ ...match, body_part_label: (match.body_parts || []).map(id => bodyPart(id).cn).join(" / "), previewHistory: Array.isArray(history) ? history : [] }];
+      state.noteCandidates = [{ ...match, body_part_label: (match.body_parts || []).map(id => bodyPart(id).cn).join(" / "), previewHistory: Array.isArray(history) ? history.slice(0, 3) : [] }];
       state.noteCandidatesLoading = false;
       refreshCandidateOverlay();
     } catch (_) { if (request !== state.candidatesRequest) return; state.noteCandidates = []; state.noteCandidatesLoading = false; refreshCandidateOverlay(); }
@@ -464,12 +443,9 @@ document.addEventListener("click", event => {
   if (action === "close-note-detail") { state.noteDetailRequest += 1; state.noteDetailOpen = false; state.noteDetailLoading = false; render(); }
   if (action === "noop") return;
 });
-window.addEventListener("scroll", () => { scheduleDockCheck(); scheduleCandidateOverlayPosition(); }, { passive: true });
-window.addEventListener("resize", scheduleCandidateOverlayPosition, { passive: true });
-window.visualViewport?.addEventListener("resize", scheduleCandidateOverlayPosition, { passive: true });
-window.visualViewport?.addEventListener("scroll", scheduleCandidateOverlayPosition, { passive: true });
+window.addEventListener("scroll", scheduleDockCheck, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260807-06", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260803-21", { updateViaCache: "none" }).catch(() => {});
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();
   event.preventDefault();

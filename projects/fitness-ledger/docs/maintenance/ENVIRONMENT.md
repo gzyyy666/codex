@@ -1,10 +1,22 @@
 # Environment And Launch Guide
 
+## Standardized local layout
+
+- Git source worktree: `D:\FitnessLedger\source`
+- FL source boundary: `D:\FitnessLedger\source\projects\fitness-ledger`
+- Formal runtime application: `D:\FitnessLedger\app`
+- Recovery and historical QA archive: `D:\FitnessLedger\archive`
+- Temporary review output: `D:\FitnessLedger\work`
+
+The source worktree is the modification and review authority. The formal
+application is the only directory allowed to contain live personal JSON and
+local provider configuration. Never copy `app\data\` into Git.
+
 ## Working Copy
 
 Recommended local working path:
 
-`%USERPROFILE%\Documents\Codex\2026-06-16\vs-code-ai\work\fitness_tracker_app`
+`D:\FitnessLedger\app`
 
 The path is not a data contract. Code should resolve files relative to the project directory.
 
@@ -21,14 +33,13 @@ The path is not a data contract. Code should resolve files relative to the proje
 
 - Desktop: `stable_app.pyw`
 - Web: `web_desktop/launcher.pyw`
-- Formal Web desktop shortcut: `web_desktop/launch-desktop.vbs` in the formal directory
 - Web service directly: `python web_desktop/backend/server.py`
 - Mobile viewer: `start_mobile_viewer.py`
 
-Desktop shortcuts are local convenience files, but the Web Preview shortcut must
-target the formal directory's versioned `web_desktop/launch-desktop.vbs`. Review
-handoff directories are not runtime authority and must not be used as the Web
-desktop shortcut target.
+The desktop shortcut and the user environment variable
+`FITNESS_LEDGER_FORMAL_DIR` must both resolve to `D:\FitnessLedger\app`.
+The shortcut remains a local convenience file; the Git source tree is the
+repository authority.
 
 ## Required Validation
 
@@ -58,8 +69,8 @@ formal identity; the file is intentionally Git-ignored and missing or incomplete
 metadata renders `BUILD UNKNOWN` rather than inventing a published build.
 
 The Git baseline/integration workflow may generate that manifest only after a
-fresh Git audit, a clean source worktree, and an explicit confirmation that the
-deployed commit was pushed to `origin/main`:
+fresh Git audit and an explicit confirmation that the deployed commit was pushed
+to `origin/main`:
 
 ```powershell
 python tools/generate_runtime_build_info.py `
@@ -71,15 +82,10 @@ python tools/generate_runtime_build_info.py `
 
 The tool reads real `HEAD`, `main`, and `origin/main`, writes atomically as UTF-8,
 and performs no Push, Merge, Tag, data write, or formal writeback beyond the
-explicit `--output` file. By default it refuses to generate a formal manifest
-from a dirty worktree, because a commit-only identity cannot describe an
-uncommitted overlay. If an intentional local overlay must be reviewed, use
-`--allow-dirty-overlay`; the manifest then records `working_tree_dirty` and the
-changed paths explicitly, and remains `UNVERIFIED`. `PUBLISHED` is shown only
-when `push_verified=true` and the recorded commit equals the recorded
-`origin_main_sha`. After copying the committed source tree to the formal
-directory, regenerate the manifest there and restart the Web service so
-`server_started_at` identifies the new process.
+explicit `--output` file. `PUBLISHED` is shown only when `push_verified=true`
+and the recorded commit equals the recorded `origin_main_sha`; Worktree builds
+always remain `PREVIEW`, including dirty previews. After deploying changed Web
+code, restart the Web service so `server_started_at` identifies the new process.
 
 ## Local-Only Files
 
@@ -92,3 +98,14 @@ directory, regenerate the manifest there and restart the Web service so
 - original spreadsheets
 
 These must not be copied into the public GitHub memory repository.
+
+## Future-task startup contract
+
+1. Open `D:\FitnessLedger\source` as the Codex workspace.
+2. Read `projects/fitness-ledger/START_HERE.md`.
+3. Run `python projects/fitness-ledger/tools/project_status.py --write --json`
+   from the FL project directory.
+4. For visual changes, read `docs/design/STYLE_BIBLE.md` and inspect only the
+   relevant evidence under `docs/design/evidence/`.
+5. Treat `D:\FitnessLedger\app\data\` as protected local state; use fixtures
+   or temporary directories for tests.

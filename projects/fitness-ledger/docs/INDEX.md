@@ -35,6 +35,11 @@ Use this index instead of scanning the project.
 | Cloud replica truth, collections, and review | `../cloud_sync/CLOUD_REVIEW.md` |
 | WeChat setup, API, UI states, and preview | `../mini_program/README.md`, `../mini_program/docs/` |
 
+## Standardization
+
+| Local paths, authority boundaries, and migration rules | `maintenance/PROJECT_LAYOUT.md` |
+| Confirmed cleanup and retained-resource audit | `maintenance/RESOURCE_AUDIT.md` |
+
 ## 2026-07 Maintenance Entry
 
 - Cloud Sync and verification: `../web_desktop/backend/server.py`, `../web_desktop/frontend/app.js`

@@ -3715,7 +3715,11 @@ def _patched_parse_training_movements(self, training_text: str) -> list[dict]:
             or next_definition is not None
             or extract_load_blocks(next_line)
         )
-        if note_match and current and (is_indented or next_is_movement_boundary):
+        if note_match and current and (
+            is_indented
+            or next_is_movement_boundary
+            or (note_match.group(1).strip() and not next_line)
+        ):
             current["raw_lines"].append(stripped)
             current["notes"].append(note_match.group(1).strip())
             current["note_mode"] = True

@@ -1,251 +1,276 @@
-# Fitness Ledger Visual Style Bible
+# Fitness Ledger Web Style Bible
 
-Status: Active
+Version: 2026-08-10 / current formal baseline
 
-Last updated: 2026-07-02
+This is the visual and interaction authority for future Fitness Ledger Web
+work. It is intentionally concrete: a new screen should feel like it belongs
+to the existing product before it introduces any new visual idea.
 
-## 1. Design Name
+## Evidence and authority
 
-**The Disciplined Archive**
+The current baseline was captured from the formal application using anonymous
+review fixtures at a 1600 x 1000 viewport. Accepted evidence is in:
 
-Fitness Ledger treats personal training data as a private editorial archive: part training notebook, part measurement slip, and part cinematic fitness journal. It should feel designed and tactile without becoming decorative, playful, or dashboard-like.
+- `docs/design/evidence/2026-08-10/00-home.png`
+- `docs/design/evidence/2026-08-10/01-body.png`
+- `docs/design/evidence/2026-08-10/02-diet.png`
+- `docs/design/evidence/2026-08-10/03-training.png`
+- `docs/design/evidence/2026-08-10/04-movements.png`
+- `docs/design/evidence/2026-08-10/05-tools-export.png`
 
-## 2. Core Character
+The evidence is visual grounding only; it contains no personal records. The
+live implementation remains the final authority for behavior and data.
 
-- Local-first and private rather than social or competitive.
-- Editorial rather than administrative.
-- Tactile paper and physical slips rather than generic white cards.
-- Dense when reading records, spacious when introducing a section.
-- Strong but restrained: graphite, warm ivory, amber-yellow highlight, and small status colors.
-- Fitness imagery is documentary or graphic-archive material, never glossy stock-app decoration.
+## Product character
 
-## 3. Visual Hierarchy
+Fitness Ledger is a private local fitness journal with an editorial archive
+surface. It should feel tactile, quiet, deliberate, and data-honest:
 
-Each screen should have one dominant anchor:
+- warm paper and graphite form the stable base;
+- large editorial typography establishes page identity;
+- real fitness imagery is atmospheric, never a substitute for data;
+- paper slips, receipts, hairlines, contact shadows, and translucent layers
+  create physical depth;
+- amber/gold is reserved for action and focused body themes;
+- mint signals local-first safety or a verified state;
+- the interface should remain fast and readable while the visual surface feels
+  composed rather than utilitarian.
 
-- Home: cinematic Hero and `Daily Capture`.
-- Daily Entry: the writing surface.
-- Body/Diet/Training: the archive records.
-- Movement Index: movement groups ordered by usage.
-- Movement Detail: progression chart and recent trajectory.
-- Data Check: issue severity and explicit repair entry.
+Do not turn the product into a generic dashboard, a neon fitness game, a dense
+spreadsheet, a black admin console, or a card grid where every card has the same
+material identity.
 
-Secondary information must not compete with the anchor. Metadata uses smaller type, quieter color, and tabular numerals.
+## Global tokens
 
-## 4. Color System
+These values are taken from the current Web stylesheets. Reuse the tokens or
+their semantic equivalents instead of inventing nearby values.
 
-| Role | Token | Current value | Use |
+### Color
+
+| Role | Value | Use |
+| --- | --- | --- |
+| paper | `#f8f5ed` | page canvas and light paper |
+| paper deep | `#f2ede2` | warm recesses |
+| paper light | `#fcf9f2` | clean foreground paper |
+| ink | `#000` | display titles, primary text, active nav |
+| graphite | `#707070` | secondary copy and quiet metadata |
+| graphite dark | `#28251f` | material text and dark surfaces |
+| volt / sun | `#ffda6e` | primary action, selected control, warm cue |
+| brass | `#b88924` | restrained theme accent |
+| mint | `#6ece9d` | local-first and verified status |
+| danger | `#bd3f35` | errors only |
+
+Body-area themes are stable semantic colors, not interchangeable decoration:
+
+| Theme | Accent | Soft tint | Meaning |
 | --- | --- | --- | --- |
-| Paper | `--color-paper` | `#f8f5ed` | Main background |
-| Paper light | `--color-paper-light` | `#fcf9f2` | Writing and detail surfaces |
-| Paper deep | `--color-paper-deep` | `#f2ede2` | Section contrast |
-| Ink | `--color-ink` | `#000000` | Primary text and decisive rules |
-| Graphite | `--color-graphite` | `#707070` | Metadata and explanation |
-| Volt amber | `--color-volt` | `#ffda6e` | One primary action or latest state |
-| Mint | `--color-mint` | `#6ece9d` | Success/local status only |
-| Lilac paper | `--color-paper-lilac` | `#f5f0f4` | Quiet tonal variation |
+| shoulders | `#d49a27` | `#f2d88b` | lift / amber |
+| chest | `#c86454` | `#efb9ae` | coral / expansion |
+| back | `#34776f` | `#afd6cc` | teal / structure |
+| legs | `#8065a8` | `#d5c5e8` | violet / grounding |
+| arms | `#3f86a2` | `#b8dce8` | blue / rhythm |
 
-Rules:
+### Typography
 
-- Do not use pure white as the default surface.
-- Use yellow as a highlighter, not as broad decoration.
-- Use green only for success, privacy, or positive change.
-- High/medium/low issue colors must retain readable text contrast.
+- UI and body: `DM Sans`, then `Microsoft YaHei UI`, then a sans-serif fallback.
+- Editorial display: `Iowan Old Style`, `Palatino Linotype`, `Georgia`, serif.
+- Display titles are large, high-contrast, and tightly tracked; do not replace
+  them with a geometric sans.
+- Eyebrows and section labels use compact uppercase text, generous tracking,
+  and low visual weight.
+- Chinese copy must remain readable at normal scale; never use low-opacity
+  decorative Chinese text as the only label.
 
-## 5. Typography
+### Geometry and spacing
 
-- UI and dense records: DM Sans with Microsoft YaHei UI fallback.
-- Editorial display titles: Iowan Old Style / Palatino Linotype / Georgia.
-- Display titles may be oversized and tightly tracked, but record content remains compact.
-- Section labels are uppercase, 10-12px, with generous letter spacing.
-- Dates and metrics use tabular lining numerals.
-- Chinese body text uses at least 1.5 line height and must not be forced into narrow columns.
+- card radius: `24px`
+- large panel radius: `30px`
+- control radius: `12px`
+- input radius: `6px`
+- pill radius: `9999px`
+- rhythm: `8 / 16 / 24 / 32 / 48 / 64px`
+- wide page measure: `1500px`
+- wide page gutter: `clamp(22px, 3vw, 56px)`
 
-## 6. Spatial Rhythm
+Rounded geometry has meaning. Use 6px for fields, 12px for compact controls,
+24px for physical cards, 30px for large panels, and pills only for compact
+status or navigation controls.
 
-- Use an 8px base rhythm: 8, 16, 24, 32, 48, 64.
-- Alternate spacious stage areas with compact record areas.
-- Prefer asymmetry and controlled overlap over perfectly centered dashboard grids.
-- Use partial rules, edge bleeds, cropped imagery, and section numbering to guide the eye.
-- Avoid wrapping every section in the same rounded card.
+### Materials and shadows
 
-## 7. Material And Depth
+Use a maximum of three visible layers:
 
-- Paper surfaces use a warm tint, subtle inner highlight, and low ambient shadow.
-- Physical slips may use a contact shadow close to the surface plus a larger diffuse shadow.
-- Contact shadows use two stages: a tight 1-5px grounding shadow and a wider low-opacity ambient shadow. Floating surfaces may increase the ambient stage, but must keep the contact stage visible.
-- Paper grain is allowed only as a very low-opacity local texture layer. It must not reduce Chinese text contrast or become a decorative pattern.
-- Hairlines use low-opacity ink; avoid thick gray borders.
-- Rounded geometry has different personalities: 6px inputs, 12px images, 24px cards, large asymmetric archive shapes, and pills only for compact controls.
-- Hover: slight lift and shadow expansion. Active: pressed translation and shadow compression.
-- Frosted surfaces require a solid warm-paper fallback and both standard and WebKit backdrop filters; blur is never the only source of contrast.
-- Respect `prefers-reduced-motion`.
-- High-availability surfaces use three explicit layers: background archive imagery, paper/glass content surfaces, and tactile foreground controls.
-- Every primary page should have one memorable dominant material object. Supporting surfaces must have distinct identities rather than repeating the same card treatment.
-- Material roles are functional: writing areas are thick paper/notebook slabs, summaries are translucent receipts, recent items are archive slips, primary actions are soft physical controls, and status is a restrained glass layer.
-- Light archive pages build depth with contact shadow, ambient shadow, translucency, overlap, and edge highlights. Do not insert a heavy black banner merely to create contrast.
-- Training body-area controls belong directly on the Training Records first screen; do not add an extra mode tab before them.
-- A selected body area changes the existing Training Records page in place. It must not navigate to a separate reference route.
-- The selected theme may change restrained atmosphere, representative offline imagery, record accents, and the right-side focus panel while preserving search, sorting, record cards, and explicit detail actions.
-- Export actions must always use visible text labels; icon-only export controls are not permitted.
-- Export is a compact single-screen workbench on standard desktop viewports: a restrained editorial header, warm paper control card, and dominant graphite export capsule.
-- The control card should read as paper/frosted material; the capsule should read as a dark sanded physical slab with warm reflected light, not a flat black rectangle.
-- The gold Generate control is the page's only strong CTA and uses a subtle top highlight, contact shadow, and pressed compression. Material depth must never obscure the date controls or generated download actions.
+1. archive image or quiet texture in the background;
+2. paper, glass, or receipt content surface;
+3. tactile foreground control or action.
 
-## 8. Image Direction
+Preferred surfaces:
 
-- Home uses cinematic monochrome fitness photography with directional crop and vignette.
-- Archive pages use low-opacity collage, receipt, anatomical, or training-document motifs.
-- Movement groups use one representative illustration per body area, applied to the group rather than implying one exact exercise.
-- In Movement Index panels, use the approved five original body-area illustrations directly: no grayscale filter, tint filter, multiply treatment, dark veil, or decorative mask. Crop and enlarge each source so the recognizable athlete occupies at least 70% of the panel and sits centrally.
-- Movement cards remain highly translucent so the original athlete, action, and body-area color remain visible beneath. Lead cards are warmer and more substantial, while ordinary cards use 0.08 light glass or 0.18 dark glass surfaces.
-- Images remain local and offline. Do not use remote hotlinks.
-- Illustrations support data hierarchy; they never cover core values or labels.
+```css
+--surface-paper: linear-gradient(145deg, rgba(255,253,247,.96), rgba(244,238,227,.84));
+--surface-paper-strong: linear-gradient(145deg, #fffdf7 0%, #f0e7d8 100%);
+--surface-frosted: linear-gradient(145deg, rgba(255,253,247,.8), rgba(241,234,223,.62));
+--surface-dark-panel: linear-gradient(145deg, #252621 0%, #10110e 100%);
+```
 
-## 9. Page Patterns
+Preferred depth:
 
-### Home
+```css
+--shadow-contact: 0 1px 1px rgba(38,30,18,.09), 0 3px 5px rgba(38,30,18,.07);
+--shadow-float: 0 2px 4px rgba(38,30,18,.08), 0 18px 46px rgba(45,35,20,.115);
+--shadow-lift: 0 4px 7px rgba(38,30,18,.09), 0 27px 62px rgba(45,35,20,.145);
+```
 
-Cinematic stage, one large title, one compact status slip, and a short recent archive strip.
+Every raised object needs a tight contact shadow and a larger, quieter ambient
+shadow. Frosted surfaces always have a solid warm-paper fallback; blur must
+never be the only source of contrast. Grain is allowed only at very low
+opacity and must not interfere with Chinese text.
 
-### Daily Entry
+## Global shell
 
-The textarea is a journal page, not a default form. Ruled lines, caret baseline, line height, and placeholder must align.
-The complete entry area is a floating writing workbench: notebook slab as the dominant object, Today as a summary receipt, Recent Saved as layered archive slips, and local save readiness as a small glass status layer.
+- Use one compact horizontal header on the Web desktop surface.
+- The monogram sits in a small warm rounded square; the stacked wordmark reads
+  `FITNESS / LEDGER` with the small line `MOVE. RECORD. KNOW.`.
+- Navigation is text-first. The active route is a black pill with light text;
+  inactive routes are quiet graphite text.
+- The right side carries local-first, data, sync, and build identity as small
+  badges. These never become a second action toolbar.
+- The floating Guardian Pet may appear as a persistent utility layer. It must
+  remain visually secondary to the page's records, controls, and primary action.
+- Use visible focus rings and a restrained hover lift. Do not make the whole
+  record card clickable when a named action already exists.
 
-### Parse And Review
+## Page recipes
 
-Use the `Review Scroll` pattern: a narrow sticky chapter index, one continuous warm-paper review document, compact summary slip, editable ledger sections, inline movement decisions, and a fixed bottom action rail. A faint local archive illustration may sit behind the upper-right area but must remain below field contrast. The amber action is reserved for `Confirm & Save`.
+### Home / Daily Capture
 
-### Body
+The home page is a cinematic entry, not a dashboard:
 
-Body slips may use controlled high-saturation tones, but foreground contrast must always pass. Color is meaningful or rhythm-driven, never a blind repeating pattern.
-Body filtering stays intentionally small: free-text/date search, a recent-days range, and newest/oldest ordering. Training, bowel, and cardio filter controls do not belong in the primary archive toolbar.
-The Body archive may precede its slips with one continuous 90-day rise/fall field. The date axis remains real and uncompressed; missing days keep their place as empty rails, while recorded days receive an ink-like dot and a fine stem. Muted terracotta, teal, and graphite distinguish increase, decrease, and flat change from the previous valid weigh-in without turning the chart into a status palette. Scale labels, latest/highest/lowest annotations, focused values, and the window range must remain honest. The field reveals on entry and supports an explicit replay, but never loops.
-Chart nodes are quiet controls, not decoration: hover or keyboard focus reveals the concrete date and value, while activating a weigh-in opens the existing Body record detail. Empty calendar rails remain non-interactive.
+- a dark monochrome hero with a strong editorial title such as `Daily Capture`;
+- Chinese explanatory copy underneath, never hidden in a tooltip;
+- one amber primary action for writing today's log;
+- one quiet archive link for movement history;
+- a pale receipt at the upper right for the latest entry;
+- a warm recent-archive strip below, with three readable slips and a small
+  body-area utility illustration at the edge.
 
-### Diet
+The hero image is `fitness-journal-hero.png`. Keep the image dark enough that
+the title and copy read first. The latest receipt may overlap the image but must
+not obscure the main action.
 
-Cards prioritize date, calories, and macros. Full meal text appears only in explicit detail.
-Diet uses free-text/date search plus newest/oldest ordering. Meal-category selectors are omitted because the archive is organized by day rather than by meal taxonomy.
+### Body Records
 
-### Training
+- Use the `Body Records` editorial heading and a short factual subtitle.
+- Keep search, time range, and sort controls in one restrained toolbar.
+- Let the 90-day field show real date positions and missing days; never invent
+  continuity by compressing empty dates.
+- Body slips may use violet, blue, or muted theme surfaces, but values and the
+  explicit `Open record` action must remain readable.
+- Use `body-archive-editorial-v2.png` as a quiet background illustration. It is
+  an atmospheric layer, not a chart or a content card.
 
-Cards show date, session index, split, movement summary, and a brief note. The explicit detail action is the only detail trigger.
-The first screen includes five tactile theme controls: shoulder, chest, back, legs, and arms. They are a core section rather than tabs or filter chips.
-Selecting a body area keeps the user on Training Records and synchronizes the header, atmosphere, active control, filtered records, card accents, and focus panel. `All Records` returns to the overview.
-The five controls use compact premium theme cards with live counts, representative imagery, and active expansion. They must not become a game skill tree, particle system, or black control banner.
-- In a selected body-area state, the active control moves to the foreground and expands into the archive anchor. The other four controls remain readable, discoverable switching indexes rather than fading into disabled decoration.
-- On wide desktop screens, the selected state uses a focused archive composition: a tall body-area cover at left, a factual receipt summary at upper right, and dense chronological record slips below it. This replaces blank filtered space with a deliberate editorial hierarchy.
-- The receipt may show only facts derived from current records, such as session count, latest date, movement count, frequent movements, and recent notes. Do not invent 1RM, monthly trends, or training conclusions.
-- Focused record slips should be compact enough for comparison, with a themed edge and restrained alternating paper offsets; they must remain searchable, sortable, and explicitly openable.
-- The focused layout may reorganize the control grid, but it must preserve the record search, sort, filtered history, and right-side factual summary.
-- Shoulder uses the abstract lifted-arm artwork; Arms uses the separate dynamic push/arm artwork. Training and Movement Progress must resolve these assets consistently.
-- Entering Training from another primary navigation page resets the view to the all-records overview. In-page body-area switching does not change the route.
-- Training search matches only the stored training theme/split and date. Movement names and movement dictionary categories must not pull an unrelated daily session into search results.
-- Selected body-area archives follow the same theme/split rule. A chest-theme day containing a shoulder accessory movement does not become a shoulder-theme day.
-- Once a day is included by its training theme, its focused card must narrow Key Movements and movement notes to the selected body area. Mixed-theme days remain visible, but unrelated movements and notes do not.
-- On selected desktop views, the four alternate body-area controls form a compact vertical index beside the active cover so the factual summary and first records remain visible in the first screen.
-- The selected-state header may retain representative artwork, but it must also carry the search, order, and overview controls. Decorative space must not push the factual summary or first record below the fold.
+### Diet Records
 
-## 10. Motion Language
+- Use warm paper slips and prioritize date, calories, and macros.
+- Keep full meal text in explicit detail rather than making every card a long
+  paragraph.
+- Search and newest/oldest ordering are enough for the primary archive toolbar.
+- Do not add meal taxonomy filters unless the product model explicitly changes.
+- Use `diet-archive-collage.png` as a subdued archive motif.
 
-- Motion communicates contact, connection, and state change rather than spectacle.
-- Use slight lift, compressed press, gentle shadow expansion, staggered record reveal, and restrained theme interpolation.
-- Theme color should propagate through the active control, atmosphere, record edge, focus panel, and explicit detail action.
-- Avoid particles, large parallax, neon pulses, elastic bounce, rotating 3D objects, or animation that delays daily use.
+### Training Records
+
+- The first screen is the `Training body map`, not a separate mode tab.
+- Show five compact tactile theme cards: shoulders, chest, back, legs, arms.
+- Each card displays live session/movement counts and representative imagery.
+- `All records` is the overview state. Selecting a theme updates the same
+  route, header, atmosphere, filtered records, card accents, and focus panel.
+- The selected desktop state uses an archive composition: tall theme cover,
+  factual receipt summary, search/sort controls, and compact chronological
+  record slips.
+- The summary may show only facts derived from records. Never invent 1RM,
+  monthly trends, conclusions, or coaching advice.
+- Mixed-theme days remain visible when included by their stored training theme,
+  but the selected view narrows movement names and notes to the selected area.
+- Keep cards searchable, sortable, and explicitly openable.
+- Use `body-themes-v2/{shoulders,chest,back,legs,arms}.png` consistently.
 
 ### Movement Index
 
-An archive wall grouped by body area and sorted by use frequency. High-frequency movements receive more visual weight. Avoid spreadsheet grids and oversized single tiles.
-Movement Dictionary administration is entered from a tactile contextual control in the Movement Index heading area, not from the global navigation.
-
-Movement group panels use a four-layer hierarchy: a compressed body-area color base, one cropped monochrome geometric figure at the outer edge, a controlled veil behind dense content, and translucent movement cards in the foreground. The representative figure is a semantic layer rather than a full-bleed poster. It remains recognizable on second inspection at roughly 20-30% presence, but quieter than every movement name and action.
-
-Body-area color leads each panel without becoming bright or toy-like: shoulder mustard gold, chest brick coral, back blue-green, legs smoky violet, and arms gray-blue. Lead movements use a brighter semi-translucent warm-yellow surface; ordinary movements use highly translucent light or dark glass so panel color and the geometric figure remain visible. Cards, not artwork, are always the first visual read.
+- Heading: `Movement Index`, a short Chinese explanation, search, result count,
+  and a contextual `Manage Dictionary` entry.
+- Organize by body-area group, not a spreadsheet grid and not oversized isolated
+  tiles.
+- Every group has a body-area color base, a recognizable representative image,
+  a controlled veil, and translucent foreground movement tiles.
+- The lead movement is a warmer, larger paper tile. Secondary movements remain
+  legible but allow the group art to show through.
+- Cards are the first read; art is semantic context, not a poster.
+- The five body-area mapping must stay stable across Training and Movement.
 
 ### Movement Detail
 
-The progression chart and recent records are primary. The title/illustration banner is compact and auxiliary.
-The recent progression chart uses a native sparse node field for chronological sessions. X reads effective session order/date, Y reads maximum load or total repetitions, dot area reads relative workload, and the plumb stem returns each record to a shared floor. The focused value scale must be labeled; peak and latest sessions receive restrained emphasis. The chart reveals on entry and supports an explicit replay, with a reduced-motion fallback; it must not loop, interpolate missing sessions, or include excluded history to manufacture a stronger trend.
-Selection audit: the sparse session presentation is a tactile node field: larger supported nodes, clearer stems, quiet floor, and a restrained workload halo keep two to five sessions legible without implying a continuous trend. Body uses a continuous rise/fall field rather than a default line chart: fixed date positions make missing weigh-ins explicit and leave color available for a restrained change cue.
-Movement session nodes are keyboard-accessible controls. Hover/focus exposes date, focused value, set count and relative workload; activation routes through the existing date + movement_id Training navigation so the chart remains a compact index into the archive rather than a second data source.
+- The chart and recent records are primary; the title/illustration is compact.
+- Use sparse session nodes with a shared floor and honest labels. A single
+  session is one recorded session, not a trend.
+- Hover/focus exposes date, value, set count, and workload. Activation routes
+  through the existing date plus `movement_id` navigation.
+- Never connect missing sessions or manufacture a stronger trend.
+- Provide a reduced-motion fallback and preserve keyboard access.
 
-The plot is the primary subject of both archive pages. The chart shell therefore gives the SVG the widest column and a tall reading field; copy and latest-value summaries remain quiet margins. Body uses a fixed 90-day date field with weekly rails and empty positions, while Movement keeps equal spacing for sparse effective sessions. A single Movement session is labelled as one recorded session rather than a trend; two sessions are presented as a comparison; three or more may add first/peak/latest hierarchy without connecting the marks.
+### Tools / Export
 
-### Data Check
+- Tools is a local maintenance workbench, not a generic settings dashboard.
+- The opening read is a large Chinese question, a short explanation, and one
+  clear path into the export operation.
+- Use a warm paper control card beside a dark graphite export capsule.
+- Natural language and JSON are an explicit toggle, not an icon-only control.
+- The export CTA is the only high-weight action. Copy/download actions appear
+  after a successful result.
+- Diagnostics, hashes, provider details, and raw reports stay behind an
+  Advanced/Recovery disclosure.
+- State copy must distinguish local source data from a read-only CloudBase
+  replica and must reassure that a failed sync cannot overwrite local data.
 
-Only the Open control opens issue details. The row itself is not clickable. Problem descriptions are in Chinese and the final column must remain fully visible.
+## Motion language
 
-### Cloud Sync
+Motion communicates contact, connection, and state change:
 
-Cloud Sync is a local-first maintenance console, not an Export attachment, settings sheet, or generic dashboard. Its first visual read is the natural-language sync conclusion and its single high-weight action; diagnostic fields must never displace that conclusion.
+- 160ms fast, 260ms normal, 420ms slow;
+- ease-out interpolation and slight lift/pressed translation;
+- shadow expansion on hover and compression on active;
+- restrained staggered record reveal and theme interpolation;
+- never particles, neon pulses, elastic bounce, large parallax, rotating 3D,
+  or motion that delays daily use.
 
-- The header may carry one quiet status badge only. It must not become an action toolbar.
-- The primary status card answers status, latest successful sync, local/cloud record dates, and the next safe action. Internal codes such as `SYNCED` remain small supporting labels.
-- State copy must say `手动触发` and distinguish it from what happens after the click: configured sync runs automatically through payload generation, upload, and verification. Never imply that a local save uploads in the background.
-- Use a compact Local Source → Payload → CloudBase replica → Mini Program flow. It must state that local data is authoritative, CloudBase is read-only replica data, and the cloud cannot overwrite the local ledger.
-- The default information layer is three compact groups: data state, data consistency, and environment/safety. Prefer readable dates and verdicts such as `已验证`, `10 / 10`, and `需验证` over hashes, providers, or internal version strings.
-- `同步到 CloudBase` is the only high-emphasis action. `生成 Payload` and `刷新状态` are secondary. Import, report, log, environment, and cloud-function checks live under a closed Advanced & Recovery disclosure.
-- Complete payload hashes, collection hashes, SDK/request data, error stacks, commands, and raw report JSON are diagnostic-only and must be disclosed on demand in compact copyable monospace treatment.
-- Sync loading must disable the primary action and immediately name the current stage. Completion or failure updates the primary card, not just a toast. Failure copy must reaffirm that local source data remains safe.
+Always implement `prefers-reduced-motion: reduce` as a real behavior fallback.
 
-## 10. Interaction Semantics
+## Responsive contract
 
-- A visual action must be genuinely interactive.
-- Do not attach hidden navigation to an entire record when a named action exists.
-- Explicit record links should expose a restrained hover/focus hit area, not remain visually indistinguishable from static underlined text.
-- Focus-visible states are mandatory.
-- Search and filters must perform real filtering.
-- Training search and sort state must remain functional in both the overview and selected body-area archive.
-- Movement Dictionary must provide an explicit route back to Movement Index.
-- Read-only Web actions must say that formal editing belongs to the stable desktop app.
+- Wide desktop: preserve editorial title scale, the five-theme map, the
+  factual summary, and the first record in the first screen.
+- Around 1120px: collapse wide multi-column compositions without hiding the
+  primary action or search/sort controls.
+- Around 980px and 720px: stack panels and let controls wrap; maintain the same
+  route and semantic order.
+- Around 640px/560px: reduce title size and padding, keep touch targets large,
+  and avoid preserving desktop whitespace.
+- Check 1280px, 1440px, 1600px, current Windows DPI, Chinese clipping, long
+  movement names, and keyboard focus.
 
-## 11. Desktop Tkinter Translation
+## Future design-dialog contract
 
-The local desktop application should echo, not imitate, the Web design:
+Before generating a new interface, the responsible conversation must:
 
-- Use the same graphite/ivory/amber palette.
-- Preserve simple rectangular geometry suitable for Tkinter.
-- Prefer clear hierarchy and responsive expansion over complex effects.
-- Never force a fixed 1.0 Tk scaling on high-DPI displays.
-- Content frames must expand with the maximized window.
-- Scrollable Text, Canvas, and Treeview regions must respond to the mouse wheel.
+1. Read this file and `docs/design/DESIGN_RESOURCES.md`.
+2. Inspect the current route and the closest evidence screenshot.
+3. Reuse existing tokens, body-area mapping, asset paths, and interaction
+   semantics before proposing new ones.
+4. State which page recipe is being extended and which material layer changes.
+5. Preserve data truth, explicit actions, focus-visible states, reduced motion,
+   and local-first copy.
+6. Capture the changed route at the same viewport and compare it with the
+   closest accepted evidence before handoff.
 
-## 12. QA Checklist
-
-- Verify at 1280px, 1440px, and the current Windows DPI scale.
-- Check Chinese clipping, date alignment, and long movement names.
-- Confirm the Data Check Open column is fully visible.
-- Confirm only explicit detail actions open details.
-- Confirm leg, shoulder, chest, back, arms, and core groups use the correct representative image.
-- Confirm Movement Detail chart is legible before the trajectory list.
-- Confirm local desktop pages fill the available window and wheel scrolling works.
-
-## 13. Maintenance Rule
-
-Update this document whenever a durable token, page pattern, image rule, or interaction semantic changes. Do not add one-off visual experiments until they have been validated in the running UI.
-
-## 14. WeChat Mini Program Translation
-
-The Mini Program is a gym-side reference tool, not a compressed copy of the desktop Web app.
-
-- Its primary flow is `body area -> movement signals -> full trajectory`.
-- Home prioritizes the five body areas above weight, calories, sync status, or long daily prose.
-- The bottom navigation is `Home / Training Records / Status`. Home is the five-body-area archive; the redundant dashboard and standalone search tab are intentionally removed.
-- A movement list card shows latest performance, previous performance, historical best, session count, and at most two lines of notes.
-- Daily food, body notes, and training prose are collapsed by default and always expose an explicit expand or detail action.
-- Body-area colors follow the Web themes: shoulder amber, chest coral, back teal, legs violet, arms cyan.
-- Mobile surfaces use one dark archive stage, tactile body-area controls, compact paper slips, and restrained contact shadows. Do not repeat one generic white rounded card for every content type.
-- Search results show a clean title, type, date, and short preview. Never expose concatenated search-index text or duplicated aliases as the primary result.
-- Mobile layouts optimize one-handed scanning and comparison. They must not preserve desktop whitespace, wide columns, or paragraph-heavy cards.
-- Home opens directly on the complete five-body-area archive and owns frequency/recent/name movement sorting.
-- Training Records is a separate date-first archive with tolerant date search and newest/oldest ordering.
-- Body and Diet remain secondary archives entered from Status and provide date search plus newest/oldest ordering.
-- Movement Detail separates the latest three sessions from older history and shows reps plus volume as secondary comparison signals.
-- Body and Diet are secondary archives entered from Status. Body uses controlled high-energy color slips; Diet uses warm paper notes. Neither belongs in the bottom navigation.
-- The approved body-area image set lives in `mini_program/miniprogram/images/themes-v2/` for the Mini Program and `web_desktop/frontend/assets/body-themes-v2/` for future Web reuse. The images are abstract representative body-area scenes, not exact exercise instructions.
-- Web Training and Movement Progress now use this same five-image set everywhere, including first-level groups and Movement Detail. Web rendering darkens the assets beneath translucent controls; the underlying body-area color mapping remains unchanged.
-- Selected body-area pages use a matching low-contrast page wash and faint illustration: shoulder amber, chest coral, back teal, legs violet, arms cyan. Art stays below the data layer and never reduces text contrast.
-- Returning to the Home tab resets to the five-area overview; selected themes are session-local inspection states, not persistent navigation state.
-- Training Records may borrow the Diet archive's paper-slip rhythm, but uses training-specific summaries, shallow print motifs, and explicit daily-detail actions.
+The output should feel like an extension of Fitness Ledger, not a new design
+system placed beside it.

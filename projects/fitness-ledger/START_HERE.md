@@ -2,6 +2,16 @@
 
 This is the authoritative source and context entry for Fitness Ledger. It is designed so a future Codex session can resume work without reading the original conversation.
 
+## Standardized locations
+
+- Open the Git workspace at `D:\FitnessLedger\source`.
+- Edit the FL source under `D:\FitnessLedger\source\projects\fitness-ledger`.
+- Run and verify the formal application under `D:\FitnessLedger\app`.
+- Keep protected local data in `D:\FitnessLedger\app\data` and recovery
+  material under `D:\FitnessLedger\archive`; neither is a Git source input.
+- The complete authority and migration boundary is documented in
+  `docs/maintenance/PROJECT_LAYOUT.md`.
+
 ## User-facing workflow
 
 You can work in any dedicated long-running specialist conversation. At the start of every task, that conversation reads the live project status; you do not need to provide the latest SHA or copy files between conversations.
@@ -24,6 +34,8 @@ If no closure phrase is given, default to **先开发/先让我验收**. This pr
 5. Read `FUNCTION_INDEX.md` before opening large source files.
 6. Select the minimum tests from `REGRESSION_CHECKLIST.md`.
 7. The project contains Reviewed / Paused unreleased experiments; before related work, read `docs/experiments/EXPERIMENTS_INDEX.md`.
+8. For visual work, read `docs/design/STYLE_BIBLE.md` before changing CSS,
+   layout, assets, or page composition.
 
 ## Current Authority
 
