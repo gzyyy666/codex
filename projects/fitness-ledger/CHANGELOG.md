@@ -1,5 +1,12 @@
 # Fitness Ledger Changelog
 
+## 2026-08-12 - Standardize selected shoulder movement loads
+
+- Updated every structured 7.5 load for Y Raise, Cable Rear Delt Fly, and
+  Rope Lateral Raise to 6.25 in the formal ledger data.
+- Rebuilt and verified the CloudBase read replica; original raw entry text was
+  preserved and the paired local recovery checkpoint remains available.
+
 ## 2026-08-03 - PWA icon opaque edge fix
 
 - Replaced transparent outer corners with the same warm-white background so
