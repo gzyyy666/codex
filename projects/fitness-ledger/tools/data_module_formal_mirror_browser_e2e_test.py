@@ -187,7 +187,7 @@ def main() -> None:
 
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('quick')")
         _wait(browser, "!!document.querySelector('#raw-entry')")
-        _set_css(browser, "#raw-entry", "\u4eca\u5929\u6668\u95f4\u8109\u640f 58")
+        _set_css(browser, "#raw-entry", "2026-08-12 \u6668\u95f4\u8109\u640f 58")
         _click(browser, "#parse")
         _wait(browser, "!!document.querySelector('[data-dm-submit-definition]')")
         assert browser.evaluate("document.querySelector('[name=label]').value") == "\u6668\u95f4\u8109\u640f"
@@ -205,8 +205,9 @@ def main() -> None:
         assert pulse["category_id"] == "body" and pulse["display_surface"] == "category_page" and pulse["record_level"] == "daily_scalar", pulse
         _click(browser, "[data-dm-go-body]")
         _wait(browser, "!!document.querySelector('.archive-heading')")
+        _wait(browser, "!!document.querySelector('.dm-inline-metrics')")
         body_snapshot=browser.evaluate("({url:location.href,hasShelf:!!document.querySelector('.dm-surface-shelf'),hasCompact:!!document.querySelector('.dm-inline-metrics'),text:document.body.innerText.slice(0,1200)})")
-        assert not body_snapshot["hasShelf"], body_snapshot
+        assert not body_snapshot["hasShelf"] and body_snapshot["hasCompact"] and "\u6668\u95f4\u8109\u640f" in body_snapshot["text"], body_snapshot
         screenshot_data = _command(browser, "Page.captureScreenshot", {"format": "png"})
         screenshot_path.write_bytes(base64.b64decode(screenshot_data["data"]))
         diet_discovery = _json_post(browser, "/api/data-modules/discover", {"raw": "\u4eca\u5929\u6bcf\u65e5\u808c\u9178 5 g"})
@@ -241,39 +242,50 @@ def main() -> None:
         catalog = _json_get(browser, "/api/data-modules/product-catalog")
         creatine = next(item for item in catalog["modules"] if item["label"] == "\u6bcf\u65e5\u808c\u9178")
         assert creatine["category_id"] == "diet" and creatine["display_surface"] == "category_page" and creatine["placement"] == "detail", creatine
+        creatine_record_preview = _json_post(browser, "/api/data-modules/preview", {"raw": "2026-08-12 \u6bcf\u65e5\u808c\u9178 5 g"})
+        _json_post(browser, "/api/data-modules/save", {"preview": creatine_record_preview["body"], "confirmed": True})
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('body')")
+        _wait(browser, "!!document.querySelector('.record-open')")
+        _click(browser, ".record-open")
+        _wait(browser, "!!document.querySelector('.structured-detail-modal')")
+        _wait(browser, "!!document.querySelector('.dm-detail-metrics')")
+        assert browser.evaluate("document.body.innerText.includes('\u6bcf\u65e5\u808c\u9178')")
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.root.innerHTML=''")
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools',{panel:'data-modules'})")
+        _wait(browser, "!!document.querySelector('.dm-management-page')")
 
-        # Custom category, then a second module in that category.
+        # Unclassified data uses the normal flow: choose "Other Extensions";
+        # there is no separate custom-category entrance.
         _click(browser, "[data-dm-new-module]")
         _wait(browser, "!!document.querySelector('#dm-definition-form')")
         _set_css(browser, "[name=label]", "\u6062\u590d\u8bc4\u5206")
-        _select(browser, "[name=category_id]", "__new__")
-        _set_css(browser, "[name=new_category_label]", "\u6062\u590d\u72b6\u6001")
+        _select(browser, "[name=category_id]", "extension")
         _click(browser, "[data-dm-submit-definition]")
         _wait(browser, "!document.querySelector('#dm-definition-form')")
         catalog = _json_get(browser, "/api/data-modules/product-catalog")
-        recovery_category = next(item for item in catalog["categories"] if item["label"] == "\u6062\u590d\u72b6\u6001")
-        recovery_modules = [item for item in catalog["modules"] if item["category_id"] == recovery_category["category_id"]]
-        _click(browser, "[data-dm-new-module]")
-        _wait(browser, "!!document.querySelector('#dm-definition-form')")
-        _set_css(browser, "[name=label]", "\u6062\u590d\u80fd\u91cf")
-        _select(browser, "[name=category_id]", recovery_category["category_id"])
-        _set_css(browser, "[name=actual_unit]", "score")
-        _click(browser, "[data-dm-submit-definition]")
-        _wait(browser, "!document.querySelector('#dm-definition-form')")
-        catalog = _json_get(browser, "/api/data-modules/product-catalog")
-        assert len([item for item in catalog["modules"] if item["category_id"] == recovery_category["category_id"]]) == len(recovery_modules) + 1
         recovery_module = next(item for item in catalog["modules"] if item["label"] == "\u6062\u590d\u8bc4\u5206")
-        assert recovery_module["display_surface"] == "page_widget" and recovery_module["actual_unit"] == "" and recovery_module["data_type"] == "number", recovery_module
+        assert recovery_module["category_id"] == "extension" and recovery_module["display_surface"] == "page_widget" and recovery_module["actual_unit"] == "" and recovery_module["data_type"] == "number", recovery_module
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('home')")
-        _wait(browser, "!!document.querySelector('.dm-page-widget-strip[data-dm-inline-page=home]')")
+        _wait(browser, "!!document.querySelector('.dm-page-widget-strip')")
         assert browser.evaluate("document.body.innerText.includes('恢复评分')")
+        # The same page-widget path also works for Movement and for a unitless metric.
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools',{panel:'data-modules'})")
         _wait(browser, "!!document.querySelector('.dm-management-page')")
-        _click_dataset(browser, "[data-dm-category-toggle]", "dmCategoryToggle", recovery_category["category_id"])
-        _wait(browser, f"(async()=>((await (await fetch('/api/data-modules/product-catalog')).json()).categories.find(item=>item.category_id==={json.dumps(recovery_category['category_id'])}).status==='retired'))()")
-        _wait(browser, f"!!document.querySelector('[data-dm-category-toggle][data-dm-category-toggle={json.dumps(recovery_category['category_id'])}][data-dm-next-status=re_enable]')")
-        _click_dataset(browser, "[data-dm-category-toggle]", "dmCategoryToggle", recovery_category["category_id"])
-        _wait(browser, f"(async()=>((await (await fetch('/api/data-modules/product-catalog')).json()).categories.find(item=>item.category_id==={json.dumps(recovery_category['category_id'])}).status==='active'))()")
+        _click(browser, "[data-dm-new-module]")
+        _wait(browser, "!!document.querySelector('#dm-definition-form')")
+        _set_css(browser, "[name=label]", "\u52a8\u4f5c\u51c6\u5907\u5ea6")
+        _select(browser, "[name=category_id]", "movement")
+        _select(browser, "[name=display_surface]", "page_widget")
+        _select(browser, "[name=display_page]", "movement")
+        _click(browser, "[data-dm-submit-definition]")
+        _wait(browser, "!document.querySelector('#dm-definition-form')")
+        movement_module = next(item for item in _json_get(browser, "/api/data-modules/product-catalog")["modules"] if item["label"] == "\u52a8\u4f5c\u51c6\u5907\u5ea6")
+        assert movement_module["display_page"] == "movement" and movement_module["actual_unit"] == "" and movement_module["data_type"] == "number", movement_module
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('movements')")
+        _wait(browser, "!!document.querySelector('.dm-page-widget-strip')")
+        assert browser.evaluate("document.body.innerText.includes('动作准备度')")
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools',{panel:'data-modules'})")
+        _wait(browser, "!!document.querySelector('.dm-management-page')")
 
         # Alias collision is human-facing and never shows a JSON error block.
         _click(browser, "[data-dm-new-module]")
@@ -309,6 +321,35 @@ def main() -> None:
         assert enabled["capabilities"]["analysis_visible"] is True
         cloud_dry_run = _json_get(browser, "/api/data-modules/cloud-dry-run")
         assert cloud_dry_run["meta"]["network_request_made"] is False
+
+        # Delete removes the candidate definition and its candidate history.
+        _click(browser, "[data-dm-new-module]")
+        _wait(browser, "!!document.querySelector('#dm-definition-form')")
+        _set_css(browser, "[name=label]", "\u5220\u9664\u793a\u4f8b")
+        _select(browser, "[name=category_id]", "extension")
+        _set_css(browser, "[name=aliases]", "\u5220\u9664\u793a\u4f8b")
+        _click(browser, "[data-dm-submit-definition]")
+        _wait(browser, "!document.querySelector('#dm-definition-form')")
+        delete_module_id = next(item["module_id"] for item in _json_get(browser, "/api/data-modules/product-catalog")["modules"] if item["label"] == "\u5220\u9664\u793a\u4f8b")
+        record_preview = _json_post(browser, "/api/data-modules/preview", {"raw": "2026-08-12 \u5220\u9664\u793a\u4f8b 3"})
+        assert record_preview["status"] == 200
+        record_saved = _json_post(browser, "/api/data-modules/save", {"preview": record_preview["body"], "confirmed": True})
+        assert record_saved["status"] == 200
+        browser.evaluate("window.confirm=()=>true")
+        _click_dataset(browser, "[data-dm-delete]", "dmDelete", delete_module_id)
+        _wait(browser, f"(async()=>!((await (await fetch('/api/data-modules/product-catalog')).json()).modules.some(item=>item.module_id==={json.dumps(delete_module_id)})))()")
+        assert not any(item.get("module_id") == delete_module_id for item in _json_get(browser, "/api/data-modules/export")["records"])
+
+        # A custom category has no standalone creation entrance, but an existing
+        # custom category can still be removed from the management surface.
+        category_create = _json_post(browser, "/api/data-modules/product-definition-preview", {"kind": "category", "action": "create", "values": {"category_id": "delete_review_category", "label": "\u5f85\u5220\u9664\u7c7b\u522b"}})
+        assert category_create["status"] == 200
+        _json_post(browser, "/api/data-modules/definition-save", {"preview": category_create["body"], "confirmed": True})
+        browser.evaluate("location.reload()")
+        _wait(browser, "window.__fitnessLedgerFormalMirrorReady===true && !!document.querySelector('.dm-management-page')")
+        browser.evaluate("window.confirm=()=>true")
+        _click_dataset(browser, "[data-dm-category-delete]", "dmCategoryDelete", "delete_review_category")
+        _wait(browser, f"(async()=>!((await (await fetch('/api/data-modules/product-catalog')).json()).categories.some(item=>item.category_id==='delete_review_category')))()")
 
         # Retire the recorded pulse, retain history, and block new writes.
         _click_dataset(browser, "[data-dm-toggle]", "dmToggle", pulse_id)
@@ -359,8 +400,10 @@ def main() -> None:
             "real_page":f"http://127.0.0.1:{port}/",
             "preview_zero_write":True,
             "confirm_history":True,
-            "custom_category_two_modules":True,
-            "category_retire_reenable":True,
+            "detail_zone":True,
+            "unclassified_uses_existing_extension_category":True,
+            "movement_page_widget":True,
+            "delete_module_and_category":True,
             "alias_collision_human_error":True,
             "stable_id_edit":True,
             "retire_history_reenable":True,

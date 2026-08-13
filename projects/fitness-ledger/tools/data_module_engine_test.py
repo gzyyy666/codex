@@ -16,6 +16,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from fitness_ledger_core.data_module_engine import (
     DataModuleEngine,
     DataModuleError,
+    DataModuleDefinitionStore,
     DataModuleMigrationService,
     ModuleDefinition,
     ModuleRegistry,
@@ -55,14 +56,16 @@ class DataModuleCandidateTests(unittest.TestCase):
         self.tracker = root / "tracker.json"
         self.dictionary = root / "movement_dictionary.json"
         self.backups = root / "backups"
+        self.definition_store = root / "data_module_definitions.json"
         write_json(self.tracker, sample_database())
         write_json(self.dictionary, sample_dictionary())
+        DataModuleDefinitionStore.initialize(self.definition_store, REGISTRY_FILE, backup_dir=root / "definition-backups")
         self.service = LedgerCommandService(
             self.tracker,
             self.dictionary,
             self.backups,
             lambda *_args: {},
-            REGISTRY_FILE,
+            self.definition_store,
         )
 
     def tearDown(self) -> None:
@@ -162,6 +165,39 @@ class DataModuleCandidateTests(unittest.TestCase):
         self.assertTrue(saved["changed"])
         self.assertEqual(engine.query("body_fat_pct", latest=True)[0]["value"], 18.5)
         self.assertEqual({row["module_id"] for row in engine.normal_export()["records"]}, {"body_fat_pct"})
+
+    def test_unitless_module_and_definition_delete_remove_candidate_records(self) -> None:
+        category_preview = self.service.data_module_definition_preview({
+            "kind": "category",
+            "action": "create",
+            "values": {"category_id": "review_delete_category", "label": "Review Delete Category"},
+        })
+        self.service.data_module_definition_save(category_preview, confirmed=True)
+        module_preview = self.service.data_module_definition_preview({
+            "kind": "module",
+            "action": "create",
+            "values": {
+                "module_id": "review_unitless_module",
+                "label": "Unitless Review Metric",
+                "aliases": ["Unitless Review Metric", "unitless metric"],
+                "category_id": "review_delete_category",
+                "actual_unit": "",
+                "display_unit": "",
+                "data_type": "number",
+                "presentation": {"section": "extension", "slot": "summary"},
+            },
+        })
+        self.service.data_module_definition_save(module_preview, confirmed=True)
+        preview = self.service.data_module_preview("2026-08-12 unitless metric 7")
+        self.service.data_module_save(preview, confirmed=True)
+        delete_module = self.service.data_module_definition_preview({"kind": "module", "action": "delete", "module_id": "review_unitless_module"})
+        saved = self.service.data_module_definition_save(delete_module, confirmed=True)
+        self.assertEqual(saved["deleted_record_count"], 1)
+        database, _dictionary = self.service.load_state()
+        self.assertFalse(any(item.get("module_id") == "review_unitless_module" for item in database["data_module_records"]))
+        delete_category = self.service.data_module_definition_preview({"kind": "category", "action": "delete", "category_id": "review_delete_category"})
+        self.service.data_module_definition_save(delete_category, confirmed=True)
+        self.assertNotIn("review_delete_category", {item["category_id"] for item in self.service.data_module_product_catalog()["categories"]})
 
     def test_registry_collisions_versions_and_unit_gate(self) -> None:
         registry = ModuleRegistry.from_file(REGISTRY_FILE)

@@ -530,6 +530,11 @@ class LedgerCommandService:
         kind = str(request.get("kind", "module")).strip().lower()
         action = str(request.get("action", "create")).strip().lower()
         if kind == "category":
+            if action == "delete":
+                category_id = str(request.get("category_id", "")).strip()
+                if not category_id:
+                    raise LedgerCommandError("缺少要删除的类别。", "CATEGORY_ID_REQUIRED")
+                return self.data_module_definition_preview({"kind": "category", "action": "delete", "category_id": category_id})
             if action in {"retire", "re_enable", "reenable"}:
                 category_id = str(request.get("category_id", "")).strip()
                 if not category_id:
@@ -540,6 +545,11 @@ class LedgerCommandService:
             if not values["label"]:
                 raise LedgerCommandError("请填写类别名称。", "CATEGORY_LABEL_REQUIRED")
             return self.data_module_definition_preview({"kind": "category", "action": action, "values": values, "category_id": request.get("category_id"), "changes": request.get("changes", {})})
+        if action == "delete":
+            module_id = str(request.get("module_id", "")).strip()
+            if not module_id:
+                raise LedgerCommandError("缺少要删除的记录项。", "MODULE_ID_REQUIRED")
+            return self.data_module_definition_preview({"kind": "module", "action": "delete", "module_id": module_id})
         if action in {"retire", "re_enable", "reenable"}:
             module_id = str(request.get("module_id", "")).strip()
             if not module_id:
@@ -589,6 +599,8 @@ class LedgerCommandService:
             action = str(request.get("action", "create")).strip().lower()
             if kind == "category" and action == "create":
                 return store.preview_create_category(request.get("values", request))
+            if kind == "category" and action == "delete":
+                return store.preview_delete_category(str(request.get("category_id", "")).strip())
             if kind == "category" and action in {"update", "rename", "retire", "re_enable", "reenable"}:
                 category_id = str(request.get("category_id", "")).strip()
                 changes = dict(request.get("changes", {}))
@@ -599,6 +611,8 @@ class LedgerCommandService:
                 return store.preview_update_category(category_id, changes)
             if kind == "module" and action == "create":
                 return store.preview_create_module(request.get("values", request))
+            if kind == "module" and action == "delete":
+                return store.preview_delete_module(str(request.get("module_id", "")).strip())
             if kind == "module" and action in {"update", "rename", "retire", "re_enable", "reenable"}:
                 module_id = str(request.get("module_id", "")).strip()
                 changes = dict(request.get("changes", {}))
@@ -618,7 +632,18 @@ class LedgerCommandService:
     def data_module_definition_save(self, preview: dict, *, confirmed: bool = False) -> dict:
         try:
             with self.write_lock():
-                return self.data_module_definition_store().commit_preview(preview, confirmed=confirmed)
+                result = self.data_module_definition_store().commit_preview(preview, confirmed=confirmed)
+                if (preview or {}).get("operation") == "delete_module":
+                    module_id = str(preview.get("module_id", ""))
+                    database, _dictionary = self.load_state()
+                    records = database.get("data_module_records", []) or []
+                    kept = [item for item in records if not isinstance(item, dict) or str(item.get("module_id", "")) != module_id]
+                    removed = len(records) - len(kept)
+                    if removed:
+                        database["data_module_records"] = kept
+                        _write_json_atomic(self.data_file, database)
+                    result["deleted_record_count"] = removed
+                return result
         except LedgerCommandError:
             raise
         except Exception as exc:

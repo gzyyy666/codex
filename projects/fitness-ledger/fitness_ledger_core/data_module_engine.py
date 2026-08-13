@@ -871,6 +871,47 @@ class DataModuleDefinitionStore:
         check._definitions[category_id] = candidate
         return {"schema": "fitness-ledger-category-definition-preview-v1", "kind": "category", "status": "preview_ready", "write_attempted": False, "source_fingerprint": self.fingerprint(), "after": self._candidate_payload(check, modules)}
 
+    def preview_delete_module(self, module_id: str) -> dict[str, Any]:
+        categories, modules, _issues = self.load(strict=True)
+        current = modules.require(module_id)
+        check = modules.clone()
+        check._definitions.pop(module_id, None)
+        return {
+            "schema": "fitness-ledger-module-definition-preview-v1",
+            "kind": "module",
+            "action": "delete",
+            "operation": "delete_module",
+            "module_id": module_id,
+            "label": current.label,
+            "status": "preview_ready",
+            "write_attempted": False,
+            "source_fingerprint": self.fingerprint(),
+            "after": self._candidate_payload(categories, check),
+        }
+
+    def preview_delete_category(self, category_id: str) -> dict[str, Any]:
+        categories, modules, _issues = self.load(strict=True)
+        current = categories.require(category_id)
+        if current.system:
+            raise _error("System categories cannot be deleted.", "CATEGORY_DELETE_SYSTEM_FORBIDDEN", {"category_id": category_id})
+        attached = [item.module_id for item in modules.all() if item.category_id == category_id]
+        if attached:
+            raise _error("Delete the Data Modules in this category first.", "CATEGORY_DELETE_HAS_MODULES", {"category_id": category_id, "module_ids": attached})
+        check = categories.clone()
+        check._definitions.pop(category_id, None)
+        return {
+            "schema": "fitness-ledger-category-definition-preview-v1",
+            "kind": "category",
+            "action": "delete",
+            "operation": "delete_category",
+            "category_id": category_id,
+            "label": current.label,
+            "status": "preview_ready",
+            "write_attempted": False,
+            "source_fingerprint": self.fingerprint(),
+            "after": self._candidate_payload(check, modules),
+        }
+
     def commit_preview(self, preview: dict[str, Any], *, confirmed: bool = False) -> dict[str, Any]:
         if not confirmed:
             raise _error("A confirmed definition preview is required before saving.", "DEFINITION_CONFIRMATION_REQUIRED")
