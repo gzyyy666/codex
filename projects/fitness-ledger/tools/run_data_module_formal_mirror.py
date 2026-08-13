@@ -1,16 +1,16 @@
 """Run the isolated Formal Web Integrated Review Mirror.
 
-The mirror always receives explicit temporary data paths.  It never resolves
-the formal Fitness Ledger directory and never starts a cloud or Mini process.
+The mirror uses a persistent anonymous sandbox by default so a browser review
+survives a server restart.  It never resolves the formal Fitness Ledger
+directory and never starts a cloud or Mini process.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import shutil
+import os
 import sys
-import tempfile
 import webbrowser
 from pathlib import Path
 
@@ -54,15 +54,20 @@ def ensure_sandbox(root: Path) -> tuple[Path, Path, Path, Path]:
     return tracker, dictionary, backups, registry
 
 
+def default_sandbox_path() -> Path:
+    local_app_data = os.environ.get("LOCALAPPDATA", "").strip()
+    root = Path(local_app_data) if local_app_data else Path.home() / "AppData" / "Local"
+    return root / "FitnessLedger" / "formal-mirror-review-20260814"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Start the isolated Fitness Ledger Formal Web review mirror.")
     parser.add_argument("--port", type=int, default=8768, help="localhost port (default: 8768)")
     parser.add_argument("--open", action="store_true", help="open the mirror in the default browser")
-    parser.add_argument("--sandbox", type=Path, help="optional persistent sandbox directory for restart review")
+    parser.add_argument("--sandbox", type=Path, default=default_sandbox_path(), help="persistent anonymous sandbox directory")
     args = parser.parse_args()
 
-    temporary = args.sandbox is None
-    runtime = args.sandbox.resolve() if args.sandbox else Path(tempfile.mkdtemp(prefix="fitness-ledger-formal-mirror-"))
+    runtime = args.sandbox.resolve()
     tracker, dictionary, backups, registry = ensure_sandbox(runtime)
     service = LedgerWebService(
         tracker,
@@ -72,7 +77,7 @@ def main() -> None:
             "mode": "FORMAL WEB REVIEW MIRROR",
             "status": "PREVIEW",
             "branch": "codex/fitness-ledger-formal-mirror-20260813",
-            "review_fixture": "anonymous-temporary-fixture",
+            "review_fixture": "anonymous-persistent-fixture",
             "formal_data_used": False,
             "cloud_mutation": False,
             "mini_publish": False,
@@ -94,8 +99,6 @@ def main() -> None:
         print("\nStopping Formal Web review mirror...")
     finally:
         server.server_close()
-        if temporary:
-            shutil.rmtree(runtime, ignore_errors=True)
 
 
 if __name__ == "__main__":

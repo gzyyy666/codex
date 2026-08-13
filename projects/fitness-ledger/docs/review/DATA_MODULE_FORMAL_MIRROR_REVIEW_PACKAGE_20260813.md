@@ -27,7 +27,7 @@ D:\FitnessLedger\work\fitness-ledger-formal-mirror-20260813\projects\fitness-led
 
 打开：`http://127.0.0.1:8768/`
 
-启动器只绑定 localhost，自动创建匿名临时沙盒。关闭方式：回到启动器窗口按 `Ctrl+C`。它不是服务，不会注册开机启动；临时沙盒会在进程结束时删除。需要重启持久化测试时，内部测试使用 `--sandbox`，人工体验不需要手动设置环境变量。
+启动器只绑定 localhost，默认使用本机的匿名持久化沙盒。关闭方式：回到启动器窗口按 `Ctrl+C`。它不是服务，不会注册开机启动；沙盒只保存候选演示数据，不读取正式 tracker。需要另一个隔离目录时可以显式传入 `--sandbox`，人工体验不需要手动设置环境变量。
 
 ## What is included
 
