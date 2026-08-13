@@ -2,6 +2,8 @@
 
 这是 Self-Service Data Module Candidate 的 Formal Web Integrated Review Mirror。它把新增记录项接入现有 Web 的 Daily Entry、Body 和 Tools 工作区，供下一轮人工体验；不是正式 Web、正式 tracker、Cloud 或 Mini 的发布包。
 
+本轮层级、归属和展示去向说明见：[DATA_MODULE_HIERARCHY_PLACEMENT_REVIEW_20260813.md](DATA_MODULE_HIERARCHY_PLACEMENT_REVIEW_20260813.md)。
+
 ## Fixed Candidate
 
 | 项目 | 固定值 |

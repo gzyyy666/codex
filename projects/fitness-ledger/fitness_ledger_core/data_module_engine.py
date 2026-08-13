@@ -38,6 +38,15 @@ KNOWN_PRESENTATION_SLOTS = {"top", "summary", "history", "secondary", "auxiliary
 SUPPORTED_PRESENTATION_FALLBACKS = {"empty_state", "hide"}
 SUPPORTED_UNSUPPORTED_BEHAVIORS = {"hide", "reject"}
 
+_CATEGORY_LABELS = {
+    "body": "Body",
+    "diet": "Diet",
+    "training": "Training",
+    "movement": "Movement",
+    "extension": "其他扩展",
+    "home": "首页",
+}
+
 DEFAULT_CAPABILITIES = {
     "recordable": True,
     "queryable": True,
@@ -55,6 +64,26 @@ DEFAULT_CATEGORIES = [
     {"category_id": "movement", "label": "Movement", "order": 40, "status": "active", "system": True, "presentation": {"template": "core"}},
     {"category_id": "extension", "label": "Extensions", "order": 50, "status": "active", "system": True, "presentation": {"template": "extension"}},
 ]
+
+
+def _record_level(definition: "ModuleDefinition") -> dict[str, str]:
+    kind = definition.recording_behavior.get("kind", "scalar")
+    cardinality = definition.recording_behavior.get("cardinality", "one_per_day")
+    if kind == "scalar" and cardinality == "one_per_day":
+        return {"value": "daily_scalar", "label": "每日一个数值"}
+    return {"value": f"{kind}_{cardinality}", "label": f"{kind} / {cardinality}"}
+
+
+def _display_surface(definition: "ModuleDefinition") -> dict[str, str]:
+    section = str(definition.presentation.get("section", "extension"))
+    slot = str(definition.presentation.get("slot", "summary"))
+    if section == "home":
+        return {"value": "home_widget", "label": "首页角落小模块"}
+    if section in {"body", "diet", "training", "movement"} and section == definition.category_id:
+        return {"value": "category_page", "label": f"跟随{_CATEGORY_LABELS.get(section, section)}页面"}
+    if slot == "history":
+        return {"value": "history_only", "label": "只在记录、历史和导出中保留"}
+    return {"value": "record_only", "label": "只记录，不自动展示"}
 
 
 class DataModuleError(ValueError):
@@ -457,6 +486,8 @@ class ModuleRegistry:
                     "status": item.status,
                     "capabilities": copy.deepcopy(item.capabilities),
                     "renderer": item.renderer,
+                    "record_level": _record_level(item),
+                    "display_surface": _display_surface(item),
                 }
                 for item in self.all()
             ],
@@ -1151,7 +1182,13 @@ class DataModuleEngine:
         module_ids = {item.module_id for item in modules}
         records = [copy.deepcopy(record) for record in self._database().get("data_module_records", []) or [] if isinstance(record, dict) and record.get("module_id") in module_ids]
         records.sort(key=lambda item: (str(item.get("date", "")), str(item.get("record_id", ""))))
-        return {"schema": "fitness-ledger-data-module-export-v1", "categories": [item.to_dict() for item in self.category_registry.all()], "modules": [item.to_dict() for item in modules], "records": records}
+        module_payload = []
+        for item in modules:
+            exported = item.to_dict()
+            exported["record_level"] = _record_level(item)
+            exported["display_surface"] = _display_surface(item)
+            module_payload.append(exported)
+        return {"schema": "fitness-ledger-data-module-export-v1", "categories": [item.to_dict() for item in self.category_registry.all()], "modules": module_payload, "records": records}
 
     def analysis_catalog(self) -> dict[str, Any]:
         visible = [item for item in self.registry.all() if item.capabilities["analysis_visible"] and item.capabilities["exportable"]]
@@ -1240,7 +1277,7 @@ class DataModuleEngine:
         module_ids = {item.module_id for item in modules}
         records = [{key: copy.deepcopy(value) for key, value in record.items() if key not in {"source_raw_hash", "raw_text", "private", "notes"}}
                    for record in database.get("data_module_records", []) or [] if record.get("module_id") in module_ids]
-        modules_payload = [{"module_id": item.module_id, "label": item.label, "category_id": item.category_id, "data_type": item.data_type, "actual_unit": item.actual_unit, "status": item.status, "definition_version": item.definition_version} for item in modules]
+        modules_payload = [{"module_id": item.module_id, "label": item.label, "category_id": item.category_id, "data_type": item.data_type, "actual_unit": item.actual_unit, "status": item.status, "definition_version": item.definition_version, "record_level": _record_level(item), "display_surface": _display_surface(item)} for item in modules]
         modules_payload.sort(key=lambda item: item["module_id"])
         records.sort(key=lambda item: (str(item.get("date", "")), str(item.get("record_id", ""))))
         collections = {"modules": modules_payload, "records": records}
@@ -1298,11 +1335,11 @@ class DataModuleEngine:
         cards = []
         for item in modules:
             history = self.history(item.module_id)["history"][:history_limit]
-            cards.append({"module_id": item.module_id, "label": item.label, "category_id": item.category_id, "renderer": item.renderer, "status": item.status, "recording_enabled": item.status == "active" and item.capabilities["recordable"], "latest": history[0] if history else None, "history": history, "empty_state": None if history else {"kind": "empty", "message": "暂无记录"}})
+            cards.append({"module_id": item.module_id, "label": item.label, "category_id": item.category_id, "renderer": item.renderer, "status": item.status, "recording_enabled": item.status == "active" and item.capabilities["recordable"], "record_level": _record_level(item), "display_surface": _display_surface(item), "latest": history[0] if history else None, "history": history, "empty_state": None if history else {"kind": "empty", "message": "暂无记录"}})
         return {"schema": "fitness-ledger-mini-module-contract-v1", "page_required": False, "renderers": sorted({item.renderer for item in modules if item.renderer}), "modules": cards}
 
     def presentation_contract(self) -> dict[str, Any]:
-        return {"schema": "fitness-ledger-presentation-contract-v1", "categories": [{"category_id": item.category_id, "label": item.label, "order": item.order, "status": item.status, "presentation": item.presentation} for item in self.category_registry.all()], "modules": [{"module_id": item.module_id, "category_id": item.category_id, "section": item.presentation["section"], "slot": item.presentation["slot"], "order": item.presentation["order"], "visible_by_default": item.presentation["visible_by_default"], "fallback": item.presentation["fallback"], "unsupported_behavior": item.presentation["unsupported_behavior"], "renderer": item.renderer} for item in self.registry.all()]}
+        return {"schema": "fitness-ledger-presentation-contract-v1", "categories": [{"category_id": item.category_id, "label": item.label, "order": item.order, "status": item.status, "presentation": item.presentation} for item in self.category_registry.all()], "modules": [{"module_id": item.module_id, "category_id": item.category_id, "section": item.presentation["section"], "slot": item.presentation["slot"], "order": item.presentation["order"], "visible_by_default": item.presentation["visible_by_default"], "fallback": item.presentation["fallback"], "unsupported_behavior": item.presentation["unsupported_behavior"], "renderer": item.renderer, "record_level": _record_level(item), "display_surface": _display_surface(item)} for item in self.registry.all()]}
 
 
 class DataModuleMigrationService:

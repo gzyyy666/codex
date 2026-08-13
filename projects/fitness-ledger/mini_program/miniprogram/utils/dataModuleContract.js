@@ -17,6 +17,9 @@ function validateDataModuleContract(payload) {
     assertContract(!seen.has(module.module_id), 'Data Module module_id is duplicated.', 'MODULE_CONTRACT_ID_DUPLICATE')
     seen.add(module.module_id)
     assertContract(SUPPORTED_RENDERERS.has(module.renderer), 'Data Module renderer is unsupported.', 'MODULE_CONTRACT_RENDERER_UNSUPPORTED')
+    if (module.display_surface !== undefined) {
+      assertContract(module.display_surface && typeof module.display_surface.value === 'string', 'Data Module display surface is invalid.', 'MODULE_CONTRACT_SURFACE_INVALID')
+    }
     assertContract(Array.isArray(module.history), 'Data Module history must be a list.', 'MODULE_CONTRACT_HISTORY_INVALID')
     if (module.latest !== null) {
       assertContract(module.history.length > 0, 'Data Module latest requires history.', 'MODULE_CONTRACT_LATEST_INVALID')
@@ -34,6 +37,8 @@ function renderDataModuleCard(module) {
       module_id: module.module_id,
       renderer: module.renderer,
       label: module.label,
+      record_level: module.record_level || { value: 'daily_scalar', label: '每日一个数值' },
+      display_surface: module.display_surface || { value: 'category_page', label: '跟随所属类别页面' },
       state: empty ? 'empty' : 'ready',
       latest: module.latest,
       history: [],
@@ -45,6 +50,8 @@ function renderDataModuleCard(module) {
       module_id: module.module_id,
       renderer: module.renderer,
       label: module.label,
+      record_level: module.record_level || { value: 'daily_scalar', label: '每日一个数值' },
+      display_surface: module.display_surface || { value: 'category_page', label: '跟随所属类别页面' },
       state: empty ? 'empty' : 'ready',
       latest: module.latest,
       history,

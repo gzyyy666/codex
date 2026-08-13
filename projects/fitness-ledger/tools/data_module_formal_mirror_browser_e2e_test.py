@@ -123,6 +123,19 @@ def _close_process(process: subprocess.Popen[Any] | None) -> None:
         process.wait(timeout=5)
 
 
+def _safe_cleanup(directory: tempfile.TemporaryDirectory[str] | None) -> None:
+    if directory is None:
+        return
+    try:
+        directory.cleanup()
+    except PermissionError:
+        # Edge may release a Crashpad dump just after its process exits. The
+        # directory is already outside the repository; leaving that OS temp
+        # directory for the normal cleanup sweep is safer than failing a
+        # completed browser assertion.
+        pass
+
+
 def _start_service(port: int, sandbox: str) -> subprocess.Popen[str]:
     process = subprocess.Popen(
         [sys.executable, "-u", str(LAUNCHER), "--port", str(port), "--sandbox", sandbox],
@@ -189,12 +202,15 @@ def main() -> None:
         first_catalog = _json_get(browser, "/api/data-modules/product-catalog")
         pulse = next(item for item in first_catalog["modules"] if item["label"] == "\u6668\u95f4\u8109\u640f")
         pulse_id = pulse["module_id"]
+        assert pulse["category_id"] == "body" and pulse["display_surface"] == "category_page" and pulse["record_level"] == "daily_scalar", pulse
         _click(browser, "[data-dm-go-body]")
         _wait(browser, "!!document.querySelector('.dm-body-shelf')")
         body_snapshot=browser.evaluate("({url:location.href,hasShelf:!!document.querySelector('.dm-body-shelf'),hasPulse:document.body.innerText.includes('晨间脉搏'),text:document.body.innerText.slice(0,1200)})")
         assert body_snapshot["hasPulse"], body_snapshot
         screenshot_data = _command(browser, "Page.captureScreenshot", {"format": "png"})
         screenshot_path.write_bytes(base64.b64decode(screenshot_data["data"]))
+        diet_discovery = _json_post(browser, "/api/data-modules/discover", {"raw": "\u4eca\u5929\u6bcf\u65e5\u808c\u9178 5 g"})
+        assert diet_discovery["status"] == 200 and diet_discovery["body"]["candidate"]["suggested_category_id"] == "diet" and diet_discovery["body"]["candidate"]["unit"] == "g", diet_discovery
 
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools')")
         _wait(browser, "!!document.querySelector('.dm-tools-entry')")
@@ -212,6 +228,19 @@ def main() -> None:
         catalog = _json_get(browser, "/api/data-modules/product-catalog")
         temperature = next(item for item in catalog["modules"] if item["label"] == "\u65e5\u95f4\u4f53\u6e29")
         temperature_id = temperature["module_id"]
+
+        # Diet follows the existing P / C / F surface instead of creating a Diet sub-page.
+        _click(browser, "[data-dm-new-module]")
+        _wait(browser, "!!document.querySelector('#dm-definition-form')")
+        _set_css(browser, "[name=label]", "\u6bcf\u65e5\u808c\u9178")
+        _select(browser, "[name=category_id]", "diet")
+        _set_css(browser, "[name=actual_unit]", "g")
+        _select(browser, "[name=placement]", "detail")
+        _click(browser, "[data-dm-submit-definition]")
+        _wait(browser, "!document.querySelector('#dm-definition-form')")
+        catalog = _json_get(browser, "/api/data-modules/product-catalog")
+        creatine = next(item for item in catalog["modules"] if item["label"] == "\u6bcf\u65e5\u808c\u9178")
+        assert creatine["category_id"] == "diet" and creatine["display_surface"] == "category_page" and creatine["placement"] == "detail", creatine
 
         # Custom category, then a second module in that category.
         _click(browser, "[data-dm-new-module]")
@@ -234,8 +263,16 @@ def main() -> None:
         _wait(browser, "!document.querySelector('#dm-definition-form')")
         catalog = _json_get(browser, "/api/data-modules/product-catalog")
         assert len([item for item in catalog["modules"] if item["category_id"] == recovery_category["category_id"]]) == len(recovery_modules) + 1
+        recovery_module = next(item for item in catalog["modules"] if item["label"] == "\u6062\u590d\u8bc4\u5206")
+        assert recovery_module["display_surface"] == "home_widget", recovery_module
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('home')")
+        _wait(browser, "!!document.querySelector('.dm-surface-shelf[data-dm-surface=home]')")
+        assert browser.evaluate("document.body.innerText.includes('恢复评分')")
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools',{panel:'data-modules'})")
+        _wait(browser, "!!document.querySelector('.dm-management-page')")
         _click_dataset(browser, "[data-dm-category-toggle]", "dmCategoryToggle", recovery_category["category_id"])
         _wait(browser, f"(async()=>((await (await fetch('/api/data-modules/product-catalog')).json()).categories.find(item=>item.category_id==={json.dumps(recovery_category['category_id'])}).status==='retired'))()")
+        _wait(browser, f"!!document.querySelector('[data-dm-category-toggle][data-dm-category-toggle={json.dumps(recovery_category['category_id'])}][data-dm-next-status=re_enable]')")
         _click_dataset(browser, "[data-dm-category-toggle]", "dmCategoryToggle", recovery_category["category_id"])
         _wait(browser, f"(async()=>((await (await fetch('/api/data-modules/product-catalog')).json()).categories.find(item=>item.category_id==={json.dumps(recovery_category['category_id'])}).status==='active'))()")
 
@@ -285,6 +322,10 @@ def main() -> None:
         _wait(browser, f"(async()=>((await (await fetch('/api/data-modules/product-catalog')).json()).modules.find(item=>item.module_id==={json.dumps(pulse_id)}).status==='active'))()")
 
         export_payload = _json_get(browser, "/api/data-modules/export")
+        import_payload = dict(export_payload)
+        import_payload["modules"] = [*import_payload["modules"], {"module_id": "unknown_import_metric", "label": "外部未知指标", "category_id": "body"}]
+        import_preview = _json_post(browser, "/api/data-modules/import-preview", {"payload": import_payload})
+        assert import_preview["status"] == 200 and not import_preview["body"]["write_attempted"] and import_preview["body"]["unknown_modules"], import_preview
         analysis_catalog = _json_get(browser, "/api/data-modules/analysis-catalog")
         assert len(export_payload["records"]) >= 1
         assert analysis_catalog.get("protocol_change_required_for_public_field") is True
@@ -334,7 +375,7 @@ def main() -> None:
         if browser is not None:
             browser.close()
         _close_process(edge)
-        if edge_data:edge_data.cleanup()
+        _safe_cleanup(edge_data)
         _close_process(service)
         sandbox.cleanup()
 

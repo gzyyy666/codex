@@ -62,18 +62,61 @@ _PRODUCT_PLACEMENTS = {
     "record": {"label": "仅记录，不展示", "slot": "auxiliary", "visible_by_default": False},
 }
 
+_PRODUCT_SURFACES = {
+    "category_page": {
+        "label": "跟随所属类别页面",
+        "description": "例如 Body 的腰围，进入 Body 记录里的同级指标。",
+    },
+    "home_widget": {
+        "label": "首页角落小模块",
+        "description": "不创建新页面，只在首页增加一个紧凑显示块。",
+    },
+    "history_only": {
+        "label": "只在记录、历史和导出中保留",
+        "description": "不自动放进任何页面，但仍可输入、查询、导出。",
+    },
+    "record_only": {
+        "label": "只记录，不自动展示",
+        "description": "保留正式记录和历史，页面不显示。",
+    },
+}
 
-def _product_placement(category_id: str, choice: str, order: int = 0) -> dict:
+
+def _product_placement(category_id: str, choice: str, order: int = 0, surface: str = "category_page") -> dict:
     key = str(choice or "summary").strip().lower()
     placement = _PRODUCT_PLACEMENTS.get(key, _PRODUCT_PLACEMENTS["summary"])
-    section = category_id if category_id in {"body", "diet", "training", "movement"} else "extension"
+    surface_key = str(surface or "category_page").strip().lower()
+    if surface_key == "home_widget":
+        section = "home"
+        slot = "auxiliary"
+        visible = True
+    elif surface_key in {"history_only", "record_only"}:
+        section = "extension"
+        slot = "history" if surface_key == "history_only" else "auxiliary"
+        visible = surface_key == "history_only"
+    else:
+        section = category_id if category_id in {"body", "diet", "training", "movement"} else "extension"
+        slot = placement["slot"]
+        visible = bool(placement["visible_by_default"])
     return {
         "section": section,
-        "slot": placement["slot"],
+        "slot": slot,
         "order": int(order or 0),
-        "visible_by_default": bool(placement["visible_by_default"]),
-        "renderer": "metric_history" if key in {"detail", "history"} else "single_metric",
+        "visible_by_default": visible,
+        "renderer": "metric_history" if key in {"detail", "history"} or surface_key == "history_only" else "single_metric",
     }
+
+
+def _product_surface(category_id: str, presentation: dict) -> str:
+    section = str((presentation or {}).get("section", "extension"))
+    slot = str((presentation or {}).get("slot", "summary"))
+    if section == "home":
+        return "home_widget"
+    if slot == "history":
+        return "history_only"
+    if section in {"body", "diet", "training", "movement"} and section == str(category_id):
+        return "category_page"
+    return "record_only" if not bool((presentation or {}).get("visible_by_default", True)) else "history_only"
 
 
 def _normalise_business_value(value, field_name: str = ""):
@@ -322,6 +365,10 @@ class LedgerCommandService:
                 "definition_version": item.get("definition_version", 1),
                 "placement": placement,
                 "placement_label": placement_labels.get(placement, placement),
+                "display_surface": _product_surface(item.get("category_id", ""), presentation),
+                "display_surface_label": _PRODUCT_SURFACES.get(_product_surface(item.get("category_id", ""), presentation), {}).get("label", ""),
+                "record_level": "daily_scalar",
+                "record_level_label": "每日一个数值",
                 "capabilities": {
                     "recordable": bool((item.get("capabilities") or {}).get("recordable", False)),
                     "exportable": bool((item.get("capabilities") or {}).get("exportable", False)),
@@ -343,8 +390,62 @@ class LedgerCommandService:
             ],
             "modules": modules,
             "placement_choices": [{"value": key, "label": value["label"]} for key, value in _PRODUCT_PLACEMENTS.items()],
+            "record_levels": [{"value": "daily_scalar", "label": "每日一个数值", "description": "每天最多保存一个数值，例如腰围、静息心率、肌酸摄入量。", "supported": True}],
+            "display_surfaces": [{"value": key, **value} for key, value in _PRODUCT_SURFACES.items()],
             "issues": catalog.get("issues", []),
             "source_fingerprint": catalog.get("source_fingerprint", ""),
+        }
+
+    def data_module_import_preview(self, payload: dict | str) -> dict:
+        """Recognize a data-module package without importing or writing it."""
+        if isinstance(payload, str):
+            try:
+                payload = json.loads(payload)
+            except json.JSONDecodeError as exc:
+                raise LedgerCommandError("导入内容不是有效的 JSON。", "MODULE_IMPORT_JSON_INVALID") from exc
+        if not isinstance(payload, dict):
+            raise LedgerCommandError("导入内容必须是对象。", "MODULE_IMPORT_PAYLOAD_INVALID")
+        source_schema = str(payload.get("schema", "")).strip()
+        supported_schemas = {
+            "fitness-ledger-data-module-export-v1",
+            "fitness-ledger-data-module-cloud-v1",
+            "fitness-ledger-mini-module-contract-v1",
+        }
+        if source_schema not in supported_schemas:
+            raise LedgerCommandError("这不是可识别的 Data Module 导出包。", "MODULE_IMPORT_SCHEMA_UNSUPPORTED", {"schema": source_schema})
+        current = self.data_module_product_catalog()
+        known = {str(item.get("module_id")): item for item in current.get("modules", [])}
+        incoming_modules = [item for item in payload.get("modules", []) if isinstance(item, dict)]
+        incoming_records = [item for item in payload.get("records", []) if isinstance(item, dict)]
+        recognized = []
+        unknown = []
+        for item in incoming_modules:
+            module_id = str(item.get("module_id", ""))
+            target = known.get(module_id)
+            (recognized if target else unknown).append({
+                "module_id": module_id,
+                "label": item.get("label", ""),
+                "category_id": item.get("category_id", ""),
+                "current_status": target.get("status") if target else "unknown",
+                "record_level": "每日一个数值",
+                "display_surface": target.get("display_surface") if target else "需要先建立定义",
+            })
+        known_ids = {item["module_id"] for item in recognized}
+        orphan_records = [
+            {"module_id": str(item.get("module_id", "")), "date": item.get("date", "")}
+            for item in incoming_records
+            if str(item.get("module_id", "")) not in known_ids
+        ]
+        return {
+            "schema": "fitness-ledger-data-module-import-preview-v1",
+            "source_schema": source_schema,
+            "status": "preview_ready",
+            "write_attempted": False,
+            "recognized_modules": recognized,
+            "unknown_modules": unknown,
+            "orphan_records": orphan_records,
+            "record_count": len(incoming_records),
+            "next_step": "先确认类别和展示去向，再进行人工审核；本候选不自动导入。",
         }
 
     def data_module_discover(self, raw_text: str, record_date: str | None = None) -> dict:
@@ -373,12 +474,26 @@ class LedgerCommandService:
         if not label:
             return {"kind": "not_data_module", "message": "请把记录项名称写在数值前面，例如“晨间脉搏 58”。"}
         tail = without_dates[number.end():].strip()
-        unit_match = re.match(r"(次/分|厘米|公斤|小时|分钟|分钟|bpm|cm|kg|mm|%|h|min)", tail, flags=re.IGNORECASE)
+        unit_match = re.match(r"(次/分|厘米|公斤|小时|分钟|bpm|cm|kg|mm|%|h|min|g|mg|mcg|ml|l|克|毫克|毫升|斤)", tail, flags=re.IGNORECASE)
         unit = unit_match.group(1) if unit_match else ""
         value_text = number.group(0)
         value = float(value_text)
         if value.is_integer():
             value = int(value)
+        label_lower = label.casefold()
+        category_hints = [
+            ("body", r"腰围|体重|体脂|心率|脉搏|体温|睡眠|血压|排便|围度|waist|weight|body|heart|pulse|sleep|temperature"),
+            ("diet", r"肌酸|蛋白|碳水|脂肪|热量|饮食|饮水|水|钠|糖|creatine|protein|carb|fat|calorie|diet|water|sodium"),
+            ("training", r"训练|有氧|跑步|步数|训练时长|training|cardio|run|steps|workout"),
+            ("movement", r"动作|卧推|深蹲|硬拉|引体|movement|bench|squat|deadlift|pullup"),
+        ]
+        suggested_category_id = "extension"
+        suggestion_reason = "没有匹配到现有类别，默认放入“其他扩展”；不会创建新的一级页面。"
+        for category_id, pattern in category_hints:
+            if re.search(pattern, label_lower, flags=re.IGNORECASE):
+                suggested_category_id = category_id
+                suggestion_reason = f"根据名称中的常见词，建议归入“{category_id}”；你仍然可以手动改选。"
+                break
         return {
             "kind": "new_candidate",
             "candidate": {
@@ -388,7 +503,10 @@ class LedgerCommandService:
                 "unit": unit,
                 "date": record_date or date.today().isoformat(),
                 "raw": raw,
-                "suggested_category_id": "body",
+                "suggested_category_id": suggested_category_id,
+                "suggested_display_surface": "category_page" if suggested_category_id != "extension" else "home_widget",
+                "suggestion_reason": suggestion_reason,
+                "record_level": "daily_scalar",
             },
         }
 
@@ -429,7 +547,9 @@ class LedgerCommandService:
         values["data_type"] = str(values.get("data_type", "quantity")).strip().lower()
         values["capabilities"] = values.get("capabilities") if isinstance(values.get("capabilities"), dict) else {}
         placement = str(values.get("placement", values.get("placement_choice", "summary"))).strip().lower()
-        values["presentation"] = _product_placement(category_id, placement, int(values.get("order", 0) or 0))
+        display_surface = str(values.get("display_surface", "category_page")).strip().lower()
+        values["display_surface"] = display_surface
+        values["presentation"] = _product_placement(category_id, placement, int(values.get("order", 0) or 0), display_surface)
         if action == "create":
             return self.data_module_definition_preview({"kind": "module", "action": "create", "values": values})
         module_id = str(request.get("module_id", values.get("module_id", ""))).strip()

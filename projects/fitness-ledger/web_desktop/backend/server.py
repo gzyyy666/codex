@@ -189,6 +189,9 @@ class LedgerWebService:
     def data_module_product_catalog(self) -> dict:
         return self.commands.data_module_product_catalog()
 
+    def data_module_import_preview(self, payload: dict | str) -> dict:
+        return self.commands.data_module_import_preview(payload)
+
     def data_module_discover(self, request: dict) -> dict:
         return self.commands.data_module_discover(str(request.get("raw", "")), request.get("date"))
 
@@ -1053,6 +1056,8 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
             request = self.read_json_body()
             if parsed.path == "/api/data-modules/discover":
                 self.send_json(self.service.data_module_discover(request))
+            elif parsed.path == "/api/data-modules/import-preview":
+                self.send_json(self.service.data_module_import_preview(request.get("payload", request)))
             elif parsed.path == "/api/data-modules/preview":
                 self.send_json(self.service.data_module_preview(request))
             elif parsed.path == "/api/data-modules/product-definition-preview":
