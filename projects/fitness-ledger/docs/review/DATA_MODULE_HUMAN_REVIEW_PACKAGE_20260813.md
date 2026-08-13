@@ -8,7 +8,7 @@
 - Branch：`codex/fitness-ledger-data-module-candidate-20260812`
 - Base：`a63f8a6c3e63e1695898a429ac28a21108957737`
 - Implementation Commit：`b77766969d0caf7383c277a5f4ddd8dd0762bc6b` — `Data Module Candidate Implementation`
-- Evidence Commit：本包及回归证据提交后记录在最终 handoff 中；该 commit 只包含 Review 文档与 fixture-only 场景脚本。
+- Evidence Commit：`05be3c3481e9dca1a3806fd06f411bd13e3e644c` — `Data Module Candidate Evidence and Human Review Package`；该 commit 只包含 Review 文档与 fixture-only 场景脚本。
 - 最终 Git Status：提交 evidence 后应为空；不允许保留实现性未提交修改。
 
 ## Safety
