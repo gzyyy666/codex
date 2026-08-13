@@ -214,11 +214,13 @@ class LedgerCommandService:
         dictionary_file: Path,
         backup_dir: Path,
         parser: ParserCallback,
+        module_registry_file: Path | None = None,
     ) -> None:
         self.data_file = Path(data_file)
         self.dictionary_file = Path(dictionary_file)
         self.backup_dir = Path(backup_dir)
         self.parser = parser
+        self.module_registry_file = Path(module_registry_file) if module_registry_file else None
         self.lock_file = self.data_file.parent / ".fitness-ledger-write.lock"
 
     def load_state(self) -> tuple[dict, dict]:
@@ -228,6 +230,90 @@ class LedgerCommandService:
         )
         dictionary = _read_json(self.dictionary_file, {"version": "1.0", "movements": []})
         return database, dictionary
+
+    def data_module_engine(self, registry_file: Path | None = None):
+        """Return the registry-driven extension engine at the shared save boundary."""
+        from fitness_ledger_core.data_module_engine import DataModuleEngine, ModuleRegistry
+
+        path = Path(registry_file) if registry_file else self.module_registry_file
+        if path is None:
+            raise LedgerCommandError(
+                "Data Module registry is not configured.",
+                "MODULE_REGISTRY_REQUIRED",
+            )
+        try:
+            registry = ModuleRegistry.from_file(path, strict=True)
+            return DataModuleEngine(
+                registry,
+                self.data_file,
+                self.dictionary_file,
+                self.backup_dir,
+                command_service=self,
+            )
+        except Exception as exc:
+            if isinstance(exc, LedgerCommandError):
+                raise
+            code = getattr(exc, "code", "MODULE_REGISTRY_INVALID")
+            details = getattr(exc, "details", {})
+            raise LedgerCommandError(str(exc), code, details) from exc
+
+    def _data_module_call(self, method: str, *args, **kwargs):
+        try:
+            return getattr(self.data_module_engine(), method)(*args, **kwargs)
+        except LedgerCommandError:
+            raise
+        except Exception as exc:
+            code = getattr(exc, "code", "DATA_MODULE_ERROR")
+            details = getattr(exc, "details", {})
+            raise LedgerCommandError(str(exc), code, details) from exc
+
+    def data_module_preview(self, raw_text: str, record_date: str | None = None) -> dict:
+        return self._data_module_call("preview", raw_text, record_date)
+
+    def data_module_save(self, preview: dict, *, confirmed: bool = False, raw_entry_id: str | None = None) -> dict:
+        return self._data_module_call("save_preview", preview, confirmed=confirmed, raw_entry_id=raw_entry_id)
+
+    def data_module_query(self, module_id: str, start: str = "", end: str = "", *, latest: bool = False, category_id: str = "") -> list[dict]:
+        return self._data_module_call("query", module_id, start, end, latest=latest, category_id=category_id)
+
+    def data_module_history(self, module_id: str, start: str = "", end: str = "") -> dict:
+        return self._data_module_call("history", module_id, start, end)
+
+    def data_module_export(self) -> dict:
+        return self._data_module_call("normal_export")
+
+    def data_module_analysis_catalog(self) -> dict:
+        return self._data_module_call("analysis_catalog")
+
+    def data_module_analysis_preview(self, module_ids: list[str]) -> dict:
+        return self._data_module_call("analysis_preview", module_ids)
+
+    def data_module_check(self) -> list[dict]:
+        return self._data_module_call("data_check")
+
+    def data_module_cloud_payload(self) -> dict:
+        return self._data_module_call("build_cloud_payload")
+
+    def data_module_cloud_verify(self, payload: dict) -> dict:
+        from fitness_ledger_core.data_module_engine import DataModuleEngine
+
+        return DataModuleEngine.verify_cloud_payload(payload)
+
+    def data_module_cloud_roundtrip(self, payload: dict) -> dict:
+        from fitness_ledger_core.data_module_engine import DataModuleEngine
+
+        try:
+            return DataModuleEngine.cloud_roundtrip(payload)
+        except Exception as exc:
+            code = getattr(exc, "code", "MODULE_CLOUD_VERIFY_FAILED")
+            details = getattr(exc, "details", {})
+            raise LedgerCommandError(str(exc), code, details) from exc
+
+    def data_module_mini_contract(self) -> dict:
+        return self._data_module_call("build_mini_program_contract")
+
+    def data_module_presentation_contract(self) -> dict:
+        return self._data_module_call("presentation_contract")
 
     def undo_status(self) -> dict:
         """Describe the newest valid paired checkpoint without changing data."""

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fitness Ledger · Data Module Candidate</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; }
+    body { max-width: 1100px; margin: 24px auto; padding: 0 18px; color: #20242a; background: #f6f7f9; }
+    main { display: grid; gap: 16px; }
+    section { background: #fff; border: 1px solid #e1e4e8; border-radius: 12px; padding: 16px; }
+    textarea { width: 100%; min-height: 90px; box-sizing: border-box; font: inherit; }
+    button { padding: 8px 14px; cursor: pointer; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f1f3f5; padding: 12px; border-radius: 8px; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+    .card { border: 1px solid #e1e4e8; border-radius: 8px; padding: 12px; }
+    .muted { color: #68707a; }
+  </style>
+</head>
+<body>
+  <main>
+    <section>
+      <h1>Data Module Candidate Preview</h1>
+      <p class="muted">仅用于本地候选链路验证；不连接线上小程序、不上传 CloudBase、不代表最终界面。</p>
+      <textarea id="raw">2026-08-12 腰围 82.5 cm；静息心率 62 bpm</textarea>
+      <p><button id="preview">预览（零写入）</button> <button id="save" disabled>确认保存匿名夹具</button></p>
+      <pre id="result">等待预览…</pre>
+    </section>
+    <section>
+      <h2>Mini renderer contract</h2>
+      <div id="cards" class="cards"><span class="muted">加载中…</span></div>
+    </section>
+    <section>
+      <h2>Downstream capability checks</h2>
+      <p class="muted">这些是候选契约检查，不会上传 CloudBase、改变 AnalysisExportRequest v1.1 或发布 Mini。</p>
+      <button id="refresh-downstream">刷新 Export / Analysis / Cloud dry-run / Mini</button>
+      <pre id="downstream">等待检查…</pre>
+    </section>
+  </main>
+  <script>
+    let latestPreview = null
+    const result = document.getElementById('result')
+    const save = document.getElementById('save')
+    const request = async (url, options) => {
+      const response = await fetch(url, options)
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.error || payload.detail || '请求失败')
+      return payload
+    }
+    const show = (payload) => { result.textContent = JSON.stringify(payload, null, 2) }
+    document.getElementById('preview').onclick = async () => {
+      try {
+        latestPreview = await request('/api/data-modules/preview', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ raw: document.getElementById('raw').value }),
+        })
+        save.disabled = false
+        show(latestPreview)
+      } catch (error) { show({ error: error.message }); save.disabled = true }
+    }
+    save.onclick = async () => {
+      try {
+        show(await request('/api/data-modules/save', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ preview: latestPreview, confirmed: true }),
+        }))
+        await loadContract()
+      } catch (error) { show({ error: error.message }) }
+    }
+    const loadContract = async () => {
+      const payload = await request('/api/data-modules/mini-contract')
+      const cards = document.getElementById('cards')
+      cards.innerHTML = payload.modules.map((module) => `
+        <article class="card">
+          <strong>${module.label}</strong><br>
+          <span class="muted">${module.module_id} · ${module.renderer}</span>
+          <p>${module.latest ? `${module.latest.display_value ?? module.latest.value} ${module.latest.display_unit || module.latest.actual_unit || ''}` : '暂无记录'}</p>
+          <small>${module.history.length} 条历史</small>
+        </article>`).join('')
+    }
+    const loadDownstream = async () => {
+      const [normalExport, analysis, cloud, mini] = await Promise.all([
+        request('/api/data-modules/export'),
+        request('/api/data-modules/analysis-catalog'),
+        request('/api/data-modules/cloud-dry-run'),
+        request('/api/data-modules/mini-contract'),
+      ])
+      document.getElementById('downstream').textContent = JSON.stringify({
+        normal_export: { module_count: normalExport.modules.length, record_count: normalExport.records.length },
+        analysis_gate: { visible: analysis.modules.map((module) => module.module_id), hidden: analysis.hidden_module_ids },
+        cloud_dry_run: { payload_hash: cloud.meta.payload_hash, network_request_made: cloud.meta.network_request_made, raw_policy: cloud.meta.raw_policy },
+        mini_renderer_contract: { renderers: mini.renderers, module_count: mini.modules.length },
+      }, null, 2)
+    }
+    document.getElementById('refresh-downstream').onclick = () => loadDownstream().catch((error) => {
+      document.getElementById('downstream').textContent = JSON.stringify({ error: error.message }, null, 2)
+    })
+    Promise.all([loadContract(), loadDownstream()]).catch((error) => {
+      document.getElementById('cards').textContent = error.message
+      document.getElementById('downstream').textContent = error.message
+    })
+  </script>
+</body>
+</html>

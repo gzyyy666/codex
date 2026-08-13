@@ -78,6 +78,7 @@ class LedgerWebService:
         build_info_path: Path | None = None,
         build_info_override: dict | None = None,
         analysis_export_protocol: AnalysisExportProtocolService | None = None,
+        data_module_registry_file: Path | None = None,
     ) -> None:
         if data_file is None and dictionary_file is None:
             configured_formal_dir = str(os.environ.get("FITNESS_LEDGER_FORMAL_DIR", "")).strip()
@@ -92,10 +93,14 @@ class LedgerWebService:
         data_file = data_file or PROJECT_DIR / "data" / "tracker.json"
         dictionary_file = dictionary_file or PROJECT_DIR / "data" / "movement_dictionary.json"
         backup_dir = backup_dir or PROJECT_DIR / "data" / "backups"
+        if data_module_registry_file is None:
+            configured_registry = str(os.environ.get("FITNESS_LEDGER_DATA_MODULE_REGISTRY", "")).strip()
+            data_module_registry_file = Path(configured_registry).expanduser() if configured_registry else None
+        self.data_module_registry_file = data_module_registry_file
         self.data = LedgerDataAccess(data_file, dictionary_file)
         self.views = LedgerViewModels(data_file, dictionary_file)
         self.stable = load_stable_module()
-        self.commands = LedgerCommandService(data_file, dictionary_file, backup_dir, self._parse_with_stable_app)
+        self.commands = LedgerCommandService(data_file, dictionary_file, backup_dir, self._parse_with_stable_app, data_module_registry_file)
         self.data_check_state_file = Path(data_file).parent / "data_check_state.json"
         self.silent_health = SilentHealthCheck(
             Path(data_file), Path(dictionary_file), self.stable, self.data_check_state_file
@@ -155,6 +160,8 @@ class LedgerWebService:
                 "availability_status",
                 "ready",
             ),
+            "data_module_candidate": bool(self.data_module_registry_file and self.data_module_registry_file.is_file()),
+            "data_module_registry": str(self.data_module_registry_file) if self.data_module_registry_file else "",
             "phase": "shared-platform-services",
         }
 
@@ -169,6 +176,44 @@ class LedgerWebService:
     def data_check(self) -> dict:
         database, dictionary = self.commands.load_state()
         return collect_issues(database, dictionary, self.stable, self.data_check_state_file)
+
+    def data_module_engine(self):
+        return self.commands.data_module_engine(self.data_module_registry_file)
+
+    def data_module_capabilities(self) -> dict:
+        return self.data_module_engine().registry.capability_catalog()
+
+    def data_module_preview(self, request: dict) -> dict:
+        return self.commands.data_module_preview(str(request.get("raw", "")), request.get("date"))
+
+    def data_module_save(self, request: dict) -> dict:
+        return self.commands.data_module_save(
+            request.get("preview"),
+            confirmed=bool(request.get("confirmed", False)),
+            raw_entry_id=request.get("raw_entry_id"),
+        )
+
+    def data_module_query(self, request: dict) -> list[dict]:
+        return self.commands.data_module_query(
+            str(request.get("module_id", "")),
+            str(request.get("start", "")),
+            str(request.get("end", "")),
+            latest=bool(request.get("latest", False)),
+            category_id=str(request.get("category_id", "")),
+        )
+
+    def data_module_history(self, request: dict) -> dict:
+        return self.commands.data_module_history(
+            str(request.get("module_id", "")),
+            str(request.get("start", "")),
+            str(request.get("end", "")),
+        )
+
+    def data_module_analysis_preview(self, request: dict) -> dict:
+        module_ids = request.get("module_ids", [])
+        if not isinstance(module_ids, list):
+            raise LedgerCommandError("module_ids must be a list.", "MODULE_ANALYSIS_REQUEST_INVALID")
+        return self.commands.data_module_analysis_preview([str(item) for item in module_ids])
 
     def archive_health(self) -> dict:
         return self.silent_health.summary()
@@ -880,6 +925,34 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.undo_status())
             elif parsed.path == "/api/data-check":
                 self.send_json(self.service.data_check())
+            elif parsed.path == "/api/data-modules/capabilities":
+                self.send_json(self.service.data_module_capabilities())
+            elif parsed.path == "/api/data-modules/export":
+                self.send_json(self.service.commands.data_module_export())
+            elif parsed.path == "/api/data-modules/analysis-catalog":
+                self.send_json(self.service.commands.data_module_analysis_catalog())
+            elif parsed.path == "/api/data-modules/check":
+                self.send_json(self.service.commands.data_module_check())
+            elif parsed.path == "/api/data-modules/cloud-dry-run":
+                self.send_json(self.service.commands.data_module_cloud_payload())
+            elif parsed.path == "/api/data-modules/mini-contract":
+                self.send_json(self.service.commands.data_module_mini_contract())
+            elif parsed.path == "/api/data-modules/presentation":
+                self.send_json(self.service.commands.data_module_presentation_contract())
+            elif parsed.path == "/api/data-modules/query":
+                self.send_json(self.service.data_module_query({
+                    "module_id": query.get("module_id", [""])[0],
+                    "start": query.get("start", [""])[0],
+                    "end": query.get("end", [""])[0],
+                    "latest": query.get("latest", ["false"])[0].casefold() == "true",
+                    "category_id": query.get("category_id", [""])[0],
+                }))
+            elif parsed.path == "/api/data-modules/history":
+                self.send_json(self.service.data_module_history({
+                    "module_id": query.get("module_id", [""])[0],
+                    "start": query.get("start", [""])[0],
+                    "end": query.get("end", [""])[0],
+                }))
             elif parsed.path == "/api/archive-health":
                 self.send_json(self.service.archive_health())
             elif parsed.path == "/api/cloud-sync/status":
@@ -956,7 +1029,17 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         try:
             request = self.read_json_body()
-            if parsed.path == "/api/parse":
+            if parsed.path == "/api/data-modules/preview":
+                self.send_json(self.service.data_module_preview(request))
+            elif parsed.path == "/api/data-modules/save":
+                self.send_json(self.service.data_module_save(request))
+            elif parsed.path == "/api/data-modules/analysis-preview":
+                self.send_json(self.service.data_module_analysis_preview(request))
+            elif parsed.path == "/api/data-modules/cloud-verify":
+                self.send_json(self.service.commands.data_module_cloud_verify(request.get("payload", {})))
+            elif parsed.path == "/api/data-modules/cloud-roundtrip":
+                self.send_json(self.service.commands.data_module_cloud_roundtrip(request.get("payload", {})))
+            elif parsed.path == "/api/parse":
                 self.send_json(self.service.parse_entry(request.get("raw", "")))
             elif parsed.path == "/api/undo":
                 self.send_json(self.service.undo_last_write())
