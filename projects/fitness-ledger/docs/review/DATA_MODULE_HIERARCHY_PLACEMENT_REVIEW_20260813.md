@@ -102,5 +102,6 @@
 - `C:\Users\26087\AppData\Local\Temp\fitness-ledger-demo-diet-final.png`
 - `C:\Users\26087\AppData\Local\Temp\fitness-ledger-demo-home-final.png`
 - `C:\Users\26087\AppData\Local\Temp\fitness-ledger-demo-training-final.png`
+- `C:\Users\26087\AppData\Local\Temp\fitness-ledger-demo-movement-final.png`
 
 两张截图均由本机 Microsoft Edge headless 临时会话捕获并检查过。
