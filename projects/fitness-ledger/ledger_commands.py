@@ -233,7 +233,7 @@ class LedgerCommandService:
 
     def data_module_engine(self, registry_file: Path | None = None):
         """Return the registry-driven extension engine at the shared save boundary."""
-        from fitness_ledger_core.data_module_engine import DataModuleEngine, ModuleRegistry
+        from fitness_ledger_core.data_module_engine import DataModuleDefinitionStore, DataModuleEngine
 
         path = Path(registry_file) if registry_file else self.module_registry_file
         if path is None:
@@ -242,18 +242,81 @@ class LedgerCommandService:
                 "MODULE_REGISTRY_REQUIRED",
             )
         try:
-            registry = ModuleRegistry.from_file(path, strict=True)
+            store = DataModuleDefinitionStore(path, backup_dir=self.backup_dir / "data_module_definitions")
+            categories, registry, issues = store.load(strict=False)
             return DataModuleEngine(
                 registry,
                 self.data_file,
                 self.dictionary_file,
                 self.backup_dir,
                 command_service=self,
+                category_registry=categories,
+                definition_issues=issues,
             )
         except Exception as exc:
             if isinstance(exc, LedgerCommandError):
                 raise
             code = getattr(exc, "code", "MODULE_REGISTRY_INVALID")
+            details = getattr(exc, "details", {})
+            raise LedgerCommandError(str(exc), code, details) from exc
+
+    def data_module_definition_store(self, registry_file: Path | None = None):
+        from fitness_ledger_core.data_module_engine import DataModuleDefinitionStore
+
+        path = Path(registry_file) if registry_file else self.module_registry_file
+        if path is None:
+            raise LedgerCommandError("Data Module definition store is not configured.", "MODULE_REGISTRY_REQUIRED")
+        return DataModuleDefinitionStore(path, backup_dir=self.backup_dir / "data_module_definitions")
+
+    def data_module_catalog(self) -> dict:
+        try:
+            return self.data_module_definition_store().catalog()
+        except Exception as exc:
+            code = getattr(exc, "code", "DEFINITION_STORE_ERROR")
+            details = getattr(exc, "details", {})
+            raise LedgerCommandError(str(exc), code, details) from exc
+
+    def data_module_definition_preview(self, request: dict) -> dict:
+        try:
+            store = self.data_module_definition_store()
+            kind = str(request.get("kind", "")).strip().lower()
+            action = str(request.get("action", "create")).strip().lower()
+            if kind == "category" and action == "create":
+                return store.preview_create_category(request.get("values", request))
+            if kind == "category" and action in {"update", "rename", "retire", "re_enable", "reenable"}:
+                category_id = str(request.get("category_id", "")).strip()
+                changes = dict(request.get("changes", {}))
+                if action == "retire":
+                    changes.update({"status": "retired"})
+                elif action in {"re_enable", "reenable"}:
+                    changes.update({"status": "active"})
+                return store.preview_update_category(category_id, changes)
+            if kind == "module" and action == "create":
+                return store.preview_create_module(request.get("values", request))
+            if kind == "module" and action in {"update", "rename", "retire", "re_enable", "reenable"}:
+                module_id = str(request.get("module_id", "")).strip()
+                changes = dict(request.get("changes", {}))
+                if action == "retire":
+                    changes.update({"status": "retired", "capabilities": {"recordable": False}})
+                elif action in {"re_enable", "reenable"}:
+                    changes.update({"status": "active", "capabilities": {"recordable": True}})
+                return store.preview_update_module(module_id, changes)
+            raise LedgerCommandError("Unsupported definition preview action.", "DEFINITION_ACTION_UNSUPPORTED")
+        except LedgerCommandError:
+            raise
+        except Exception as exc:
+            code = getattr(exc, "code", "DEFINITION_PREVIEW_INVALID")
+            details = getattr(exc, "details", {})
+            raise LedgerCommandError(str(exc), code, details) from exc
+
+    def data_module_definition_save(self, preview: dict, *, confirmed: bool = False) -> dict:
+        try:
+            with self.write_lock():
+                return self.data_module_definition_store().commit_preview(preview, confirmed=confirmed)
+        except LedgerCommandError:
+            raise
+        except Exception as exc:
+            code = getattr(exc, "code", "DEFINITION_SAVE_FAILED")
             details = getattr(exc, "details", {})
             raise LedgerCommandError(str(exc), code, details) from exc
 

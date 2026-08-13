@@ -14,6 +14,7 @@ import hashlib
 import json
 import math
 import re
+import shutil
 import uuid
 from dataclasses import dataclass, field
 from datetime import date
@@ -46,6 +47,14 @@ DEFAULT_CAPABILITIES = {
     "cloud_syncable": False,
     "mini_program_visible": False,
 }
+
+DEFAULT_CATEGORIES = [
+    {"category_id": "body", "label": "Body", "order": 10, "status": "active", "system": True, "presentation": {"template": "core"}},
+    {"category_id": "diet", "label": "Diet", "order": 20, "status": "active", "system": True, "presentation": {"template": "core"}},
+    {"category_id": "training", "label": "Training", "order": 30, "status": "active", "system": True, "presentation": {"template": "core"}},
+    {"category_id": "movement", "label": "Movement", "order": 40, "status": "active", "system": True, "presentation": {"template": "core"}},
+    {"category_id": "extension", "label": "Extensions", "order": 50, "status": "active", "system": True, "presentation": {"template": "extension"}},
+]
 
 
 class DataModuleError(ValueError):
@@ -192,7 +201,7 @@ class ModuleDefinition:
     definition_history: list[dict[str, Any]] = field(default_factory=list)
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any]) -> "ModuleDefinition":
+    def from_dict(cls, raw: dict[str, Any], *, allowed_categories: set[str] | None = None) -> "ModuleDefinition":
         if not isinstance(raw, dict):
             raise _error("Module definition must be an object.", "MODULE_DEFINITION_INVALID")
         module_id = str(raw.get("module_id", "")).strip()
@@ -202,7 +211,8 @@ class ModuleDefinition:
         if not label:
             raise _error("Module label is required.", "MODULE_LABEL_REQUIRED", {"module_id": module_id})
         category_id = str(raw.get("category_id", "")).strip()
-        if category_id not in KNOWN_CATEGORIES:
+        category_ids = KNOWN_CATEGORIES if allowed_categories is None else set(allowed_categories)
+        if category_id not in category_ids:
             raise _error("Module category is not registered.", "MODULE_CATEGORY_UNKNOWN", {"module_id": module_id, "category_id": category_id})
         data_type = str(raw.get("data_type", "")).strip().lower()
         if data_type not in SUPPORTED_DATA_TYPES:
@@ -217,6 +227,8 @@ class ModuleDefinition:
         display_unit = str(raw.get("display_unit", actual_unit)).strip()
         if data_type in {"quantity", "duration"} and not actual_unit:
             raise _error("Quantity and duration modules require actual_unit.", "MODULE_UNIT_REQUIRED", {"module_id": module_id})
+        if actual_unit and not re.fullmatch(r"[A-Za-z0-9%µμ°/._\-\s一-鿿]+", actual_unit):
+            raise _error("actual_unit contains unsupported characters.", "MODULE_UNIT_INVALID", {"module_id": module_id})
         try:
             version = int(raw.get("definition_version", 1))
         except (TypeError, ValueError) as exc:
@@ -241,6 +253,8 @@ class ModuleDefinition:
             for key in ("minimum", "maximum"):
                 if key in validation:
                     _finite_number(validation[key], key)
+            if validation.get("minimum") is not None and validation.get("maximum") is not None and float(validation["minimum"]) > float(validation["maximum"]):
+                raise _error("minimum must not exceed maximum.", "MODULE_VALIDATION_RANGE_INVALID", {"module_id": module_id})
             if "decimal_places" in validation:
                 try:
                     places = int(validation["decimal_places"])
@@ -261,6 +275,9 @@ class ModuleDefinition:
         presentation = copy.deepcopy(raw.get("presentation", {}))
         if not isinstance(presentation, dict):
             raise _error("presentation must be an object.", "MODULE_PRESENTATION_INVALID", {"module_id": module_id})
+        allowed_presentation = {"section", "slot", "order", "visible_by_default", "renderer", "fallback", "unsupported_behavior"}
+        if set(presentation) - allowed_presentation:
+            raise _error("Module presentation may only use semantic placement fields.", "MODULE_PRESENTATION_INVALID", {"module_id": module_id, "unknown_fields": sorted(set(presentation) - allowed_presentation)})
         section = str(presentation.get("section", "extension")).strip()
         slot = str(presentation.get("slot", "summary")).strip()
         try:
@@ -356,23 +373,24 @@ class ModuleDefinition:
 class ModuleRegistry:
     """Validated source of truth for ordinary extension modules."""
 
-    def __init__(self, definitions: Iterable[ModuleDefinition] = (), *, raw_issues: list[dict[str, Any]] | None = None):
+    def __init__(self, definitions: Iterable[ModuleDefinition] = (), *, raw_issues: list[dict[str, Any]] | None = None, category_ids: set[str] | None = None):
         self._definitions: dict[str, ModuleDefinition] = {}
         self.raw_issues = list(raw_issues or [])
+        self.category_ids = set(KNOWN_CATEGORIES if category_ids is None else category_ids)
         for definition in definitions:
             self.register(definition)
 
     @classmethod
-    def from_dict(cls, payload: dict[str, Any], *, strict: bool = True) -> "ModuleRegistry":
+    def from_dict(cls, payload: dict[str, Any], *, strict: bool = True, category_ids: set[str] | None = None) -> "ModuleRegistry":
         if not isinstance(payload, dict):
             raise _error("Module registry root must be an object.", "MODULE_REGISTRY_INVALID")
         raw_modules = payload.get("modules", [])
         if not isinstance(raw_modules, list):
             raise _error("Module registry modules must be a list.", "MODULE_REGISTRY_INVALID")
-        registry = cls()
+        registry = cls(category_ids=category_ids)
         for index, raw in enumerate(raw_modules):
             try:
-                registry.register(ModuleDefinition.from_dict(raw))
+                registry.register(ModuleDefinition.from_dict(raw, allowed_categories=registry.category_ids))
             except DataModuleError as exc:
                 issue = {"severity": "high", "area": "Data Modules", "issue": exc.code, "action": str(exc), "target_type": "definition", "target_id": str(raw.get("module_id", index) if isinstance(raw, dict) else index), "details": copy.deepcopy(exc.details)}
                 registry.raw_issues.append(issue)
@@ -381,15 +399,17 @@ class ModuleRegistry:
         return registry
 
     @classmethod
-    def from_file(cls, path: Path, *, strict: bool = True) -> "ModuleRegistry":
+    def from_file(cls, path: Path, *, strict: bool = True, category_ids: set[str] | None = None) -> "ModuleRegistry":
         path = Path(path)
         if not path.exists():
             if strict:
                 raise _error("Module registry file does not exist.", "MODULE_REGISTRY_NOT_FOUND", {"path": str(path)})
             return cls()
-        return cls.from_dict(json.loads(path.read_text(encoding="utf-8")), strict=strict)
+        return cls.from_dict(json.loads(path.read_text(encoding="utf-8")), strict=strict, category_ids=category_ids)
 
     def register(self, definition: ModuleDefinition) -> ModuleDefinition:
+        if definition.category_id not in self.category_ids:
+            raise _error("Module category is not registered.", "MODULE_CATEGORY_UNKNOWN", {"module_id": definition.module_id, "category_id": definition.category_id})
         if definition.module_id in self._definitions:
             raise _error("Module ID already exists.", "MODULE_ID_DUPLICATE", {"module_id": definition.module_id})
         new_aliases = definition.alias_keys()
@@ -446,7 +466,7 @@ class ModuleRegistry:
         return {"schema_version": "fitness-ledger-data-module-registry-v1", "modules": [item.to_dict() for item in self.all()]}
 
     def clone(self) -> "ModuleRegistry":
-        return ModuleRegistry(self.all(), raw_issues=copy.deepcopy(self.raw_issues))
+        return ModuleRegistry(self.all(), raw_issues=copy.deepcopy(self.raw_issues), category_ids=set(self.category_ids))
 
     def preview_update(self, module_id: str, changes: dict[str, Any], *, allow_actual_unit_change: bool = False) -> tuple[ModuleDefinition, ModuleDefinition]:
         current = self.require(module_id)
@@ -459,9 +479,9 @@ class ModuleRegistry:
         updated["definition_version"] = current.definition_version + (1 if any(key != "module_id" and changes[key] != current.to_dict().get(key) for key in changes) else 0)
         if updated["definition_version"] > current.definition_version:
             updated["definition_history"] = [*current.definition_history, current.snapshot()]
-        candidate = ModuleDefinition.from_dict(updated)
+        candidate = ModuleDefinition.from_dict(updated, allowed_categories=self.category_ids)
         other = [item for item in self.all() if item.module_id != module_id]
-        check = ModuleRegistry(other)
+        check = ModuleRegistry(other, category_ids=set(self.category_ids))
         check.register(candidate)
         return current, candidate
 
@@ -475,7 +495,7 @@ class ModuleRegistry:
         if definition.module_id not in self._definitions:
             raise _error("Module definition was not found.", "MODULE_NOT_FOUND", {"module_id": definition.module_id})
         others = [item for item in self.all() if item.module_id != definition.module_id]
-        check = ModuleRegistry(others)
+        check = ModuleRegistry(others, category_ids=set(self.category_ids))
         check.register(definition)
         self._definitions[definition.module_id] = copy.deepcopy(definition)
         return copy.deepcopy(definition)
@@ -492,6 +512,351 @@ class ModuleRegistry:
     @staticmethod
     def _issue(severity: str, target_type: str, target_id: str, issue: str, action: str) -> dict[str, Any]:
         return {"severity": severity, "date": "", "area": "Data Modules", "issue": issue, "action": action, "target_type": target_type, "target_id": str(target_id), "module_id": str(target_id)}
+
+
+@dataclass
+class CategoryDefinition:
+    category_id: str
+    label: str
+    order: int
+    status: str = "active"
+    system: bool = False
+    presentation: dict[str, Any] = field(default_factory=dict)
+    definition_version: int = 1
+    definition_history: list[dict[str, Any]] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, raw: dict[str, Any]) -> "CategoryDefinition":
+        if not isinstance(raw, dict):
+            raise _error("Category definition must be an object.", "CATEGORY_DEFINITION_INVALID")
+        category_id = str(raw.get("category_id", "")).strip()
+        if not MODULE_ID_RE.fullmatch(category_id):
+            raise _error("category_id must be stable lowercase snake_case.", "CATEGORY_ID_INVALID", {"category_id": category_id})
+        label = str(raw.get("label", "")).strip()
+        if not label:
+            raise _error("Category label is required.", "CATEGORY_LABEL_REQUIRED", {"category_id": category_id})
+        try:
+            order = int(raw.get("order", 0))
+            version = int(raw.get("definition_version", 1))
+        except (TypeError, ValueError) as exc:
+            raise _error("Category order and definition_version must be integers.", "CATEGORY_METADATA_INVALID", {"category_id": category_id}) from exc
+        status = str(raw.get("status", "active")).strip().lower()
+        if status not in {"active", "retired"}:
+            raise _error("Category status is unsupported.", "CATEGORY_STATUS_INVALID", {"category_id": category_id})
+        if order < 0 or version < 1:
+            raise _error("Category order/version is invalid.", "CATEGORY_METADATA_INVALID", {"category_id": category_id})
+        presentation = copy.deepcopy(raw.get("presentation", {}))
+        if not isinstance(presentation, dict):
+            raise _error("Category presentation must be an object.", "CATEGORY_PRESENTATION_INVALID", {"category_id": category_id})
+        allowed_presentation = {"template", "section", "slot", "order", "visible_by_default", "renderer", "fallback", "unsupported_behavior", "semantic"}
+        if set(presentation) - allowed_presentation:
+            raise _error("Category presentation may only use semantic placement fields.", "CATEGORY_PRESENTATION_INVALID", {"category_id": category_id, "unknown_fields": sorted(set(presentation) - allowed_presentation)})
+        history = raw.get("definition_history", [])
+        if not isinstance(history, list) or not all(isinstance(item, dict) for item in history):
+            raise _error("Category definition_history must be a list.", "CATEGORY_VERSION_HISTORY_INVALID", {"category_id": category_id})
+        return cls(category_id, label, order, status, bool(raw.get("system", False)), presentation, version, copy.deepcopy(history))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "category_id": self.category_id,
+            "label": self.label,
+            "order": self.order,
+            "status": self.status,
+            "system": self.system,
+            "presentation": copy.deepcopy(self.presentation),
+            "definition_version": self.definition_version,
+            "definition_history": copy.deepcopy(self.definition_history),
+        }
+
+    def snapshot(self) -> dict[str, Any]:
+        value = self.to_dict()
+        value.pop("definition_history", None)
+        return value
+
+
+class CategoryRegistry:
+    def __init__(self, definitions: Iterable[CategoryDefinition] = (), *, raw_issues: list[dict[str, Any]] | None = None):
+        self._definitions: dict[str, CategoryDefinition] = {}
+        self.raw_issues = list(raw_issues or [])
+        for definition in definitions:
+            self.register(definition)
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any], *, strict: bool = True) -> "CategoryRegistry":
+        raw_categories = payload.get("categories", []) if isinstance(payload, dict) else []
+        if not isinstance(raw_categories, list):
+            raise _error("Category registry categories must be a list.", "CATEGORY_REGISTRY_INVALID")
+        registry = cls()
+        for index, raw in enumerate(raw_categories):
+            try:
+                registry.register(CategoryDefinition.from_dict(raw))
+            except DataModuleError as exc:
+                issue = {"severity": "high", "area": "Data Modules", "issue": exc.code, "action": str(exc), "target_type": "category", "target_id": str(raw.get("category_id", index) if isinstance(raw, dict) else index), "details": copy.deepcopy(exc.details)}
+                registry.raw_issues.append(issue)
+                if strict:
+                    raise
+        return registry
+
+    @classmethod
+    def defaults(cls) -> "CategoryRegistry":
+        return cls(CategoryDefinition.from_dict(item) for item in DEFAULT_CATEGORIES)
+
+    def register(self, definition: CategoryDefinition) -> CategoryDefinition:
+        if definition.category_id in self._definitions:
+            raise _error("Category ID already exists.", "CATEGORY_ID_DUPLICATE", {"category_id": definition.category_id})
+        self._definitions[definition.category_id] = copy.deepcopy(definition)
+        return copy.deepcopy(definition)
+
+    def require(self, category_id: str) -> CategoryDefinition:
+        try:
+            return copy.deepcopy(self._definitions[str(category_id)])
+        except KeyError as exc:
+            raise _error("Category definition was not found.", "CATEGORY_NOT_FOUND", {"category_id": str(category_id)}) from exc
+
+    def get(self, category_id: str) -> CategoryDefinition | None:
+        return copy.deepcopy(self._definitions.get(str(category_id)))
+
+    def all(self) -> list[CategoryDefinition]:
+        return sorted((copy.deepcopy(item) for item in self._definitions.values()), key=lambda item: (item.order, item.label.casefold(), item.category_id))
+
+    def clone(self) -> "CategoryRegistry":
+        return CategoryRegistry(self.all(), raw_issues=copy.deepcopy(self.raw_issues))
+
+    def preview_update(self, category_id: str, changes: dict[str, Any]) -> tuple[CategoryDefinition, CategoryDefinition]:
+        current = self.require(category_id)
+        if "category_id" in changes and str(changes["category_id"]) != current.category_id:
+            raise _error("category_id is immutable.", "CATEGORY_ID_IMMUTABLE", {"category_id": category_id})
+        updated = current.to_dict()
+        updated.update(copy.deepcopy(changes))
+        changed = any(key != "category_id" and changes[key] != current.to_dict().get(key) for key in changes)
+        updated["definition_version"] = current.definition_version + (1 if changed else 0)
+        if changed:
+            updated["definition_history"] = [*current.definition_history, current.snapshot()]
+        candidate = CategoryDefinition.from_dict(updated)
+        return current, candidate
+
+    def update(self, category_id: str, changes: dict[str, Any]) -> CategoryDefinition:
+        _current, candidate = self.preview_update(category_id, changes)
+        self._definitions[category_id] = candidate
+        return copy.deepcopy(candidate)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"categories": [item.to_dict() for item in self.all()]}
+
+
+def _generated_module_id(label: str, aliases: Iterable[str], category_id: str, existing: Iterable[str]) -> str:
+    identity = {"label": str(label).strip(), "aliases": list(aliases), "category_id": category_id}
+    base = f"module_{stable_hash(identity)[:12]}"
+    candidate = base
+    index = 2
+    known = set(existing)
+    while candidate in known:
+        candidate = f"{base}_{index}"
+        index += 1
+    return candidate
+
+
+class DataModuleDefinitionStore:
+    """Authoritative Candidate-only persistence for categories and definitions."""
+
+    SCHEMA = "fitness-ledger-data-module-definition-store-v1"
+
+    def __init__(self, path: Path, *, backup_dir: Path | None = None, seed_payload: dict[str, Any] | None = None):
+        self.path = Path(path)
+        self.backup_dir = Path(backup_dir) if backup_dir else self.path.parent / "definition_backups"
+        self.seed_payload = copy.deepcopy(seed_payload)
+
+    @classmethod
+    def seed_from_registry_file(cls, path: Path) -> dict[str, Any]:
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+        modules = raw.get("modules", []) if isinstance(raw, dict) else []
+        return {"schema": cls.SCHEMA, "categories": copy.deepcopy(DEFAULT_CATEGORIES), "modules": copy.deepcopy(modules)}
+
+    @classmethod
+    def initialize(cls, path: Path, seed_registry_file: Path, *, backup_dir: Path | None = None) -> "DataModuleDefinitionStore":
+        store = cls(path, backup_dir=backup_dir, seed_payload=cls.seed_from_registry_file(seed_registry_file))
+        store._write_atomic(store.seed_payload)
+        return store
+
+    def _read_payload(self, *, strict: bool = True) -> dict[str, Any]:
+        if not self.path.exists():
+            if self.seed_payload is None:
+                raise _error("Definition store file does not exist.", "DEFINITION_STORE_NOT_FOUND", {"path": str(self.path)})
+            return copy.deepcopy(self.seed_payload)
+        try:
+            payload = json.loads(self.path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            if strict:
+                raise _error("Definition store JSON is corrupted.", "DEFINITION_STORE_CORRUPT", {"path": str(self.path)}) from exc
+            return {"schema": self.SCHEMA, "categories": [], "modules": [], "_raw_issues": [{"severity": "high", "area": "Data Modules", "issue": "DEFINITION_STORE_CORRUPT", "action": "Restore a valid Candidate definition store.", "target_type": "store", "target_id": str(self.path)}]}
+        if not isinstance(payload, dict):
+            raise _error("Definition store root must be an object.", "DEFINITION_STORE_INVALID")
+        if payload.get("schema") not in {None, self.SCHEMA, "fitness-ledger-data-module-registry-v1"}:
+            raise _error("Definition store schema is unsupported.", "DEFINITION_STORE_SCHEMA_INVALID")
+        payload.setdefault("categories", copy.deepcopy(DEFAULT_CATEGORIES))
+        payload.setdefault("modules", [])
+        return payload
+
+    def load(self, *, strict: bool = False) -> tuple[CategoryRegistry, ModuleRegistry, list[dict[str, Any]]]:
+        payload = self._read_payload(strict=strict)
+        categories = CategoryRegistry.from_dict(payload, strict=strict)
+        category_ids = {item.category_id for item in categories.all()}
+        modules = ModuleRegistry.from_dict(payload, strict=strict, category_ids=category_ids)
+        issues = [*payload.get("_raw_issues", []), *categories.raw_issues, *modules.raw_issues]
+        return categories, modules, issues
+
+    def snapshot(self, *, strict: bool = True) -> dict[str, Any]:
+        categories, modules, issues = self.load(strict=strict)
+        if strict and issues:
+            raise _error("Definition store contains invalid definitions.", "DEFINITION_STORE_INVALID", {"issues": issues})
+        return {"schema": self.SCHEMA, "categories": [item.to_dict() for item in categories.all()], "modules": [item.to_dict() for item in modules.all()]}
+
+    def fingerprint(self) -> str:
+        return stable_hash(self._read_payload(strict=False))
+
+    def _candidate_payload(self, categories: CategoryRegistry, modules: ModuleRegistry) -> dict[str, Any]:
+        return {"schema": self.SCHEMA, "categories": [item.to_dict() for item in categories.all()], "modules": [item.to_dict() for item in modules.all()]}
+
+    def preview_create_category(self, values: dict[str, Any]) -> dict[str, Any]:
+        categories, modules, _issues = self.load(strict=True)
+        category_id = str(values.get("category_id", "")).strip()
+        label = str(values.get("label", "")).strip()
+        if not category_id:
+            identity = {"label": label, "existing": [item.category_id for item in categories.all()]}
+            category_id = f"category_{stable_hash(identity)[:12]}"
+        raw = {"category_id": category_id, "label": label, "order": values.get("order", (categories.all()[-1].order + 10) if categories.all() else 10), "status": "active", "system": False, "presentation": values.get("presentation", {"template": "extension"})}
+        candidate = CategoryDefinition.from_dict(raw)
+        check = categories.clone()
+        check.register(candidate)
+        return {"schema": "fitness-ledger-category-definition-preview-v1", "kind": "category", "status": "preview_ready", "write_attempted": False, "source_fingerprint": self.fingerprint(), "after": self._candidate_payload(check, modules)}
+
+    def preview_create_module(self, values: dict[str, Any]) -> dict[str, Any]:
+        categories, modules, _issues = self.load(strict=True)
+        category_id = str(values.get("category_id", "")).strip()
+        category = categories.require(category_id)
+        if category.status != "active":
+            raise _error("Retired categories cannot receive new modules.", "CATEGORY_NOT_RECORDABLE", {"category_id": category_id})
+        label = str(values.get("label", "")).strip()
+        aliases = values.get("aliases", [])
+        if isinstance(aliases, str):
+            aliases = [aliases]
+        aliases = list(dict.fromkeys([label, *(str(item).strip() for item in aliases if str(item).strip())]))
+        module_id = str(values.get("module_id", "")).strip() or _generated_module_id(label, aliases, category_id, [item.module_id for item in modules.all()])
+        data_type = str(values.get("data_type", "quantity")).strip().lower()
+        renderer = str(values.get("renderer", "single_metric")).strip()
+        recording_kind = str(values.get("recording_kind", "scalar")).strip().lower()
+        cardinality = str(values.get("cardinality", "one_per_day")).strip().lower()
+        if recording_kind != "scalar" or cardinality != "one_per_day":
+            raise _error("Only scalar one-per-day recording is implemented in this Candidate.", "MODULE_RECORDING_BEHAVIOR_NOT_IMPLEMENTED", {"kind": recording_kind, "cardinality": cardinality})
+        capabilities = copy.deepcopy(DEFAULT_CAPABILITIES)
+        supplied = values.get("capabilities", {})
+        if not isinstance(supplied, dict):
+            raise _error("capabilities must be an object.", "MODULE_CAPABILITIES_INVALID")
+        capabilities.update(supplied)
+        supplied_presentation = values.get("presentation", {})
+        if not isinstance(supplied_presentation, dict):
+            raise _error("presentation must be an object.", "MODULE_PRESENTATION_INVALID")
+        presentation = {
+            "section": str(values.get("section", "extension")),
+            "slot": str(values.get("slot", "summary")),
+            "order": int(values.get("order", 0) or 0),
+            "visible_by_default": bool(values.get("visible_by_default", True)),
+            "renderer": renderer,
+        }
+        presentation.update(copy.deepcopy(supplied_presentation))
+        raw = {
+            "module_id": module_id,
+            "label": label,
+            "aliases": aliases,
+            "category_id": category_id,
+            "data_type": data_type,
+            "actual_unit": str(values.get("actual_unit", "")).strip(),
+            "display_unit": str(values.get("display_unit", values.get("actual_unit", ""))).strip(),
+            "definition_version": 1,
+            "status": "active",
+            "capabilities": capabilities,
+            "validation_contract": {key: values[key] for key in ("minimum", "maximum", "decimal_places") if key in values and values[key] not in ("", None)},
+            "recording_behavior": {"kind": recording_kind, "cardinality": cardinality},
+            "presentation": presentation,
+        }
+        candidate = ModuleDefinition.from_dict(raw, allowed_categories={item.category_id for item in categories.all()})
+        check = modules.clone()
+        check.register(candidate)
+        return {"schema": "fitness-ledger-module-definition-preview-v1", "kind": "module", "status": "preview_ready", "write_attempted": False, "source_fingerprint": self.fingerprint(), "after": self._candidate_payload(categories, check)}
+
+    def preview_update_module(self, module_id: str, changes: dict[str, Any]) -> dict[str, Any]:
+        categories, modules, _issues = self.load(strict=True)
+        current = modules.require(module_id)
+        changes = copy.deepcopy(changes)
+        presentation_keys = {"renderer", "section", "slot", "order", "visible_by_default", "fallback", "unsupported_behavior"}
+        if presentation_keys & set(changes):
+            presentation = copy.deepcopy(current.presentation)
+            for key in presentation_keys:
+                if key in changes:
+                    presentation[key] = changes.pop(key)
+            changes["presentation"] = presentation
+        validation_keys = {"minimum", "maximum", "decimal_places"}
+        if validation_keys & set(changes):
+            validation = copy.deepcopy(current.validation_contract)
+            for key in validation_keys:
+                if key in changes:
+                    value = changes.pop(key)
+                    if value in (None, ""):
+                        validation.pop(key, None)
+                    else:
+                        validation[key] = value
+            changes["validation_contract"] = validation
+        if isinstance(changes.get("capabilities"), dict):
+            merged_capabilities = copy.deepcopy(current.capabilities)
+            merged_capabilities.update(changes["capabilities"])
+            changes["capabilities"] = merged_capabilities
+        if "category_id" in changes:
+            category = categories.require(str(changes["category_id"]))
+            if category.status != "active":
+                raise _error("A module cannot move into a retired category.", "CATEGORY_NOT_RECORDABLE", {"category_id": category.category_id})
+        _current, candidate = modules.preview_update(module_id, changes)
+        check = modules.clone()
+        check._definitions[module_id] = candidate
+        return {"schema": "fitness-ledger-module-definition-preview-v1", "kind": "module", "status": "preview_ready", "write_attempted": False, "source_fingerprint": self.fingerprint(), "after": self._candidate_payload(categories, check)}
+
+    def preview_update_category(self, category_id: str, changes: dict[str, Any]) -> dict[str, Any]:
+        categories, modules, _issues = self.load(strict=True)
+        _current, candidate = categories.preview_update(category_id, changes)
+        check = categories.clone()
+        check._definitions[category_id] = candidate
+        return {"schema": "fitness-ledger-category-definition-preview-v1", "kind": "category", "status": "preview_ready", "write_attempted": False, "source_fingerprint": self.fingerprint(), "after": self._candidate_payload(check, modules)}
+
+    def commit_preview(self, preview: dict[str, Any], *, confirmed: bool = False) -> dict[str, Any]:
+        if not confirmed:
+            raise _error("A confirmed definition preview is required before saving.", "DEFINITION_CONFIRMATION_REQUIRED")
+        if not isinstance(preview, dict) or preview.get("status") != "preview_ready":
+            raise _error("Only a valid definition preview can be saved.", "DEFINITION_PREVIEW_REQUIRED")
+        if self.fingerprint() != str(preview.get("source_fingerprint", "")):
+            raise _error("Definition preview is stale; re-run preview.", "DEFINITION_PREVIEW_STALE")
+        after = preview.get("after")
+        if not isinstance(after, dict):
+            raise _error("Definition preview has no candidate payload.", "DEFINITION_PREVIEW_INVALID")
+        CategoryRegistry.from_dict(after, strict=True)
+        category_ids = {str(item.get("category_id")) for item in after.get("categories", [])}
+        ModuleRegistry.from_dict(after, strict=True, category_ids=category_ids)
+        self.backup_dir.mkdir(parents=True, exist_ok=True)
+        checkpoint = self.backup_dir / f"definition_checkpoint_{uuid.uuid4().hex}.json"
+        if self.path.exists():
+            shutil.copy2(self.path, checkpoint)
+        try:
+            self._write_atomic(after)
+        except Exception:
+            if checkpoint.exists():
+                shutil.copy2(checkpoint, self.path)
+            raise
+        return {"status": "UPDATED", "changed": True, "write_attempted": True, "checkpoint": str(checkpoint) if checkpoint.exists() else "", "definition_fingerprint": self.fingerprint()}
+
+    def _write_atomic(self, payload: dict[str, Any]) -> None:
+        _write_json_atomic(self.path, payload)
+
+    def catalog(self) -> dict[str, Any]:
+        categories, modules, issues = self.load(strict=False)
+        return {"schema": "fitness-ledger-data-module-catalog-v1", "categories": [item.to_dict() for item in categories.all()], "modules": [item.to_dict() for item in modules.all()], "issues": issues, "source_fingerprint": self.fingerprint()}
 
 
 @dataclass
@@ -560,6 +925,8 @@ class RegistryDrivenParser:
     def _date_from_text(raw: str) -> str | None:
         match = DATE_RE.search(raw)
         if not match:
+            if re.search(r"(?:今天|today)", raw, flags=re.IGNORECASE):
+                return date.today().isoformat()
             return None
         try:
             return date(int(match.group(1)), int(match.group(2)), int(match.group(3))).isoformat()
@@ -590,12 +957,14 @@ def _record_id(module_id: str, record_date: str, ordinal: int = 0) -> str:
 class DataModuleEngine:
     """Lifecycle engine for registry-driven ordinary modules."""
 
-    def __init__(self, registry: ModuleRegistry, data_file: Path, dictionary_file: Path | None = None, backup_dir: Path | None = None, command_service: Any | None = None):
+    def __init__(self, registry: ModuleRegistry, data_file: Path, dictionary_file: Path | None = None, backup_dir: Path | None = None, command_service: Any | None = None, category_registry: CategoryRegistry | None = None, definition_issues: list[dict[str, Any]] | None = None):
         self.registry = registry
         self.data_file = Path(data_file)
         self.dictionary_file = Path(dictionary_file) if dictionary_file else None
         self.backup_dir = Path(backup_dir) if backup_dir else self.data_file.parent / "backups"
         self.command_service = command_service
+        self.category_registry = category_registry or CategoryRegistry(CategoryDefinition.from_dict(item) for item in DEFAULT_CATEGORIES if item["category_id"] in registry.category_ids)
+        self.definition_issues = list(definition_issues or [])
         self.parser = RegistryDrivenParser(registry)
 
     def _database(self) -> dict[str, Any]:
@@ -611,7 +980,7 @@ class DataModuleEngine:
     def _fingerprint(self, database: dict[str, Any] | None = None) -> str:
         database = database if database is not None else self._database()
         file_hash = hashlib.sha256(self.data_file.read_bytes()).hexdigest() if self.data_file.exists() else stable_hash(database)
-        return stable_hash({"tracker_sha256": file_hash, "registry": self.registry.to_dict()})
+        return stable_hash({"tracker_sha256": file_hash, "registry": self.registry.to_dict(), "categories": self.category_registry.to_dict()})
 
     def preview(self, raw_text: str, record_date: str | None = None) -> dict[str, Any]:
         database = self._database()
@@ -663,6 +1032,9 @@ class DataModuleEngine:
                 definition = self.registry.require(str(raw_candidate.get("module_id", "")))
                 if definition.status != "active" or not definition.capabilities["recordable"]:
                     raise _error("Retired/inactive modules cannot accept new records.", "MODULE_NOT_RECORDABLE", {"module_id": definition.module_id})
+                category = self.category_registry.get(definition.category_id)
+                if category is None or category.status != "active":
+                    raise _error("Module category is not active for new records.", "CATEGORY_NOT_RECORDABLE", {"category_id": definition.category_id})
                 value = normalize_value(raw_candidate.get("value"), definition)
                 record_date = validate_iso_date(raw_candidate.get("date"))
                 matching = [row for row in records if isinstance(row, dict) and row.get("module_id") == definition.module_id and row.get("date") == record_date]
@@ -769,7 +1141,7 @@ class DataModuleEngine:
         module_ids = {item.module_id for item in modules}
         records = [copy.deepcopy(record) for record in self._database().get("data_module_records", []) or [] if isinstance(record, dict) and record.get("module_id") in module_ids]
         records.sort(key=lambda item: (str(item.get("date", "")), str(item.get("record_id", ""))))
-        return {"schema": "fitness-ledger-data-module-export-v1", "modules": [item.to_dict() for item in modules], "records": records}
+        return {"schema": "fitness-ledger-data-module-export-v1", "categories": [item.to_dict() for item in self.category_registry.all()], "modules": [item.to_dict() for item in modules], "records": records}
 
     def analysis_catalog(self) -> dict[str, Any]:
         visible = [item for item in self.registry.all() if item.capabilities["analysis_visible"] and item.capabilities["exportable"]]
@@ -800,7 +1172,10 @@ class DataModuleEngine:
 
     def data_check(self, database: dict[str, Any] | None = None, focus_module_ids: set[str] | None = None) -> list[dict[str, Any]]:
         database = copy.deepcopy(database if database is not None else self._database())
-        issues = list(self.registry.data_check_issues())
+        issues = [*self.definition_issues, *self.registry.data_check_issues()]
+        for category in self.category_registry.all():
+            if category.status == "retired" and any(item.category_id == category.category_id and item.status != "retired" for item in self.registry.all()):
+                issues.append(self._issue("medium", "category", category.category_id, "active module references a retired category", "Move the module or re-enable the category."))
         records = database.get("data_module_records", [])
         if not isinstance(records, list):
             issues.append(self._issue("high", "record", "", "data_module_records must be a list", "Restore the extension storage shape."))
@@ -816,6 +1191,11 @@ class DataModuleEngine:
             if definition is None:
                 issues.append(self._issue("high", "record", module_id, "orphan module value has no definition", "Restore the definition or remove the orphan through a reviewed migration."))
                 continue
+            category = self.category_registry.get(definition.category_id)
+            if category is None:
+                issues.append(self._issue("high", "category", module_id, "module references an unknown category", "Restore the category definition or run a reviewed migration."))
+            elif category.status == "retired" and definition.status != "retired":
+                issues.append(self._issue("medium", "category", module_id, "active module references a retired category", "Re-enable the category or retire/move the module."))
             try:
                 validate_iso_date(record.get("date"))
             except DataModuleError as exc:
@@ -912,7 +1292,7 @@ class DataModuleEngine:
         return {"schema": "fitness-ledger-mini-module-contract-v1", "page_required": False, "renderers": sorted({item.renderer for item in modules if item.renderer}), "modules": cards}
 
     def presentation_contract(self) -> dict[str, Any]:
-        return {"schema": "fitness-ledger-presentation-contract-v1", "modules": [{"module_id": item.module_id, "category_id": item.category_id, "section": item.presentation["section"], "slot": item.presentation["slot"], "order": item.presentation["order"], "visible_by_default": item.presentation["visible_by_default"], "fallback": item.presentation["fallback"], "unsupported_behavior": item.presentation["unsupported_behavior"], "renderer": item.renderer} for item in self.registry.all()]}
+        return {"schema": "fitness-ledger-presentation-contract-v1", "categories": [{"category_id": item.category_id, "label": item.label, "order": item.order, "status": item.status, "presentation": item.presentation} for item in self.category_registry.all()], "modules": [{"module_id": item.module_id, "category_id": item.category_id, "section": item.presentation["section"], "slot": item.presentation["slot"], "order": item.presentation["order"], "visible_by_default": item.presentation["visible_by_default"], "fallback": item.presentation["fallback"], "unsupported_behavior": item.presentation["unsupported_behavior"], "renderer": item.renderer} for item in self.registry.all()]}
 
 
 class DataModuleMigrationService:
@@ -980,7 +1360,7 @@ class DataModuleMigrationService:
         current = updated_registry.require(plan["module_id"])
         if stable_hash(current.to_dict()) != stable_hash(plan.get("before_definition")):
             raise _error("Migration definition is stale.", "MODULE_MIGRATION_DEFINITION_STALE")
-        candidate = ModuleDefinition.from_dict(plan["after_definition"])
+        candidate = ModuleDefinition.from_dict(plan["after_definition"], allowed_categories=set(updated_registry.category_ids))
         updated_registry.replace_fixture_definition(candidate)
         updated_database = copy.deepcopy(database)
         updated_database["data_module_records"] = copy.deepcopy(plan["after_records"])
@@ -993,7 +1373,7 @@ class DataModuleMigrationService:
         if stable_hash(current.to_dict()) != stable_hash(plan.get("after_definition")):
             raise _error("Migration rollback definition is stale.", "MODULE_MIGRATION_ROLLBACK_DEFINITION_STALE")
         restored_registry = registry.clone()
-        restored_registry.replace_fixture_definition(ModuleDefinition.from_dict(plan["before_definition"]))
+        restored_registry.replace_fixture_definition(ModuleDefinition.from_dict(plan["before_definition"], allowed_categories=set(restored_registry.category_ids)))
         restored_database = copy.deepcopy(database)
         restored_database["data_module_records"] = copy.deepcopy(plan["before_records"])
         return restored_registry, restored_database
@@ -1017,6 +1397,9 @@ def build_data_module_mini_contract(engine: DataModuleEngine) -> dict[str, Any]:
 
 __all__ = [
     "DataModuleError",
+    "CategoryDefinition",
+    "CategoryRegistry",
+    "DataModuleDefinitionStore",
     "DataModuleEngine",
     "DataModuleMigrationService",
     "ModuleDefinition",

@@ -20,6 +20,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from fitness_ledger_core.data_module_engine import DataModuleDefinitionStore  # noqa: E402
 from web_desktop.backend.server import LedgerWebService, create_server  # noqa: E402
 
 
@@ -58,6 +59,8 @@ def main() -> None:
 
     with tempfile.TemporaryDirectory(prefix="fitness-ledger-data-module-review-") as runtime:
         tracker, dictionary, backups = _build_anonymous_fixture(Path(runtime))
+        definition_store = Path(runtime) / "data_module_definitions.json"
+        DataModuleDefinitionStore.initialize(definition_store, registry)
         service = LedgerWebService(
             tracker,
             dictionary,
@@ -67,7 +70,7 @@ def main() -> None:
                 "review_fixture": "anonymous-temporary-fixture",
                 "formal_data_used": False,
             },
-            data_module_registry_file=registry,
+            data_module_registry_file=definition_store,
         )
         server = create_server("127.0.0.1", args.port, service)
         url = f"http://127.0.0.1:{server.server_address[1]}/data-module-candidate.html"

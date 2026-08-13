@@ -14,6 +14,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from web_desktop.backend.server import LedgerWebService, create_server  # noqa: E402
+from fitness_ledger_core.data_module_engine import DataModuleDefinitionStore  # noqa: E402
 
 
 REGISTRY_FILE = PROJECT_ROOT / "tools" / "fixtures" / "data_modules" / "registry.json"
@@ -29,6 +30,7 @@ class DataModuleWebCandidateTests(unittest.TestCase):
             root = Path(temp)
             tracker = root / "tracker.json"
             dictionary = root / "movement_dictionary.json"
+            definition_store = root / "data_module_definitions.json"
             write_json(tracker, {
                 "daily_records": [{"Date": "2026-08-12", "Weight (kg)": 70}],
                 "diet_records": [],
@@ -38,12 +40,13 @@ class DataModuleWebCandidateTests(unittest.TestCase):
                 "data_module_records": [],
             })
             write_json(dictionary, {"version": "1.0", "movements": []})
+            DataModuleDefinitionStore.initialize(definition_store, REGISTRY_FILE, backup_dir=root / "definition-backups")
             service = LedgerWebService(
                 tracker,
                 dictionary,
                 root / "backups",
                 build_info_override={"branch": "candidate"},
-                data_module_registry_file=REGISTRY_FILE,
+                data_module_registry_file=definition_store,
             )
             server = create_server("127.0.0.1", 0, service)
             thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -67,13 +70,15 @@ class DataModuleWebCandidateTests(unittest.TestCase):
 
                 with urllib.request.urlopen(base + "/data-module-candidate.html", timeout=5) as response:
                     page = response.read().decode("utf-8")
-                    self.assertIn("Data Module Candidate Preview", page)
-                    self.assertIn("Downstream capability checks", page)
+                    self.assertIn("Self-Service Data Module Candidate", page)
+                    self.assertIn("Downstream Capability Evidence", page)
                 status, capabilities = get("/api/capabilities")
                 self.assertEqual(status, 200)
                 self.assertTrue(capabilities["data_module_candidate"])
                 _status, module_capabilities = get("/api/data-modules/capabilities")
                 self.assertEqual({row["module_id"] for row in module_capabilities["modules"]}, {"waist_cm", "resting_hr"})
+                _status, catalog = get("/api/data-modules/catalog")
+                self.assertEqual({row["module_id"] for row in catalog["modules"]}, {"waist_cm", "resting_hr"})
                 _status, preview = post("/api/data-modules/preview", {"raw": "2026-08-12 腰围 82.5 cm"})
                 self.assertFalse(preview["write_attempted"])
                 _status, saved = post("/api/data-modules/save", {"preview": preview, "confirmed": True})
