@@ -204,9 +204,9 @@ def main() -> None:
         pulse_id = pulse["module_id"]
         assert pulse["category_id"] == "body" and pulse["display_surface"] == "category_page" and pulse["record_level"] == "daily_scalar", pulse
         _click(browser, "[data-dm-go-body]")
-        _wait(browser, "!!document.querySelector('.dm-body-shelf')")
-        body_snapshot=browser.evaluate("({url:location.href,hasShelf:!!document.querySelector('.dm-body-shelf'),hasPulse:document.body.innerText.includes('晨间脉搏'),text:document.body.innerText.slice(0,1200)})")
-        assert body_snapshot["hasPulse"], body_snapshot
+        _wait(browser, "!!document.querySelector('.archive-heading')")
+        body_snapshot=browser.evaluate("({url:location.href,hasShelf:!!document.querySelector('.dm-surface-shelf'),hasCompact:!!document.querySelector('.dm-inline-metrics'),text:document.body.innerText.slice(0,1200)})")
+        assert not body_snapshot["hasShelf"], body_snapshot
         screenshot_data = _command(browser, "Page.captureScreenshot", {"format": "png"})
         screenshot_path.write_bytes(base64.b64decode(screenshot_data["data"]))
         diet_discovery = _json_post(browser, "/api/data-modules/discover", {"raw": "\u4eca\u5929\u6bcf\u65e5\u808c\u9178 5 g"})
@@ -248,7 +248,6 @@ def main() -> None:
         _set_css(browser, "[name=label]", "\u6062\u590d\u8bc4\u5206")
         _select(browser, "[name=category_id]", "__new__")
         _set_css(browser, "[name=new_category_label]", "\u6062\u590d\u72b6\u6001")
-        _set_css(browser, "[name=actual_unit]", "score")
         _click(browser, "[data-dm-submit-definition]")
         _wait(browser, "!document.querySelector('#dm-definition-form')")
         catalog = _json_get(browser, "/api/data-modules/product-catalog")
@@ -264,9 +263,9 @@ def main() -> None:
         catalog = _json_get(browser, "/api/data-modules/product-catalog")
         assert len([item for item in catalog["modules"] if item["category_id"] == recovery_category["category_id"]]) == len(recovery_modules) + 1
         recovery_module = next(item for item in catalog["modules"] if item["label"] == "\u6062\u590d\u8bc4\u5206")
-        assert recovery_module["display_surface"] == "home_widget", recovery_module
+        assert recovery_module["display_surface"] == "page_widget" and recovery_module["actual_unit"] == "" and recovery_module["data_type"] == "number", recovery_module
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('home')")
-        _wait(browser, "!!document.querySelector('.dm-surface-shelf[data-dm-surface=home]')")
+        _wait(browser, "!!document.querySelector('.dm-page-widget-strip[data-dm-inline-page=home]')")
         assert browser.evaluate("document.body.innerText.includes('恢复评分')")
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools',{panel:'data-modules'})")
         _wait(browser, "!!document.querySelector('.dm-management-page')")
@@ -331,14 +330,14 @@ def main() -> None:
         assert analysis_catalog.get("protocol_change_required_for_public_field") is True
 
         # Basic route and density smoke at desktop and narrow widths.
-        for route, marker in [("quick", "#raw-entry"), ("body", ".dm-body-shelf"), ("tools", ".dm-tools-entry")]:
+        for route, marker in [("quick", "#raw-entry"), ("body", ".archive-heading"), ("tools", ".dm-tools-entry")]:
             browser.evaluate(f"window.__fitnessLedgerFormalMirrorBridge.navigate({json.dumps(route)})")
             _wait(browser, f"!!document.querySelector({json.dumps(marker)})")
             metrics = browser.evaluate("({width:document.documentElement.scrollWidth,viewport:window.innerWidth,undefinedText:document.body.innerText.includes('undefined'),jsonText:document.body.innerText.includes('MODULE_ALIAS_CONFLICT')})")
             assert metrics["width"] <= metrics["viewport"] + 2 and not metrics["undefinedText"] and not metrics["jsonText"], metrics
         _command(browser, "Emulation.setDeviceMetricsOverride", {"width": 390, "height": 844, "deviceScaleFactor": 1, "mobile": True})
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('body')")
-        _wait(browser, "!!document.querySelector('.dm-body-shelf')")
+        _wait(browser, "!!document.querySelector('.archive-heading')")
         mobile_metrics = browser.evaluate("({width:document.documentElement.scrollWidth,viewport:window.innerWidth})")
         assert mobile_metrics["width"] <= mobile_metrics["viewport"] + 2, mobile_metrics
 

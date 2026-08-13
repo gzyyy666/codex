@@ -20,6 +20,9 @@ function validateDataModuleContract(payload) {
     if (module.display_surface !== undefined) {
       assertContract(module.display_surface && typeof module.display_surface.value === 'string', 'Data Module display surface is invalid.', 'MODULE_CONTRACT_SURFACE_INVALID')
     }
+    if (module.display_page !== undefined && module.display_page !== null) {
+      assertContract(typeof module.display_page.value === 'string', 'Data Module display page is invalid.', 'MODULE_CONTRACT_PAGE_INVALID')
+    }
     assertContract(Array.isArray(module.history), 'Data Module history must be a list.', 'MODULE_CONTRACT_HISTORY_INVALID')
     if (module.latest !== null) {
       assertContract(module.history.length > 0, 'Data Module latest requires history.', 'MODULE_CONTRACT_LATEST_INVALID')
@@ -39,6 +42,7 @@ function renderDataModuleCard(module) {
       label: module.label,
       record_level: module.record_level || { value: 'daily_scalar', label: '每日一个数值' },
       display_surface: module.display_surface || { value: 'category_page', label: '跟随所属类别页面' },
+      display_page: module.display_page || null,
       state: empty ? 'empty' : 'ready',
       latest: module.latest,
       history: [],
@@ -52,6 +56,7 @@ function renderDataModuleCard(module) {
       label: module.label,
       record_level: module.record_level || { value: 'daily_scalar', label: '每日一个数值' },
       display_surface: module.display_surface || { value: 'category_page', label: '跟随所属类别页面' },
+      display_page: module.display_page || null,
       state: empty ? 'empty' : 'ready',
       latest: module.latest,
       history,

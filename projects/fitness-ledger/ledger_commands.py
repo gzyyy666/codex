@@ -67,9 +67,9 @@ _PRODUCT_SURFACES = {
         "label": "跟随所属类别页面",
         "description": "例如 Body 的腰围，进入 Body 记录里的同级指标。",
     },
-    "home_widget": {
-        "label": "首页角落小模块",
-        "description": "不创建新页面，只在首页增加一个紧凑显示块。",
+    "page_widget": {
+        "label": "页面角落小模块",
+        "description": "不创建新页面，可放在首页、Body、Diet、Training 或 Movement 的角落。",
     },
     "history_only": {
         "label": "只在记录、历史和导出中保留",
@@ -82,12 +82,12 @@ _PRODUCT_SURFACES = {
 }
 
 
-def _product_placement(category_id: str, choice: str, order: int = 0, surface: str = "category_page") -> dict:
+def _product_placement(category_id: str, choice: str, order: int = 0, surface: str = "category_page", display_page: str = "home") -> dict:
     key = str(choice or "summary").strip().lower()
     placement = _PRODUCT_PLACEMENTS.get(key, _PRODUCT_PLACEMENTS["summary"])
     surface_key = str(surface or "category_page").strip().lower()
-    if surface_key == "home_widget":
-        section = "home"
+    if surface_key in {"home_widget", "page_widget"}:
+        section = display_page if display_page in {"home", "body", "diet", "training", "movement"} else "home"
         slot = "auxiliary"
         visible = True
     elif surface_key in {"history_only", "record_only"}:
@@ -111,12 +111,16 @@ def _product_surface(category_id: str, presentation: dict) -> str:
     section = str((presentation or {}).get("section", "extension"))
     slot = str((presentation or {}).get("slot", "summary"))
     if section == "home":
-        return "home_widget"
+        return "page_widget"
     if slot == "history":
         return "history_only"
+    if not bool((presentation or {}).get("visible_by_default", True)):
+        return "record_only"
+    if section in {"body", "diet", "training", "movement"} and slot == "auxiliary":
+        return "page_widget"
     if section in {"body", "diet", "training", "movement"} and section == str(category_id):
         return "category_page"
-    return "record_only" if not bool((presentation or {}).get("visible_by_default", True)) else "history_only"
+    return "history_only"
 
 
 def _normalise_business_value(value, field_name: str = ""):
@@ -349,10 +353,12 @@ class LedgerCommandService:
         modules = []
         for item in catalog.get("modules", []):
             presentation = item.get("presentation", {}) or {}
-            placement = next(
+            display_surface = _product_surface(item.get("category_id", ""), presentation)
+            placement = "widget" if display_surface == "page_widget" else next(
                 (key for key, value in _PRODUCT_PLACEMENTS.items() if value["slot"] == presentation.get("slot") and bool(value["visible_by_default"]) == bool(presentation.get("visible_by_default", True))),
                 "summary",
             )
+            display_page = str(presentation.get("section", "")) if display_surface == "page_widget" else ""
             modules.append({
                 "module_id": item.get("module_id", ""),
                 "label": item.get("label", ""),
@@ -361,12 +367,14 @@ class LedgerCommandService:
                 "category_label": labels.get(str(item.get("category_id")), item.get("category_id", "")),
                 "actual_unit": item.get("actual_unit", ""),
                 "display_unit": item.get("display_unit", ""),
+                "data_type": item.get("data_type", "number" if not item.get("actual_unit", "") else "quantity"),
                 "status": item.get("status", "active"),
                 "definition_version": item.get("definition_version", 1),
                 "placement": placement,
                 "placement_label": placement_labels.get(placement, placement),
-                "display_surface": _product_surface(item.get("category_id", ""), presentation),
-                "display_surface_label": _PRODUCT_SURFACES.get(_product_surface(item.get("category_id", ""), presentation), {}).get("label", ""),
+                "display_surface": display_surface,
+                "display_surface_label": _PRODUCT_SURFACES.get(display_surface, {}).get("label", ""),
+                "display_page": display_page,
                 "record_level": "daily_scalar",
                 "record_level_label": "每日一个数值",
                 "capabilities": {
@@ -391,6 +399,13 @@ class LedgerCommandService:
             "modules": modules,
             "placement_choices": [{"value": key, "label": value["label"]} for key, value in _PRODUCT_PLACEMENTS.items()],
             "record_levels": [{"value": "daily_scalar", "label": "每日一个数值", "description": "每天最多保存一个数值，例如腰围、静息心率、肌酸摄入量。", "supported": True}],
+            "display_page_choices": [
+                {"value": "home", "label": "首页"},
+                {"value": "body", "label": "Body 身体"},
+                {"value": "diet", "label": "Diet 饮食"},
+                {"value": "training", "label": "Training 训练"},
+                {"value": "movement", "label": "Movement 动作"},
+            ],
             "display_surfaces": [{"value": key, **value} for key, value in _PRODUCT_SURFACES.items()],
             "issues": catalog.get("issues", []),
             "source_fingerprint": catalog.get("source_fingerprint", ""),
@@ -504,7 +519,7 @@ class LedgerCommandService:
                 "date": record_date or date.today().isoformat(),
                 "raw": raw,
                 "suggested_category_id": suggested_category_id,
-                "suggested_display_surface": "category_page" if suggested_category_id != "extension" else "home_widget",
+                "suggested_display_surface": "category_page" if suggested_category_id != "extension" else "page_widget",
                 "suggestion_reason": suggestion_reason,
                 "record_level": "daily_scalar",
             },
@@ -544,12 +559,16 @@ class LedgerCommandService:
         values["aliases"] = aliases
         values["actual_unit"] = str(values.get("actual_unit", values.get("unit", ""))).strip()
         values["display_unit"] = str(values.get("display_unit", values["actual_unit"])).strip()
-        values["data_type"] = str(values.get("data_type", "quantity")).strip().lower()
+        values["data_type"] = str(values.get("data_type") or ("quantity" if values["actual_unit"] else "number")).strip().lower()
         values["capabilities"] = values.get("capabilities") if isinstance(values.get("capabilities"), dict) else {}
         placement = str(values.get("placement", values.get("placement_choice", "summary"))).strip().lower()
         display_surface = str(values.get("display_surface", "category_page")).strip().lower()
+        if display_surface == "home_widget":
+            display_surface = "page_widget"
+        display_page = str(values.get("display_page", "home")).strip().lower()
         values["display_surface"] = display_surface
-        values["presentation"] = _product_placement(category_id, placement, int(values.get("order", 0) or 0), display_surface)
+        values["display_page"] = display_page
+        values["presentation"] = _product_placement(category_id, placement, int(values.get("order", 0) or 0), display_surface, display_page)
         if action == "create":
             return self.data_module_definition_preview({"kind": "module", "action": "create", "values": values})
         module_id = str(request.get("module_id", values.get("module_id", ""))).strip()

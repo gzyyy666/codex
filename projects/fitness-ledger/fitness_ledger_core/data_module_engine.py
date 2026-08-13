@@ -78,12 +78,24 @@ def _display_surface(definition: "ModuleDefinition") -> dict[str, str]:
     section = str(definition.presentation.get("section", "extension"))
     slot = str(definition.presentation.get("slot", "summary"))
     if section == "home":
-        return {"value": "home_widget", "label": "首页角落小模块"}
-    if section in {"body", "diet", "training", "movement"} and section == definition.category_id:
-        return {"value": "category_page", "label": f"跟随{_CATEGORY_LABELS.get(section, section)}页面"}
+        return {"value": "page_widget", "label": "页面角落小模块"}
     if slot == "history":
         return {"value": "history_only", "label": "只在记录、历史和导出中保留"}
+    if not definition.presentation.get("visible_by_default", True):
+        return {"value": "record_only", "label": "只记录，不自动展示"}
+    if section in {"body", "diet", "training", "movement"} and slot == "auxiliary":
+        return {"value": "page_widget", "label": "页面角落小模块"}
+    if section in {"body", "diet", "training", "movement"} and section == definition.category_id:
+        return {"value": "category_page", "label": f"跟随{_CATEGORY_LABELS.get(section, section)}页面"}
     return {"value": "record_only", "label": "只记录，不自动展示"}
+
+
+def _display_page(definition: "ModuleDefinition") -> dict[str, str] | None:
+    surface = _display_surface(definition)
+    section = str(definition.presentation.get("section", ""))
+    if surface["value"] != "page_widget" or section not in {"home", "body", "diet", "training", "movement"}:
+        return None
+    return {"value": section, "label": {"home": "首页", "body": "Body 身体", "diet": "Diet 饮食", "training": "Training 训练", "movement": "Movement 动作"}[section]}
 
 
 class DataModuleError(ValueError):
@@ -488,6 +500,7 @@ class ModuleRegistry:
                     "renderer": item.renderer,
                     "record_level": _record_level(item),
                     "display_surface": _display_surface(item),
+                    "display_page": _display_page(item),
                 }
                 for item in self.all()
             ],
@@ -773,7 +786,8 @@ class DataModuleDefinitionStore:
             aliases = [aliases]
         aliases = list(dict.fromkeys([label, *(str(item).strip() for item in aliases if str(item).strip())]))
         module_id = str(values.get("module_id", "")).strip() or _generated_module_id(label, aliases, category_id, [item.module_id for item in modules.all()])
-        data_type = str(values.get("data_type", "quantity")).strip().lower()
+        actual_unit = str(values.get("actual_unit", "")).strip()
+        data_type = str(values.get("data_type") or ("quantity" if actual_unit else "number")).strip().lower()
         renderer = str(values.get("renderer", "single_metric")).strip()
         recording_kind = str(values.get("recording_kind", "scalar")).strip().lower()
         cardinality = str(values.get("cardinality", "one_per_day")).strip().lower()
@@ -801,8 +815,8 @@ class DataModuleDefinitionStore:
             "aliases": aliases,
             "category_id": category_id,
             "data_type": data_type,
-            "actual_unit": str(values.get("actual_unit", "")).strip(),
-            "display_unit": str(values.get("display_unit", values.get("actual_unit", ""))).strip(),
+            "actual_unit": actual_unit,
+            "display_unit": str(values.get("display_unit", actual_unit)).strip(),
             "definition_version": 1,
             "status": "active",
             "capabilities": capabilities,
@@ -1187,6 +1201,7 @@ class DataModuleEngine:
             exported = item.to_dict()
             exported["record_level"] = _record_level(item)
             exported["display_surface"] = _display_surface(item)
+            exported["display_page"] = _display_page(item)
             module_payload.append(exported)
         return {"schema": "fitness-ledger-data-module-export-v1", "categories": [item.to_dict() for item in self.category_registry.all()], "modules": module_payload, "records": records}
 
@@ -1277,7 +1292,7 @@ class DataModuleEngine:
         module_ids = {item.module_id for item in modules}
         records = [{key: copy.deepcopy(value) for key, value in record.items() if key not in {"source_raw_hash", "raw_text", "private", "notes"}}
                    for record in database.get("data_module_records", []) or [] if record.get("module_id") in module_ids]
-        modules_payload = [{"module_id": item.module_id, "label": item.label, "category_id": item.category_id, "data_type": item.data_type, "actual_unit": item.actual_unit, "status": item.status, "definition_version": item.definition_version, "record_level": _record_level(item), "display_surface": _display_surface(item)} for item in modules]
+        modules_payload = [{"module_id": item.module_id, "label": item.label, "category_id": item.category_id, "data_type": item.data_type, "actual_unit": item.actual_unit, "status": item.status, "definition_version": item.definition_version, "record_level": _record_level(item), "display_surface": _display_surface(item), "display_page": _display_page(item)} for item in modules]
         modules_payload.sort(key=lambda item: item["module_id"])
         records.sort(key=lambda item: (str(item.get("date", "")), str(item.get("record_id", ""))))
         collections = {"modules": modules_payload, "records": records}
@@ -1335,11 +1350,11 @@ class DataModuleEngine:
         cards = []
         for item in modules:
             history = self.history(item.module_id)["history"][:history_limit]
-            cards.append({"module_id": item.module_id, "label": item.label, "category_id": item.category_id, "renderer": item.renderer, "status": item.status, "recording_enabled": item.status == "active" and item.capabilities["recordable"], "record_level": _record_level(item), "display_surface": _display_surface(item), "latest": history[0] if history else None, "history": history, "empty_state": None if history else {"kind": "empty", "message": "暂无记录"}})
+            cards.append({"module_id": item.module_id, "label": item.label, "category_id": item.category_id, "renderer": item.renderer, "status": item.status, "recording_enabled": item.status == "active" and item.capabilities["recordable"], "record_level": _record_level(item), "display_surface": _display_surface(item), "display_page": _display_page(item), "latest": history[0] if history else None, "history": history, "empty_state": None if history else {"kind": "empty", "message": "暂无记录"}})
         return {"schema": "fitness-ledger-mini-module-contract-v1", "page_required": False, "renderers": sorted({item.renderer for item in modules if item.renderer}), "modules": cards}
 
     def presentation_contract(self) -> dict[str, Any]:
-        return {"schema": "fitness-ledger-presentation-contract-v1", "categories": [{"category_id": item.category_id, "label": item.label, "order": item.order, "status": item.status, "presentation": item.presentation} for item in self.category_registry.all()], "modules": [{"module_id": item.module_id, "category_id": item.category_id, "section": item.presentation["section"], "slot": item.presentation["slot"], "order": item.presentation["order"], "visible_by_default": item.presentation["visible_by_default"], "fallback": item.presentation["fallback"], "unsupported_behavior": item.presentation["unsupported_behavior"], "renderer": item.renderer, "record_level": _record_level(item), "display_surface": _display_surface(item)} for item in self.registry.all()]}
+        return {"schema": "fitness-ledger-presentation-contract-v1", "categories": [{"category_id": item.category_id, "label": item.label, "order": item.order, "status": item.status, "presentation": item.presentation} for item in self.category_registry.all()], "modules": [{"module_id": item.module_id, "category_id": item.category_id, "section": item.presentation["section"], "slot": item.presentation["slot"], "order": item.presentation["order"], "visible_by_default": item.presentation["visible_by_default"], "fallback": item.presentation["fallback"], "unsupported_behavior": item.presentation["unsupported_behavior"], "renderer": item.renderer, "record_level": _record_level(item), "display_surface": _display_surface(item), "display_page": _display_page(item)} for item in self.registry.all()]}
 
 
 class DataModuleMigrationService:
