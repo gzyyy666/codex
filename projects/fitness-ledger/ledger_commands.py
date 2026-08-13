@@ -54,6 +54,27 @@ def _write_json_atomic(path: Path, value) -> None:
 
 _NON_SEMANTIC_FIELDS = {"id", "created_at", "updated_at", "superseded_at", "superseded_by", "save_mode", "source"}
 
+_PRODUCT_PLACEMENTS = {
+    "summary": {"label": "页面摘要", "slot": "summary", "visible_by_default": True},
+    "main": {"label": "主内容", "slot": "top", "visible_by_default": True},
+    "detail": {"label": "详情区", "slot": "secondary", "visible_by_default": True},
+    "history": {"label": "仅历史", "slot": "history", "visible_by_default": True},
+    "record": {"label": "仅记录，不展示", "slot": "auxiliary", "visible_by_default": False},
+}
+
+
+def _product_placement(category_id: str, choice: str, order: int = 0) -> dict:
+    key = str(choice or "summary").strip().lower()
+    placement = _PRODUCT_PLACEMENTS.get(key, _PRODUCT_PLACEMENTS["summary"])
+    section = category_id if category_id in {"body", "diet", "training", "movement"} else "extension"
+    return {
+        "section": section,
+        "slot": placement["slot"],
+        "order": int(order or 0),
+        "visible_by_default": bool(placement["visible_by_default"]),
+        "renderer": "metric_history" if key in {"detail", "history"} else "single_metric",
+    }
+
 
 def _normalise_business_value(value, field_name: str = ""):
     """Compare ledger content, not JSON layout or write-time bookkeeping."""
@@ -275,6 +296,152 @@ class LedgerCommandService:
             code = getattr(exc, "code", "DEFINITION_STORE_ERROR")
             details = getattr(exc, "details", {})
             raise LedgerCommandError(str(exc), code, details) from exc
+
+    def data_module_product_catalog(self) -> dict:
+        """Return the ordinary-user view of the registry for the formal Web mirror."""
+        catalog = self.data_module_catalog()
+        categories = catalog.get("categories", [])
+        labels = {str(item.get("category_id")): str(item.get("label") or item.get("category_id")) for item in categories}
+        placement_labels = {key: value["label"] for key, value in _PRODUCT_PLACEMENTS.items()}
+        modules = []
+        for item in catalog.get("modules", []):
+            presentation = item.get("presentation", {}) or {}
+            placement = next(
+                (key for key, value in _PRODUCT_PLACEMENTS.items() if value["slot"] == presentation.get("slot") and bool(value["visible_by_default"]) == bool(presentation.get("visible_by_default", True))),
+                "summary",
+            )
+            modules.append({
+                "module_id": item.get("module_id", ""),
+                "label": item.get("label", ""),
+                "aliases": list(item.get("aliases", []) or []),
+                "category_id": item.get("category_id", ""),
+                "category_label": labels.get(str(item.get("category_id")), item.get("category_id", "")),
+                "actual_unit": item.get("actual_unit", ""),
+                "display_unit": item.get("display_unit", ""),
+                "status": item.get("status", "active"),
+                "definition_version": item.get("definition_version", 1),
+                "placement": placement,
+                "placement_label": placement_labels.get(placement, placement),
+                "capabilities": {
+                    "recordable": bool((item.get("capabilities") or {}).get("recordable", False)),
+                    "exportable": bool((item.get("capabilities") or {}).get("exportable", False)),
+                    "analysis_visible": bool((item.get("capabilities") or {}).get("analysis_visible", False)),
+                    "cloud_syncable": bool((item.get("capabilities") or {}).get("cloud_syncable", False)),
+                    "mini_program_visible": bool((item.get("capabilities") or {}).get("mini_program_visible", False)),
+                },
+            })
+        return {
+            "schema": "fitness-ledger-data-module-product-catalog-v1",
+            "categories": [
+                {
+                    "category_id": item.get("category_id", ""),
+                    "label": item.get("label", item.get("category_id", "")),
+                    "status": item.get("status", "active"),
+                    "system": bool(item.get("system", False)),
+                }
+                for item in categories
+            ],
+            "modules": modules,
+            "placement_choices": [{"value": key, "label": value["label"]} for key, value in _PRODUCT_PLACEMENTS.items()],
+            "issues": catalog.get("issues", []),
+            "source_fingerprint": catalog.get("source_fingerprint", ""),
+        }
+
+    def data_module_discover(self, raw_text: str, record_date: str | None = None) -> dict:
+        """Recognize an existing module or offer a generic numeric module candidate."""
+        raw = str(raw_text or "").strip()
+        if not raw:
+            raise LedgerCommandError("请先写下要记录的内容。", "MODULE_RAW_EMPTY")
+        try:
+            preview = self.data_module_preview(raw, record_date)
+            return {"kind": "known", "preview": preview}
+        except LedgerCommandError as exc:
+            if exc.code != "MODULE_NOT_RECOGNIZED":
+                # Existing aliases with a bad value/date should keep the useful
+                # validation message instead of being mistaken for a new field.
+                if exc.code not in {"MODULE_NOT_RECOGNIZED", "MODULE_DATE_REQUIRED"}:
+                    raise
+
+        without_dates = re.sub(r"\d{4}[-/.]\d{1,2}[-/.]\d{1,2}", " ", raw)
+        without_dates = re.sub(r"(?:今天|today)", " ", without_dates, flags=re.IGNORECASE)
+        number = re.search(r"(?<![\d.])[-+]?(?:\d+(?:\.\d+)?|\.\d+)(?![\d.])", without_dates)
+        if not number:
+            return {"kind": "not_data_module", "message": "这段话里还没有可识别的数值。"}
+        label = without_dates[: number.start()].strip(" \t,，。:：=是为的")
+        label = re.sub(r"^(?:记录|测量|我的|当前|早上|上午|晚上|晚间)+", "", label).strip(" \t,，。:：=是为的")
+        label = re.sub(r"\s+", " ", label)
+        if not label:
+            return {"kind": "not_data_module", "message": "请把记录项名称写在数值前面，例如“晨间脉搏 58”。"}
+        tail = without_dates[number.end():].strip()
+        unit_match = re.match(r"(次/分|厘米|公斤|小时|分钟|分钟|bpm|cm|kg|mm|%|h|min)", tail, flags=re.IGNORECASE)
+        unit = unit_match.group(1) if unit_match else ""
+        value_text = number.group(0)
+        value = float(value_text)
+        if value.is_integer():
+            value = int(value)
+        return {
+            "kind": "new_candidate",
+            "candidate": {
+                "label": label,
+                "aliases": [label],
+                "value": value,
+                "unit": unit,
+                "date": record_date or date.today().isoformat(),
+                "raw": raw,
+                "suggested_category_id": "body",
+            },
+        }
+
+    def data_module_product_definition_preview(self, request: dict) -> dict:
+        """Map the small user form to the engine's stable definition contract."""
+        kind = str(request.get("kind", "module")).strip().lower()
+        action = str(request.get("action", "create")).strip().lower()
+        if kind == "category":
+            if action in {"retire", "re_enable", "reenable"}:
+                category_id = str(request.get("category_id", "")).strip()
+                if not category_id:
+                    raise LedgerCommandError("缺少要操作的类别。", "CATEGORY_ID_REQUIRED")
+                return self.data_module_definition_preview({"kind": "category", "action": action, "category_id": category_id, "changes": {}})
+            values = dict(request.get("values", request))
+            values["label"] = str(values.get("label", "")).strip()
+            if not values["label"]:
+                raise LedgerCommandError("请填写类别名称。", "CATEGORY_LABEL_REQUIRED")
+            return self.data_module_definition_preview({"kind": "category", "action": action, "values": values, "category_id": request.get("category_id"), "changes": request.get("changes", {})})
+        if action in {"retire", "re_enable", "reenable"}:
+            module_id = str(request.get("module_id", "")).strip()
+            if not module_id:
+                raise LedgerCommandError("缺少要操作的记录项。", "MODULE_ID_REQUIRED")
+            return self.data_module_definition_preview({"kind": "module", "action": action, "module_id": module_id, "changes": {}})
+        values = dict(request.get("values", request))
+        label = str(values.get("label", "")).strip()
+        category_id = str(values.get("category_id", "")).strip()
+        if not label:
+            raise LedgerCommandError("请填写记录项名称。", "MODULE_LABEL_REQUIRED")
+        if not category_id:
+            raise LedgerCommandError("请选择一个类别。", "MODULE_CATEGORY_REQUIRED")
+        aliases = values.get("aliases", [])
+        if isinstance(aliases, str):
+            aliases = [item.strip() for item in re.split(r"[,，\n]", aliases) if item.strip()]
+        values["label"] = label
+        values["aliases"] = aliases
+        values["actual_unit"] = str(values.get("actual_unit", values.get("unit", ""))).strip()
+        values["display_unit"] = str(values.get("display_unit", values["actual_unit"])).strip()
+        values["data_type"] = str(values.get("data_type", "quantity")).strip().lower()
+        values["capabilities"] = values.get("capabilities") if isinstance(values.get("capabilities"), dict) else {}
+        placement = str(values.get("placement", values.get("placement_choice", "summary"))).strip().lower()
+        values["presentation"] = _product_placement(category_id, placement, int(values.get("order", 0) or 0))
+        if action == "create":
+            return self.data_module_definition_preview({"kind": "module", "action": "create", "values": values})
+        module_id = str(request.get("module_id", values.get("module_id", ""))).strip()
+        changes = dict(request.get("changes", values))
+        changes.pop("module_id", None)
+        changes["aliases"] = aliases
+        changes["actual_unit"] = values["actual_unit"]
+        changes["display_unit"] = values["display_unit"]
+        changes["label"] = label
+        changes["category_id"] = category_id
+        changes.update(values["presentation"])
+        return self.data_module_definition_preview({"kind": "module", "action": action, "module_id": module_id, "changes": changes})
 
     def data_module_definition_preview(self, request: dict) -> dict:
         try:

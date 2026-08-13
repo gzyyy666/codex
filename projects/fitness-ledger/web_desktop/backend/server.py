@@ -186,8 +186,17 @@ class LedgerWebService:
     def data_module_catalog(self) -> dict:
         return self.commands.data_module_catalog()
 
+    def data_module_product_catalog(self) -> dict:
+        return self.commands.data_module_product_catalog()
+
+    def data_module_discover(self, request: dict) -> dict:
+        return self.commands.data_module_discover(str(request.get("raw", "")), request.get("date"))
+
     def data_module_definition_preview(self, request: dict) -> dict:
         return self.commands.data_module_definition_preview(request)
+
+    def data_module_product_definition_preview(self, request: dict) -> dict:
+        return self.commands.data_module_product_definition_preview(request)
 
     def data_module_definition_save(self, request: dict) -> dict:
         return self.commands.data_module_definition_save(request.get("preview"), confirmed=bool(request.get("confirmed", False)))
@@ -938,6 +947,8 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.data_module_capabilities())
             elif parsed.path == "/api/data-modules/catalog":
                 self.send_json(self.service.data_module_catalog())
+            elif parsed.path == "/api/data-modules/product-catalog":
+                self.send_json(self.service.data_module_product_catalog())
             elif parsed.path == "/api/data-modules/export":
                 self.send_json(self.service.commands.data_module_export())
             elif parsed.path == "/api/data-modules/analysis-catalog":
@@ -1040,8 +1051,12 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         try:
             request = self.read_json_body()
-            if parsed.path == "/api/data-modules/preview":
+            if parsed.path == "/api/data-modules/discover":
+                self.send_json(self.service.data_module_discover(request))
+            elif parsed.path == "/api/data-modules/preview":
                 self.send_json(self.service.data_module_preview(request))
+            elif parsed.path == "/api/data-modules/product-definition-preview":
+                self.send_json(self.service.data_module_product_definition_preview(request))
             elif parsed.path == "/api/data-modules/definition-preview":
                 self.send_json(self.service.data_module_definition_preview(request))
             elif parsed.path == "/api/data-modules/definition-save":

@@ -918,6 +918,16 @@ class RegistryDrivenParser:
             value, unit_hint = self._value_from_segment(segment, definition)
             candidates.append(ParseCandidate(definition.module_id, resolved_date, value, raw, alias, unit_hint))
         if not candidates:
+            for definition in self.registry.all():
+                if definition.status == "active" and definition.capabilities["recordable"]:
+                    continue
+                for alias in [definition.label, *definition.aliases]:
+                    if alias and re.search(re.escape(alias), raw, flags=re.IGNORECASE):
+                        raise _error(
+                            "This Data Module is stopped and cannot accept new records.",
+                            "MODULE_NOT_RECORDABLE",
+                            {"module_id": definition.module_id, "label": definition.label},
+                        )
             raise _error("No active recordable Data Module alias was recognized.", "MODULE_NOT_RECOGNIZED")
         return candidates
 

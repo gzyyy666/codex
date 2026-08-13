@@ -842,7 +842,7 @@ function enhanceOfficialBodyRecords(){
     tooltip.className='body-weight-tooltip';
     tooltip.hidden=true;
     section?.appendChild(tooltip);
-    $$('.weight-micro-bar',section).forEach(bar=>{
+    if(section)$$('.weight-micro-bar',section).forEach(bar=>{
       const show=()=>{
         if(!section||!tooltip)return;
         tooltip.textContent=bar.dataset.weightTip||'';
@@ -990,6 +990,7 @@ function analysisExportPrimaryAction(){const root=analysisExportRoot();if(root?.
 document.addEventListener('click',event=>{const target=event.target.closest('[data-analysis-export-example],[data-analysis-export-validate],[data-analysis-export-preview],[data-analysis-export-confirm],[data-analysis-export-mode],[data-analysis-export-paste],[data-analysis-export-file],[data-analysis-export-format],[data-analysis-export-clear],[data-analysis-export-natural-preview],[data-analysis-export-natural-confirm],[data-analysis-export-candidate-continue],[data-analysis-export-prompt],[data-analysis-export-back],[data-analysis-export-next]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();if(target.dataset.analysisExportMode){setAnalysisExportProtocolMode(target.dataset.analysisExportMode);return}if(target.dataset.analysisExportPrompt!==undefined){const input=$('#analysis-export-natural-language');if(input){input.value=target.dataset.intent||'';input.dispatchEvent(new Event('input',{bubbles:true}));input.focus()}return}if(target.dataset.analysisExportNaturalPreview!==undefined){analysisExportPrimaryAction();return}if(target.dataset.analysisExportNaturalConfirm!==undefined||target.dataset.analysisExportConfirm!==undefined){const root=analysisExportRoot();if(root?.dataset.inputMode==='json')exportAnalysisExportProtocol();else confirmFormalSemanticDataPackage();return}if(target.dataset.analysisExportCandidateContinue!==undefined){continueFormalSemanticCandidateSelection();return}if(target.dataset.analysisExportBack!==undefined){analysisExportBack();return}if(target.dataset.analysisExportNext!==undefined){analysisExportAdvance();return}if(target.dataset.analysisExportPaste!==undefined){const input=$('#analysis-export-request');if(!input)return;if(navigator.clipboard?.readText){navigator.clipboard.readText().then(value=>{input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();showToast('已粘贴 Request。')}).catch(()=>{input.focus();showToast('当前无法访问剪贴板，请直接粘贴。')})}else{input.focus();showToast('请直接粘贴到 JSON 编辑区。')}return}if(target.dataset.analysisExportFile!==undefined){$('#analysis-export-file')?.click();return}if(target.dataset.analysisExportFormat!==undefined){const input=$('#analysis-export-request');if(!input)return;try{input.value=JSON.stringify(JSON.parse(input.value),null,2);input.dispatchEvent(new Event('input',{bubbles:true}));showToast('Request 已格式化。')}catch(error){showToast(`JSON 格式化失败：${error.message}`)}return}if(target.dataset.analysisExportClear!==undefined){const input=$('#analysis-export-request');if(input){input.value='';input.dispatchEvent(new Event('input',{bubbles:true}));input.focus()}return}if(target.dataset.analysisExportExample!==undefined){const input=$('#analysis-export-request');if(input){input.value=JSON.stringify(ANALYSIS_EXPORT_EXAMPLE,null,2);input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();showToast('示例 Request 已载入。')}return}if(target.dataset.analysisExportValidate!==undefined){validateAnalysisExportProtocol();return}if(target.dataset.analysisExportPreview!==undefined){previewAnalysisExportProtocol();return}},true);
 document.addEventListener('change',event=>{if(event.target.id==='analysis-export-file'){const file=event.target.files?.[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{const input=$('#analysis-export-request');if(input){input.value=String(reader.result||'');input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();showToast('Request 文件已读取。')}};reader.onerror=()=>showToast('无法读取该文件。');reader.readAsText(file,'utf-8');return}if(event.target.matches('[data-natural-candidate-all]')){document.querySelectorAll('[data-natural-candidate]').forEach(item=>{item.checked=event.target.checked});return}if(event.target.id==='analysis-export-confirm'){const button=$('[data-analysis-export-confirm]');if(button)button.disabled=!event.target.checked}},true);
 document.addEventListener('input',event=>{if(!['analysis-export-request','analysis-export-natural-language'].includes(event.target.id))return;analysisExportResetEvidence();analysisExportSetProgress(analysisExportInputProgress())},true);
+
 document.addEventListener('keydown',event=>{if(!['analysis-export-request','analysis-export-natural-language'].includes(event.target.id)||!(event.ctrlKey||event.metaKey)||event.key!=='Enter'||state.composing)return;event.preventDefault();analysisExportPrimaryAction()},true);
 
 
@@ -1135,3 +1136,20 @@ document.addEventListener('pointermove',event=>{
     toolsSpotlightTarget=null;toolsSpotlightFrame=0;
   });
 },{passive:true});
+
+// Formal Mirror extension seam. The product surface lives in a separate
+// module, while this bridge keeps the existing Web shell and save boundary.
+window.__fitnessLedgerFormalMirrorBridge={
+  api,
+  postApi,
+  state,
+  main,
+  root,
+  showToast,
+  modal,
+  navigate,
+  refreshWebState,
+  renderRoute,
+  currentRoute:()=>parseRoute(),
+  installParseOverride(wrapper){const original=parseWebEntry;parseWebEntry=()=>wrapper(original)},
+};
