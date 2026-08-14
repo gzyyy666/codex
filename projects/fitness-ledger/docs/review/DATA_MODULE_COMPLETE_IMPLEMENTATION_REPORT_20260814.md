@@ -143,6 +143,13 @@ Diet 和 Training 仍使用各自的页面结构，没有因为扩展指标而�
 
 截图是视觉证据，不等同于完整的键盘、读屏器和所有断点无障碍审计；本次同时完成了语法、API 和候选场景验证。
 
+### 3.8 去 AI 痕迹的审查依据
+
+- 使用截图优先的产品界面审查流程，先保存修改前后页面，再逐张检查实际结果。
+- 主动参考社区中关于 AI 生成网页常见问题的案例和反例，再把可执行的检查项固化到 `docs/design/AI_DESIGN_REVIEW_CONTRACT.md` 与 `docs/design/STYLE_BIBLE.md`。
+- 社区检索记录保存在 `docs/review/DATA_MODULE_FOLLOWUP_COMMUNITY_RESEARCH_20260814.md`；本次没有安装或引入未经审查的外部网页插件。
+- 实际落地的检查重点是：删掉空泛副标题、重复大卡片、无意义外框和重复数据展示，让标题、按钮和状态直接说明可执行动作。
+
 ## 4. Cloud、Mini、分析和 LLM 配套
 
 ### Cloud
