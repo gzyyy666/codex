@@ -11,7 +11,7 @@ async function call(action, params = {}) {
     const response = await wx.cloud.callFunction({ name: "ledgerRead", data: { action, ...params } });
     const result = response.result || { ok: false, code: "EMPTY_RESPONSE", message: "云端没有返回数据。" };
     if (!result.ok && result.code === "UNKNOWN_ACTION") {
-      return { ...result, message: "训练参考接口尚未更新，请重新部署 ledgerRead 云函数。" };
+      return { ...result, message: "当前只读接口尚未更新，请重新部署 ledgerRead 云函数。" };
     }
     if (!result.ok && result.code === "QUERY_FAILED") {
       return { ...result, message: "训练参考数据暂不可用，请稍后重试或检查同步状态。" };

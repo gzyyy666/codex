@@ -2,7 +2,15 @@
 
 Schema: `fitness-ledger-read-replica-v2`
 
-The authoritative contract is the output of `fitness_ledger_core.cloud_payload.build_cloud_payload`. It contains ten collections documented in `CLOUD_REVIEW.md`.
+The authoritative contract is the output of `fitness_ledger_core.cloud_payload.build_cloud_payload`. It contains ten base collections documented in `CLOUD_REVIEW.md`.
+
+When a local Data Module definition store is explicitly configured, the same
+payload may add three sanitized extension collections: `fl_data_modules`,
+`fl_data_module_records`, and `fl_data_module_contract`. The extension is
+additive; with no configured registry the ten-collection payload is retained.
+`fl_data_module_contract` is the read-only Mini Program projection. It does
+not contain raw input, private fields, notes, or source hashes, and the Mini
+Program does not write any of these collections.
 
 ## Guarantees
 

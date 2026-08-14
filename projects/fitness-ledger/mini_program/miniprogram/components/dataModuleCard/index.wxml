@@ -1,0 +1,10 @@
+<view wx:if="{{module}}" class="data-module-row">
+  <view class="data-module-main">
+    <text class="data-module-label">{{module.label}}</text>
+    <text wx:if="{{module.latest}}" class="data-module-value">{{module.latest.value_label}}<text wx:if="{{module.latest.unit_label}}" class="data-module-unit"> {{module.latest.unit_label}}</text></text>
+    <text wx:else class="data-module-empty">暂无记录</text>
+  </view>
+  <view wx:if="{{module.renderer === 'metric_history' && module.history.length}}" class="data-module-history">
+    <text wx:for="{{module.history}}" wx:key="record_id" class="data-module-history-item">{{item.date}} · {{item.value_label}}{{item.unit_label ? ' ' + item.unit_label : ''}}</text>
+  </view>
+</view>

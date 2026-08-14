@@ -6,7 +6,8 @@ const COLLECTIONS = {
   meta: "fl_meta", latest: "fl_latest_summary", daily: "fl_daily_records",
   diet: "fl_diet_records", training: "fl_training_sessions", movements: "fl_movements",
   history: "fl_movement_history", search: "fl_search_index", raw: "fl_raw_entries",
-  quality: "fl_data_quality_issues"
+  quality: "fl_data_quality_issues", dataModules: "fl_data_modules",
+  dataModuleRecords: "fl_data_module_records", dataModuleContract: "fl_data_module_contract"
 };
 
 const BODY_PARTS = {
@@ -35,6 +36,82 @@ async function all(name, maxItems = 500) {
     if (page.length < pageSize) break;
   }
   return rows.slice(0, maxItems);
+}
+async function safeAll(name, maxItems = 500) {
+  try { return await all(name, maxItems); } catch (_error) { return []; }
+}
+function moduleSurface(value, fallbackValue, fallbackLabel) {
+  if (value && typeof value === "object") return { value: String(value.value || fallbackValue), label: String(value.label || fallbackLabel) };
+  return { value: String(value || fallbackValue), label: fallbackLabel };
+}
+function miniRecord(item, moduleId) {
+  const record = {
+    record_id: String(item.record_id || item.id || item._id || ""),
+    module_id: String(item.module_id || moduleId || ""),
+    date: String(item.date || item.Date || "").slice(0, 10),
+    value: item.value,
+    actual_unit: String(item.actual_unit || item.display_unit || "")
+  };
+  if (item.display_value !== undefined && item.display_value !== null) record.display_value = item.display_value;
+  if (item.display_unit) record.display_unit = String(item.display_unit);
+  return record;
+}
+function normalizedMiniContract(payload) {
+  const modules = Array.isArray(payload && payload.modules) ? payload.modules : [];
+  return {
+    schema: "fitness-ledger-mini-module-contract-v1",
+    page_required: false,
+    renderers: Array.from(new Set(modules.map(item => String(item.renderer || "")).filter(Boolean))).sort(),
+    modules: modules.map(item => {
+      const history = (Array.isArray(item.history) ? item.history : []).map(record => miniRecord(record, item.module_id)).filter(record => record.date);
+      const latest = item.latest ? miniRecord(item.latest, item.module_id) : (history[0] || null);
+      return {
+        module_id: String(item.module_id || ""),
+        label: String(item.label || item.module_id || ""),
+        category_id: String(item.category_id || "extension"),
+        renderer: String(item.renderer || "single_metric"),
+        status: String(item.status || "active"),
+        recording_enabled: item.recording_enabled !== false,
+        record_level: item.record_level || { value: "daily_scalar", label: "每日一个数值" },
+        display_surface: moduleSurface(item.display_surface, "category_page", "跟随所属类别页面"),
+        display_page: item.display_page ? moduleSurface(item.display_page, "home", "首页") : null,
+        latest,
+        history,
+        empty_state: latest || history.length ? null : { kind: "empty", message: "暂无记录" }
+      };
+    }).filter(item => item.module_id)
+  };
+}
+function buildDataModuleContract(moduleRows, recordRows) {
+  const recordsByModule = {};
+  (recordRows || []).forEach(item => {
+    const moduleId = String(item.module_id || "");
+    if (!moduleId) return;
+    if (!recordsByModule[moduleId]) recordsByModule[moduleId] = [];
+    recordsByModule[moduleId].push(miniRecord(item, moduleId));
+  });
+  const modules = (moduleRows || []).filter(item => item && item.mini_program_visible !== false).map(item => {
+    const moduleId = String(item.module_id || "");
+    const history = (recordsByModule[moduleId] || []).filter(record => record.date).sort((a, b) => b.date.localeCompare(a.date));
+    return {
+      ...item,
+      module_id: moduleId,
+      history,
+      latest: history[0] || null,
+      empty_state: history.length ? null : { kind: "empty", message: "暂无记录" }
+    };
+  });
+  return normalizedMiniContract({ modules });
+}
+async function dataModulePayload() {
+  const contractRows = await safeAll(COLLECTIONS.dataModuleContract, 3);
+  const contract = contractRows.find(item => item && item.schema === "fitness-ledger-mini-module-contract-v1");
+  if (contract) return normalizedMiniContract(contract);
+  const [modules, records] = await Promise.all([
+    safeAll(COLLECTIONS.dataModules, 200),
+    safeAll(COLLECTIONS.dataModuleRecords, 1000)
+  ]);
+  return buildDataModuleContract(modules, records);
 }
 function normalized(value) { return String(value || "").trim().toLowerCase(); }
 function matchesAny(value, terms) {
@@ -234,6 +311,7 @@ exports.main = async (event) => {
       case "recent": return result(await list(COLLECTIONS.daily, Number(event.limit || 10), Number(event.skip || 0)));
       case "bodyRecords": return result(await list(COLLECTIONS.daily, Number(event.limit || 30), Number(event.skip || 0)));
       case "dietRecords": return result(await list(COLLECTIONS.diet, Number(event.limit || 30), Number(event.skip || 0)));
+      case "dataModules": return result(await dataModulePayload());
       case "trainingRecords": {
         const rows = await all(COLLECTIONS.training, 200);
         rows.sort((a, b) => String(b.Date || "").localeCompare(String(a.Date || "")));

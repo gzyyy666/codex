@@ -11,6 +11,20 @@ This is a read-only WeChat Mini Program for gym-side reference. It does not cont
 
 The Mini Program never writes back to the formal Fitness Ledger database.
 
+## Data Module candidate path
+
+The candidate Mini path is read-only and registry-driven. A module marked for
+Cloud and Mini reading is carried in the optional `fl_data_modules`,
+`fl_data_module_records`, and `fl_data_module_contract` replica collections;
+the existing payload builder includes them in the same package as the formal
+collections when a local definition store is configured. The `dataModules`
+read action renders Body/Diet/Training values inside the matching existing
+record surface and uses the Status page only for modules explicitly placed as
+the home widget. There is no separate Mini module page and no Mini write API.
+
+This is candidate source only: deploy `ledgerRead` and upload the optional
+collections only after human review and an explicit release decision.
+
 ## Open In WeChat DevTools
 
 1. Import this `mini_program` directory.

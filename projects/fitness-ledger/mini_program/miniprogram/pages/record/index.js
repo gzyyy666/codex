@@ -1,4 +1,5 @@
 const ledger = require("../../services/ledger");
+const { safeBuildDataModuleReadModel, modulesForDate } = require("../../utils/dataModuleContract");
 
 function displaySets(movements) {
   return (movements || []).map((movement, movementIndex) => ({
@@ -17,21 +18,38 @@ function displaySets(movements) {
     })
   }));
 }
+function decorateDetail(detail, moduleModel) {
+  if (!detail) return detail;
+  return {
+    ...detail,
+    body: (detail.body || []).map(item => ({ ...item, dataModules: modulesForDate(moduleModel, "body", item.Date || detail.date) })),
+    diet: (detail.diet || []).map(item => ({ ...item, dataModules: modulesForDate(moduleModel, "diet", item.Date || detail.date) })),
+    training: (detail.training || []).map(item => ({ ...item, dataModules: modulesForDate(moduleModel, "training", item.Date || detail.date) }))
+  };
+}
 
 Page({
-  data: { loading: true, error: "", date: "", detail: null, session: null, movements: [], mode: "archive", showBody: false, showDiet: false, showTraining: false, part: "" },
+  data: { loading: true, error: "", date: "", detail: null, session: null, sessionModules: [], movements: [], mode: "archive", showBody: false, showDiet: false, showTraining: false, part: "" },
   async onLoad(options) {
     const date = String(options.date || "").slice(0, 10);
     const part = options.part || "";
     const mode = options.mode === "training" ? "training" : "archive";
     if (mode === "training") {
-      const response = await ledger.call("trainingDayDetail", { date });
+      const [response, moduleResponse] = await Promise.all([
+        ledger.call("trainingDayDetail", { date }),
+        ledger.call("dataModules")
+      ]);
       const data = response.ok ? response.data : null;
-      this.setData({ loading: false, mode, date, part, detail: null, session: data ? data.session : null, movements: data ? displaySets(data.movements) : [], error: response.ok ? "" : response.message });
+      const moduleModel = moduleResponse.ok ? safeBuildDataModuleReadModel(moduleResponse.data) : { modules: [] };
+      this.setData({ loading: false, mode, date, part, detail: null, session: data ? data.session : null, sessionModules: modulesForDate(moduleModel, "training", date), movements: data ? displaySets(data.movements) : [], error: response.ok ? "" : response.message });
       return;
     }
-    const response = await ledger.call("recordDetail", { date });
-    this.setData({ loading: false, mode, date, detail: response.ok ? response.data : null, session: null, movements: [], error: response.ok ? "" : response.message });
+    const [response, moduleResponse] = await Promise.all([
+      ledger.call("recordDetail", { date }),
+      ledger.call("dataModules")
+    ]);
+    const moduleModel = moduleResponse.ok ? safeBuildDataModuleReadModel(moduleResponse.data) : { modules: [] };
+    this.setData({ loading: false, mode, date, detail: response.ok ? decorateDetail(response.data, moduleModel) : null, session: null, sessionModules: [], movements: [], error: response.ok ? "" : response.message });
   },
   toggle(event) {
     const key = event.currentTarget.dataset.key;

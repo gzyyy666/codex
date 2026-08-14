@@ -45,7 +45,11 @@ def _latest_summary(data: dict) -> list[dict]:
     }]
 
 
-def build_cloud_payload(view_models, data_quality: dict | None = None) -> dict:
+def build_cloud_payload(
+    view_models,
+    data_quality: dict | None = None,
+    data_module_collections: dict[str, list[dict]] | None = None,
+) -> dict:
     data = view_models.analysis(days=36500, include_raw_preview=False)
     _tracker, dictionary = view_models.snapshot()
     definitions = {
@@ -106,12 +110,20 @@ def build_cloud_payload(view_models, data_quality: dict | None = None) -> dict:
         "fl_search_index": search_index,
         "fl_data_quality_issues": list((data_quality or {}).get("issues", [])),
     }
+    # Additive candidate extension.  With no configured registry the legacy
+    # payload shape remains unchanged.
+    for name, rows in (data_module_collections or {}).items():
+        if str(name) not in {"fl_data_modules", "fl_data_module_records", "fl_data_module_contract"}:
+            raise ValueError(f"Invalid Data Module collection name: {name}")
+        if not isinstance(rows, list):
+            raise ValueError(f"Data Module collection must be a list: {name}")
+        payload[name] = rows
     generated_at = datetime.now().replace(microsecond=0).isoformat()
     business_collections = {name: rows for name, rows in payload.items() if name != "fl_meta"}
     collection_counts = {name: len(rows) for name, rows in business_collections.items()}
     collection_hashes = {name: stable_json_hash(rows) for name, rows in business_collections.items()}
     payload_hash = stable_json_hash(business_collections)
-    payload["fl_meta"] = [{
+    metadata = {
         "schema": SCHEMA_VERSION,
         "generated_at": generated_at,
         "source": "local-json",
@@ -122,5 +134,8 @@ def build_cloud_payload(view_models, data_quality: dict | None = None) -> dict:
         "latest_record_date": payload["fl_latest_summary"][0]["date"] if payload["fl_latest_summary"] else "",
         "collection_counts": collection_counts,
         "collection_hashes": collection_hashes,
-    }]
+    }
+    if data_module_collections:
+        metadata["extensions"] = ["data-modules-v1"]
+    payload["fl_meta"] = [metadata]
     return payload

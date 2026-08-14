@@ -25,8 +25,21 @@ def main() -> None:
     assert 'case "bodyArea"' in cloud
     assert 'case "bodyRecords"' in cloud
     assert 'case "dietRecords"' in cloud
+    assert 'case "dataModules"' in cloud
+    assert 'fitness-ledger-mini-module-contract-v1' in cloud
+    assert 'function safeAll' in cloud
     assert 'case "trainingRecords"' in cloud
     assert 'case "movementCatalog"' in cloud
+    component = ROOT / "miniprogram" / "components" / "dataModuleCard"
+    for suffix in (".js", ".json", ".wxml", ".wxss"):
+        assert (component / f"index{suffix}").exists()
+    component_wxml = (component / "index.wxml").read_text(encoding="utf-8")
+    assert "暂无记录" in component_wxml and "raw_text" not in component_wxml
+    for page_name in ("body", "diet", "record", "status"):
+        page_root = ROOT / "miniprogram" / "pages" / page_name
+        assert "data-module-card" in (page_root / "index.wxml").read_text(encoding="utf-8")
+        page_config = json.loads((page_root / "index.json").read_text(encoding="utf-8"))
+        assert page_config["usingComponents"]["data-module-card"] == "/components/dataModuleCard/index"
     assert app["pages"][0] == "pages/reference/index"
     assert app["tabBar"]["list"][0]["pagePath"] == "pages/reference/index"
     assert app["tabBar"]["list"][1]["pagePath"] == "pages/training/index"

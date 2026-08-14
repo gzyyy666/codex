@@ -14,6 +14,7 @@
         <view wx:if="{{item.notes}}" class="action-notes"><view>动作备注</view><text>{{item.notes}}</text></view>
       </view>
       <view wx:if="{{session.notes}}" class="session-notes"><view class="note-label">训练总备注</view><view>{{session.notes}}</view></view>
+      <data-module-card wx:for="{{sessionModules}}" wx:for-item="module" wx:key="module_id" module="{{module}}" />
     </view>
   </block>
   <block wx:elif="{{detail}}">
@@ -21,16 +22,19 @@
       <view class="record-head"><view><view class="eyebrow">BODY</view><view class="section-title">身体与当天状态</view></view><view data-key="showBody" bindtap="toggle" class="expand">{{showBody ? '收起' : '展开'}}</view></view>
       <view class="signal-grid"><view class="signal"><view class="signal-label">WEIGHT</view><view class="signal-value">{{item['Weight (kg)'] || '-'}}kg</view></view><view class="signal"><view class="signal-label">BOWEL</view><view class="signal-value">{{item['Bowel Movement'] || '-'}}</view></view></view>
       <view class="record-line"><text>训练</text><text>{{item.Training || '未记录'}}</text></view><view class="record-line"><text>有氧</text><text class="clamp-2">{{item.Cardio || '未记录'}}</text></view>
+      <data-module-card wx:for="{{item.dataModules}}" wx:for-item="module" wx:key="module_id" module="{{module}}" />
       <view wx:if="{{showBody}}" class="detail-text">{{item.Notes || '没有身体备注'}}</view>
     </view>
     <view wx:for="{{detail.diet}}" wx:key="_id" class="record-section diet-section">
       <view class="record-head"><view><view class="eyebrow">NUTRITION</view><view class="section-title">饮食</view></view><view data-key="showDiet" bindtap="toggle" class="expand">{{showDiet ? '收起' : '展开'}}</view></view>
       <view class="macro-line"><text>{{item['Calories (kcal)'] || '-'}} kcal</text><text>P {{item['Protein (g)'] || '-'}} · C {{item['Carbs (g)'] || '-'}} · F {{item['Fat (g)'] || '-'}}</text></view>
+      <data-module-card wx:for="{{item.dataModules}}" wx:for-item="module" wx:key="module_id" module="{{module}}" />
       <view class="detail-text {{showDiet ? '' : 'clamp-3'}}">{{item['Food Summary'] || '没有饮食摘要'}}</view>
     </view>
     <view wx:for="{{detail.training}}" wx:key="_id" class="record-section training-section">
       <view class="record-head"><view><view class="eyebrow">TRAINING</view><view class="section-title">{{item.Split || '训练记录'}}</view></view><view data-key="showTraining" bindtap="toggle" class="expand">{{showTraining ? '收起' : '展开'}}</view></view>
       <view class="detail-text {{showTraining ? '' : 'clamp-3'}}">{{item['Standardized Summary'] || '没有动作摘要'}}</view>
+      <data-module-card wx:for="{{item.dataModules}}" wx:for-item="module" wx:key="module_id" module="{{module}}" />
       <view wx:if="{{showTraining && item.Notes}}" class="training-note">{{item.Notes}}</view>
     </view>
   </block><view wx:else class="state">该日期没有记录。</view>

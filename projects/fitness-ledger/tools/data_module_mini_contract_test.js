@@ -1,6 +1,8 @@
 const assert = require('assert')
 const {
   buildDataModuleReadModel,
+  modulesForDate,
+  safeBuildDataModuleReadModel,
   validateDataModuleContract,
 } = require('../mini_program/miniprogram/utils/dataModuleContract')
 
@@ -10,6 +12,7 @@ const contract = {
     {
       module_id: 'waist_cm',
       label: '腰围',
+      category_id: 'body',
       renderer: 'single_metric',
       record_level: { value: 'daily_scalar', label: '每日一个数值' },
       display_surface: { value: 'category_page', label: '跟随所属类别页面' },
@@ -20,6 +23,7 @@ const contract = {
     {
       module_id: 'resting_hr',
       label: '静息心率',
+      category_id: 'body',
       renderer: 'metric_history',
       latest: null,
       history: [],
@@ -34,6 +38,9 @@ assert.deepStrictEqual(model.renderers, ['metric_history', 'single_metric'])
 assert.strictEqual(model.modules[0].history.length, 0)
 assert.strictEqual(model.modules[1].state, 'empty')
 assert.strictEqual(model.modules[0].display_surface.value, 'category_page')
+assert.strictEqual(model.modules[0].record_history.length, 1)
+assert.strictEqual(modulesForDate(model, 'body', '2026-08-12').length, 1)
+assert.strictEqual(safeBuildDataModuleReadModel({ schema: 'bad', modules: [] }).modules.length, 0)
 
 assert.throws(() => buildDataModuleReadModel({
   ...contract,

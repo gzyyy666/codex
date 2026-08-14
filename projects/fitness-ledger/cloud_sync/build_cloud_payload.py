@@ -10,6 +10,7 @@ PROJECT_DIR = Path(__file__).resolve().parents[1]
 if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 from fitness_ledger_core.cloud_payload import build_cloud_payload, stable_json_hash
+from fitness_ledger_core.data_module_engine import DataModuleDefinitionStore, DataModuleEngine
 from fitness_ledger_core.data_quality_view import collect_issues
 from fitness_ledger_core.shared_view_models import LedgerViewModels
 
@@ -61,6 +62,43 @@ def resolve_source_files() -> tuple[Path, Path]:
             return tracker, dictionary
     return PROJECT_DIR / "data" / "tracker.json", PROJECT_DIR / "data" / "movement_dictionary.json"
 
+
+def resolve_data_module_registry(tracker_path: Path) -> Path | None:
+    """Find the optional local registry without changing the formal baseline."""
+    configured = str(os.environ.get("FITNESS_LEDGER_DATA_MODULE_REGISTRY", "")).strip()
+    candidates = [Path(configured)] if configured else []
+    candidates.extend([
+        tracker_path.parent / "data_module_definitions.json",
+        PROJECT_DIR / "data" / "data_module_definitions.json",
+    ])
+    for candidate in candidates:
+        if candidate and candidate.is_file():
+            return candidate
+    return None
+
+
+def build_optional_data_module_collections(tracker_path: Path, dictionary_path: Path) -> dict[str, list[dict]] | None:
+    """Build sanitized Data Module collections when a registry is configured."""
+    registry_path = resolve_data_module_registry(tracker_path)
+    if registry_path is None:
+        return None
+    store = DataModuleDefinitionStore(registry_path)
+    categories, modules, issues = store.load(strict=True)
+    engine = DataModuleEngine(
+        modules,
+        tracker_path,
+        dictionary_path,
+        category_registry=categories,
+        definition_issues=issues,
+    )
+    cloud = engine.build_cloud_payload()
+    mini = engine.build_mini_program_contract()
+    return {
+        "fl_data_modules": cloud["modules"],
+        "fl_data_module_records": cloud["records"],
+        "fl_data_module_contract": [mini],
+    }
+
 def main() -> Path:
     tracker_path, dictionary_path = resolve_source_files()
     views = LedgerViewModels(tracker_path, dictionary_path)
@@ -72,7 +110,11 @@ def main() -> Path:
         load_stable_module(),
         tracker_path.parent / "data_check_state.json",
     )
-    payload = build_cloud_payload(views, data_quality=quality)
+    payload = build_cloud_payload(
+        views,
+        data_quality=quality,
+        data_module_collections=build_optional_data_module_collections(tracker_path, dictionary_path),
+    )
     output = PROJECT_DIR / "cloud_sync" / "out" / "fitness_ledger_cloud_payload.json"
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

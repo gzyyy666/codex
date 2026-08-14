@@ -38,34 +38,65 @@ function renderDataModuleCard(module) {
   if (module.renderer === 'single_metric') {
     return {
       module_id: module.module_id,
+      category_id: module.category_id || 'extension',
       renderer: module.renderer,
       label: module.label,
+      status: module.status || 'active',
       record_level: module.record_level || { value: 'daily_scalar', label: '每日一个数值' },
       display_surface: module.display_surface || { value: 'category_page', label: '跟随所属类别页面' },
       display_page: module.display_page || null,
       state: empty ? 'empty' : 'ready',
-      latest: module.latest,
+      latest: displayRecord(module.latest),
       history: [],
+      record_history: history.map(displayRecord),
       empty_state: empty ? (module.empty_state || { kind: 'empty', message: '暂无记录' }) : null,
     }
   }
   if (module.renderer === 'metric_history') {
     return {
       module_id: module.module_id,
+      category_id: module.category_id || 'extension',
       renderer: module.renderer,
       label: module.label,
+      status: module.status || 'active',
       record_level: module.record_level || { value: 'daily_scalar', label: '每日一个数值' },
       display_surface: module.display_surface || { value: 'category_page', label: '跟随所属类别页面' },
       display_page: module.display_page || null,
       state: empty ? 'empty' : 'ready',
-      latest: module.latest,
-      history,
+      latest: displayRecord(module.latest),
+      history: history.map(displayRecord),
+      record_history: history.map(displayRecord),
       empty_state: empty ? (module.empty_state || { kind: 'empty', message: '暂无记录' }) : null,
     }
   }
   // validateDataModuleContract makes this unreachable, but keeps the finite
   // renderer boundary explicit if a new renderer is proposed later.
   throw new Error('Unsupported Data Module renderer.')
+}
+
+function displayRecord(record) {
+  if (!record) return null
+  return {
+    ...record,
+    value_label: record.display_value !== undefined && record.display_value !== null ? record.display_value : record.value,
+    unit_label: record.display_unit || record.actual_unit || '',
+  }
+}
+
+function modulesForDate(model, categoryId, date) {
+  const targetDate = String(date || '').slice(0, 10)
+  return (model && Array.isArray(model.modules) ? model.modules : []).map((module) => {
+    if (categoryId && module.category_id !== categoryId) return null
+    const records = (module.record_history || module.history || []).filter((record) => String(record.date || '').slice(0, 10) === targetDate)
+    if (!records.length) return null
+    return {
+      ...module,
+      latest: records[0],
+      history: module.renderer === 'metric_history' ? records : [],
+      record_history: records,
+      state: 'ready',
+    }
+  }).filter(Boolean)
 }
 
 function buildDataModuleReadModel(contract) {
@@ -82,4 +113,14 @@ module.exports = {
   validateDataModuleContract,
   renderDataModuleCard,
   buildDataModuleReadModel,
+  safeBuildDataModuleReadModel,
+  modulesForDate,
+}
+
+function safeBuildDataModuleReadModel(contract) {
+  try {
+    return buildDataModuleReadModel(contract)
+  } catch (_error) {
+    return { schema: 'fitness-ledger-mini-module-read-model-v1', modules: [], renderers: [], error: 'MODULE_CONTRACT_INVALID' }
+  }
 }

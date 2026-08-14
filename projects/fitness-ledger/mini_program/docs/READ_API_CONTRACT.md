@@ -27,9 +27,21 @@ Except for `whoami`, every action requires the caller openid in `FITNESS_LEDGER_
 | `movementHistory` | `movementId`, optional `limit` | recent history | `[]` | `fl_movement_history` |
 | `trainingDayDetail` | ISO `date` (`YYYY-MM-DD`) | one read-only training-day projection | `session: null`, `movements: []` | `fl_training_sessions`, `fl_movement_history`, `fl_movements` |
 | `recordDetail` | ISO `date` | Body, Diet, Training arrays | arrays may be empty | three record collections |
+| `dataModules` | none | Sanitized Data Module contract for read-only rendering | valid empty contract | `fl_data_module_contract` or `fl_data_modules`, `fl_data_module_records` |
 | `quality` | none | up to 50 read-only issues | `[]` | `fl_data_quality_issues` |
 
 No action calls database `add`, `update`, `set`, or `remove`. Pagination is currently bounded by `limit <= 50`; the first MVP uses small lists rather than unbounded reads.
+
+## `dataModules`
+
+The action returns `fitness-ledger-mini-module-contract-v1`. It contains only
+modules explicitly enabled for Mini reading, their latest value, and bounded
+history. Body and Diet archive pages place matching records inside the same
+date slip as the formal record; the Status page can show modules configured as
+the lightweight home widget. No new Mini page is created and no new record is
+writable from the Mini Program. If the extension collections have not yet
+been deployed, the action returns an empty valid contract so existing pages
+continue to work.
 
 ## `movementCatalog`
 

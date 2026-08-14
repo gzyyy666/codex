@@ -82,6 +82,15 @@ def _stats_number(value: float | None) -> int | float | None:
     return int(rounded) if rounded.is_integer() else rounded
 
 
+def _mini_record(record: dict[str, Any]) -> dict[str, Any]:
+    """Return the deliberately small, non-private Mini Program record view."""
+    allowed = {
+        "record_id", "module_id", "category_id", "record_kind", "date",
+        "value", "actual_unit", "display_value", "display_unit",
+    }
+    return {key: copy.deepcopy(value) for key, value in record.items() if key in allowed}
+
+
 def _display_surface(definition: "ModuleDefinition") -> dict[str, str]:
     section = str(definition.presentation.get("section", "extension"))
     slot = str(definition.presentation.get("slot", "summary"))
@@ -1446,7 +1455,7 @@ class DataModuleEngine:
         module_ids = {item.module_id for item in modules}
         records = [{key: copy.deepcopy(value) for key, value in record.items() if key not in {"source_raw_hash", "raw_text", "private", "notes"}}
                    for record in database.get("data_module_records", []) or [] if record.get("module_id") in module_ids]
-        modules_payload = [{"module_id": item.module_id, "label": item.label, "category_id": item.category_id, "data_type": item.data_type, "actual_unit": item.actual_unit, "status": item.status, "definition_version": item.definition_version, "record_level": _record_level(item), "display_surface": _display_surface(item), "display_page": _display_page(item)} for item in modules]
+        modules_payload = [{"module_id": item.module_id, "label": item.label, "category_id": item.category_id, "data_type": item.data_type, "actual_unit": item.actual_unit, "status": item.status, "definition_version": item.definition_version, "record_level": _record_level(item), "renderer": item.renderer, "display_surface": _display_surface(item), "display_page": _display_page(item), "mini_program_visible": bool(item.capabilities["mini_program_visible"])} for item in modules]
         modules_payload.sort(key=lambda item: item["module_id"])
         records.sort(key=lambda item: (str(item.get("date", "")), str(item.get("record_id", ""))))
         collections = {"modules": modules_payload, "records": records}
@@ -1503,7 +1512,7 @@ class DataModuleEngine:
                 raise _error("Mini Program renderer is unsupported.", "MODULE_MINI_RENDERER_UNSUPPORTED", {"module_id": item.module_id})
         cards = []
         for item in modules:
-            history = self.history(item.module_id)["history"][:history_limit]
+            history = [_mini_record(record) for record in self.history(item.module_id)["history"][:history_limit]]
             cards.append({"module_id": item.module_id, "label": item.label, "category_id": item.category_id, "renderer": item.renderer, "status": item.status, "recording_enabled": item.status == "active" and item.capabilities["recordable"], "record_level": _record_level(item), "display_surface": _display_surface(item), "display_page": _display_page(item), "latest": history[0] if history else None, "history": history, "empty_state": None if history else {"kind": "empty", "message": "暂无记录"}})
         return {"schema": "fitness-ledger-mini-module-contract-v1", "page_required": False, "renderers": sorted({item.renderer for item in modules if item.renderer}), "modules": cards}
 
