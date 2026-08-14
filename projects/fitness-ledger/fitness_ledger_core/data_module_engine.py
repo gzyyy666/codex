@@ -53,6 +53,7 @@ DEFAULT_CAPABILITIES = {
     "history_enabled": True,
     "exportable": True,
     "analysis_visible": False,
+    "statistics_visible": False,
     "cloud_syncable": False,
     "mini_program_visible": False,
 }
@@ -72,6 +73,13 @@ def _record_level(definition: "ModuleDefinition") -> dict[str, str]:
     if kind == "scalar" and cardinality == "one_per_day":
         return {"value": "daily_scalar", "label": "每日一个数值"}
     return {"value": f"{kind}_{cardinality}", "label": f"{kind} / {cardinality}"}
+
+
+def _stats_number(value: float | None) -> int | float | None:
+    if value is None:
+        return None
+    rounded = round(float(value), 8)
+    return int(rounded) if rounded.is_integer() else rounded
 
 
 def _display_surface(definition: "ModuleDefinition") -> dict[str, str]:
@@ -1232,6 +1240,111 @@ class DataModuleEngine:
         rows = self.query(module_id, start, end)
         return {"module": definition.to_dict(), "module_id": module_id, "status": definition.status, "history": rows, "latest": rows[0] if rows else None, "empty_state": None if rows else {"kind": "empty", "message": "暂无记录"}}
 
+    def llm_entry_template(self) -> dict[str, Any]:
+        """Build a deterministic, definition-only input reference for an LLM.
+
+        The template intentionally contains no tracker records, raw input, or
+        private notes.  It is regenerated from the active registry whenever it
+        is requested, so a newly saved module is available immediately.
+        """
+        category_labels = {item.category_id: item.label for item in self.category_registry.all()}
+        modules = []
+        for item in self.registry.all():
+            if item.status != "active" or not item.capabilities["recordable"]:
+                continue
+            validation = {
+                key: copy.deepcopy(item.validation_contract[key])
+                for key in ("minimum", "maximum", "decimal_places", "integer", "unit_aliases")
+                if key in item.validation_contract
+            }
+            modules.append({
+                "module_id": item.module_id,
+                "label": item.label,
+                "aliases": list(item.aliases),
+                "category_id": item.category_id,
+                "category_label": category_labels.get(item.category_id, item.category_id),
+                "data_type": item.data_type,
+                "actual_unit": item.actual_unit,
+                "display_unit": item.display_unit,
+                "record_level": _record_level(item),
+                "recording_behavior": copy.deepcopy(item.recording_behavior),
+                "validation": validation,
+            })
+        modules.sort(key=lambda item: item["module_id"])
+        registry_fingerprint = stable_hash({
+            "categories": self.category_registry.to_dict(),
+            "modules": modules,
+        })
+        return {
+            "schema": "fitness-ledger-llm-entry-template-v1",
+            "template_version": 1,
+            "purpose": "把自然语言整理为 Fitness Ledger 的 Data Module 预览输入。",
+            "source": {
+                "registry_fingerprint": registry_fingerprint,
+                "module_count": len(modules),
+                "contains_personal_records": False,
+            },
+            "instructions": [
+                "只从 modules 中选择 module_id，不要自行创造字段名。",
+                "日期使用 YYYY-MM-DD；如果原文没有日期，先要求补充日期。",
+                "value 只填记录项的实际值；有单位时同时校验 unit，不能用单位替代数值。",
+                "输出后仍必须经过 Fitness Ledger 的 Preview → Confirm 流程，不能直接写入。",
+            ],
+            "output_shape": {
+                "date": "YYYY-MM-DD",
+                "entries": [{"module_id": "从 modules 选择", "value": "记录值", "unit": "可选"}],
+            },
+            "modules": modules,
+        }
+
+    def statistics(self, module_id: str, start: str = "", end: str = "") -> dict[str, Any]:
+        """Return bounded local statistics for an explicitly enabled numeric module."""
+        definition = self.registry.require(module_id)
+        if not definition.capabilities["statistics_visible"]:
+            raise _error("Statistics are disabled for this module.", "MODULE_STATISTICS_HIDDEN", {"module_id": module_id})
+        if definition.data_type not in {"number", "quantity", "rating", "duration"}:
+            raise _error("Statistics currently support numeric modules only.", "MODULE_STATISTICS_TYPE_UNSUPPORTED", {"module_id": module_id})
+        rows = list(reversed(self.query(module_id, start, end)))
+        points = []
+        for row in rows:
+            try:
+                actual_value = float(row.get("value"))
+                display_value = float(definition.display_value(row.get("value")))
+            except (TypeError, ValueError, DataModuleError) as exc:
+                raise _error("A numeric module record could not be summarized.", "MODULE_STATISTICS_VALUE_INVALID", {"module_id": module_id}) from exc
+            points.append({
+                "date": str(row.get("date", "")),
+                "value": _stats_number(actual_value),
+                "display_value": _stats_number(display_value),
+                "record_id": str(row.get("record_id", "")),
+            })
+        values = [float(item["display_value"]) for item in points]
+        first = values[0] if values else None
+        latest = values[-1] if values else None
+        delta = (latest - first) if first is not None and latest is not None else None
+        tolerance = 1e-9
+        trend = "flat" if delta is None or abs(delta) <= tolerance else ("up" if delta > 0 else "down")
+        return {
+            "schema": "fitness-ledger-data-module-statistics-v1",
+            "module_id": module_id,
+            "module": {"label": definition.label, "actual_unit": definition.actual_unit, "display_unit": definition.display_unit},
+            "range": {"start": start or (points[0]["date"] if points else ""), "end": end or (points[-1]["date"] if points else "")},
+            "aggregation": "daily_scalar",
+            "summary": {
+                "count": len(values),
+                "first": _stats_number(first) if first is not None else None,
+                "latest": _stats_number(latest) if latest is not None else None,
+                "minimum": _stats_number(min(values)) if values else None,
+                "maximum": _stats_number(max(values)) if values else None,
+                "average": _stats_number(sum(values) / len(values)) if values else None,
+                "delta": _stats_number(delta) if delta is not None else None,
+                "trend": trend,
+            },
+            "points": points,
+            "write_attempted": False,
+            "network_request_made": False,
+        }
+
     def normal_export(self) -> dict[str, Any]:
         modules = [item for item in self.registry.all() if item.capabilities["exportable"]]
         module_ids = {item.module_id for item in modules}
@@ -1393,6 +1506,44 @@ class DataModuleEngine:
             history = self.history(item.module_id)["history"][:history_limit]
             cards.append({"module_id": item.module_id, "label": item.label, "category_id": item.category_id, "renderer": item.renderer, "status": item.status, "recording_enabled": item.status == "active" and item.capabilities["recordable"], "record_level": _record_level(item), "display_surface": _display_surface(item), "display_page": _display_page(item), "latest": history[0] if history else None, "history": history, "empty_state": None if history else {"kind": "empty", "message": "暂无记录"}})
         return {"schema": "fitness-ledger-mini-module-contract-v1", "page_required": False, "renderers": sorted({item.renderer for item in modules if item.renderer}), "modules": cards}
+
+    def release_readiness(self) -> dict[str, Any]:
+        """Check candidate Cloud/Mini contracts without performing either mutation."""
+        cloud = self.build_cloud_payload()
+        mini = self.build_mini_program_contract()
+        cloud_ids = {str(item["module_id"]) for item in cloud["modules"]}
+        mini_ids = {str(item["module_id"]) for item in mini["modules"]}
+        modules = []
+        for item in self.registry.all():
+            checks = []
+            if item.capabilities["cloud_syncable"] and item.module_id not in cloud_ids:
+                checks.append("CLOUD_MODULE_MISSING")
+            if item.capabilities["mini_program_visible"] and item.module_id not in mini_ids:
+                checks.append("MINI_MODULE_MISSING")
+            if item.capabilities["statistics_visible"] and item.data_type not in {"number", "quantity", "rating", "duration"}:
+                checks.append("STATISTICS_TYPE_UNSUPPORTED")
+            modules.append({"module_id": item.module_id, "status": "ready" if not checks else "blocked", "checks": checks})
+        return {
+            "schema": "fitness-ledger-data-module-release-readiness-v1",
+            "candidate_only": True,
+            "production_mutation_allowed": False,
+            "public_analysis_protocol_changed": False,
+            "cloud": {
+                "status": "dry_run_ready",
+                "schema": cloud["schema"],
+                "payload_hash": cloud["meta"]["payload_hash"],
+                "module_ids": sorted(cloud_ids),
+                "network_request_made": False,
+            },
+            "mini": {
+                "status": "contract_ready",
+                "schema": mini["schema"],
+                "module_ids": sorted(mini_ids),
+                "page_required": bool(mini.get("page_required")),
+                "network_request_made": False,
+            },
+            "modules": modules,
+        }
 
     def presentation_contract(self) -> dict[str, Any]:
         return {"schema": "fitness-ledger-presentation-contract-v1", "categories": [{"category_id": item.category_id, "label": item.label, "order": item.order, "status": item.status, "presentation": item.presentation} for item in self.category_registry.all()], "modules": [{"module_id": item.module_id, "category_id": item.category_id, "section": item.presentation["section"], "slot": item.presentation["slot"], "order": item.presentation["order"], "visible_by_default": item.presentation["visible_by_default"], "fallback": item.presentation["fallback"], "unsupported_behavior": item.presentation["unsupported_behavior"], "renderer": item.renderer, "record_level": _record_level(item), "display_surface": _display_surface(item), "display_page": _display_page(item)} for item in self.registry.all()]}

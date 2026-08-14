@@ -199,6 +199,38 @@ class DataModuleCandidateTests(unittest.TestCase):
         self.service.data_module_definition_save(delete_category, confirmed=True)
         self.assertNotIn("review_delete_category", {item["category_id"] for item in self.service.data_module_product_catalog()["categories"]})
 
+    def test_template_statistics_and_release_readiness_are_local_and_bounded(self) -> None:
+        before_tracker = self.tracker.read_bytes()
+        template = self.service.data_module_llm_template()
+        self.assertEqual(template, self.service.data_module_llm_template())
+        self.assertEqual(template["schema"], "fitness-ledger-llm-entry-template-v1")
+        self.assertEqual(template["source"]["contains_personal_records"], False)
+        self.assertEqual({item["module_id"] for item in template["modules"]}, {"waist_cm", "resting_hr"})
+        self.assertNotIn("data_module_records", json.dumps(template, ensure_ascii=False))
+        self.assertNotIn("raw_entries", json.dumps(template, ensure_ascii=False))
+        self.assertEqual(before_tracker, self.tracker.read_bytes())
+
+        for raw in ("2026-08-10 腰围 84 cm", "2026-08-12 腰围 82.5 cm", "2026-08-13 腰围 81.5 cm"):
+            preview = self.service.data_module_preview(raw)
+            self.service.data_module_save(preview, confirmed=True)
+        statistics = self.service.data_module_statistics("waist_cm")
+        self.assertEqual(statistics["summary"]["count"], 3)
+        self.assertEqual(statistics["summary"]["minimum"], 81.5)
+        self.assertEqual(statistics["summary"]["maximum"], 84)
+        self.assertEqual(statistics["summary"]["trend"], "down")
+        self.assertEqual(statistics["summary"]["delta"], -2.5)
+        self.assertFalse(statistics["write_attempted"])
+        with self.assertRaisesRegex(Exception, "disabled"):
+            self.service.data_module_statistics("resting_hr")
+
+        readiness = self.service.data_module_release_readiness()
+        self.assertTrue(readiness["candidate_only"])
+        self.assertFalse(readiness["production_mutation_allowed"])
+        self.assertFalse(readiness["public_analysis_protocol_changed"])
+        self.assertFalse(readiness["cloud"]["network_request_made"])
+        self.assertFalse(readiness["mini"]["network_request_made"])
+        self.assertTrue(all(item["status"] == "ready" for item in readiness["modules"]))
+
     def test_registry_collisions_versions_and_unit_gate(self) -> None:
         registry = ModuleRegistry.from_file(REGISTRY_FILE)
         with self.assertRaisesRegex(DataModuleError, "alias"):

@@ -381,6 +381,7 @@ class LedgerCommandService:
                     "recordable": bool((item.get("capabilities") or {}).get("recordable", False)),
                     "exportable": bool((item.get("capabilities") or {}).get("exportable", False)),
                     "analysis_visible": bool((item.get("capabilities") or {}).get("analysis_visible", False)),
+                    "statistics_visible": bool((item.get("capabilities") or {}).get("statistics_visible", False)),
                     "cloud_syncable": bool((item.get("capabilities") or {}).get("cloud_syncable", False)),
                     "mini_program_visible": bool((item.get("capabilities") or {}).get("mini_program_visible", False)),
                 },
@@ -673,6 +674,12 @@ class LedgerCommandService:
     def data_module_history(self, module_id: str, start: str = "", end: str = "") -> dict:
         return self._data_module_call("history", module_id, start, end)
 
+    def data_module_llm_template(self) -> dict:
+        return self._data_module_call("llm_entry_template")
+
+    def data_module_statistics(self, module_id: str, start: str = "", end: str = "") -> dict:
+        return self._data_module_call("statistics", module_id, start, end)
+
     def data_module_export(self) -> dict:
         return self._data_module_call("normal_export")
 
@@ -705,6 +712,9 @@ class LedgerCommandService:
 
     def data_module_mini_contract(self) -> dict:
         return self._data_module_call("build_mini_program_contract")
+
+    def data_module_release_readiness(self) -> dict:
+        return self._data_module_call("release_readiness")
 
     def data_module_presentation_contract(self) -> dict:
         return self._data_module_call("presentation_contract")

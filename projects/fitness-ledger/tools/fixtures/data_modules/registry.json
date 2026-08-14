@@ -17,6 +17,7 @@
         "history_enabled": true,
         "exportable": true,
         "analysis_visible": true,
+        "statistics_visible": true,
         "cloud_syncable": true,
         "mini_program_visible": true
       },
@@ -54,6 +55,7 @@
         "history_enabled": true,
         "exportable": true,
         "analysis_visible": false,
+        "statistics_visible": false,
         "cloud_syncable": true,
         "mini_program_visible": true
       },

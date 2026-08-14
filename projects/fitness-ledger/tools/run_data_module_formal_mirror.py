@@ -57,7 +57,7 @@ def ensure_sandbox(root: Path) -> tuple[Path, Path, Path, Path]:
 def default_sandbox_path() -> Path:
     local_app_data = os.environ.get("LOCALAPPDATA", "").strip()
     root = Path(local_app_data) if local_app_data else Path.home() / "AppData" / "Local"
-    return root / "FitnessLedger" / "formal-mirror-review-20260814"
+    return root / "FitnessLedger" / "formal-mirror-followup-review-20260814"
 
 
 def main() -> None:
@@ -76,7 +76,7 @@ def main() -> None:
         build_info_override={
             "mode": "FORMAL WEB REVIEW MIRROR",
             "status": "PREVIEW",
-            "branch": "codex/fitness-ledger-formal-mirror-20260813",
+            "branch": "codex/fitness-ledger-data-module-followup-20260814",
             "review_fixture": "anonymous-persistent-fixture",
             "formal_data_used": False,
             "cloud_mutation": False,

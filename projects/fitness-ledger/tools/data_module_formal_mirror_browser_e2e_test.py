@@ -187,6 +187,10 @@ def main() -> None:
 
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('quick')")
         _wait(browser, "!!document.querySelector('#raw-entry')")
+        _click(browser, "[data-dm-llm-template]")
+        _wait(browser, "!!document.querySelector('.entry-template-json')")
+        assert "fitness-ledger-llm-entry-template-v1" in browser.evaluate("document.querySelector('.entry-template-json').textContent")
+        _click(browser, "[data-close]")
         _set_css(browser, "#raw-entry", "2026-08-12 \u6668\u95f4\u8109\u640f 58")
         _click(browser, "#parse")
         _wait(browser, "!!document.querySelector('[data-dm-submit-definition]')")
@@ -217,6 +221,12 @@ def main() -> None:
         _wait(browser, "!!document.querySelector('.dm-tools-entry')")
         _click(browser, ".dm-tools-entry")
         _wait(browser, "!!document.querySelector('.dm-management-page')")
+        _wait(browser, "!!document.querySelector('[data-dm-release-readiness]')")
+        _click(browser, "[data-dm-release-readiness]")
+        _wait(browser, "!!document.querySelector('.detail-list')")
+        readiness_text = browser.evaluate("document.querySelector('.detail-list').innerText")
+        assert "Cloud dry-run" in readiness_text and "Mini contract" in readiness_text and "无网络" in readiness_text, readiness_text
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.root.innerHTML='' ")
 
         # Management create: a second module in the existing Body category.
         _click(browser, "[data-dm-new-module]")
@@ -229,6 +239,8 @@ def main() -> None:
         catalog = _json_get(browser, "/api/data-modules/product-catalog")
         temperature = next(item for item in catalog["modules"] if item["label"] == "\u65e5\u95f4\u4f53\u6e29")
         temperature_id = temperature["module_id"]
+        template_after_module = _json_get(browser, "/api/data-modules/llm-template")
+        assert any(item["module_id"] == temperature_id for item in template_after_module["modules"]), template_after_module
 
         # Diet follows the existing P / C / F surface instead of creating a Diet sub-page.
         _click(browser, "[data-dm-new-module]")
@@ -305,10 +317,21 @@ def main() -> None:
         _set_css(browser, "[name=label]", "\u65e5\u95f4\u4f53\u6e29\uff08\u5c45\u5bb6\uff09")
         _set_css(browser, "[name=aliases]", "\u65e5\u95f4\u4f53\u6e29\uff08\u5c45\u5bb6\uff09,day temperature")
         _select(browser, "[name=placement]", "detail")
+        _set_checked(browser, "[name=statistics_visible]", True)
         _click(browser, "[data-dm-submit-definition]")
         _wait(browser, "!document.querySelector('#dm-definition-form')")
         edited = next(item for item in _json_get(browser, "/api/data-modules/product-catalog")["modules"] if item["module_id"] == temperature_id)
-        assert edited["label"] == "\u65e5\u95f4\u4f53\u6e29\uff08\u5c45\u5bb6\uff09" and edited["placement"] == "detail"
+        assert edited["label"] == "\u65e5\u95f4\u4f53\u6e29\uff08\u5c45\u5bb6\uff09" and edited["placement"] == "detail" and edited["capabilities"]["statistics_visible"] is True
+        for raw in ("2026-08-10 \u65e5\u95f4\u4f53\u6e29\uff08\u5c45\u5bb6\uff09 36.5 C", "2026-08-12 \u65e5\u95f4\u4f53\u6e29\uff08\u5c45\u5bb6\uff09 36.8 C"):
+            temperature_preview = _json_post(browser, "/api/data-modules/preview", {"raw": raw})
+            assert temperature_preview["status"] == 200, temperature_preview
+            assert _json_post(browser, "/api/data-modules/save", {"preview": temperature_preview["body"], "confirmed": True})["status"] == 200
+        _wait(browser, "!!document.querySelector('[data-dm-statistics]')")
+        _click_dataset(browser, "[data-dm-statistics]", "dmStatistics", temperature_id)
+        _wait(browser, "!!document.querySelector('.dm-stat-chart')")
+        stats_text = browser.evaluate("document.querySelector('.dm-module-statistics').innerText")
+        assert "最新" in stats_text and "平均" in stats_text and "变化" in stats_text, stats_text
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.root.innerHTML='' ")
 
         # Capability is opt-in and remains local-only.
         recovery_id = next(item["module_id"] for item in _json_get(browser, "/api/data-modules/product-catalog")["modules"] if item["label"] == "\u6062\u590d\u8bc4\u5206")

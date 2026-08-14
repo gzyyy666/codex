@@ -230,6 +230,19 @@ class LedgerWebService:
             str(request.get("end", "")),
         )
 
+    def data_module_llm_template(self) -> dict:
+        return self.commands.data_module_llm_template()
+
+    def data_module_statistics(self, request: dict) -> dict:
+        return self.commands.data_module_statistics(
+            str(request.get("module_id", "")),
+            str(request.get("start", "")),
+            str(request.get("end", "")),
+        )
+
+    def data_module_release_readiness(self) -> dict:
+        return self.commands.data_module_release_readiness()
+
     def data_module_analysis_preview(self, request: dict) -> dict:
         module_ids = request.get("module_ids", [])
         if not isinstance(module_ids, list):
@@ -978,6 +991,16 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                     "start": query.get("start", [""])[0],
                     "end": query.get("end", [""])[0],
                 }))
+            elif parsed.path == "/api/data-modules/llm-template":
+                self.send_json(self.service.data_module_llm_template())
+            elif parsed.path == "/api/data-modules/statistics":
+                self.send_json(self.service.data_module_statistics({
+                    "module_id": query.get("module_id", [""])[0],
+                    "start": query.get("start", [""])[0],
+                    "end": query.get("end", [""])[0],
+                }))
+            elif parsed.path == "/api/data-modules/release-readiness":
+                self.send_json(self.service.data_module_release_readiness())
             elif parsed.path == "/api/archive-health":
                 self.send_json(self.service.archive_health())
             elif parsed.path == "/api/cloud-sync/status":
