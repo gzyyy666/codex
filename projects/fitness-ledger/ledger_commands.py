@@ -55,7 +55,6 @@ def _write_json_atomic(path: Path, value) -> None:
 _NON_SEMANTIC_FIELDS = {"id", "created_at", "updated_at", "superseded_at", "superseded_by", "save_mode", "source"}
 
 _PRODUCT_PLACEMENTS = {
-    "summary": {"label": "页面摘要", "slot": "summary", "visible_by_default": True},
     "main": {"label": "主内容", "slot": "top", "visible_by_default": True},
     "detail": {"label": "详情区", "slot": "secondary", "visible_by_default": True},
     "history": {"label": "仅历史", "slot": "history", "visible_by_default": True},
@@ -83,8 +82,10 @@ _PRODUCT_SURFACES = {
 
 
 def _product_placement(category_id: str, choice: str, order: int = 0, surface: str = "category_page", display_page: str = "home") -> dict:
-    key = str(choice or "summary").strip().lower()
-    placement = _PRODUCT_PLACEMENTS.get(key, _PRODUCT_PLACEMENTS["summary"])
+    key = str(choice or "main").strip().lower()
+    if key == "summary":
+        key = "main"
+    placement = _PRODUCT_PLACEMENTS.get(key, _PRODUCT_PLACEMENTS["main"])
     surface_key = str(surface or "category_page").strip().lower()
     if surface_key in {"home_widget", "page_widget"}:
         section = display_page if display_page in {"home", "body", "diet", "training", "movement"} else "home"
@@ -109,7 +110,9 @@ def _product_placement(category_id: str, choice: str, order: int = 0, surface: s
 
 def _product_surface(category_id: str, presentation: dict) -> str:
     section = str((presentation or {}).get("section", "extension"))
-    slot = str((presentation or {}).get("slot", "summary"))
+    slot = str((presentation or {}).get("slot", "top"))
+    if slot == "summary":
+        slot = "top"
     if section == "home":
         return "page_widget"
     if slot == "history":
@@ -355,8 +358,8 @@ class LedgerCommandService:
             presentation = item.get("presentation", {}) or {}
             display_surface = _product_surface(item.get("category_id", ""), presentation)
             placement = "widget" if display_surface == "page_widget" else next(
-                (key for key, value in _PRODUCT_PLACEMENTS.items() if value["slot"] == presentation.get("slot") and bool(value["visible_by_default"]) == bool(presentation.get("visible_by_default", True))),
-                "summary",
+                (key for key, value in _PRODUCT_PLACEMENTS.items() if value["slot"] == ("top" if presentation.get("slot") == "summary" else presentation.get("slot")) and bool(value["visible_by_default"]) == bool(presentation.get("visible_by_default", True))),
+                "main",
             )
             display_page = str(presentation.get("section", "")) if display_surface == "page_widget" else ""
             modules.append({
@@ -572,7 +575,9 @@ class LedgerCommandService:
         values["display_unit"] = str(values.get("display_unit", values["actual_unit"])).strip()
         values["data_type"] = str(values.get("data_type") or ("quantity" if values["actual_unit"] else "number")).strip().lower()
         values["capabilities"] = values.get("capabilities") if isinstance(values.get("capabilities"), dict) else {}
-        placement = str(values.get("placement", values.get("placement_choice", "summary"))).strip().lower()
+        placement = str(values.get("placement", values.get("placement_choice", "main"))).strip().lower()
+        if placement == "summary":
+            placement = "main"
         display_surface = str(values.get("display_surface", "category_page")).strip().lower()
         if display_surface == "home_widget":
             display_surface = "page_widget"

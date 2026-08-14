@@ -79,6 +79,15 @@ class DataModuleWebCandidateTests(unittest.TestCase):
                 self.assertEqual({row["module_id"] for row in module_capabilities["modules"]}, {"waist_cm", "resting_hr"})
                 _status, catalog = get("/api/data-modules/catalog")
                 self.assertEqual({row["module_id"] for row in catalog["modules"]}, {"waist_cm", "resting_hr"})
+                _status, product_catalog = get("/api/data-modules/product-catalog")
+                self.assertEqual(
+                    {row["value"] for row in product_catalog["placement_choices"]},
+                    {"main", "detail", "history", "record"},
+                )
+                self.assertEqual(
+                    {row["module_id"]: row["placement"] for row in product_catalog["modules"]},
+                    {"waist_cm": "main", "resting_hr": "main"},
+                )
                 _status, preview = post("/api/data-modules/preview", {"raw": "2026-08-12 腰围 82.5 cm"})
                 self.assertFalse(preview["write_attempted"])
                 _status, saved = post("/api/data-modules/save", {"preview": preview, "confirmed": True})

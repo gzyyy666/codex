@@ -93,7 +93,7 @@ def _mini_record(record: dict[str, Any]) -> dict[str, Any]:
 
 def _display_surface(definition: "ModuleDefinition") -> dict[str, str]:
     section = str(definition.presentation.get("section", "extension"))
-    slot = str(definition.presentation.get("slot", "summary"))
+    slot = str(definition.presentation.get("slot", "top"))
     if section == "home":
         return {"value": "page_widget", "label": "页面角落小模块"}
     if slot == "history":
@@ -337,7 +337,12 @@ class ModuleDefinition:
         if set(presentation) - allowed_presentation:
             raise _error("Module presentation may only use semantic placement fields.", "MODULE_PRESENTATION_INVALID", {"module_id": module_id, "unknown_fields": sorted(set(presentation) - allowed_presentation)})
         section = str(presentation.get("section", "extension")).strip()
-        slot = str(presentation.get("slot", "summary")).strip()
+        # ``summary`` was the early candidate name for the same visual slot
+        # now called ``main``. Read it for backwards compatibility, but
+        # normalize it before the definition leaves the engine.
+        slot = str(presentation.get("slot", "top")).strip()
+        if slot == "summary":
+            slot = "top"
         try:
             order = int(presentation.get("order", 0))
         except (TypeError, ValueError) as exc:
