@@ -46,7 +46,7 @@
 .macro-line .dm-native-field{display:inline!important;justify-content:initial;gap:0;padding:0;font-size:12px}
 .macro-line .dm-native-field strong{font-weight:400}
 .session-facts .dm-native-field{display:block!important;justify-content:initial;padding:0;border:0!important;font-size:12px}
-.dm-category-native-line{display:flex;gap:16px;flex-wrap:wrap;margin:-38px 0 34px;padding-bottom:12px;border-bottom:1px solid rgba(44,48,43,.14);color:#536356;font-size:12px}
+.dm-category-native-line{display:flex;gap:16px;flex-wrap:wrap;margin:14px 0 28px;padding-bottom:12px;border-bottom:1px solid rgba(44,48,43,.14);color:#536356;font-size:12px}
 .dm-detail-metrics{display:none!important}
 .dm-page-widget-strip:not(.dm-page-widget-minimal){padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;overflow:visible!important}
 .dm-page-widget-strip:not(.dm-page-widget-minimal) .dm-widget-label{display:none!important}
