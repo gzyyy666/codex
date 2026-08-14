@@ -1,7 +1,7 @@
 # Fitness Ledger Data Module 完整实现与界面复查报告
 
-日期：2026-08-14  
-范围：Data Module Candidate 隔离候选工作树、桌面 Web 候选预览、Cloud dry-run、Mini 契约检查。  
+日期：2026-08-14
+范围：Data Module Candidate 隔离候选工作树、桌面 Web 候选预览、Cloud dry-run、Mini 契约检查。
 正式业务目录、正式 tracker、线上 Cloud 和线上 Mini 均未修改。
 
 ## 1. 本次收尾前仍未完成的问题
@@ -224,7 +224,7 @@ assert '"raw"' not in serialized
 - Body 展示：`http://127.0.0.1:8768/#body`
 - Daily Entry：`http://127.0.0.1:8768/#quick`
 
-匿名沙盒：`C:\Users\26087\AppData\Local\FitnessLedger\formal-mirror-followup-review-20260814`。  
+匿名沙盒：`C:\Users\26087\AppData\Local\FitnessLedger\formal-mirror-followup-review-20260814`。
 关闭候选服务：结束监听 `127.0.0.1:8768` 的候选 Python 进程即可；没有注册后台服务。
 
 ## 8. 本轮人工 Review 应判断什么
