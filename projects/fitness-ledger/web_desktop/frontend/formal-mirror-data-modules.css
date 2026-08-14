@@ -50,3 +50,40 @@
 .dm-detail-metrics{display:none!important}
 .dm-page-widget-strip:not(.dm-page-widget-minimal){padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;overflow:visible!important}
 .dm-page-widget-strip:not(.dm-page-widget-minimal) .dm-widget-label{display:none!important}
+
+/* Candidate closure: widgets are quiet, page-anchored chips rather than flow blocks. */
+.dm-widget-host{position:relative!important}
+.dm-widget-host .dm-page-widget-strip.dm-page-widget-minimal{position:absolute!important;z-index:8;right:30px;display:flex;justify-content:flex-end;margin:0;pointer-events:none}
+.dm-widget-host .dm-page-widget-strip.dm-page-widget-minimal>div{justify-content:flex-end}
+.dm-widget-host-home .dm-page-widget-strip.dm-page-widget-minimal{top:132px}
+.dm-widget-host-body .dm-page-widget-strip.dm-page-widget-minimal{top:104px}
+.dm-widget-host-diet .dm-page-widget-strip.dm-page-widget-minimal{top:104px}
+.dm-widget-host-training .dm-page-widget-strip.dm-page-widget-minimal{top:104px}
+.dm-widget-host-movement .dm-page-widget-strip.dm-page-widget-minimal{top:34px}
+.dm-page-widget-strip:not(.dm-page-widget-minimal),.dm-inline-metrics,.dm-inline-category,.dm-category-extension-strip{display:none!important}
+.dm-category-summary-row{display:none!important}
+
+/* The Body host already owns the row rhythm; reset the nested span so extensions look native. */
+.body-slip-meta .dm-native-field{display:flex!important;justify-content:space-between!important;align-items:baseline;gap:16px;border-bottom:1px solid rgba(44,48,43,.14)!important;padding:0 0 6px!important}
+.body-slip-meta .dm-native-field>span,.body-slip-meta .dm-native-field>strong{display:block!important;border:0!important;padding:0!important;color:inherit!important}
+.body-slip-meta .dm-native-field>strong{font-weight:400;text-align:right}
+
+/* The editor is a short, readable decision form instead of a dense settings sheet. */
+.dm-modal{max-width:760px!important;width:min(760px,calc(100vw - 32px))}
+.dm-modal .dm-form-intro{max-width:58ch;margin-bottom:16px}
+.dm-modal .dm-form-step{padding:18px 20px;margin:10px 0;background:rgba(255,253,247,.92);box-shadow:0 2px 0 rgba(44,48,43,.04)}
+.dm-modal .dm-form-step:first-of-type{margin-top:0}
+.dm-modal .dm-step-title{margin-bottom:12px}
+.dm-modal .dm-step-title>b{flex:0 0 26px}
+.dm-modal .dm-placement-explain{margin:10px 0 0;padding:10px 12px;border-radius:8px;background:#f6f2e9}
+.dm-modal .dm-advanced{margin-top:12px;padding:12px 14px;border:1px solid rgba(44,48,43,.12);border-radius:10px;background:rgba(247,244,236,.62)}
+.dm-sidebar-entry{font-weight:650!important}
+
+@media (max-width:720px){
+  .dm-widget-host .dm-page-widget-strip.dm-page-widget-minimal{right:16px;max-width:calc(100% - 32px)}
+  .dm-widget-host-home .dm-page-widget-strip.dm-page-widget-minimal{top:104px}
+  .dm-widget-host-body .dm-page-widget-strip.dm-page-widget-minimal,.dm-widget-host-diet .dm-page-widget-strip.dm-page-widget-minimal,.dm-widget-host-training .dm-page-widget-strip.dm-page-widget-minimal{top:78px}
+  .dm-widget-host-movement .dm-page-widget-strip.dm-page-widget-minimal{top:22px}
+  .dm-modal .dm-form-grid{grid-template-columns:1fr}
+  .dm-modal .dm-form-grid label.is-wide{grid-column:auto}
+}
