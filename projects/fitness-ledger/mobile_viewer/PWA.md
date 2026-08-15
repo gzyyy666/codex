@@ -90,10 +90,11 @@ remain the only place that turns text into a formal record. If the phone
 system does not offer the share target, the same page has a plain text paste
 fallback.
 
-Before deployment, create the collection with private user ownership rules and
-verify the current Web authentication identity in the CloudBase console. The
-exact release checklist, rollback boundary, and cost notes are recorded in
-`docs/maintenance/PWA_SHARE_INBOX_PHASE3.md`.
+Before deployment, create the collection with the console preset
+`读取和修改本人数据 [PRIVATE]`; no custom rule paste is required for the
+current Web-only PWA. Verify the current Web authentication identity in the
+CloudBase console. The exact release checklist, rollback boundary, and cost
+notes are recorded in `docs/maintenance/PWA_SHARE_INBOX_PHASE3.md`.
 
 ## Deployment contract
 

@@ -34,7 +34,12 @@ Fields written by the Web client:
 - `status`: `pending`, `copied`, `processed`, `rejected`, or `failed`;
 - `received_at`, `updated_at`, `expires_at`: millisecond timestamps.
 
-The collection must use private ownership rules before release:
+For the current Web-only PWA, create the collection with the console preset
+`读取和修改本人数据 [PRIVATE]`. This is sufficient; no custom JSON needs to be
+pasted. The preset uses the document owner field and matches the PWA queries.
+
+If a later deployment needs a custom cross-platform rule, the equivalent
+private rule is:
 
 ```json
 {
@@ -74,7 +79,7 @@ cleanup function.
 
 ## Required release evidence
 
-- CloudBase collection exists with the private rule above;
+- CloudBase collection exists with the `PRIVATE` preset or an equivalent private rule;
 - Web login on phone and computer resolves to the same account;
 - two different accounts cannot read or update each other's items;
 - repeated share of the same text is idempotent;

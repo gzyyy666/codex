@@ -26,7 +26,8 @@
    `bodyRecords`、`dietRecords`、`recordDetail`、`trainingDayDetail`、
   `movementCatalog`、`movement`、`movementHistory`、`search`。
 
-6. 若启用手机文字传递，先创建 `fl_web_share_inbox` 集合并设置私有安全规则；
+6. 若启用手机文字传递，先创建 `fl_web_share_inbox` 集合并选择
+   `读取和修改本人数据 [PRIVATE]`；当前 Web-only PWA 不需要粘贴自定义规则。
    该集合只保存原文待处理项，不属于 `fl_*` 正式同步数据。
 
 不一定要马上购买域名：CloudBase 静态托管可以先用平台默认 HTTPS 地址做开发/个人
@@ -95,7 +96,7 @@ python tools/pwa_deployment_preflight.py
 修改安全规则或上传静态文件。正式发布前还要在同一账号下验证：
 
 1. 手机与电脑登录的是同一个 CloudBase Web 账号；
-2. `fl_web_share_inbox` 的读写规则只允许当前用户访问；
+2. `fl_web_share_inbox` 选择的是 `PRIVATE`，只允许当前用户访问；
 3. 重复分享只产生一个待处理项；
 4. 复制/标记处理不会改动 `fl_daily_records` 或 Data Module records；
 5. 真实手机分享菜单和手动粘贴路径都能工作。

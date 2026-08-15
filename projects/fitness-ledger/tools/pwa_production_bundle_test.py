@@ -60,8 +60,7 @@ def main() -> None:
     assert 'register("./sw.js?v=20260815-03"' in app
     handoff_doc = (ROOT / "docs" / "maintenance" / "PWA_SHARE_INBOX_PHASE3.md").read_text(encoding="utf-8")
     assert 'Collection: `fl_web_share_inbox`' in handoff_doc
-    assert '"read": "doc._openid == auth.uid || doc._openid == auth.openid"' in handoff_doc
-    assert '"write": "doc._openid == auth.uid || doc._openid == auth.openid"' in handoff_doc
+    assert "读取和修改本人数据 [PRIVATE]" in handoff_doc
     print("PWA_PRODUCTION_BUNDLE: PASS")
 
 
