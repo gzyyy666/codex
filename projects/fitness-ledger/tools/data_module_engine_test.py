@@ -7,6 +7,7 @@ import json
 import sys
 import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
 from unittest import mock
 
@@ -129,6 +130,14 @@ class DataModuleCandidateTests(unittest.TestCase):
         no_change = self.service.data_module_save(no_change_preview, confirmed=True)
         self.assertEqual(no_change["status"], "NO_CHANGES")
         self.assertFalse(no_change["write_attempted"])
+
+    def test_known_alias_without_date_defaults_to_today(self) -> None:
+        preview = self.service.data_module_preview("腰围 82.5 cm")
+        self.assertEqual(preview["status"], "preview_ready")
+        self.assertFalse(preview["write_attempted"])
+        self.assertEqual(preview["candidates"][0]["module_id"], "waist_cm")
+        self.assertEqual(preview["candidates"][0]["date"], date.today().isoformat())
+        self.assertEqual(preview["candidates"][0]["value"], 82.5)
 
     def test_second_and_third_module_use_the_same_chain(self) -> None:
         registry = ModuleRegistry.from_file(REGISTRY_FILE)

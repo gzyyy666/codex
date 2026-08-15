@@ -78,6 +78,22 @@
 .dm-modal .dm-placement-explain{margin:10px 0 0;padding:10px 12px;border-radius:8px;background:#f6f2e9}
 .dm-modal .dm-advanced{margin-top:12px;padding:12px 14px;border:1px solid rgba(44,48,43,.12);border-radius:10px;background:rgba(247,244,236,.62)}
 .dm-sidebar-entry{font-weight:650!important}
+.build-identity-label{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.dm-modal .dm-definition-form-compact .dm-compact-form-block{padding:14px 16px;margin:10px 0;border:1px solid rgba(44,48,43,.12);border-radius:11px;background:rgba(255,253,247,.86)}
+.dm-modal .dm-definition-form-compact .dm-compact-form-block:first-of-type{margin-top:0}
+.dm-modal .dm-compact-form-grid,.dm-modal .dm-compact-route-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
+.dm-modal .dm-compact-form-grid label,.dm-modal .dm-compact-route-grid label{display:flex;flex-direction:column;gap:6px;color:#343934;font-size:13px}
+.dm-modal .dm-compact-form-grid label.is-wide{grid-column:1/-1}
+.dm-modal .dm-compact-form-grid input,.dm-modal .dm-compact-form-grid textarea,.dm-modal .dm-compact-route-grid select{box-sizing:border-box;width:100%;border:1px solid rgba(44,48,43,.22);border-radius:8px;background:#fffdf7;color:#20251f;padding:10px 11px;font:inherit;min-height:40px}
+.dm-modal .dm-compact-form-grid textarea{resize:vertical;line-height:1.45}
+.dm-modal .dm-compact-form-grid small{color:#858981;font-size:11px;font-weight:400}
+.dm-modal .dm-compact-route-grid label[hidden]{display:none}
+.dm-modal .dm-definition-form-compact .dm-placement-explain{margin:10px 0 0;padding:9px 11px;border-radius:8px;background:#f6f2e9}
+.dm-modal .dm-definition-form-compact .dm-suggestion{margin:10px 0 0;padding:9px 11px;border-left:2px solid #9ebaa0;background:#f3f7f0}
+@media (max-width:720px){.dm-modal .dm-compact-form-grid,.dm-modal .dm-compact-route-grid{grid-template-columns:1fr}.dm-modal .dm-compact-form-grid label.is-wide{grid-column:auto}}
+@media (max-width:1300px) and (min-width:901px){.entry-save-float{right:8px}}
+@media (max-width:1300px) and (min-width:1121px){.sidebar{gap:18px;padding-left:24px;padding-right:24px}.sidebar nav{gap:0}.nav-item{padding-left:10px;padding-right:10px}.privacy{min-width:0;max-width:250px;overflow:hidden}.privacy .build-identity{max-width:160px}}
 
 @media (max-width:720px){
   .dm-widget-host .dm-page-widget-strip.dm-page-widget-minimal{right:16px;max-width:calc(100% - 32px)}

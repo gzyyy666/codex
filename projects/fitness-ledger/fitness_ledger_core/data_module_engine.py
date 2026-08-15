@@ -1045,7 +1045,9 @@ class RegistryDrivenParser:
         if not match:
             if re.search(r"(?:今天|today)", raw, flags=re.IGNORECASE):
                 return date.today().isoformat()
-            return None
+            # A Daily Entry without an explicit date is still a record for
+            # today. This keeps known aliases on the normal Data Module path.
+            return date.today().isoformat()
         try:
             return date(int(match.group(1)), int(match.group(2)), int(match.group(3))).isoformat()
         except ValueError as exc:

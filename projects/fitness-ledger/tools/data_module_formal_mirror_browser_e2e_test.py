@@ -209,8 +209,8 @@ def main() -> None:
         assert pulse["category_id"] == "body" and pulse["display_surface"] == "category_page" and pulse["record_level"] == "daily_scalar", pulse
         _click(browser, "[data-dm-go-body]")
         _wait(browser, "!!document.querySelector('.archive-heading')")
-        _wait(browser, "!!document.querySelector('.dm-inline-metrics')")
-        body_snapshot=browser.evaluate("({url:location.href,hasShelf:!!document.querySelector('.dm-surface-shelf'),hasCompact:!!document.querySelector('.dm-inline-metrics'),text:document.body.innerText.slice(0,1200)})")
+        _wait(browser, "!!document.querySelector('.dm-inline-metrics,.dm-native-field')")
+        body_snapshot=browser.evaluate("({url:location.href,hasShelf:!!document.querySelector('.dm-surface-shelf'),hasCompact:!!document.querySelector('.dm-inline-metrics,.dm-native-field'),text:document.body.innerText.slice(0,1200)})")
         assert not body_snapshot["hasShelf"] and body_snapshot["hasCompact"] and "\u6668\u95f4\u8109\u640f" in body_snapshot["text"], body_snapshot
         screenshot_data = _command(browser, "Page.captureScreenshot", {"format": "png"})
         screenshot_path.write_bytes(base64.b64decode(screenshot_data["data"]))
@@ -218,8 +218,8 @@ def main() -> None:
         assert diet_discovery["status"] == 200 and diet_discovery["body"]["candidate"]["suggested_category_id"] == "diet" and diet_discovery["body"]["candidate"]["unit"] == "g", diet_discovery
 
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools')")
-        _wait(browser, "!!document.querySelector('.dm-tools-entry')")
-        _click(browser, ".dm-tools-entry")
+        _wait(browser, "!!document.querySelector('.dm-sidebar-entry')")
+        _click(browser, ".dm-sidebar-entry")
         _wait(browser, "!!document.querySelector('.dm-management-page')")
         _wait(browser, "!!document.querySelector('[data-dm-release-readiness]')")
         _click(browser, "[data-dm-release-readiness]")
@@ -394,12 +394,14 @@ def main() -> None:
         assert analysis_catalog.get("protocol_change_required_for_public_field") is True
 
         # Basic route and density smoke at desktop and narrow widths.
-        for route, marker in [("quick", "#raw-entry"), ("body", ".archive-heading"), ("tools", ".dm-tools-entry")]:
+        for route, marker in [("quick", "#raw-entry"), ("body", ".archive-heading"), ("tools", ".admin-page-header")]:
             browser.evaluate(f"window.__fitnessLedgerFormalMirrorBridge.navigate({json.dumps(route)})")
             _wait(browser, f"!!document.querySelector({json.dumps(marker)})")
-            metrics = browser.evaluate("({width:document.documentElement.scrollWidth,viewport:window.innerWidth,undefinedText:document.body.innerText.includes('undefined'),jsonText:document.body.innerText.includes('MODULE_ALIAS_CONFLICT')})")
-            assert metrics["width"] <= metrics["viewport"] + 2 and not metrics["undefinedText"] and not metrics["jsonText"], metrics
-        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools',{panel:'data-modules'})")
+            metrics = browser.evaluate("({width:document.documentElement.scrollWidth,viewport:window.innerWidth,undefinedText:document.body.innerText.includes('undefined'),jsonText:document.body.innerText.includes('MODULE_ALIAS_CONFLICT'),overflowNodes:[...document.querySelectorAll('*')].map(item=>({tag:item.tagName,cls:item.className&&String(item.className),right:Math.round(item.getBoundingClientRect().right)})).filter(item=>item.right>window.innerWidth+1).slice(0,8)})")
+            assert metrics["width"] <= metrics["viewport"] + 2 and not metrics["undefinedText"] and not metrics["jsonText"], (route, metrics)
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools')")
+        _wait(browser, "!!document.querySelector('.dm-sidebar-entry')")
+        _click(browser, ".dm-sidebar-entry")
         _wait(browser, "!!document.querySelector('.dm-review-hub') && document.querySelectorAll('[data-review-route]').length === 8")
         hub_routes = browser.evaluate("[...document.querySelectorAll('[data-review-route]')].map(item=>item.dataset.reviewRoute)")
         assert hub_routes == ["quick", "body", "diet", "training", "export", "sync", "health", "readiness"], hub_routes
