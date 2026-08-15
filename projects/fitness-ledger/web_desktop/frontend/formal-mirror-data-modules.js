@@ -226,21 +226,45 @@ function ensureReviewHub(){return}
       const widgets=modules.filter(item=>item.display_surface==='page_widget'&&(item.display_page||'home')===view);
       if(widgets.length){
         const anchor=reviewWidgetAnchor(view);
-        if(anchor)anchor.insertAdjacentElement('afterend',reviewWidgetNode(widgets,latest,view));
+        if(anchor){
+          const host=anchor.closest('.page')||anchor.closest('main')||anchor.parentElement;
+          host?.classList.add('dm-widget-host',`dm-widget-host-${view}`);
+          anchor.insertAdjacentElement('afterend',reviewWidgetNode(widgets,latest,view));
+        }
       }
       if(view==='home')return;
       const categoryModules=modules.filter(item=>item.display_surface==='category_page'&&item.category_id===view&&reviewPlacementValue(item.placement)==='main');
       if(!categoryModules.length)return;
       const target=view==='body'?$('#body-rows'):view==='diet'?$('#diet-rows'):view==='training'?$('#session-grid'):$('#movement-list');
       if(!target||view==='movement')return;
+      target.querySelectorAll('.dm-training-module-session').forEach(node=>node.remove());
       const cards=[...target.querySelectorAll(view==='training'?'[data-training-date]':'[data-record-date]')];
+      const renderedDates=new Set();
       for(const card of cards){
         const date=finalRecordDate(card),host=view==='body'?card.querySelector('.body-slip-meta'):view==='diet'?card.querySelector('.macro-line'):card.querySelector('.session-facts');
         if(!host||!date)continue;
+        renderedDates.add(date);
         for(const module of categoryModules){
           const row=records.find(record=>record.module_id===module.module_id&&String(record.date)===String(date));
           if(row)host.insertAdjacentHTML('beforeend',finalNativeField(view,module,row));
         }
+      }
+      if(view==='training'){
+        const moduleIds=new Set(categoryModules.map(module=>module.module_id));
+        const byDate=new Map();
+        records.filter(record=>moduleIds.has(record.module_id)&&!renderedDates.has(String(record.date))).forEach(record=>{
+          if(!byDate.has(String(record.date)))byDate.set(String(record.date),[]);
+          const module=categoryModules.find(item=>item.module_id===record.module_id);
+          if(module)byDate.get(String(record.date)).push({module,row:record});
+        });
+        if(byDate.size)target.querySelector('.training-empty')?.remove();
+        [...byDate.entries()].sort((a,b)=>String(b[0]).localeCompare(String(a[0]))).forEach(([date,entries])=>{
+          const node=document.createElement('article');
+          node.className='session session-slip training-theme-slip dm-training-module-session';
+          node.dataset.trainingDate=date;
+          node.innerHTML=`<div class="session-number">—</div><div class="rail-head"><h3>${esc(date)}</h3></div><p class="session-split">Training</p><div class="session-facts">${entries.map(({module,row})=>finalNativeField('training',module,row)).join('')}</div>`;
+          target.appendChild(node);
+        });
       }
     }catch(error){console.warn('[Data Module Mirror] native category surface unavailable',error)}
   }
@@ -251,11 +275,32 @@ function ensureReviewHub(){return}
   function removeLegacyCategoryDecorations(){
     $$('.dm-category-native-line,.dm-category-summary-row,.dm-inline-summary,.dm-inline-category').forEach(node=>node.remove());
   }
-  new MutationObserver(()=>{removeLegacyCategoryDecorations();syncDataModuleBackButton()}).observe(document.body,{childList:true,subtree:true});
-  function syncDataModuleBackButton(){const existing=$('[data-dm-back-tools]'),route=bridge.currentRoute(),panel=route.params?.get?.('panel')||state.routeParams?.panel||new URLSearchParams(location.hash.split('?')[1]||'').get('panel');if(route.view==='tools'&&panel==='data-modules'){if(!existing){document.body.insertAdjacentHTML('beforeend','<button type="button" class="dm-back-tools-button" data-dm-back-tools aria-label="返回 Tools">← 返回 Tools</button>')}}else existing?.remove()}
-  document.addEventListener('click',event=>{const target=event.target.closest?.('[data-dm-back-tools]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();bridge.navigate('tools',{})},true);
-  const finalManagementWithBack=renderManagementPage;renderManagementPage=async function(){await finalManagementWithBack();syncDataModuleBackButton()};
-  const finalRenderCurrent=renderCurrent;renderCurrent=function(){finalRenderCurrent();setTimeout(()=>{syncDataModuleBackButton();finalNativeCategorySurface()},700)};
-  window.addEventListener('fitness-ledger-pet:route-change',()=>[0,240,700,1200].forEach(delay=>setTimeout(()=>{removeLegacyCategoryDecorations();syncDataModuleBackButton();if(['body','diet','training','movement'].includes(bridge.currentRoute().view))finalNativeCategorySurface()},delay)));
+  function routePanel(route){return route.params?.get?.('panel')||state.routeParams?.panel||new URLSearchParams(location.hash.split('?')[1]||'').get('panel')||''}
+  function routeBackDescriptor(route){
+    const panel=routePanel(route);
+    if(route.view==='home')return null;
+    if(route.view==='tools')return panel&&panel!=='overview'?{label:'返回 Tools',view:'tools',params:{}}:{label:'返回 Home',view:'home',params:{}};
+    if(route.view==='movements'&&route.params?.get?.('movement_id'))return {label:'返回 Movement',view:'movements',params:{}};
+    if(route.view==='dictionary')return {label:'返回上一层',mode:'history',fallback:'tools'};
+    if(route.view==='guardian')return {label:'返回 Tools',view:'tools',params:{}};
+    if(route.view==='review')return {label:'返回 Daily Entry',view:'quick',params:{}};
+    return {label:'返回 Home',view:'home',params:{}};
+  }
+  function syncRouteBackButton(){
+    const existing=$('[data-dm-route-back]'),route=bridge.currentRoute(),descriptor=routeBackDescriptor(route);
+    if(!descriptor){existing?.remove();return}
+  const panel=routePanel(route),isToolsChild=Boolean(route.view==='tools'&&panel&&panel!=='overview');
+    const expectedMode=descriptor.mode||'',expectedView=descriptor.view||'',expectedFallback=descriptor.fallback||'',expectedText=`← ${descriptor.label}`;
+    if(existing&&existing.textContent.trim()===expectedText&&(existing.dataset.dmBackMode||'')===expectedMode&&(existing.dataset.dmBackView||'')===expectedView&&(existing.dataset.dmBackFallback||'')===expectedFallback&&existing.classList.contains('dm-back-tools-button')===isToolsChild)return;
+    existing?.remove();
+    const mode=descriptor.mode==='history'?` data-dm-back-mode="history" data-dm-back-fallback="${esc(descriptor.fallback||'tools')}"`:` data-dm-back-view="${esc(descriptor.view)}"`;
+    const legacy=isToolsChild?' data-dm-back-tools="true"':'';
+    document.body.insertAdjacentHTML('beforeend',`<button type="button" class="dm-route-back-button${isToolsChild?' dm-back-tools-button':''}" data-dm-route-back${legacy}${mode} aria-label="${esc(descriptor.label)}">← ${esc(descriptor.label)}</button>`);
+  }
+  new MutationObserver(()=>{removeLegacyCategoryDecorations();syncRouteBackButton()}).observe(document.body,{childList:true,subtree:true});
+  document.addEventListener('click',event=>{const target=event.target.closest?.('[data-dm-route-back]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();if(target.dataset.dmBackMode==='history'&&history.length>1){history.back();return}bridge.navigate(target.dataset.dmBackView||target.dataset.dmBackFallback||'home',{})},true);
+  const finalManagementWithBack=renderManagementPage;renderManagementPage=async function(){await finalManagementWithBack();syncRouteBackButton()};
+  const finalRenderCurrent=renderCurrent;renderCurrent=function(){finalRenderCurrent();setTimeout(()=>{syncRouteBackButton();finalNativeCategorySurface()},700)};
+  window.addEventListener('fitness-ledger-pet:route-change',()=>[0,240,700,1200].forEach(delay=>setTimeout(()=>{removeLegacyCategoryDecorations();syncRouteBackButton();if(['home','body','diet','training','movement'].includes(bridge.currentRoute().view))finalNativeCategorySurface()},delay)));
   renderCurrent();
 }
