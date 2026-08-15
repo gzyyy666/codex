@@ -402,10 +402,10 @@ def main() -> None:
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools')")
         _wait(browser, "!!document.querySelector('.dm-sidebar-entry')")
         _click(browser, ".dm-sidebar-entry")
-        _wait(browser, "!!document.querySelector('.dm-review-hub') && document.querySelectorAll('[data-review-route]').length === 8")
-        hub_routes = browser.evaluate("[...document.querySelectorAll('[data-review-route]')].map(item=>item.dataset.reviewRoute)")
-        assert hub_routes == ["quick", "body", "diet", "training", "export", "sync", "health", "readiness"], hub_routes
-        _click(browser, "[data-review-route='quick']")
+        _wait(browser, "!!document.querySelector('.dm-management-page') && !!document.querySelector('[data-dm-new-module]') && !!document.querySelector('.dm-module-group')")
+        management_shape = browser.evaluate("({reviewHub:!!document.querySelector('.dm-review-hub'),flowGuide:!!document.querySelector('.dm-flow-bar,.dm-structure-guide'),downstream:!!document.querySelector('.dm-downstream'),moduleGroups:document.querySelectorAll('.dm-module-group').length})")
+        assert not management_shape["reviewHub"] and not management_shape["flowGuide"] and not management_shape["downstream"] and management_shape["moduleGroups"] >= 1, management_shape
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('quick')")
         _wait(browser, "location.hash === '#quick' && !!document.querySelector('#raw-entry')")
         _command(browser, "Emulation.setDeviceMetricsOverride", {"width": 390, "height": 844, "deviceScaleFactor": 1, "mobile": True})
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('body')")
