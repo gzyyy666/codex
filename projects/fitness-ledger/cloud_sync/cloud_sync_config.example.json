@@ -4,7 +4,7 @@
   "region": "ap-shanghai",
   "secret_id_env": "TENCENTCLOUD_SECRET_ID",
   "secret_key_env": "TENCENTCLOUD_SECRET_KEY",
-  "auto_sync_enabled": false,
+  "auto_sync_enabled": true,
   "batch_size": 20,
   "notes": [
     "Do not put SecretId or SecretKey in this file.",
