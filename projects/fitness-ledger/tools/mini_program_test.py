@@ -28,6 +28,8 @@ def main() -> None:
     assert 'case "dataModules"' in cloud
     assert 'fitness-ledger-mini-module-contract-v1' in cloud
     assert 'function safeAll' in cloud
+    contract = (ROOT / "miniprogram" / "utils" / "dataModuleContract.js").read_text(encoding="utf-8")
+    assert "function modulesForExtension" in contract
     assert 'case "trainingRecords"' in cloud
     assert 'case "movementCatalog"' in cloud
     component = ROOT / "miniprogram" / "components" / "dataModuleCard"
@@ -35,6 +37,10 @@ def main() -> None:
         assert (component / f"index{suffix}").exists()
     component_wxml = (component / "index.wxml").read_text(encoding="utf-8")
     assert "暂无记录" in component_wxml and "raw_text" not in component_wxml
+    status_wxml = (ROOT / "miniprogram" / "pages" / "status" / "index.wxml").read_text(encoding="utf-8")
+    status_js = (ROOT / "miniprogram" / "pages" / "status" / "index.js").read_text(encoding="utf-8")
+    assert "status-extension-strip" in status_wxml and "其他扩展" in status_wxml
+    assert "modulesForExtension" in status_js and "extensionModules" in status_js
     for page_name in ("body", "diet", "record", "status"):
         page_root = ROOT / "miniprogram" / "pages" / page_name
         assert "data-module-card" in (page_root / "index.wxml").read_text(encoding="utf-8")

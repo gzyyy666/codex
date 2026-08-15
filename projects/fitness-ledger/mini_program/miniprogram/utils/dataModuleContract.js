@@ -99,6 +99,16 @@ function modulesForDate(model, categoryId, date) {
   }).filter(Boolean)
 }
 
+function modulesForExtension(model) {
+  return (model && Array.isArray(model.modules) ? model.modules : []).filter((module) => {
+    if (module.category_id !== 'extension' || module.status === 'retired') return false
+    const surface = module.display_surface && module.display_surface.value
+    const page = module.display_page && module.display_page.value
+    if (surface === 'record_only' || surface === 'history_only') return false
+    return !(surface === 'page_widget' && (!page || page === 'home'))
+  })
+}
+
 function buildDataModuleReadModel(contract) {
   validateDataModuleContract(contract)
   return {
@@ -115,6 +125,7 @@ module.exports = {
   buildDataModuleReadModel,
   safeBuildDataModuleReadModel,
   modulesForDate,
+  modulesForExtension,
 }
 
 function safeBuildDataModuleReadModel(contract) {

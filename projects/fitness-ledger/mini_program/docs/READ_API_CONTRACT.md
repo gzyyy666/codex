@@ -43,6 +43,11 @@ writable from the Mini Program. If the extension collections have not yet
 been deployed, the action returns an empty valid contract so existing pages
 continue to work.
 
+For a module assigned to the `extension` category, the Mini Program does not
+create a new page. If it is not already a home widget and is not
+`record_only` / `history_only`, the Status page shows it in the compact
+`其他扩展` section. The Mini Program remains read-only.
+
 ## `movementCatalog`
 
 This is a read-only catalog for local UI candidate matching. It returns active

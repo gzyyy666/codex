@@ -210,8 +210,8 @@ def main() -> None:
         _click(browser, "[data-dm-go-body]")
         _wait(browser, "!!document.querySelector('.archive-heading')")
         _wait(browser, "!!document.querySelector('.dm-inline-metrics,.dm-native-field')")
-        body_snapshot=browser.evaluate("({url:location.href,hasShelf:!!document.querySelector('.dm-surface-shelf'),hasCompact:!!document.querySelector('.dm-inline-metrics,.dm-native-field'),text:document.body.innerText.slice(0,1200)})")
-        assert not body_snapshot["hasShelf"] and body_snapshot["hasCompact"] and "\u6668\u95f4\u8109\u640f" in body_snapshot["text"], body_snapshot
+        body_snapshot=browser.evaluate("({url:location.href,hasShelf:!!document.querySelector('.dm-surface-shelf'),hasCompact:!!document.querySelector('.dm-inline-metrics,.dm-native-field'),nativeValue:document.querySelector('.body-slip-meta .dm-native-field')?.innerText||'',summary:document.querySelectorAll('.dm-category-summary-row').length,legacy:document.querySelectorAll('.dm-category-native-line').length,text:document.body.innerText.slice(0,1200)})")
+        assert not body_snapshot["hasShelf"] and body_snapshot["hasCompact"] and "bpm" in body_snapshot["nativeValue"] and body_snapshot["summary"] == 0 and body_snapshot["legacy"] == 0, body_snapshot
         screenshot_data = _command(browser, "Page.captureScreenshot", {"format": "png"})
         screenshot_path.write_bytes(base64.b64decode(screenshot_data["data"]))
         diet_discovery = _json_post(browser, "/api/data-modules/discover", {"raw": "\u4eca\u5929\u6bcf\u65e5\u808c\u9178 5 g"})
@@ -265,6 +265,9 @@ def main() -> None:
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.root.innerHTML=''")
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools',{panel:'data-modules'})")
         _wait(browser, "!!document.querySelector('.dm-management-page')")
+        _wait(browser, "!!document.querySelector('[data-dm-back-tools]')")
+        back_shape = browser.evaluate("({position:getComputedStyle(document.querySelector('[data-dm-back-tools]')).position})")
+        assert back_shape["position"] == "fixed", back_shape
 
         # Unclassified data uses the normal flow: choose "Other Extensions";
         # there is no separate custom-category entrance.

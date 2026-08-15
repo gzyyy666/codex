@@ -5,6 +5,11 @@ const $=(selector,root=document)=>root.querySelector(selector);
 const $$=(selector,root=document)=>[...root.querySelectorAll(selector)];
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const state={catalog:null,activePreview:null,lastSavedModuleId:'',entryRaw:'',formContext:null,catalogRequestSerial:0,catalogAppliedSerial:0,shelfBusy:false};
+/* The formal mirror keeps a local copy of the entry renderer for review history.
+   The product shell owns the live route function, so keep this compatibility
+   binding local instead of assigning to an undeclared module variable. */
+let quickPage;
+let finalSurfaceSerial=0;
 const post=(path,payload)=>bridge.postApi(path,payload);
 const get=path=>bridge.api(path);
 const CATEGORY_COPY={
@@ -202,7 +207,55 @@ function ensureReviewHub(){return}
  function ensureManagementToolbar(){const page=$('.dm-management-page');if(!page)return;const actions=$('.admin-header-actions',page);if(actions&&!actions.querySelector('[data-dm-release-readiness]')){const button=document.createElement('button');button.type='button';button.className='admin-button admin-button-outline';button.dataset.dmReleaseReadiness='true';button.textContent='检查 Cloud / Mini';actions.insertBefore(button,actions.firstChild)}}
  const reviewManagementBeforeHub=renderManagementPage;renderManagementPage=async function(){await reviewManagementBeforeHub();const page=$('.dm-management-page');if(!page)return;$$('[data-dm-new-category],.dm-flow-bar,.dm-structure-guide,.dm-management-intro,.dm-downstream,.dm-management-note,.dm-review-hub',page).forEach(node=>node.remove());$('.admin-page-header p',page)?.remove();const categoryTitle=$('.dm-category-list>header h2',page);if(categoryTitle)categoryTitle.textContent='类别';ensureManagementToolbar()};
  const reviewLastSurfaceBase=enhanceSurfacePage;enhanceSurfacePage=async function(){await reviewLastSurfaceBase();const rawView=bridge.currentRoute().view,view=rawView==='movements'?'movement':rawView;if(!['body','diet','training','movement'].includes(view))return;$('.dm-category-native-line')?.remove();if(!state.catalog)await loadCatalog();const modules=(state.catalog.modules||[]).filter(item=>item.status==='active'&&item.capabilities?.recordable&&item.display_surface==='category_page'&&item.category_id===view&&reviewPlacementValue(item.placement)==='main');if(!modules.length)return;const hasRendered=modules.some(item=>document.querySelector(`.dm-native-field[data-dm-module-id="${CSS.escape(item.module_id)}"]`));if(hasRendered)return;const exported=await get('/api/data-modules/export');const latest=reviewLatestRecords(exported.records||[]);const node=document.createElement('div');node.className='dm-category-native-main';node.dataset.dmGenerated='final';node.innerHTML=modules.map(item=>reviewNativeField(view,item,latest.get(item.module_id))).join('');const target=view==='body'?$('#body-rows'):view==='diet'?$('#diet-rows'):view==='training'?$('#session-grid'):$('#movement-list');target?.insertAdjacentElement('beforebegin',node)};new MutationObserver(()=>ensureManagementToolbar()).observe(document.body,{childList:true,subtree:true});
- async function ensureCategoryMainFallback(){const rawView=bridge.currentRoute().view,view=rawView==='movements'?'movement':rawView;if(!['body','diet','training','movement'].includes(view))return;$('.dm-category-native-line')?.remove();const target=view==='body'?$('#body-rows'):view==='diet'?$('#diet-rows'):view==='training'?$('#session-grid'):$('#movement-list');if(!target){setTimeout(ensureCategoryMainFallback,220);return}try{const catalog=await (await fetch('/api/data-modules/product-catalog')).json();const modules=(catalog.modules||[]).filter(item=>item.status==='active'&&item.category_id===view&&item.display_surface==='category_page'&&(item.placement==='main'||item.placement==='summary'));if(!modules.length)return;const rendered=modules.some(item=>[...document.querySelectorAll('.dm-native-field')].some(node=>node.dataset.dmModuleId===item.module_id));if(rendered)return;const exported=await (await fetch('/api/data-modules/export')).json();const latest=reviewLatestRecords(exported.records||[]);const node=document.createElement('div');node.className='dm-category-native-main';node.dataset.dmGenerated='fallback';node.dataset.dmModuleCount=String(modules.length);node.innerHTML=modules.map(item=>{const row=latest.get(item.module_id),unit=item.display_unit||item.actual_unit||'';return `<span class="dm-native-field" data-dm-fallback="true" data-dm-module-id="${esc(item.module_id)}"><span>${esc(item.label)}</span><strong>${esc(formatValue(row?.value,unit))}</strong></span>`}).join('');target.insertAdjacentElement('beforebegin',node)}catch(error){console.warn('[Data Module Mirror] category fallback unavailable',error)}}
+ async function ensureCategoryMainFallback(){}
  document.addEventListener('click',event=>{const target=event.target.closest?.('[data-review-route]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();const route=target.dataset.reviewRoute;if(route==='readiness'){openReleaseReadiness();return}const routes={quick:['quick',{}],body:['body',{}],diet:['diet',{}],training:['training',{}],export:['tools',{panel:'export'}],sync:['tools',{panel:'sync'}],health:['tools',{panel:'health'}]};const destination=routes[route];if(destination)bridge.navigate(destination[0],destination[1])},true);
- renderCurrent();
+  /* Last presentation pass: category modules use the host page's own facts. */
+  function finalNativeField(view,module,row){const value=esc(formatValue(row?.value,module.display_unit||module.actual_unit));const attrs=`class="dm-native-field" data-dm-rendered="final" data-dm-module-id="${esc(module.module_id)}"`;if(view==='diet')return `<span ${attrs}>${esc(module.label)} ${value}</span>`;return `<span ${attrs}><span>${esc(module.label)}</span><strong>${value}</strong></span>`}
+  function finalRecordDate(card){return card?.dataset.recordDate||card?.dataset.trainingDate||card?.dataset.date||''}
+  async function finalNativeCategorySurface(){
+    const rawView=bridge.currentRoute().view,view=rawView==='movements'?'movement':rawView;
+    if(!['home','body','diet','training','movement'].includes(view))return;
+    const serial=++finalSurfaceSerial;
+    $$('.dm-page-widget-strip,.dm-category-summary-row,.dm-category-native-line,.dm-category-native-main,.dm-native-field:not([data-dm-fallback])').forEach(node=>node.remove());
+    try{
+      const catalog=await get('/api/data-modules/product-catalog');state.catalog=catalog;
+      const modules=(catalog.modules||[]).filter(item=>item.status==='active'&&item.capabilities?.recordable);
+      const exported=await get('/api/data-modules/export');
+      if(serial!==finalSurfaceSerial)return;
+      const records=exported.records||[],latest=reviewLatestRecords(records);
+      const widgets=modules.filter(item=>item.display_surface==='page_widget'&&(item.display_page||'home')===view);
+      if(widgets.length){
+        const anchor=reviewWidgetAnchor(view);
+        if(anchor)anchor.insertAdjacentElement('afterend',reviewWidgetNode(widgets,latest,view));
+      }
+      if(view==='home')return;
+      const categoryModules=modules.filter(item=>item.display_surface==='category_page'&&item.category_id===view&&reviewPlacementValue(item.placement)==='main');
+      if(!categoryModules.length)return;
+      const target=view==='body'?$('#body-rows'):view==='diet'?$('#diet-rows'):view==='training'?$('#session-grid'):$('#movement-list');
+      if(!target||view==='movement')return;
+      const cards=[...target.querySelectorAll(view==='training'?'[data-training-date]':'[data-record-date]')];
+      for(const card of cards){
+        const date=finalRecordDate(card),host=view==='body'?card.querySelector('.body-slip-meta'):view==='diet'?card.querySelector('.macro-line'):card.querySelector('.session-facts');
+        if(!host||!date)continue;
+        for(const module of categoryModules){
+          const row=records.find(record=>record.module_id===module.module_id&&String(record.date)===String(date));
+          if(row)host.insertAdjacentHTML('beforeend',finalNativeField(view,module,row));
+        }
+      }
+    }catch(error){console.warn('[Data Module Mirror] native category surface unavailable',error)}
+  }
+  enhanceSurfacePage=finalNativeCategorySurface;
+  reviewEnhanceSurfacePage=finalNativeCategorySurface;
+  reviewEnhanceSurfacePageFinal=finalNativeCategorySurface;
+  ensureCategoryMainFallback=async function(){};
+  function removeLegacyCategoryDecorations(){
+    $$('.dm-category-native-line,.dm-category-summary-row,.dm-inline-summary,.dm-inline-category').forEach(node=>node.remove());
+  }
+  new MutationObserver(()=>{removeLegacyCategoryDecorations();syncDataModuleBackButton()}).observe(document.body,{childList:true,subtree:true});
+  function syncDataModuleBackButton(){const existing=$('[data-dm-back-tools]'),route=bridge.currentRoute(),panel=route.params?.get?.('panel')||state.routeParams?.panel||new URLSearchParams(location.hash.split('?')[1]||'').get('panel');if(route.view==='tools'&&panel==='data-modules'){if(!existing){document.body.insertAdjacentHTML('beforeend','<button type="button" class="dm-back-tools-button" data-dm-back-tools aria-label="返回 Tools">← 返回 Tools</button>')}}else existing?.remove()}
+  document.addEventListener('click',event=>{const target=event.target.closest?.('[data-dm-back-tools]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();bridge.navigate('tools',{})},true);
+  const finalManagementWithBack=renderManagementPage;renderManagementPage=async function(){await finalManagementWithBack();syncDataModuleBackButton()};
+  const finalRenderCurrent=renderCurrent;renderCurrent=function(){finalRenderCurrent();setTimeout(()=>{syncDataModuleBackButton();finalNativeCategorySurface()},700)};
+  window.addEventListener('fitness-ledger-pet:route-change',()=>[0,240,700,1200].forEach(delay=>setTimeout(()=>{removeLegacyCategoryDecorations();syncDataModuleBackButton();if(['body','diet','training','movement'].includes(bridge.currentRoute().view))finalNativeCategorySurface()},delay)));
+  renderCurrent();
 }
