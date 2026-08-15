@@ -115,10 +115,12 @@
 .dm-management-page .dm-category-list>header .admin-kicker{display:none}
 .dm-management-page .dm-category-list>header{margin:0}
 .archive-page>.archive-heading .page-subtitle,.training-theme-header>div>p,.movement-index-hero>p,.dictionary-hero>div>p{display:none!important}
-.dm-route-back-button{position:fixed;bottom:20px;left:20px;z-index:70;border:1px solid rgba(44,48,43,.22);border-radius:999px;padding:9px 13px;background:rgba(255,253,247,.94);box-shadow:0 6px 18px rgba(54,71,56,.12);color:#35483b;font:600 12px/1.2 var(--sans,Arial,sans-serif);cursor:pointer;backdrop-filter:blur(8px)}
+.dm-route-back-button{position:fixed;top:96px;bottom:auto;left:20px;z-index:70;border:1px solid rgba(44,48,43,.22);border-radius:999px;padding:9px 13px;background:rgba(255,253,247,.94);box-shadow:0 6px 18px rgba(54,71,56,.12);color:#35483b;font:600 12px/1.2 var(--sans,Arial,sans-serif);cursor:pointer;backdrop-filter:blur(8px)}
 .dm-route-back-button:hover{background:#fffdf7;color:#1f3025}
 .dm-has-route-back .entry-page .home-text-link,.dm-has-route-back .review-document-head .home-text-link,.dm-has-route-back .movement-detail-page>.movement-back,.dm-has-route-back .dictionary-page .dictionary-back,.dm-has-route-back .cloud-sync-page>.movement-back{display:none!important}
-body:has(.dm-modal) .tools-pet-floating,body:has(.dm-modal) .tools-pet-cursor-trail,body:has(.structured-detail-modal) .tools-pet-floating,body:has(.structured-detail-modal) .tools-pet-cursor-trail{opacity:0!important;pointer-events:none!important}
+body:has(.overlay) .tools-pet-floating,body:has(.overlay) .tools-pet-cursor-trail{opacity:0!important;pointer-events:none!important}
+html[data-pet-cursor="trophy"]:has(body .overlay),html[data-pet-cursor="trophy"]:has(body .overlay) *{cursor:auto!important}
+html[data-pet-cursor="trophy"]:has(body .overlay) button,html[data-pet-cursor="trophy"]:has(body .overlay) [role="button"],html[data-pet-cursor="trophy"]:has(body .overlay) a,html[data-pet-cursor="trophy"]:has(body .overlay) select{cursor:pointer!important}
 body:has(.dm-management-page) .tools-pet-floating,body:has(.dm-management-page) .tools-pet-cursor-trail{opacity:0!important;pointer-events:none!important}
 .dm-definition-form-compact .dm-suggestion{display:none}
 .dm-module-only-record .dm-native-field{margin:0}
@@ -128,4 +130,4 @@ body:has(.dm-management-page) .tools-pet-floating,body:has(.dm-management-page) 
 .dm-diet-module-record .record-open{margin-top:auto}
 .dm-training-module-session .session-facts{margin-bottom:44px}
 .dm-category-native-line{display:none!important}
-@media (max-width:720px){.dm-route-back-button{bottom:14px;left:12px;padding:8px 11px;font-size:11px}}
+@media (max-width:720px){.dm-route-back-button{top:88px;bottom:auto;left:12px;padding:8px 11px;font-size:11px}}

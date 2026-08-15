@@ -234,8 +234,9 @@ def main() -> None:
         category_values = browser.evaluate("[...document.querySelectorAll('[name=category_id] option')].map(item=>item.value)")
         assert category_values == ["body", "diet", "training", "extension"], category_values
         _wait(browser, "[...document.querySelectorAll('.tools-pet-floating,.tools-pet-cursor-trail')].every(item=>getComputedStyle(item).opacity==='0')")
-        form_shape = browser.evaluate("({suggestion:getComputedStyle(document.querySelector('.dm-suggestion')).display,petVisible:[...document.querySelectorAll('.tools-pet-floating,.tools-pet-cursor-trail')].some(item=>getComputedStyle(item).opacity!=='0')})")
+        form_shape = browser.evaluate("({suggestion:getComputedStyle(document.querySelector('.dm-suggestion')).display,petVisible:[...document.querySelectorAll('.tools-pet-floating,.tools-pet-cursor-trail')].some(item=>getComputedStyle(item).opacity!=='0'),modalCursor:getComputedStyle(document.querySelector('.dm-modal')).cursor,buttonCursor:getComputedStyle(document.querySelector('[data-dm-submit-definition]')).cursor})")
         assert form_shape["suggestion"] == "none" and not form_shape["petVisible"], form_shape
+        assert form_shape["modalCursor"] == "auto" and form_shape["buttonCursor"] == "pointer", form_shape
         _set_css(browser, "[name=label]", "\u65e5\u95f4\u4f53\u6e29")
         _set_css(browser, "[name=actual_unit]", "C")
         _set_css(browser, "[name=aliases]", "\u65e5\u95f4\u4f53\u6e29")
@@ -284,8 +285,9 @@ def main() -> None:
         assert browser.evaluate("document.body.innerText.includes('\u6bcf\u65e5\u94a0\u6444\u5165')")
         _wait(browser, "![...document.querySelectorAll('.structured-section h3')].map(item=>item.textContent).includes('\u8bad\u7ec3\u8bb0\u5f55')")
         _wait(browser, "[...document.querySelectorAll('.tools-pet-floating,.tools-pet-cursor-trail')].every(item=>getComputedStyle(item).opacity==='0')")
-        detail_shape = browser.evaluate("({sections:[...document.querySelectorAll('.structured-section h3')].map(item=>item.textContent),petVisible:[...document.querySelectorAll('.tools-pet-floating,.tools-pet-cursor-trail')].some(item=>getComputedStyle(item).opacity!=='0')})")
+        detail_shape = browser.evaluate("({sections:[...document.querySelectorAll('.structured-section h3')].map(item=>item.textContent),petVisible:[...document.querySelectorAll('.tools-pet-floating,.tools-pet-cursor-trail')].some(item=>getComputedStyle(item).opacity!=='0'),modalCursor:getComputedStyle(document.querySelector('.structured-detail-modal')).cursor,closeCursor:getComputedStyle(document.querySelector('.structured-detail-modal [data-close]')).cursor})")
         assert "\u996e\u98df\u8bb0\u5f55" in detail_shape["sections"] and not detail_shape["petVisible"], detail_shape
+        assert detail_shape["modalCursor"] == "auto" and detail_shape["closeCursor"] == "pointer", detail_shape
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.root.innerHTML=''")
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools',{panel:'data-modules'})")
         _wait(browser, "!!document.querySelector('.dm-management-page')")
@@ -508,13 +510,13 @@ def main() -> None:
 
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('quick')")
         _wait(browser, "location.hash === '#quick' && !!document.querySelector('#raw-entry')")
-        back_state = browser.evaluate("({fixed:!!document.querySelector('[data-dm-route-back]'),bottom:getComputedStyle(document.querySelector('[data-dm-route-back]')).bottom,inlineVisible:getComputedStyle(document.querySelector('.home-text-link')).display})")
-        assert back_state["fixed"] and back_state["bottom"] != "auto" and back_state["inlineVisible"] == "none", back_state
+        back_state = browser.evaluate("({fixed:!!document.querySelector('[data-dm-route-back]'),top:getComputedStyle(document.querySelector('[data-dm-route-back]')).top,screenTop:document.querySelector('[data-dm-route-back]').getBoundingClientRect().top,inlineVisible:getComputedStyle(document.querySelector('.home-text-link')).display})")
+        assert back_state["fixed"] and back_state["top"] == "96px" and 80 <= back_state["screenTop"] <= 110 and back_state["inlineVisible"] == "none", back_state
         _command(browser, "Emulation.setDeviceMetricsOverride", {"width": 390, "height": 844, "deviceScaleFactor": 1, "mobile": True})
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('body')")
         _wait(browser, "!!document.querySelector('.archive-heading')")
-        mobile_metrics = browser.evaluate("({width:document.documentElement.scrollWidth,viewport:window.innerWidth})")
-        assert mobile_metrics["width"] <= mobile_metrics["viewport"] + 2, mobile_metrics
+        mobile_metrics = browser.evaluate("({width:document.documentElement.scrollWidth,viewport:window.innerWidth,backTop:document.querySelector('[data-dm-route-back]').getBoundingClientRect().top})")
+        assert mobile_metrics["width"] <= mobile_metrics["viewport"] + 2 and 76 <= mobile_metrics["backTop"] <= 100, mobile_metrics
 
         # Restart the mirror against the same sandbox and verify definitions + history.
         browser.close();browser=None

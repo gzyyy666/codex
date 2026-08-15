@@ -1,5 +1,12 @@
 # Fitness Ledger Changelog
 
+## 2026-08-15 - Modal cursor and return control fix
+
+- Moved the shared route return control from the lower-left corner to the
+  upper-left area below the fixed navigation.
+- Restored the native pointer while an overlay is open, so record and Data
+  Module dialogs remain usable when the optional trophy cursor is enabled.
+
 ## 2026-08-15 - Data Module production activation
 
 - The formal Web launcher now creates an empty local Data Module definition
