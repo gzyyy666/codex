@@ -26,6 +26,7 @@ def main() -> int:
         "index.html",
         "manifest.webmanifest",
         "app.js",
+        "data-modules.js",
         "api.js",
         "config.js",
         "styles.css",
@@ -51,7 +52,7 @@ def main() -> int:
     config = (PWA / "config.js").read_text(encoding="utf-8")
     source = "\n".join(
         (PWA / item).read_text(encoding="utf-8")
-        for item in ("index.html", "app.js", "api.js", "config.js", "styles.css", "sw.js")
+        for item in ("index.html", "app.js", "data-modules.js", "api.js", "config.js", "styles.css", "sw.js")
     )
     forbidden = ("AppSecret", "SecretId", "SecretKey", "TENCENTCLOUD_SECRET", "wx.cloud")
     found_forbidden = [token for token in forbidden if token in source]

@@ -34,6 +34,24 @@ normal flow remains:
 formal local data → Cloud Sync export/payload → CloudBase fl_* replica → PWA read-only API
 ```
 
+When the optional Data Module registry is enabled, the same sync run also
+includes `fl_data_modules`, `fl_data_module_records`, and the compact contract.
+The phone PWA reads only the sanitized module definition and value fields:
+raw input, notes, definition snapshots, and source hashes stay excluded.
+
+Placement follows the desktop definition without adding a new top-level tab:
+
+- Body, Diet, and Training modules join their existing dated archive cards and
+  daily detail sections. A module-only date still creates a readable archive
+  card, so a Diet or Training metric is not hidden merely because the native
+  collection has no row for that day.
+- A module assigned to another category appears under `其他记录` in the daily
+  detail. If its surface is `page_widget`, its latest value also appears as a
+  compact edge control on the selected page.
+- `history_only` remains available in daily detail; `record_only` is not
+  automatically rendered. Retired modules keep historical values but do not
+  create a current page widget.
+
 The one-click sync command needs no change for this PWA release. Run it as
 before when formal data changes; after the upload and verification complete,
 the PWA will read the new `fl_*` records on its next load. The local Training
@@ -77,6 +95,7 @@ GET /api/pwa/read?action=bodyArea&part=shoulders
 GET /api/pwa/read?action=trainingRecords
 GET /api/pwa/read?action=recordDetail&date=YYYY-MM-DD
 GET /api/pwa/read?action=movementHistory&movementId=<id>
+GET /api/pwa/read?action=dataModules
 ```
 
 Responses may be raw JSON or the existing `{ok: true, data: ...}` envelope.

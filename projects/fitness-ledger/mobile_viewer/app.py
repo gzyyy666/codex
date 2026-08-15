@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import os
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
 from flask import Flask, abort, jsonify, render_template, request, send_from_directory, url_for
+
+from fitness_ledger_core.data_module_engine import DataModuleDefinitionStore, DataModuleEngine
 
 from .data_access import BASE_DIR, LedgerDataAccess, format_set_line
 
@@ -18,6 +21,49 @@ PWA_BODY_PARTS = {
     "legs": {"label": "腿", "labelEn": "LEGS", "tone": "violet", "groups": ("leg", "lower", "hip", "腿", "臀")},
     "arms": {"label": "手臂", "labelEn": "ARMS", "tone": "cyan", "groups": ("arm", "biceps", "triceps", "手臂")},
 }
+
+
+def _empty_data_module_contract() -> dict:
+    return {
+        "schema": "fitness-ledger-mini-module-contract-v1",
+        "page_required": False,
+        "renderers": [],
+        "modules": [],
+    }
+
+
+def _data_module_registry_path(data_access: LedgerDataAccess, configured: Path | None = None) -> Path | None:
+    candidates = [configured] if configured else []
+    environment_path = str(os.environ.get("FITNESS_LEDGER_DATA_MODULE_REGISTRY", "")).strip()
+    if environment_path:
+        candidates.append(Path(environment_path))
+    candidates.extend([
+        data_access.tracker_file.parent / "data_module_definitions.json",
+        BASE_DIR / "data" / "data_module_definitions.json",
+    ])
+    return next((path for path in candidates if path and path.is_file()), None)
+
+
+def _pwa_data_module_contract(data_access: LedgerDataAccess, configured: Path | None = None) -> dict:
+    """Build the same sanitized read contract used by Cloud without exposing raw text."""
+    registry_path = _data_module_registry_path(data_access, configured)
+    if registry_path is None:
+        return _empty_data_module_contract()
+    try:
+        store = DataModuleDefinitionStore(registry_path)
+        categories, modules, issues = store.load(strict=True)
+        engine = DataModuleEngine(
+            modules,
+            data_access.tracker_file,
+            data_access.dictionary_file,
+            category_registry=categories,
+            definition_issues=issues,
+        )
+        return engine.build_mini_program_contract(history_limit=1000)
+    except Exception:
+        # The phone viewer is read-only.  A damaged optional registry must not
+        # take down the existing body, diet, and training archives.
+        return _empty_data_module_contract()
 
 
 def _pwa_set_summary(sets: list[dict]) -> str:
@@ -130,9 +176,12 @@ def _pwa_body_area(data_access: LedgerDataAccess, part_id: str) -> dict | None:
     }
 
 
-def create_app() -> Flask:
+def create_app(
+    data_access: LedgerDataAccess | None = None,
+    data_module_registry: Path | None = None,
+) -> Flask:
     app = Flask(__name__, template_folder="templates", static_folder="static")
-    data_access = LedgerDataAccess()
+    data_access = data_access or LedgerDataAccess()
     app.config["DATA_ACCESS"] = data_access
 
     @app.context_processor
@@ -157,6 +206,14 @@ def create_app() -> Flask:
 
     @app.get("/pwa/<path:filename>")
     def pwa_assets(filename: str):
+        if filename == "config.js":
+            # Flask is the trusted local adapter.  Keep the tracked production
+            # config authenticated while making the documented localhost
+            # preview work without a CloudBase login prompt.
+            return app.response_class(
+                "window.FL_PWA_CONFIG = { apiBaseUrl: '/api', credentials: 'same-origin', requireWebAuth: false, appName: '每日健身 · 本地预览' };\n",
+                content_type="application/javascript; charset=utf-8",
+            )
         return send_from_directory(PWA_DIR, filename)
 
     @app.get("/")
@@ -226,6 +283,8 @@ def create_app() -> Flask:
         if action == "dietRecords":
             rows = sorted(data_access._tracker().get("diet_records", []), key=lambda item: str(item.get("Date") or ""), reverse=True)
             return jsonify({"ok": True, "data": rows[:max(1, min(int(request.args.get("limit", "30")), 50))]})
+        if action == "dataModules":
+            return jsonify({"ok": True, "data": _pwa_data_module_contract(data_access, data_module_registry)})
         if action == "trainingRecords":
             rows = sorted(data_access._tracker().get("training_sessions", []), key=lambda item: str(item.get("Date") or ""), reverse=True)
             return jsonify({"ok": True, "data": rows[:200]})

@@ -1,0 +1,80 @@
+{
+  "schema_version": "fitness-ledger-data-module-registry-v1",
+  "modules": [
+    {
+      "module_id": "waist_cm",
+      "label": "腰围",
+      "aliases": ["腰围", "waist"],
+      "category_id": "body",
+      "data_type": "quantity",
+      "actual_unit": "cm",
+      "display_unit": "cm",
+      "definition_version": 1,
+      "status": "active",
+      "capabilities": {"recordable": true, "queryable": true, "history_enabled": true, "exportable": true, "analysis_visible": true, "statistics_visible": true, "cloud_syncable": true, "mini_program_visible": true},
+      "validation_contract": {"minimum": 20, "maximum": 300, "decimal_places": 1},
+      "recording_behavior": {"kind": "scalar", "cardinality": "one_per_day"},
+      "presentation": {"section": "body", "slot": "top", "order": 10, "visible_by_default": true, "renderer": "single_metric"}
+    },
+    {
+      "module_id": "creatine_g",
+      "label": "肌酸",
+      "aliases": ["肌酸", "creatine"],
+      "category_id": "diet",
+      "data_type": "quantity",
+      "actual_unit": "g",
+      "display_unit": "g",
+      "definition_version": 1,
+      "status": "active",
+      "capabilities": {"recordable": true, "queryable": true, "history_enabled": true, "exportable": true, "analysis_visible": true, "statistics_visible": true, "cloud_syncable": true, "mini_program_visible": true},
+      "validation_contract": {"minimum": 0, "maximum": 30, "decimal_places": 1},
+      "recording_behavior": {"kind": "scalar", "cardinality": "one_per_day"},
+      "presentation": {"section": "diet", "slot": "top", "order": 10, "visible_by_default": true, "renderer": "single_metric"}
+    },
+    {
+      "module_id": "training_readiness",
+      "label": "训练状态",
+      "aliases": ["训练状态", "readiness"],
+      "category_id": "training",
+      "data_type": "rating",
+      "actual_unit": "",
+      "display_unit": "",
+      "definition_version": 1,
+      "status": "active",
+      "capabilities": {"recordable": true, "queryable": true, "history_enabled": true, "exportable": true, "analysis_visible": true, "statistics_visible": true, "cloud_syncable": true, "mini_program_visible": true},
+      "validation_contract": {"minimum": 1, "maximum": 10, "decimal_places": 0, "integer": true},
+      "recording_behavior": {"kind": "scalar", "cardinality": "one_per_day"},
+      "presentation": {"section": "training", "slot": "top", "order": 10, "visible_by_default": true, "renderer": "single_metric"}
+    },
+    {
+      "module_id": "sleep_score",
+      "label": "睡眠评分",
+      "aliases": ["睡眠评分", "sleep score"],
+      "category_id": "extension",
+      "data_type": "rating",
+      "actual_unit": "",
+      "display_unit": "",
+      "definition_version": 1,
+      "status": "active",
+      "capabilities": {"recordable": true, "queryable": true, "history_enabled": true, "exportable": true, "analysis_visible": true, "statistics_visible": true, "cloud_syncable": true, "mini_program_visible": true},
+      "validation_contract": {"minimum": 1, "maximum": 10, "decimal_places": 0, "integer": true},
+      "recording_behavior": {"kind": "scalar", "cardinality": "one_per_day"},
+      "presentation": {"section": "home", "slot": "auxiliary", "order": 10, "visible_by_default": true, "renderer": "single_metric"}
+    },
+    {
+      "module_id": "grip_readiness",
+      "label": "握力状态",
+      "aliases": ["握力状态", "grip readiness"],
+      "category_id": "extension",
+      "data_type": "rating",
+      "actual_unit": "",
+      "display_unit": "",
+      "definition_version": 1,
+      "status": "active",
+      "capabilities": {"recordable": true, "queryable": true, "history_enabled": true, "exportable": true, "analysis_visible": false, "statistics_visible": false, "cloud_syncable": true, "mini_program_visible": true},
+      "validation_contract": {"minimum": 1, "maximum": 10, "decimal_places": 0, "integer": true},
+      "recording_behavior": {"kind": "scalar", "cardinality": "one_per_day"},
+      "presentation": {"section": "movement", "slot": "auxiliary", "order": 20, "visible_by_default": true, "renderer": "single_metric"}
+    }
+  ]
+}

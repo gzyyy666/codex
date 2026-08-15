@@ -24,6 +24,13 @@ today_payload = today_api.get_json()
 assert isinstance(today_payload, dict)
 assert "date" in today_payload
 
+modules_api = client.get("/api/pwa/read?action=dataModules")
+assert modules_api.status_code == 200
+modules_payload = modules_api.get_json()
+assert modules_payload["ok"] is True
+assert modules_payload["data"]["schema"] == "fitness-ledger-mini-module-contract-v1"
+assert isinstance(modules_payload["data"]["modules"], list)
+
 search_api = client.get("/api/search?q=bench&scope=all")
 assert search_api.status_code == 200
 search_payload = search_api.get_json()

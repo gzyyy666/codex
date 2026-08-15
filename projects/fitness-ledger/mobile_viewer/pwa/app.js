@@ -1,4 +1,4 @@
-import { apiDescription, call, signIn } from "./api.js?v=20260803-18";
+import { apiDescription, call, signIn } from "./api.js?v=20260815-01";
 
 const BODY_PARTS = [
   { id: "shoulders", cn: "肩", en: "SHOULDERS", tone: "amber" },
@@ -9,11 +9,17 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.0.0 · build 2026.08.03.23";
+const BUILD_VERSION = "PWA v1.1.0 · build 2026.08.15.01";
+const moduleTools = window.FLDataModules || {
+  normalizeContract: () => ({ schema: "fitness-ledger-mobile-module-read-model-v1", modules: [] }),
+  categoryEntriesForDate: () => [], detailEntriesForDate: () => [], extensionEntriesForDate: () => [],
+  widgetEntriesForPage: () => [], mergeRecordsWithCategoryDates: records => records || [],
+};
 const app = document.querySelector("#app");
 const state = {
   route: parseRoute(), loading: true, error: "", status: null, identity: null,
   areas: [], area: null, trainingRecords: [], bodyRecords: [], dietRecords: [],
+  dataModuleContract: moduleTools.normalizeContract({ modules: [] }), dataModuleError: "",
   record: null, trainingDay: null, movement: null, movementHistory: [],
   sortBy: "frequency", order: "newest", query: "", note: loadNote(),
   noteOpen: false, noteExpanded: false, noteCandidates: [], noteCandidatesLoading: false,
@@ -104,6 +110,151 @@ function setSummary(item) {
   return "暂无组数记录";
 }
 function metric(item, key) { return item?.[key] ?? item?.[key.replace(/_([a-z])/g, (_, c) => c.toUpperCase())] ?? 0; }
+
+function moduleEntries(categoryId, dateValue) {
+  return moduleTools.categoryEntriesForDate(state.dataModuleContract, categoryId, dateValue);
+}
+function renderModuleFacts(entries) {
+  return entries.map(entry => `<span class="module-native-fact">${esc(entry.module.label)} <b>${esc(entry.value)}</b></span>`).join("");
+}
+function renderTrainingModuleLine(entries) {
+  if (!entries.length) return "";
+  return `<div class="training-module-line">${entries.map(entry => `<span><b>${esc(entry.module.label)}</b>${esc(entry.value)}</span>`).join("")}</div>`;
+}
+function renderPageWidgets(page) {
+  const entries = moduleTools.widgetEntriesForPage(state.dataModuleContract, page);
+  if (!entries.length) return "";
+  return `<aside class="module-page-widgets" aria-label="页面指标">${entries.map(entry => `<button class="module-page-widget" data-action="module-record" data-date="${esc(entry.record.date)}" aria-label="查看 ${esc(entry.module.label)} ${esc(entry.value)} 的当日记录"><b>${esc(entry.module.label)}</b><span>${esc(entry.value)}</span></button>`).join("")}</aside>`;
+}
+function backRoute() {
+  const name = state.route.name;
+  if (name === "body" || name === "diet") return "status";
+  if (name === "movement") {
+    const part = state.route.params.get("part");
+    return part ? `reference?part=${encodeURIComponent(part)}` : "reference";
+  }
+  if (name === "record") {
+    const from = state.route.params.get("from");
+    if (["body", "diet", "training", "status", "reference"].includes(from)) return from;
+    const part = state.route.params.get("part");
+    if (part) return `reference?part=${encodeURIComponent(part)}`;
+    return state.route.params.get("mode") === "training" ? "training" : "status";
+  }
+  return "reference";
+}
+function renderBackControl() {
+  if (isTopRoute()) return "";
+  return `<button class="route-back" data-action="route-back" aria-label="返回上一级">← <span>返回</span></button>`;
+}
+
+function routeSurfacePage() {
+  const name = state.route.name;
+  if (name === "reference") return "home";
+  if (["body", "diet", "training", "movement"].includes(name)) return name;
+  return "";
+}
+
+function enhanceCategoryArchive() {
+  const category = state.route.name;
+  if (!["body", "diet", "training"].includes(category)) return;
+  const records = category === "body" ? state.bodyRecords : category === "diet" ? state.dietRecords : state.trainingRecords;
+  const recordsByDate = new Map(records.map(record => [date(record.Date || record.date), record]));
+  document.querySelectorAll("[data-date]").forEach(card => {
+    const dateValue = date(card.dataset.date);
+    const entries = moduleEntries(category, dateValue);
+    if (!entries.length) return;
+    if (category === "body") {
+      card.querySelector(".slip-facts")?.insertAdjacentHTML("beforeend", renderModuleFacts(entries));
+    } else if (category === "diet") {
+      card.querySelector(".macro-strip")?.insertAdjacentHTML("beforeend", renderModuleFacts(entries));
+    } else {
+      card.querySelector(".training-action")?.insertAdjacentHTML("beforebegin", renderTrainingModuleLine(entries));
+    }
+    if (recordsByDate.get(dateValue)?.__module_only) {
+      card.classList.add("module-only-record");
+      if (category === "training") {
+        const title = card.querySelector(":scope > strong");
+        const summary = card.querySelector(":scope > p");
+        if (title) title.textContent = "训练指标";
+        if (summary) summary.textContent = entries.map(entry => `${entry.module.label} ${entry.value}`).join(" · ");
+      }
+    }
+  });
+}
+
+function recordSectionMarkup(category, entries) {
+  if (!entries.length) return "";
+  if (category === "body") {
+    return `<section class="record-section body-section module-created-section"><div class="record-head"><div><div class="eyebrow">BODY</div><h2>身体与当天状态</h2></div></div><div class="signal-grid">${entries.map(entry => `<span>${esc(entry.module.label)}<strong>${esc(entry.value)}</strong></span>`).join("")}</div></section>`;
+  }
+  if (category === "diet") {
+    return `<section class="record-section diet-section module-created-section"><div class="record-head"><div><div class="eyebrow">NUTRITION</div><h2>饮食</h2></div></div><div class="macro-line module-detail-line">${entries.map(entry => `<span><b>${esc(entry.module.label)}</b> ${esc(entry.value)}</span>`).join("")}</div></section>`;
+  }
+  if (category === "training") {
+    return `<section class="record-section training-section module-created-section"><div class="record-head"><div><div class="eyebrow">TRAINING</div><h2>训练指标</h2></div></div>${entries.map(entry => `<div class="row"><span>${esc(entry.module.label)}</span><b>${esc(entry.value)}</b></div>`).join("")}</section>`;
+  }
+  return `<section class="record-section extension-section"><div class="record-head"><div><div class="eyebrow">OTHER RECORDS</div><h2>其他记录</h2></div></div>${entries.map(entry => `<div class="row"><span>${esc(entry.module.label)}</span><b>${esc(entry.value)}</b></div>`).join("")}</section>`;
+}
+
+function enhanceRecordDetail() {
+  if (state.route.name !== "record") return;
+  const dateValue = state.route.params.get("date") || state.record?.date || state.trainingDay?.date;
+  const entries = moduleTools.detailEntriesForDate(state.dataModuleContract, dateValue);
+  if (!entries.length) return;
+  const page = document.querySelector(".record-page");
+  if (!page) return;
+  ["body", "diet", "training"].forEach(category => {
+    const categoryEntries = entries.filter(entry => entry.module.category_id === category);
+    if (!categoryEntries.length) return;
+    const section = page.querySelector(`.${category}-section`);
+    if (!section) {
+      page.insertAdjacentHTML("beforeend", recordSectionMarkup(category, categoryEntries));
+      return;
+    }
+    if (category === "body") {
+      let grid = section.querySelector(".signal-grid");
+      if (!grid) {
+        section.insertAdjacentHTML("beforeend", '<div class="signal-grid"></div>');
+        grid = section.querySelector(".signal-grid");
+      }
+      grid.insertAdjacentHTML("beforeend", categoryEntries.map(entry => `<span>${esc(entry.module.label)}<strong>${esc(entry.value)}</strong></span>`).join(""));
+    } else if (category === "diet") {
+      let line = section.querySelector(".macro-line");
+      if (!line) {
+        section.insertAdjacentHTML("beforeend", '<div class="macro-line module-detail-line"></div>');
+        line = section.querySelector(".macro-line");
+      }
+      line.insertAdjacentHTML("beforeend", categoryEntries.map(entry => `<span><b>${esc(entry.module.label)}</b> ${esc(entry.value)}</span>`).join(""));
+    } else {
+      section.insertAdjacentHTML("beforeend", categoryEntries.map(entry => `<div class="row"><span>${esc(entry.module.label)}</span><b>${esc(entry.value)}</b></div>`).join(""));
+    }
+  });
+  const extensionEntries = entries.filter(entry => !["body", "diet", "training"].includes(entry.module.category_id));
+  if (extensionEntries.length) page.insertAdjacentHTML("beforeend", recordSectionMarkup("extension", extensionEntries));
+}
+
+function enhanceDataModuleSurface() {
+  const pageName = routeSurfacePage();
+  if (pageName && app) app.insertAdjacentHTML("beforeend", renderPageWidgets(pageName));
+  enhanceCategoryArchive();
+  enhanceRecordDetail();
+  if (state.route.name === "status" && !state.loading && !state.error) {
+    const slab = document.querySelector(".status-slab");
+    const count = state.dataModuleContract.modules.length;
+    slab?.insertAdjacentHTML("beforeend", `<div class="row"><span>手机扩展指标</span><b>${state.dataModuleError ? "暂不可用" : `${count} 项`}</b></div>`);
+  }
+}
+
+async function refreshDataModules() {
+  try {
+    state.dataModuleContract = moduleTools.normalizeContract(await call("dataModules"));
+    state.dataModuleError = "";
+  } catch (error) {
+    if (["AUTH_REQUIRED", "HTTP_401", "UNAUTHORIZED"].includes(error?.message)) throw error;
+    state.dataModuleContract = moduleTools.normalizeContract({ modules: [] });
+    state.dataModuleError = "DATA_MODULES_UNAVAILABLE";
+  }
+}
 
 function renderShell(content) {
   const nav = isTopRoute() ? `<nav class="tabbar"><button class="tab ${state.route.name === "reference" ? "active" : ""}" data-route="reference"><span>⌂</span><small>首页</small></button><button class="tab ${state.route.name === "training" ? "active" : ""}" data-route="training"><span>▤</span><small>训练记录</small></button><button class="tab ${state.route.name === "status" ? "active" : ""}" data-route="status"><span>◉</span><small>状态</small></button></nav>` : "";
@@ -296,7 +447,8 @@ function render() {
   } : null;
   const name = state.route.name;
   const content = name === "reference" ? renderReference() : name === "training" ? renderTraining() : name === "status" ? renderStatus() : name === "body" ? renderArchive("body") : name === "diet" ? renderArchive("diet") : name === "record" ? renderRecord() : name === "movement" ? renderMovement() : renderReference();
-  app.innerHTML = content;
+  app.innerHTML = `${content}${renderBackControl()}`;
+  enhanceDataModuleSurface();
   if (focusedControl) {
     const nextControl = app.querySelector(focusedSelector);
     if (nextControl) {
@@ -314,6 +466,7 @@ async function loadRoute() {
   state.route = parseRoute(); state.loading = true; state.error = ""; state.dockVisible = false; state.dockOpen = false; state.noteDetailOpen = false; state.noteDetailRequest += 1; render();
   try {
     const name = state.route.name; const part = state.route.params.get("part");
+    await refreshDataModules();
     if (name === "reference") {
       if (part) { const [area, records] = await Promise.all([call("bodyArea", { part }), call("trainingRecords")]); state.area = { ...area, sessions: (area.sessions || []).map(item => ({ ...item, full_summary: records.find(record => date(record.Date) === date(item.date))?.["Standardized Summary"] || item.full_summary })) }; }
       else { [state.areas, state.status] = await Promise.all([call("bodyAreas"), call("status")]); }
@@ -323,6 +476,9 @@ async function loadRoute() {
     else if (name === "diet") state.dietRecords = await call("dietRecords", { limit: 30 });
     else if (name === "record") { const params = Object.fromEntries(state.route.params.entries()); if (params.mode === "training") state.trainingDay = await call("trainingDayDetail", { date: params.date }); else state.record = await call("recordDetail", { date: params.date }); }
     else if (name === "movement") { [state.movement, state.movementHistory] = await Promise.all([call("movement", { movementId: state.route.params.get("id") }), call("movementHistory", { movementId: state.route.params.get("id"), limit: 20 })]); }
+    if (name === "body") state.bodyRecords = moduleTools.mergeRecordsWithCategoryDates(state.bodyRecords, state.dataModuleContract, "body");
+    if (name === "diet") state.dietRecords = moduleTools.mergeRecordsWithCategoryDates(state.dietRecords, state.dataModuleContract, "diet");
+    if (name === "training") state.trainingRecords = moduleTools.mergeRecordsWithCategoryDates(state.trainingRecords, state.dataModuleContract, "training");
   } catch (error) { setError(error); }
   state.loading = false; render();
 }
@@ -438,14 +594,16 @@ document.addEventListener("click", event => {
   if (action === "candidate") { const candidate = event.target.closest("[data-id]"); if (candidate) openNoteCandidate(candidate.dataset.id); }
   if (action === "movement") { navigate(`movement?id=${encodeURIComponent(event.target.closest("[data-id]").dataset.id)}&part=${encodeURIComponent(event.target.closest("[data-part]")?.dataset.part || state.route.params.get("part") || "")}`); }
   if (action === "session") { navigate(`record?mode=training&date=${encodeURIComponent(event.target.closest("[data-date]").dataset.date)}&part=${encodeURIComponent(event.target.closest("[data-part]")?.dataset.part || "")}`); }
-  if (action === "training-record" || action === "archive-record") { navigate(`record?date=${encodeURIComponent(event.target.closest("[data-date]").dataset.date)}`); }
+  if (action === "training-record" || action === "archive-record") { navigate(`record?date=${encodeURIComponent(event.target.closest("[data-date]").dataset.date)}&from=${encodeURIComponent(state.route.name)}`); }
+  if (action === "module-record") { navigate(`record?date=${encodeURIComponent(event.target.closest("[data-date]").dataset.date)}&from=${encodeURIComponent(state.route.name === "reference" ? "reference" : state.route.name)}`); }
+  if (action === "route-back") { navigate(backRoute()); }
   if (action === "toggle") { const key = event.target.closest("[data-key]").dataset.key; state.expanded[key] = !state.expanded[key]; render(); }
   if (action === "close-note-detail") { state.noteDetailRequest += 1; state.noteDetailOpen = false; state.noteDetailLoading = false; render(); }
   if (action === "noop") return;
 });
 window.addEventListener("scroll", scheduleDockCheck, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260803-21", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260815-01", { updateViaCache: "none" }).catch(() => {});
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();
   event.preventDefault();
