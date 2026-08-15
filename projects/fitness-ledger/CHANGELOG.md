@@ -1,5 +1,20 @@
 # Fitness Ledger Changelog
 
+## 2026-08-15 - Production PWA text handoff preparation (release candidate)
+
+- Removed the accepted candidate Review surface from the formal PWA bundle;
+  candidate fixtures, simulator controls, and local JSON inbox remain only in
+  the separate Review worktree.
+- Added a formal PWA `share.html` handoff surface that sends original text to a
+  private `fl_web_share_inbox` collection and lets the desktop user copy it
+  into the existing Daily Entry preview/edit/confirm flow.
+- Kept formal tracker/Data Module writes out of the mobile handoff and left the
+  WeChat Mini Program unchanged.
+
+Release boundary: this is a release candidate only. CloudBase collection
+creation, private rule configuration, physical-device verification, merge,
+push, and deployment still require the release gate.
+
 ## 2026-08-15 - Natural-language import phase 1 (review branch)
 
 - Added a desktop-only import boundary: paste natural language, preview the

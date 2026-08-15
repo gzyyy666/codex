@@ -31,6 +31,9 @@ def main() -> int:
         "config.js",
         "styles.css",
         "sw.js",
+        "share.html",
+        "share.css",
+        "share.js",
         "icons/fitness-ledger.png",
     ]
     missing = [item for item in required if not (PWA / item).is_file()]
@@ -47,17 +50,24 @@ def main() -> int:
         errors.append("manifest start_url/scope must remain relative ./")
     if not manifest.get("icons"):
         errors.append("manifest.icons is empty")
+    share_target = manifest.get("share_target") or {}
+    if share_target.get("action") != "./share.html" or share_target.get("method") != "GET":
+        errors.append("manifest.share_target must point to the formal share.html GET entry")
 
     html = (PWA / "index.html").read_text(encoding="utf-8")
     config = (PWA / "config.js").read_text(encoding="utf-8")
     source = "\n".join(
         (PWA / item).read_text(encoding="utf-8")
-        for item in ("index.html", "app.js", "data-modules.js", "api.js", "config.js", "styles.css", "sw.js")
+        for item in ("index.html", "app.js", "data-modules.js", "api.js", "config.js", "styles.css", "sw.js", "share.html", "share.js")
     )
     forbidden = ("AppSecret", "SecretId", "SecretKey", "TENCENTCLOUD_SECRET", "wx.cloud")
     found_forbidden = [token for token in forbidden if token in source]
     if found_forbidden:
         errors.append(f"secret/platform token in browser bundle: {found_forbidden}")
+    candidate_tokens = ["share-review.html", "模拟手机分享", "anonymous-review-fixture", "share_inbox.json"]
+    leaked_candidates = [token for token in candidate_tokens if token in source]
+    if leaked_candidates:
+        errors.append(f"candidate share-review trace in formal bundle: {leaked_candidates}")
     if not re.search(r'<meta[^>]+name="viewport"', html, re.IGNORECASE):
         errors.append("viewport meta tag is missing")
     if re.search(r'apiBaseUrl\s*:\s*["\']?/api["\']?', config):

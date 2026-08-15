@@ -72,6 +72,29 @@ Program's `ledger.call(...)` service.
 Installability on a phone still requires an HTTPS deployment; localhost is
 only for development.
 
+## Phone-to-desktop text handoff
+
+The release-candidate PWA has a separate `share.html` entry for text shared
+from a phone. It stores only the original text, title, timestamps, status, and
+an expiry time in the private CloudBase collection `fl_web_share_inbox`.
+
+The flow is deliberately two-step:
+
+```text
+phone share → private pending inbox → desktop copies text → Daily Entry preview/edit/confirm
+```
+
+It does not write `fl_daily_records`, `fl_data_module_records`, or the local
+formal tracker. The Data Module parser and the existing desktop save boundary
+remain the only place that turns text into a formal record. If the phone
+system does not offer the share target, the same page has a plain text paste
+fallback.
+
+Before deployment, create the collection with private user ownership rules and
+verify the current Web authentication identity in the CloudBase console. The
+exact release checklist, rollback boundary, and cost notes are recorded in
+`docs/maintenance/PWA_SHARE_INBOX_PHASE3.md`.
+
 ## Deployment contract
 
 The static files can be deployed to CloudBase Static Hosting, Cloudflare

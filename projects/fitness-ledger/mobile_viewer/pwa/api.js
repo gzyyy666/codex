@@ -2,6 +2,7 @@ const config = window.FL_PWA_CONFIG || {};
 const API_BASE_URL = String(config.apiBaseUrl || "/api").replace(/\/$/, "");
 const SDK_URL = "https://static.cloudbase.net/cloudbase-js-sdk/2.27.1/cloudbase.full.js";
 let cloudbaseSdkPromise;
+let cloudbaseAppPromise;
 let webAuthPromise;
 
 function webAuthEnabled() {
@@ -23,15 +24,21 @@ async function loadCloudBaseSdk() {
   return cloudbaseSdkPromise;
 }
 
+async function cloudBaseApp() {
+  if (!webAuthEnabled()) throw new Error("WEB_AUTH_DISABLED");
+  if (!config.envId) throw new Error("CLOUDBASE_ENV_MISSING");
+  if (!cloudbaseAppPromise) {
+    cloudbaseAppPromise = loadCloudBaseSdk().then(cloudbase => (
+      cloudbase.init({ env: config.envId, region: config.region || "ap-shanghai" })
+    ));
+  }
+  return cloudbaseAppPromise;
+}
+
 async function webAuth() {
   if (!webAuthEnabled()) return null;
-  if (!config.envId) throw new Error("CLOUDBASE_ENV_MISSING");
   if (!webAuthPromise) {
-    webAuthPromise = loadCloudBaseSdk().then(cloudbase => (
-      // CloudBase JS SDK 2.x uses local persistence by default. Keep the
-      // default initialization path that was already verified in production.
-      cloudbase.init({ env: config.envId, region: config.region || "ap-shanghai" }).auth()
-    ));
+    webAuthPromise = cloudBaseApp().then(app => app.auth());
   }
   return webAuthPromise;
 }
@@ -54,6 +61,13 @@ async function authorizationHeader() {
   const token = await auth.getAccessToken();
   if (!token?.accessToken) throw new Error("AUTH_REQUIRED");
   return { Authorization: `Bearer ${token.accessToken}` };
+}
+
+export async function privateDatabase() {
+  const auth = await webAuth();
+  if (!auth || !(await auth.getLoginState())) throw new Error("AUTH_REQUIRED");
+  const app = await cloudBaseApp();
+  return app.database();
 }
 
 function buildUrl(action, params = {}) {

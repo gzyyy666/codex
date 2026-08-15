@@ -1,0 +1,33 @@
+.share-app { min-height: 100vh; padding: 34px 22px 72px; color: #24252a; }
+.share-shell { max-width: 1120px; margin: 0 auto; }
+.share-head { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; padding-bottom: 28px; border-bottom: 1px solid rgba(36, 37, 42, .16); }
+.share-kicker { color: #716b79; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; }
+.share-head h1 { margin: 12px 0 8px; font-family: Georgia, "Times New Roman", serif; font-size: clamp(44px, 8vw, 78px); font-weight: 400; letter-spacing: -.05em; }
+.share-head p { max-width: 520px; margin: 0; color: #716f77; line-height: 1.7; }
+.share-back { color: #4a7169; text-decoration: none; white-space: nowrap; padding-top: 8px; }
+.share-grid { display: grid; grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr); gap: 18px; margin-top: 24px; }
+.share-card { border: 1px solid rgba(36, 37, 42, .16); border-radius: 22px; background: rgba(255, 255, 255, .72); padding: 22px; box-shadow: 0 16px 34px rgba(49, 42, 38, .07); }
+.share-card h2 { margin: 8px 0 12px; font-size: 22px; font-weight: 600; }
+.share-card p { color: #716f77; line-height: 1.65; }
+.share-textarea { width: 100%; min-height: 160px; box-sizing: border-box; resize: vertical; border: 1px solid rgba(36, 37, 42, .22); border-radius: 14px; background: #fffdf9; padding: 14px; color: #24252a; font: inherit; line-height: 1.65; }
+.share-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.share-button { border: 1px solid rgba(36, 37, 42, .2); border-radius: 999px; padding: 9px 14px; background: transparent; color: #24252a; cursor: pointer; font: inherit; }
+.share-button:hover, .share-button:focus-visible { border-color: #7468ee; outline: none; }
+.share-button.primary { border-color: #7468ee; background: #7468ee; color: #fff; }
+.share-notice { margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: #f5f0e8; color: #716f77; line-height: 1.55; }
+.share-notice.error { background: #fff0ed; color: #9b4c3e; }
+.share-list { display: grid; gap: 10px; }
+.share-item { padding: 14px; border: 1px solid rgba(36, 37, 42, .14); border-radius: 16px; background: rgba(255, 253, 249, .8); }
+.share-item-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.share-status { color: #4a7169; font-size: 13px; }
+.share-item-text { margin-top: 10px; white-space: pre-wrap; line-height: 1.6; overflow-wrap: anywhere; }
+.share-item-meta { margin-top: 8px; color: #8a878d; font-size: 12px; }
+.share-empty, .share-loading { color: #8a878d; padding: 28px 0; }
+.share-auth { text-align: center; padding: 34px 18px; }
+@media (max-width: 760px) {
+  .share-app { padding: 24px 16px 56px; }
+  .share-head { display: block; }
+  .share-back { display: inline-block; margin-top: 16px; }
+  .share-grid { grid-template-columns: 1fr; }
+  .share-card { padding: 18px; border-radius: 18px; }
+}
