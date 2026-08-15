@@ -1,5 +1,14 @@
 # Fitness Ledger Changelog
 
+## 2026-08-15 - Natural-language import phase 1 (review branch)
+
+- Added a desktop-only import boundary: paste natural language, preview the
+  parsed record, edit it, and confirm through the existing local save path.
+- Preview keeps the original text and performs no write; confirmation reuses
+  the existing review identity and preserved-raw-input checks.
+- This phase is intentionally not released to the formal app, cloud, or phone
+  PWA. Phone sharing will be a later inbox-to-preview step, not a direct write.
+
 ## 2026-08-15 - Modal cursor and return control fix
 
 - Moved the shared route return control from the lower-left corner to the

@@ -776,6 +776,27 @@ class LedgerWebService:
             self.pending_reviews[review_id] = copy.deepcopy(payload["review"])
         return payload
 
+    def import_preview(self, request: dict) -> dict:
+        """Preview one pasted natural-language daily entry without writing it."""
+        raw = str(request.get("raw", "")).strip()
+        if not raw:
+            raise LedgerCommandError("请先粘贴或输入要导入的文字。", "IMPORT_RAW_EMPTY")
+        payload = self.parse_entry(raw)
+        payload["schema"] = "fitness-ledger-natural-language-import-preview-v1"
+        payload["source"] = {
+            "kind": "natural_language_import",
+            "transport": str(request.get("transport", "paste") or "paste"),
+            "raw_preserved": True,
+        }
+        payload["write_attempted"] = False
+        return payload
+
+    def import_confirm(self, request: dict) -> dict:
+        """Confirm an import preview through the existing review/save boundary."""
+        result = self.save_review(request)
+        result["source_kind"] = "natural_language_import"
+        return result
+
     def save_review(self, request: dict) -> dict:
         review_id = str(request.get("review_id", ""))
         submitted = request.get("review")
@@ -1103,6 +1124,10 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.commands.data_module_cloud_roundtrip(request.get("payload", {})))
             elif parsed.path == "/api/parse":
                 self.send_json(self.service.parse_entry(request.get("raw", "")))
+            elif parsed.path == "/api/import/preview":
+                self.send_json(self.service.import_preview(request))
+            elif parsed.path == "/api/import/confirm":
+                self.send_json(self.service.import_confirm(request))
             elif parsed.path == "/api/undo":
                 self.send_json(self.service.undo_last_write())
             elif parsed.path == "/api/data-check/acknowledge":
