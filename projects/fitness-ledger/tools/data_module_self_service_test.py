@@ -100,6 +100,7 @@ def phase_a(root: Path) -> dict:
         "queryable": True,
         "history_enabled": True,
         "exportable": True,
+        "statistics_visible": False,
         "analysis_visible": False,
         "cloud_syncable": False,
         "mini_program_visible": False,

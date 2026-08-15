@@ -305,7 +305,7 @@ def main() -> None:
         _wait(browser, f"(async () => (await (await fetch('/api/data-modules/catalog')).json()).modules.find(item => item.module_id === {json.dumps(module_id)}).status === 'retired')()")
         negative_record = _call(browser, "/api/data-modules/preview", {"raw": "今天 edited browser pulse 59"})
         assert negative_record["status"] == 400
-        assert negative_record["body"]["code"] == "MODULE_NOT_RECOGNIZED"
+        assert negative_record["body"]["code"] == "MODULE_NOT_RECORDABLE"
         _click(browser, f"[data-module-action={json.dumps(module_id)}]")
         _wait(browser, f"(async () => (await (await fetch('/api/data-modules/catalog')).json()).modules.find(item => item.module_id === {json.dumps(module_id)}).status === 'active')()")
 

@@ -231,6 +231,11 @@ def main() -> None:
         # Management create: a second module in the existing Body category.
         _click(browser, "[data-dm-new-module]")
         _wait(browser, "!!document.querySelector('#dm-definition-form')")
+        category_values = browser.evaluate("[...document.querySelectorAll('[name=category_id] option')].map(item=>item.value)")
+        assert category_values == ["body", "diet", "training", "extension"], category_values
+        _wait(browser, "[...document.querySelectorAll('.tools-pet-floating,.tools-pet-cursor-trail')].every(item=>getComputedStyle(item).opacity==='0')")
+        form_shape = browser.evaluate("({suggestion:getComputedStyle(document.querySelector('.dm-suggestion')).display,petVisible:[...document.querySelectorAll('.tools-pet-floating,.tools-pet-cursor-trail')].some(item=>getComputedStyle(item).opacity!=='0')})")
+        assert form_shape["suggestion"] == "none" and not form_shape["petVisible"], form_shape
         _set_css(browser, "[name=label]", "\u65e5\u95f4\u4f53\u6e29")
         _set_css(browser, "[name=actual_unit]", "C")
         _set_css(browser, "[name=aliases]", "\u65e5\u95f4\u4f53\u6e29")
@@ -241,6 +246,72 @@ def main() -> None:
         temperature_id = temperature["module_id"]
         template_after_module = _json_get(browser, "/api/data-modules/llm-template")
         assert any(item["module_id"] == temperature_id for item in template_after_module["modules"]), template_after_module
+
+        # A Body module record creates a normal Body slip even when that date
+        # has no tracker body row.
+        temperature_preview = _json_post(browser, "/api/data-modules/preview", {"raw": "2026-08-15 \u65e5\u95f4\u4f53\u6e29 36.7 C"})
+        assert temperature_preview["status"] == 200, temperature_preview
+        assert _json_post(browser, "/api/data-modules/save", {"preview": temperature_preview["body"], "confirmed": True})["status"] == 200
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('body')")
+        body_only = _wait(browser, "document.querySelector('.dm-body-module-record')?.innerText||''")
+        assert "2026-08-15" in body_only and "\u65e5\u95f4\u4f53\u6e29" in body_only and "36.7 C" in body_only, body_only
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools',{panel:'data-modules'})")
+        _wait(browser, "!!document.querySelector('.dm-management-page')")
+
+        # A Diet module uses the Diet page's existing daily-slip language even
+        # when the tracker has no Diet record for that date.
+        _click(browser, "[data-dm-new-module]")
+        _wait(browser, "!!document.querySelector('#dm-definition-form')")
+        _set_css(browser, "[name=label]", "\u6bcf\u65e5\u94a0\u6444\u5165")
+        _select(browser, "[name=category_id]", "diet")
+        _set_css(browser, "[name=actual_unit]", "mg")
+        _click(browser, "[data-dm-submit-definition]")
+        _wait(browser, "!document.querySelector('#dm-definition-form')")
+        sodium_preview = _json_post(browser, "/api/data-modules/preview", {"raw": "2026-08-15 \u6bcf\u65e5\u94a0\u6444\u5165 1800 mg"})
+        assert sodium_preview["status"] == 200, sodium_preview
+        assert _json_post(browser, "/api/data-modules/save", {"preview": sodium_preview["body"], "confirmed": True})["status"] == 200
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('diet')")
+        diet_only = _wait(browser, "document.querySelector('.dm-diet-module-record')?.innerText||''")
+        assert "2026-08-15" in diet_only and "\u6bcf\u65e5\u94a0\u6444\u5165" in diet_only and "1800 mg" in diet_only, diet_only
+        assert browser.evaluate("!document.querySelector('.empty-note')")
+        _set_css(browser, "#diet-search", "not-a-match")
+        _wait(browser, "!document.querySelector('.dm-diet-module-record')")
+        _set_css(browser, "#diet-search", "\u6bcf\u65e5\u94a0\u6444\u5165")
+        _wait(browser, "!!document.querySelector('.dm-diet-module-record')")
+        _click(browser, ".dm-diet-module-record [data-dm-open-day]")
+        _wait(browser, "!!document.querySelector('.structured-detail-modal')")
+        _wait(browser, "!!document.querySelector('[data-dm-detail-module-id]')")
+        assert browser.evaluate("document.body.innerText.includes('\u6bcf\u65e5\u94a0\u6444\u5165')")
+        _wait(browser, "![...document.querySelectorAll('.structured-section h3')].map(item=>item.textContent).includes('\u8bad\u7ec3\u8bb0\u5f55')")
+        _wait(browser, "[...document.querySelectorAll('.tools-pet-floating,.tools-pet-cursor-trail')].every(item=>getComputedStyle(item).opacity==='0')")
+        detail_shape = browser.evaluate("({sections:[...document.querySelectorAll('.structured-section h3')].map(item=>item.textContent),petVisible:[...document.querySelectorAll('.tools-pet-floating,.tools-pet-cursor-trail')].some(item=>getComputedStyle(item).opacity!=='0')})")
+        assert "\u996e\u98df\u8bb0\u5f55" in detail_shape["sections"] and not detail_shape["petVisible"], detail_shape
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.root.innerHTML=''")
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools',{panel:'data-modules'})")
+        _wait(browser, "!!document.querySelector('.dm-management-page')")
+
+        # Training follows the same rule and does not depend on a native
+        # session already existing for the date.
+        _click(browser, "[data-dm-new-module]")
+        _wait(browser, "!!document.querySelector('#dm-definition-form')")
+        _set_css(browser, "[name=label]", "\u8bad\u7ec3\u51c6\u5907\u5ea6")
+        _select(browser, "[name=category_id]", "training")
+        _click(browser, "[data-dm-submit-definition]")
+        _wait(browser, "!document.querySelector('#dm-definition-form')")
+        readiness_preview = _json_post(browser, "/api/data-modules/preview", {"raw": "2026-08-15 \u8bad\u7ec3\u51c6\u5907\u5ea6 8"})
+        assert readiness_preview["status"] == 200, readiness_preview
+        assert _json_post(browser, "/api/data-modules/save", {"preview": readiness_preview["body"], "confirmed": True})["status"] == 200
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('training')")
+        training_only = _wait(browser, "document.querySelector('.dm-training-module-session')?.innerText||''")
+        assert "2026-08-15" in training_only and "\u8bad\u7ec3\u51c6\u5907\u5ea6" in training_only and "8" in training_only, training_only
+        assert browser.evaluate("!document.querySelector('.training-empty')")
+        _click(browser, ".dm-training-module-session [data-dm-open-day]")
+        _wait(browser, "!!document.querySelector('.structured-detail-modal')")
+        _wait(browser, "!!document.querySelector('[data-dm-detail-module-id]')")
+        assert browser.evaluate("document.body.innerText.includes('\u8bad\u7ec3\u51c6\u5907\u5ea6')")
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.root.innerHTML=''")
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools',{panel:'data-modules'})")
+        _wait(browser, "!!document.querySelector('.dm-management-page')")
 
         # Diet follows the existing P / C / F surface instead of creating a Diet sub-page.
         _click(browser, "[data-dm-new-module]")
@@ -266,8 +337,8 @@ def main() -> None:
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools',{panel:'data-modules'})")
         _wait(browser, "!!document.querySelector('.dm-management-page')")
         _wait(browser, "!!document.querySelector('[data-dm-back-tools]')")
-        back_shape = browser.evaluate("({position:getComputedStyle(document.querySelector('[data-dm-back-tools]')).position})")
-        assert back_shape["position"] == "fixed", back_shape
+        back_shape = browser.evaluate("({position:getComputedStyle(document.querySelector('[data-dm-back-tools]')).position,bottom:getComputedStyle(document.querySelector('[data-dm-back-tools]')).bottom})")
+        assert back_shape["position"] == "fixed" and back_shape["bottom"] != "auto", back_shape
 
         # Unclassified data uses the normal flow: choose "Other Extensions";
         # there is no separate custom-category entrance.
@@ -283,19 +354,21 @@ def main() -> None:
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('home')")
         _wait(browser, "!!document.querySelector('.dm-page-widget-strip')")
         assert browser.evaluate("document.body.innerText.includes('恢复评分')")
-        # The same page-widget path also works for Movement and for a unitless metric.
+        # Movement is no longer a record category. An unclassified unitless
+        # metric can still choose Movement as the corner-widget destination.
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools',{panel:'data-modules'})")
         _wait(browser, "!!document.querySelector('.dm-management-page')")
         _click(browser, "[data-dm-new-module]")
         _wait(browser, "!!document.querySelector('#dm-definition-form')")
         _set_css(browser, "[name=label]", "\u52a8\u4f5c\u51c6\u5907\u5ea6")
-        _select(browser, "[name=category_id]", "movement")
+        assert "movement" not in browser.evaluate("[...document.querySelectorAll('[name=category_id] option')].map(item=>item.value)")
+        _select(browser, "[name=category_id]", "extension")
         _select(browser, "[name=display_surface]", "page_widget")
         _select(browser, "[name=display_page]", "movement")
         _click(browser, "[data-dm-submit-definition]")
         _wait(browser, "!document.querySelector('#dm-definition-form')")
         movement_module = next(item for item in _json_get(browser, "/api/data-modules/product-catalog")["modules"] if item["label"] == "\u52a8\u4f5c\u51c6\u5907\u5ea6")
-        assert movement_module["display_page"] == "movement" and movement_module["actual_unit"] == "" and movement_module["data_type"] == "number", movement_module
+        assert movement_module["category_id"] == "extension" and movement_module["display_page"] == "movement" and movement_module["actual_unit"] == "" and movement_module["data_type"] == "number", movement_module
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('movements')")
         _wait(browser, "!!document.querySelector('.dm-page-widget-strip')")
         assert browser.evaluate("document.body.innerText.includes('动作准备度')")
@@ -408,8 +481,35 @@ def main() -> None:
         _wait(browser, "!!document.querySelector('.dm-management-page') && !!document.querySelector('[data-dm-new-module]') && !!document.querySelector('.dm-module-group')")
         management_shape = browser.evaluate("({reviewHub:!!document.querySelector('.dm-review-hub'),flowGuide:!!document.querySelector('.dm-flow-bar,.dm-structure-guide'),downstream:!!document.querySelector('.dm-downstream'),moduleGroups:document.querySelectorAll('.dm-module-group').length})")
         assert not management_shape["reviewHub"] and not management_shape["flowGuide"] and not management_shape["downstream"] and management_shape["moduleGroups"] >= 1, management_shape
+        group_titles = browser.evaluate("[...document.querySelectorAll('.dm-module-group>header h2')].map(item=>item.textContent.trim())")
+        assert all(title.endswith("\u8bb0\u5f55\u9879") for title in group_titles), group_titles
+
+        # Every route has one stable parent action; Tools children return to
+        # Tools while first-level product pages return to Home.
+        route_hierarchy = [
+            ("quick", {}, "\u8fd4\u56de Home"),
+            ("body", {}, "\u8fd4\u56de Home"),
+            ("diet", {}, "\u8fd4\u56de Home"),
+            ("training", {}, "\u8fd4\u56de Home"),
+            ("movements", {}, "\u8fd4\u56de Home"),
+            ("tools", {}, "\u8fd4\u56de Home"),
+            ("tools", {"panel": "data-modules"}, "\u8fd4\u56de Tools"),
+            ("tools", {"panel": "export"}, "\u8fd4\u56de Tools"),
+            ("tools", {"panel": "sync"}, "\u8fd4\u56de Tools"),
+            ("tools", {"panel": "health"}, "\u8fd4\u56de Tools"),
+            ("dictionary", {}, "\u8fd4\u56de\u4e0a\u4e00\u5c42"),
+        ]
+        for route, params, expected in route_hierarchy:
+            browser.evaluate(f"window.__fitnessLedgerFormalMirrorBridge.navigate({json.dumps(route)},{json.dumps(params)})")
+            label = _wait(browser, "document.querySelector('[data-dm-route-back]')?.innerText||''")
+            assert expected in label, (route, params, label)
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('home')")
+        _wait(browser, "!document.querySelector('[data-dm-route-back]')")
+
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('quick')")
         _wait(browser, "location.hash === '#quick' && !!document.querySelector('#raw-entry')")
+        back_state = browser.evaluate("({fixed:!!document.querySelector('[data-dm-route-back]'),bottom:getComputedStyle(document.querySelector('[data-dm-route-back]')).bottom,inlineVisible:getComputedStyle(document.querySelector('.home-text-link')).display})")
+        assert back_state["fixed"] and back_state["bottom"] != "auto" and back_state["inlineVisible"] == "none", back_state
         _command(browser, "Emulation.setDeviceMetricsOverride", {"width": 390, "height": 844, "deviceScaleFactor": 1, "mobile": True})
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('body')")
         _wait(browser, "!!document.querySelector('.archive-heading')")
@@ -435,8 +535,12 @@ def main() -> None:
             "preview_zero_write":True,
             "confirm_history":True,
             "detail_zone":True,
+            "native_empty_day_body":True,
+            "native_empty_day_diet":True,
+            "native_empty_day_training":True,
             "unclassified_uses_existing_extension_category":True,
             "movement_page_widget":True,
+            "movement_category_removed":True,
             "delete_module_and_category":True,
             "alias_collision_human_error":True,
             "stable_id_edit":True,
