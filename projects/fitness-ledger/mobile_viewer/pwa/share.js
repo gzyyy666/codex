@@ -2,7 +2,7 @@ import { privateDatabase } from "./api.js";
 
 const root = document.querySelector("#share-app");
 const COLLECTION = "fl_web_share_inbox";
-const state = { incoming: null, items: [], loading: true, busy: false, error: "", authRequired: false };
+const state = { incoming: null, items: [], loading: true, busy: false, error: "", notice: "", authRequired: false };
 
 const statusObserver = new MutationObserver(() => {
   document.querySelectorAll(".share-item").forEach((node, index) => {
@@ -74,14 +74,33 @@ async function updateStatus(itemId, status) {
   state.items = await listItems();
 }
 
+async function writeClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const field = document.createElement("textarea");
+  field.value = text;
+  field.setAttribute("readonly", "");
+  field.style.position = "fixed";
+  field.style.opacity = "0";
+  document.body.appendChild(field);
+  field.select();
+  const copied = document.execCommand("copy");
+  field.remove();
+  if (!copied) throw new Error("当前环境无法访问剪贴板。");
+}
+
 async function copyItem(item) {
-  await navigator.clipboard.writeText(item.text || "");
+  await writeClipboard(item.text || "");
+  state.notice = "已复制到剪贴板，可以回到 Daily Entry 粘贴。";
   await updateStatus(item._id, "copied");
 }
 
 function renderIncoming() {
   if (!state.incoming) return "";
-  return `<section class="share-card"><div class="share-kicker">手机发来的一条文字</div><h2>发送到电脑</h2><p>确认后，文字会出现在电脑端的待处理列表。它不会直接写入正式记录。</p><textarea class="share-textarea" data-incoming-text>${esc(state.incoming.text)}</textarea><div class="share-actions"><button class="share-button primary" data-action="send-incoming">发送到电脑</button><button class="share-button" data-action="clear-incoming">取消</button></div></section>`;
+  const outbound = state.incoming.mode === "outbound";
+  return `<section class="share-card"><div class="share-kicker">${outbound ? "电脑发来的一条文字" : "手机发来的一条文字"}</div><h2>${outbound ? "发送到云端" : "发送到电脑"}</h2><p>${outbound ? "确认后，文字会进入你的私有云端收件箱；不会直接写入正式记录。" : "确认后，文字会出现在电脑端的待处理列表。它不会直接写入正式记录。"}</p><textarea class="share-textarea" data-incoming-text>${esc(state.incoming.text)}</textarea><div class="share-actions"><button class="share-button primary" data-action="send-incoming">${outbound ? "确认发送" : "发送到电脑"}</button><button class="share-button" data-action="clear-incoming">取消</button></div></section>`;
 }
 
 function renderItems() {
@@ -95,7 +114,7 @@ function render() {
     root.innerHTML = `<div class="share-shell"><section class="share-card share-auth"><div class="share-kicker">每日健身 / 文字收件箱</div><h1>需要登录</h1><p>请先在正式 PWA 中登录，再接收手机发来的文字。</p><a class="share-button" href="./#status">返回工作台</a></section></div>`;
     return;
   }
-  root.innerHTML = `<div class="share-shell"><header class="share-head"><div><div class="share-kicker">每日健身 / 文字收件箱</div><h1>待处理文字</h1><p>手机发来的内容先放在这里。电脑端复制后，继续使用 Daily Entry 的预览与确认流程。</p></div><a class="share-back" href="./#status">返回工作台 ←</a></header>${state.error ? `<div class="share-notice error">${esc(state.error)}</div>` : ""}<div class="share-grid"><div>${renderIncoming()}<section class="share-card"><div class="share-kicker">手动输入</div><h2>补充一条文字</h2><p>如果手机系统没有显示分享入口，也可以把内容粘贴到这里。</p><textarea class="share-textarea" data-manual-text placeholder="例如：今天体重 70 kg，腰围 82.5 cm"></textarea><div class="share-actions"><button class="share-button primary" data-action="send-manual">发送到电脑</button></div></section></div><section class="share-card"><div class="share-kicker">电脑端处理</div><h2>最近收到</h2><div class="share-list">${renderItems()}</div></section></div></div>`;
+  root.innerHTML = `<div class="share-shell"><header class="share-head"><div><div class="share-kicker">每日健身 / 文字收件箱</div><h1>待处理文字</h1><p>手机发来的内容先放在这里。电脑端复制后，继续使用 Daily Entry 的预览与确认流程。</p></div><a class="share-back" href="./#status">返回工作台 ←</a></header>${state.error ? `<div class="share-notice error">${esc(state.error)}</div>` : ""}${state.notice ? `<div class="share-notice success" role="status">${esc(state.notice)}</div>` : ""}<div class="share-grid"><div>${renderIncoming()}<section class="share-card"><div class="share-kicker">手动输入</div><h2>补充一条文字</h2><p>如果手机系统没有显示分享入口，也可以把内容粘贴到这里。</p><textarea class="share-textarea" data-manual-text placeholder="例如：今天体重 70 kg，腰围 82.5 cm"></textarea><div class="share-actions"><button class="share-button primary" data-action="send-manual">发送到电脑</button></div></section></div><section class="share-card"><div class="share-kicker">电脑端处理</div><h2>最近收到</h2><div class="share-list">${renderItems()}</div></section></div></div>`;
 }
 
 async function load() {
@@ -117,6 +136,7 @@ async function send(title, text) {
   if (state.busy) return;
   state.busy = true;
   state.error = "";
+  state.notice = "";
   try { await enqueue(title, text); }
   catch (error) { state.error = error.message || "发送失败，正式记录未改变。"; }
   state.busy = false;
@@ -127,7 +147,7 @@ root.addEventListener("click", async event => {
   const action = event.target.closest("[data-action]")?.dataset.action;
   if (!action || state.busy) return;
   if (action === "clear-incoming") { state.incoming = null; render(); return; }
-  if (action === "send-incoming") { await send("手机分享", root.querySelector("[data-incoming-text]")?.value); return; }
+  if (action === "send-incoming") { await send(state.incoming?.mode === "outbound" ? "电脑 Daily Entry" : "手机分享", root.querySelector("[data-incoming-text]")?.value); return; }
   if (action === "send-manual") { await send("手动输入", root.querySelector("[data-manual-text]")?.value); return; }
   const item = state.items.find(row => row._id === event.target.closest("[data-item-id]")?.dataset.itemId);
   if (!item) return;
@@ -143,7 +163,7 @@ root.addEventListener("click", async event => {
 const params = new URLSearchParams(location.search);
 const sharedText = params.get("share_text") || params.get("text");
 if (sharedText) {
-  state.incoming = { title: params.get("share_title") || "手机分享", text: sharedText };
+  state.incoming = { title: params.get("share_title") || "手机分享", text: sharedText, mode: params.get("share_mode") || params.get("mode") || "inbound" };
   history.replaceState({}, "", "./share.html");
 }
 load();

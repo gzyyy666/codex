@@ -503,11 +503,12 @@ class LedgerWebService:
         return {**self.cloud_sync_status(), "validation": report}
 
     def run_cloud_sync(self, request: dict) -> dict:
+        trigger = str(request.get("trigger") or "manual")
         try:
             build_cloud_replica()
             result = sync_payload(force=bool(request.get("force")))
             LedgerWebService._cloud_sync_log({
-                "trigger": "manual",
+                "trigger": trigger,
                 "mode": "sync_payload",
                 "result": result.get("status", ""),
                 "latest_record_date": result.get("latest_record_date", ""),
@@ -516,7 +517,7 @@ class LedgerWebService:
             })
         except Exception as exc:
             LedgerWebService._cloud_sync_log({
-                "trigger": "manual", "mode": "sync_payload", "result": "error",
+                "trigger": trigger, "mode": "sync_payload", "result": "error",
                 "latest_record_date": "", "error": str(exc),
             })
             raise

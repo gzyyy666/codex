@@ -82,6 +82,7 @@ MOCK_CLOUDBASE = r"""
   window.cloudbase = {
     init() { return { auth: () => ({ async getLoginState() { return true; }, async getAccessToken() { return { accessToken: 'test-token' }; } }), database: () => ({ collection() { return collection; } }) }; }
   };
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { async writeText(value) { window.__copied = value; } } });
 })();
 """
 
@@ -102,7 +103,7 @@ def main() -> None:
             text=True,
         )
         _wait_http(f"http://127.0.0.1:{port}/pwa/")
-        url = f"http://127.0.0.1:{port}/pwa/share.html?share_text=2026-08-16%20weight%2071%20kg&share_title=phone-note"
+        url = f"http://127.0.0.1:{port}/pwa/share.html?share_text=2026-08-16%20weight%2071%20kg&share_title=phone-note&share_mode=outbound"
         edge = subprocess.Popen([str(_edge_path()), "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check", f"--remote-debugging-port={debug_port}", f"--user-data-dir={profile.name}", "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         target = _wait_target(debug_port, "about:blank")
         browser = DevToolsSocket(str(target["webSocketDebuggerUrl"]))
@@ -113,9 +114,13 @@ def main() -> None:
         wait(browser, "document.querySelector('[data-incoming-text]') !== null")
         incoming = browser.evaluate("document.querySelector('[data-incoming-text]').value")
         assert incoming == "2026-08-16 weight 71 kg", incoming
+        assert browser.evaluate("document.body.innerText.includes('发送到云端')") is True
         browser.evaluate("document.querySelector('[data-action=send-incoming]').click()")
         wait(browser, "document.querySelector('[data-status=pending]') !== null && document.body.innerText.includes('2026-08-16 weight 71 kg')")
         assert browser.evaluate("document.body.innerText.includes('share-review') || document.body.innerText.includes('anonymous-review-fixture')") is False
+        browser.evaluate("document.querySelector('[data-action=copy-item]').click()")
+        wait(browser, "document.body.innerText.includes('已复制到剪贴板')")
+        assert browser.evaluate("window.__copied === '2026-08-16 weight 71 kg'") is True
         browser.evaluate("document.querySelector('[data-action=process-item]').click()")
         wait(browser, "document.querySelector('[data-status=processed]') !== null")
         result = command(browser, "Page.captureScreenshot", {"format": "png", "captureBeyondViewport": False})

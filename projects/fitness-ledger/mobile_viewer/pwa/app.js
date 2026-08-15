@@ -9,7 +9,7 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.0 · build 2026.08.15.01";
+const BUILD_VERSION = "PWA v1.1.0 · build 2026.08.16.01";
 const moduleTools = window.FLDataModules || {
   normalizeContract: () => ({ schema: "fitness-ledger-mobile-module-read-model-v1", modules: [] }),
   categoryEntriesForDate: () => [], detailEntriesForDate: () => [], extensionEntriesForDate: () => [],
@@ -27,7 +27,7 @@ const state = {
   noteDetailOpen: false, noteDetailLoading: false, noteDetailError: "",
   noteDetailMovement: null, noteDetailHistory: [], noteDetailRequest: 0, showAliases: false,
   expanded: {}, candidatesRequest: 0, noteComposing: false, noteCatalog: null,
-  noteHistoryCache: new Map(), deferredRender: false,
+  noteHistoryCache: new Map(), deferredRender: false, noteCopyStatus: "",
   authRequired: false, authBusy: false, authMessage: ""
 };
 
@@ -49,6 +49,17 @@ function loadNote() {
   } catch (_) { return ""; }
 }
 function saveNote(value) { state.note = String(value || ""); try { localStorage.setItem(NOTE_KEY, state.note); } catch (_) {} }
+async function copyNoteToClipboard() {
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error("当前环境无法访问剪贴板。");
+    await navigator.clipboard.writeText(state.note);
+    state.noteCopyStatus = "已复制到剪贴板";
+  } catch (_) {
+    state.noteCopyStatus = "复制失败，请长按文本手动复制";
+  }
+  render();
+  window.setTimeout(() => { state.noteCopyStatus = ""; render(); }, 2200);
+}
 function bodyPart(id) { return BODY_PARTS.find(item => item.id === id) || BODY_PARTS[0]; }
 function toneForArea(item) {
   const configured = String(item?.tone || "");
@@ -317,7 +328,7 @@ function renderReference() {
 function renderNoteDock() {
   if (!state.dockVisible) return "";
   if (!state.dockOpen) return `<section class="notepad-dock notepad-dock-collapsed"><button class="notepad-dock-bar" data-action="toggle-dock"><span>TRAINING NOTE <b> · 已自动保存</b></span><strong>展开</strong></button></section>`;
-  return `<section class="notepad-dock"><div class="notepad-dock-card"><div class="notepad-head"><div><div class="eyebrow">LOCAL ONLY</div><h2>TRAINING NOTE / 训练记录</h2></div><button data-action="toggle-dock">收拢</button></div><textarea data-note data-note-surface="dock" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="enter" aria-label="训练记录备忘录" placeholder="支持中文、英文、数字与任意格式……">${esc(state.note)}</textarea><div class="notepad-actions"><button data-action="copy-note">复制全部</button><button class="danger-link" data-action="clear-note">清空</button></div><div class="notepad-status" data-note-status>已自动保存到本地</div></div></section>`;
+  return `<section class="notepad-dock"><div class="notepad-dock-card"><div class="notepad-head"><div><div class="eyebrow">LOCAL ONLY</div><h2>TRAINING NOTE / 训练记录</h2></div><button data-action="toggle-dock">收拢</button></div><textarea data-note data-note-surface="dock" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="enter" aria-label="训练记录备忘录" placeholder="支持中文、英文、数字与任意格式……">${esc(state.note)}</textarea><div class="notepad-actions"><button data-action="copy-note">复制全部</button><button class="danger-link" data-action="clear-note">清空</button></div><div class="notepad-status" data-note-status>${esc(state.noteCopyStatus || "已自动保存到本地")}</div></div></section>`;
 }
 
 function renderCandidateOverlay() {
@@ -336,7 +347,7 @@ function updateNoteStatus(message = "已自动保存") {
 function renderReferenceArea(selected) {
   const area = state.area || { ...bodyPart(selected), label: bodyPart(selected).cn, labelEn: bodyPart(selected).en, movements: [], sessions: [] };
   const part = bodyPart(selected);
-  const note = state.noteOpen ? `<section class="notepad-card"><div class="notepad-head"><div><div class="eyebrow">LOCAL ONLY / TRAINING NOTE</div><h2>TRAINING NOTE / 训练记录</h2></div><button data-action="toggle-note">FLIP</button></div><textarea data-note data-note-surface="inline" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="enter" aria-label="训练记录备忘录" placeholder="支持中文、英文、数字与任意格式……">${esc(state.note)}</textarea><div class="notepad-actions"><button data-action="copy-note">${state.noteExpanded ? "COPY ALL" : "COPY"}</button><button class="danger-link" data-action="clear-note">CLEAR</button><button data-action="expand-note">${state.noteExpanded ? "COLLAPSE EDIT" : "EXPAND"}</button></div><div class="notepad-status" data-note-status>已自动保存</div></section>` : `<button class="part-hero tone-${part.tone}" data-action="toggle-note"><div class="hero-top"><span class="eyebrow">${esc(area.labelEn || part.en)} ARCHIVE</span><span class="flip-hint">FLIP</span></div><div class="part-title">${esc(area.label || part.cn)}</div><div class="part-meta">${area.session_count || 0} 次训练 · ${area.movement_count || 0} 个动作</div><div class="part-latest">最近训练 ${esc(area.latest_date || "暂无")}</div></button>`;
+   const note = state.noteOpen ? `<section class="notepad-card"><div class="notepad-head"><div><div class="eyebrow">LOCAL ONLY / TRAINING NOTE</div><h2>TRAINING NOTE / 训练记录</h2></div><button data-action="toggle-note">FLIP</button></div><textarea data-note data-note-surface="inline" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="enter" aria-label="训练记录备忘录" placeholder="支持中文、英文、数字与任意格式……">${esc(state.note)}</textarea><div class="notepad-actions"><button data-action="copy-note">${state.noteExpanded ? "COPY ALL" : "COPY"}</button><button class="danger-link" data-action="clear-note">CLEAR</button><button data-action="expand-note">${state.noteExpanded ? "COLLAPSE EDIT" : "EXPAND"}</button></div><div class="notepad-status" data-note-status>${esc(state.noteCopyStatus || "已自动保存")}</div></section>` : `<button class="part-hero tone-${part.tone}" data-action="toggle-note"><div class="hero-top"><span class="eyebrow">${esc(area.labelEn || part.en)} ARCHIVE</span><span class="flip-hint">FLIP</span></div><div class="part-title">${esc(area.label || part.cn)}</div><div class="part-meta">${area.session_count || 0} 次训练 · ${area.movement_count || 0} 个动作</div><div class="part-latest">最近训练 ${esc(area.latest_date || "暂无")}</div></button>`;
   const sort = state.sortBy;
   const movements = [...(area.movements || [])].sort((a, b) => sort === "recent" ? String(b.latest?.date || "").localeCompare(String(a.latest?.date || "")) : sort === "days" ? 0 : (Number(b.pinned) - Number(a.pinned) || Number(a.focus_rank || 9999) - Number(b.focus_rank || 9999) || b.sessions - a.sessions));
   const body = state.loading ? stateMessage(`正在读取${area.label || part.cn}部档案…`) : state.error ? stateMessage(state.error, true) : sort === "days" ? renderSessions(area.sessions || [], area.label || part.cn) : `<section class="movement-list"><div class="list-heading"><div><div class="eyebrow">MOVEMENTS / FREQUENCY</div><h2 class="section-title">动作与最近表现</h2></div><span class="count">${area.movement_count || movements.length}</span></div>${movements.length ? movements.map(renderMovementCard).join("") : stateMessage("该部位暂时没有动作历史。")}</section>`;
@@ -588,7 +599,7 @@ document.addEventListener("click", event => {
   if (action === "expand-note") { state.noteExpanded = !state.noteExpanded; render(); }
   if (action === "toggle-dock") { state.dockOpen = !state.dockOpen; render(); }
   if (action === "toggle-candidates") { state.noteCandidatesCollapsed = !state.noteCandidatesCollapsed; refreshCandidateOverlay(); }
-  if (action === "copy-note") { navigator.clipboard?.writeText(state.note); }
+  if (action === "copy-note") { void copyNoteToClipboard(); }
   if (action === "clear-note") { if (window.confirm("清空当前 TRAINING NOTE？不会影响正式训练记录。")) { saveNote(""); state.noteCandidates = []; state.noteCandidatesLoading = false; render(); } }
   if (action === "aliases") { state.showAliases = !state.showAliases; render(); }
   if (action === "candidate") { const candidate = event.target.closest("[data-id]"); if (candidate) openNoteCandidate(candidate.dataset.id); }
@@ -603,7 +614,7 @@ document.addEventListener("click", event => {
 });
 window.addEventListener("scroll", scheduleDockCheck, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260815-03", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260816-01", { updateViaCache: "none" }).catch(() => {});
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();
   event.preventDefault();

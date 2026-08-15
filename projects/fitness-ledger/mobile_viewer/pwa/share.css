@@ -16,6 +16,7 @@
 .share-button.primary { border-color: #7468ee; background: #7468ee; color: #fff; }
 .share-notice { margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: #f5f0e8; color: #716f77; line-height: 1.55; }
 .share-notice.error { background: #fff0ed; color: #9b4c3e; }
+.share-notice.success { background: #eaf7ee; color: #2c7252; }
 .share-list { display: grid; gap: 10px; }
 .share-item { padding: 14px; border: 1px solid rgba(36, 37, 42, .14); border-radius: 16px; background: rgba(255, 253, 249, .8); }
 .share-item-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
