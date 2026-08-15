@@ -399,6 +399,12 @@ def main() -> None:
             _wait(browser, f"!!document.querySelector({json.dumps(marker)})")
             metrics = browser.evaluate("({width:document.documentElement.scrollWidth,viewport:window.innerWidth,undefinedText:document.body.innerText.includes('undefined'),jsonText:document.body.innerText.includes('MODULE_ALIAS_CONFLICT')})")
             assert metrics["width"] <= metrics["viewport"] + 2 and not metrics["undefinedText"] and not metrics["jsonText"], metrics
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools',{panel:'data-modules'})")
+        _wait(browser, "!!document.querySelector('.dm-review-hub') && document.querySelectorAll('[data-review-route]').length === 8")
+        hub_routes = browser.evaluate("[...document.querySelectorAll('[data-review-route]')].map(item=>item.dataset.reviewRoute)")
+        assert hub_routes == ["quick", "body", "diet", "training", "export", "sync", "health", "readiness"], hub_routes
+        _click(browser, "[data-review-route='quick']")
+        _wait(browser, "location.hash === '#quick' && !!document.querySelector('#raw-entry')")
         _command(browser, "Emulation.setDeviceMetricsOverride", {"width": 390, "height": 844, "deviceScaleFactor": 1, "mobile": True})
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('body')")
         _wait(browser, "!!document.querySelector('.archive-heading')")
