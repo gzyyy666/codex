@@ -723,7 +723,7 @@ def _generated_module_id(label: str, aliases: Iterable[str], category_id: str, e
 
 
 class DataModuleDefinitionStore:
-    """Authoritative Candidate-only persistence for categories and definitions."""
+    """Authoritative local persistence for categories and definitions."""
 
     SCHEMA = "fitness-ledger-data-module-definition-store-v1"
 
@@ -742,6 +742,18 @@ class DataModuleDefinitionStore:
     def initialize(cls, path: Path, seed_registry_file: Path, *, backup_dir: Path | None = None) -> "DataModuleDefinitionStore":
         store = cls(path, backup_dir=backup_dir, seed_payload=cls.seed_from_registry_file(seed_registry_file))
         store._write_atomic(store.seed_payload)
+        return store
+
+    @classmethod
+    def initialize_empty(cls, path: Path, *, backup_dir: Path | None = None) -> "DataModuleDefinitionStore":
+        """Create the production store without adding example modules."""
+        store = cls(path, backup_dir=backup_dir)
+        if not store.path.exists():
+            store._write_atomic({
+                "schema": cls.SCHEMA,
+                "categories": copy.deepcopy(DEFAULT_CATEGORIES),
+                "modules": [],
+            })
         return store
 
     def _read_payload(self, *, strict: bool = True) -> dict[str, Any]:

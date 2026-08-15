@@ -1,5 +1,15 @@
 # Fitness Ledger Changelog
 
+## 2026-08-15 - Data Module production activation
+
+- The formal Web launcher now creates an empty local Data Module definition
+  store on first start and connects it to the shared command boundary.
+- The production store contains only system categories; review fixtures such
+  as waist or resting heart rate are never copied into formal data.
+- The phone home-screen PWA reads sanitized module definitions and records
+  through the authenticated read-only Web gateway and places them in Body,
+  Diet, Training, daily detail, or an optional edge widget.
+
 ## 2026-08-12 - Standardize selected shoulder movement loads
 
 - Updated every structured 7.5 load for Y Raise, Cable Rear Delt Fly, and

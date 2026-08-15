@@ -9,10 +9,21 @@ import webbrowser
 from pathlib import Path
 
 from backend.server import create_server
+from fitness_ledger_core.data_module_engine import DataModuleDefinitionStore
 
 
 BASE_DIR = Path(__file__).resolve().parent
 URL = "http://127.0.0.1:8766"
+
+
+def configure_data_module_registry() -> Path:
+    registry = BASE_DIR.parent / "data" / "data_module_definitions.json"
+    DataModuleDefinitionStore.initialize_empty(
+        registry,
+        backup_dir=BASE_DIR.parent / "data" / "backups" / "data_module_definitions",
+    )
+    os.environ.setdefault("FITNESS_LEDGER_DATA_MODULE_REGISTRY", str(registry))
+    return registry
 
 
 def find_edge() -> Path | None:
@@ -36,6 +47,7 @@ def wait_until_ready() -> None:
 
 
 def main() -> None:
+    configure_data_module_registry()
     server = create_server()
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()

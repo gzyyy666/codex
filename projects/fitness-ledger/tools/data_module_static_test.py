@@ -13,8 +13,13 @@ from fitness_ledger_core.data_module_engine import DataModuleEngine, ModuleRegis
 
 
 ENGINE_SOURCE = (PROJECT_ROOT / "fitness_ledger_core" / "data_module_engine.py").read_text(encoding="utf-8")
+LAUNCHER_SOURCE = (PROJECT_ROOT / "web_desktop" / "launcher.pyw").read_text(encoding="utf-8")
+SERVER_SOURCE = (PROJECT_ROOT / "web_desktop" / "backend" / "server.py").read_text(encoding="utf-8")
 for forbidden in ("waist_cm", "resting_hr", "body_fat_pct", "if module_id"):
     assert forbidden not in ENGINE_SOURCE, f"module-specific branch leaked into engine: {forbidden}"
+assert "DataModuleDefinitionStore.initialize_empty" in LAUNCHER_SOURCE
+assert "FITNESS_LEDGER_DATA_MODULE_REGISTRY" in LAUNCHER_SOURCE
+assert 'Path(data_file).parent / "data_module_definitions.json"' in SERVER_SOURCE
 
 registry = ModuleRegistry.from_file(PROJECT_ROOT / "tools" / "fixtures" / "data_modules" / "registry.json")
 assert stable_hash({"b": 2, "a": 1}) == stable_hash({"a": 1, "b": 2})

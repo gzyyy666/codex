@@ -95,7 +95,11 @@ class LedgerWebService:
         backup_dir = backup_dir or PROJECT_DIR / "data" / "backups"
         if data_module_registry_file is None:
             configured_registry = str(os.environ.get("FITNESS_LEDGER_DATA_MODULE_REGISTRY", "")).strip()
-            data_module_registry_file = Path(configured_registry).expanduser() if configured_registry else None
+            if configured_registry:
+                data_module_registry_file = Path(configured_registry).expanduser()
+            else:
+                adjacent_registry = Path(data_file).parent / "data_module_definitions.json"
+                data_module_registry_file = adjacent_registry if adjacent_registry.is_file() else None
         self.data_module_registry_file = data_module_registry_file
         self.data = LedgerDataAccess(data_file, dictionary_file)
         self.views = LedgerViewModels(data_file, dictionary_file)

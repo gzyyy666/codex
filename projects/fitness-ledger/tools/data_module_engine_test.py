@@ -72,6 +72,20 @@ class DataModuleCandidateTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp.cleanup()
 
+    def test_empty_store_initialization_is_idempotent_and_has_no_example_modules(self) -> None:
+        empty_store_path = Path(self.temp.name) / "empty-data-module-definitions.json"
+        store = DataModuleDefinitionStore.initialize_empty(empty_store_path)
+        categories, modules, issues = store.load(strict=True)
+        self.assertFalse(issues)
+        self.assertEqual([item.module_id for item in modules.all()], [])
+        self.assertEqual(
+            [item.category_id for item in categories.all()],
+            ["body", "diet", "training", "movement", "extension"],
+        )
+        original = empty_store_path.read_bytes()
+        DataModuleDefinitionStore.initialize_empty(empty_store_path)
+        self.assertEqual(empty_store_path.read_bytes(), original)
+
     def test_full_numeric_lifecycle_is_registry_driven(self) -> None:
         before_tracker = self.tracker.read_bytes()
         before_dictionary = self.dictionary.read_bytes()
