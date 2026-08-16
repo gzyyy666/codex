@@ -9,7 +9,7 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.0 · build 2026.08.16.05";
+const BUILD_VERSION = "PWA v1.1.0 · build 2026.08.16.06";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_LIMIT = 7;
 const moduleTools = window.FLDataModules || {
@@ -691,7 +691,7 @@ document.addEventListener("click", event => {
 });
 window.addEventListener("scroll", scheduleDockCheck, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260816-05", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260816-06", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

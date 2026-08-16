@@ -57,10 +57,10 @@ def main() -> None:
     assert "getLoginState" in api
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
-    assert 'fitness-ledger-pwa-v29' in service_worker
+    assert 'fitness-ledger-pwa-v30' in service_worker
     assert '"./index.html"' in service_worker
 
-    assert 'register("./sw.js?v=20260816-05"' in app
+    assert 'register("./sw.js?v=20260816-06"' in app
     handoff_doc = (ROOT / "docs" / "maintenance" / "PWA_SHARE_INBOX_PHASE3.md").read_text(encoding="utf-8")
     assert 'Collection: `fl_web_share_inbox`' in handoff_doc
     assert "读取和修改本人数据 [PRIVATE]" in handoff_doc
