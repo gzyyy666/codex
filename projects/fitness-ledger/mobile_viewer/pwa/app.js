@@ -9,7 +9,7 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.0 · build 2026.08.16.06";
+const BUILD_VERSION = "PWA v1.1.1 · build 2026.08.16.07";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_LIMIT = 7;
 const moduleTools = window.FLDataModules || {
@@ -98,9 +98,23 @@ async function sendTrainingNote() {
     const clientId = await phoneInboxClientId(title, textValue);
     const existing = await inbox.where({ _openid: "{openid}", client_id: clientId }).limit(1).get();
     const data = { client_id: clientId, title, text: textValue, source: "pwa_note", status: "pending", received_at: Date.now(), updated_at: Date.now() };
-    if (existing.data?.length) await inbox.doc(existing.data[0]._id).update(data);
-    else await inbox.add(data);
+    if (existing.data?.length) {
+      await inbox.doc(existing.data[0]._id).update(data);
+    } else {
+      await inbox.add(data);
+    }
     state.phoneInboxItems = await listPhoneInboxItems();
+    const verified = state.phoneInboxItems.some(item => (
+      item.client_id === clientId &&
+      item.text === textValue &&
+      item.source === "pwa_note" &&
+      item.status !== "expired"
+    ));
+    if (!verified) {
+      const error = new Error("PHONE_INBOX_WRITE_VERIFY_FAILED");
+      error.code = "PHONE_INBOX_WRITE_VERIFY_FAILED";
+      throw error;
+    }
     state.shareNotice = `已发送到云端“当日训练记录”。云端按账号保留最近 ${PHONE_INBOX_LIMIT} 次；电脑端打开后仍需预览和确认，不会直接保存。`;
     sent = true;
   } catch (error) {
@@ -108,6 +122,7 @@ async function sendTrainingNote() {
     if (code.includes("WEB_AUTH_DISABLED")) state.shareError = "当前是匿名 Review 预览，未连接真实 CloudBase；正式 PWA 登录后才能发送。";
     else if (code.includes("AUTH_REQUIRED")) state.shareError = "请先登录与电脑端相同的 CloudBase 账号，再确认发送。";
     else if (code.includes("CLOUDBASE_ENV_MISSING")) state.shareError = "当前环境没有配置 CloudBase，暂时不能发送。";
+    else if (code.includes("PHONE_INBOX_WRITE_VERIFY_FAILED")) state.shareError = "云端没有返回当前账号的收件记录，本次不会显示为发送成功。请确认手机打开的是正式地址，并已登录与电脑端相同的 CloudBase 账号。";
     else state.shareError = "发送失败，本次没有写入云端；当前记事内容仍保留在页面中。";
   }
   state.shareBusy = false;
@@ -691,7 +706,7 @@ document.addEventListener("click", event => {
 });
 window.addEventListener("scroll", scheduleDockCheck, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260816-06", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260816-07", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

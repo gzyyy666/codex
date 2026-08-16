@@ -226,12 +226,20 @@ class DataModuleCandidateTests(unittest.TestCase):
         before_tracker = self.tracker.read_bytes()
         template = self.service.data_module_llm_template()
         self.assertEqual(template, self.service.data_module_llm_template())
-        self.assertEqual(template["schema"], "fitness-ledger-llm-entry-template-v1")
+        self.assertEqual(template["schema"], "fitness-ledger-llm-entry-template-v2")
+        self.assertEqual(template["template_version"], 2)
+        self.assertIn("prompt_template", template)
+        self.assertIn("腰围", template["prompt_template"])
+        self.assertEqual(template["canonical_entry_format"]["accepted_input"], "plain_text")
+        self.assertTrue(any(item["field"] == "Weight (kg)" for item in template["native_fields"]))
         self.assertEqual(template["source"]["contains_personal_records"], False)
         self.assertEqual({item["module_id"] for item in template["modules"]}, {"waist_cm", "resting_hr"})
         self.assertNotIn("data_module_records", json.dumps(template, ensure_ascii=False))
         self.assertNotIn("raw_entries", json.dumps(template, ensure_ascii=False))
         self.assertEqual(before_tracker, self.tracker.read_bytes())
+
+        prompt_preview = self.service.data_module_preview("2026-08-14 腰围 82.5 cm；静息心率 58 bpm")
+        self.assertEqual({item["module_id"] for item in prompt_preview["candidates"]}, {"waist_cm", "resting_hr"})
 
         for raw in ("2026-08-10 腰围 84 cm", "2026-08-12 腰围 82.5 cm", "2026-08-13 腰围 81.5 cm"):
             preview = self.service.data_module_preview(raw)

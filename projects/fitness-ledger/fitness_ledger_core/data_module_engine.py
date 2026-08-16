@@ -1273,7 +1273,10 @@ class DataModuleEngine:
 
         The template intentionally contains no tracker records, raw input, or
         private notes.  It is regenerated from the active registry whenever it
-        is requested, so a newly saved module is available immediately.
+        is requested, so a newly saved module is available immediately.  The
+        copyable prompt asks the LLM for plain text because that is the format
+        accepted by the existing Daily Entry preview path; the JSON response is
+        a definition/reference package, not a direct write command.
         """
         category_labels = {item.category_id: item.label for item in self.category_registry.all()}
         modules = []
@@ -1303,24 +1306,97 @@ class DataModuleEngine:
             "categories": self.category_registry.to_dict(),
             "modules": modules,
         })
+        native_fields = [
+            {"section": "body", "field": "Date", "aliases": ["日期", "date"], "line_example": "日期：2026-08-16", "value_type": "YYYY-MM-DD"},
+            {"section": "body", "field": "Weight (kg)", "aliases": ["体重", "weight"], "line_example": "体重：70 kg", "value_type": "number"},
+            {"section": "body", "field": "Bowel Movement", "aliases": ["排便", "bowel"], "line_example": "排便：正常", "value_type": "text"},
+            {"section": "body", "field": "Training", "aliases": ["训练", "training"], "line_example": "训练：胸部", "value_type": "text"},
+            {"section": "body", "field": "Cardio", "aliases": ["有氧", "cardio"], "line_example": "有氧：跑步 30 分钟", "value_type": "text"},
+            {"section": "body", "field": "Notes", "aliases": ["备注", "notes"], "line_example": "备注：今天状态正常", "value_type": "text"},
+            {"section": "diet", "field": "Calories (kcal)", "aliases": ["热量", "calories"], "line_example": "热量：1590 kcal", "value_type": "number"},
+            {"section": "diet", "field": "Protein (g)", "aliases": ["蛋白质", "protein"], "line_example": "蛋白质：120 g", "value_type": "number"},
+            {"section": "diet", "field": "Carbs (g)", "aliases": ["碳水", "carbs"], "line_example": "碳水：168 g", "value_type": "number"},
+            {"section": "diet", "field": "Fat (g)", "aliases": ["脂肪", "fat"], "line_example": "脂肪：54 g", "value_type": "number"},
+            {"section": "diet", "field": "Food Summary", "aliases": ["饮食", "food"], "line_example": "饮食：鸡蛋、鸡胸肉和水果", "value_type": "text"},
+            {"section": "training", "field": "Split", "aliases": ["训练分组", "split"], "line_example": "训练分组：胸部", "value_type": "text"},
+            {"section": "training", "field": "Standardized Summary", "aliases": ["动作记录", "workout"], "line_example": "动作记录：卧推 60 kg × 8 × 3", "value_type": "text"},
+        ]
+        module_lines = []
+        for item in modules:
+            aliases = "、".join(str(alias) for alias in item["aliases"] if str(alias).strip()) or item["label"]
+            unit = item["actual_unit"] or "无单位"
+            module_lines.append(f"- {item['label']} | module_id={item['module_id']} | 可识别词={aliases} | 单位={unit}")
+        module_catalog_text = "\n".join(module_lines) or "- 当前没有已启用的自定义记录项；如需识别新词，请先在数据模块中建立定义。"
+        prompt_template = f"""你是 Fitness Ledger 的录入整理助手。
+请把“原始记录”整理成可以直接粘贴回 Daily Entry 输入板的纯文本。
+
+只输出整理后的记录，不要解释，不要 Markdown 代码围栏，不要输出 JSON。
+第一行必须是：日期：YYYY-MM-DD；原文没有明确日期时只输出：缺少日期：请补充 YYYY-MM-DD。
+每个有明确值的项目单独占一行；没有提到的项目不要补猜。
+原有项目使用下方原有字段名；自定义记录项必须使用下方登记过的名称或可识别词，格式为：记录项名称：数值 单位。
+单位必须保留实际单位；没有单位的记录项不要擅自添加单位。
+不要把动作名称当成自定义记录项；动作仍放在“动作记录”中。
+
+原有字段示例：
+日期：2026-08-16
+体重：70 kg
+排便：正常
+训练：胸部
+有氧：跑步 30 分钟
+热量：1590 kcal
+蛋白质：120 g
+碳水：168 g
+脂肪：54 g
+饮食：鸡蛋、鸡胸肉和水果
+动作记录：卧推 60 kg × 8 × 3
+备注：今天状态正常
+
+当前可用的自定义记录项：
+{module_catalog_text}
+
+输出示例（仅当对应记录项已经建立时使用）：
+日期：2026-08-16
+体重：70 kg
+腰围：82.5 cm
+静息心率：58 bpm
+
+原始记录：
+{{daily_text}}"""
         return {
-            "schema": "fitness-ledger-llm-entry-template-v1",
-            "template_version": 1,
-            "purpose": "把自然语言整理为 Fitness Ledger 的 Data Module 预览输入。",
+            "schema": "fitness-ledger-llm-entry-template-v2",
+            "template_version": 2,
+            "purpose": "把自然语言整理为可直接粘贴回 Daily Entry 的预览输入，同时提供当前自定义记录项定义。",
+            "workflow": {
+                "step_1": "复制 prompt_template 给 LLM，并把原始记录放入 {{daily_text}}。",
+                "step_2": "只把 LLM 返回的纯文本粘贴回 Daily Entry 输入板。",
+                "step_3": "继续执行 Preview → Confirm；预览前不会写入，确认后才保存。",
+            },
             "source": {
                 "registry_fingerprint": registry_fingerprint,
                 "module_count": len(modules),
                 "contains_personal_records": False,
             },
+            "prompt_template": prompt_template,
+            "native_fields": native_fields,
+            "canonical_entry_format": {
+                "accepted_input": "plain_text",
+                "date_line": "日期：YYYY-MM-DD",
+                "native_line": "字段名：值 单位（单位按字段需要填写）",
+                "module_line": "已登记的记录项名称：数值 单位",
+                "unknown_line": "无法归类的原文不要猜测；保留到备注或先建立记录项定义。",
+            },
             "instructions": [
-                "只从 modules 中选择 module_id，不要自行创造字段名。",
+                "只使用 native_fields 或 modules 中已经登记的字段和记录项，不要自行创造 module_id。",
                 "日期使用 YYYY-MM-DD；如果原文没有日期，先要求补充日期。",
-                "value 只填记录项的实际值；有单位时同时校验 unit，不能用单位替代数值。",
-                "输出后仍必须经过 Fitness Ledger 的 Preview → Confirm 流程，不能直接写入。",
+                "自定义记录项的数值和单位必须分别保留，不能用单位替代数值。",
+                "LLM 输出只用于粘贴到输入板，仍必须经过 Fitness Ledger 的 Preview → Confirm 流程，不能直接写入。",
             ],
             "output_shape": {
+                "accepted_input": "plain_text",
                 "date": "YYYY-MM-DD",
-                "entries": [{"module_id": "从 modules 选择", "value": "记录值", "unit": "可选"}],
+                "native_lines": ["字段名：值 单位"],
+                "module_line": "module label：value unit",
+                "entries": [{"module_id": "从 modules 选择", "value": "记录值", "unit": "actual_unit"}],
             },
             "modules": modules,
         }

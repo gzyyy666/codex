@@ -49,11 +49,11 @@ def main() -> None:
     assert "compositionstart" in app_source and "compositionend" in app_source
     assert "refreshCandidateOverlay" in app_source
     assert "noteHistoryCache" in app_source
-    for marker in ("shareDraft", "sendTrainingNote", "share-confirm-primary", "PHONE_INBOX_LIMIT", "privateDatabase", "确认并发送"):
+    for marker in ("shareDraft", "sendTrainingNote", "PHONE_INBOX_WRITE_VERIFY_FAILED", "share-confirm-primary", "PHONE_INBOX_LIMIT", "privateDatabase", "确认并发送"):
         assert marker in app_source, f"missing in-app phone handoff marker: {marker}"
     assert "prunePhoneInboxItems" not in app_source, "retention cleanup must run in CloudBase, not the phone"
     assert 'data-candidate-region' in app_source
-    assert 'PWA v1.1.0' in app_source
+    assert 'PWA v1.1.1' in app_source
     for marker in (
         'call("dataModules")',
         "mergeRecordsWithCategoryDates",
@@ -90,9 +90,9 @@ def main() -> None:
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'includes("/api/")' in service_worker
-    assert 'fitness-ledger-pwa-v30' in service_worker
+    assert 'fitness-ledger-pwa-v31' in service_worker
     assert '"./data-modules.js"' in service_worker
-    assert 'register("./sw.js?v=20260816-06", { updateViaCache: "none" })' in app_source
+    assert 'register("./sw.js?v=20260816-07", { updateViaCache: "none" })' in app_source
     desktop_icon = ROOT / "assets" / "fitness-ledger-monogram-v3.png"
     pwa_icon = PWA / "icons" / "fitness-ledger.png"
     assert hashlib.sha256(desktop_icon.read_bytes()).digest() == hashlib.sha256(pwa_icon.read_bytes()).digest()

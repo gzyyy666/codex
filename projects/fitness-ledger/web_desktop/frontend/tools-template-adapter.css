@@ -1112,6 +1112,64 @@
 .phone-inbox-login label { display: grid; gap: 5px; color: #6d675d; font-size: 11px; }
 .phone-inbox-login input { min-height: 36px; padding: 0 10px; border: 1px solid rgba(36,34,28,.2); border-radius: 8px; background: rgba(255,255,255,.65); }
 
+.entry-template-note {
+  margin: 0 0 14px;
+  color: #6f685e;
+  line-height: 1.65;
+}
+.entry-template-block {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 13px;
+  border: 1px solid rgba(36, 34, 28, .16);
+  border-radius: 12px;
+  background: rgba(250, 247, 239, .78);
+}
+.entry-template-block-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--ink);
+  font-size: 12px;
+}
+.entry-template-block-head span {
+  color: #8a8275;
+  font-size: 10px;
+}
+.entry-template-prompt,
+.entry-template-json {
+  max-height: min(48vh, 520px);
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font: 12px/1.65 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.entry-template-prompt {
+  padding: 11px;
+  border: 1px solid rgba(36, 34, 28, .1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .68);
+}
+.entry-template-details {
+  margin: 0 0 14px;
+  color: #6f685e;
+}
+.entry-template-details summary {
+  cursor: pointer;
+  font-size: 12px;
+}
+.entry-template-details .entry-template-json {
+  margin-top: 9px;
+  padding: 10px;
+  border: 1px solid rgba(36, 34, 28, .1);
+  border-radius: 8px;
+  background: rgba(250, 247, 239, .6);
+}
+
 @media (max-width: 680px) {
   .admin-sync-local-state {
     align-items: flex-start;
