@@ -32,7 +32,7 @@ def main() -> None:
 
     manifest = json.loads((PWA / "manifest.webmanifest").read_text(encoding="utf-8"))
     target = manifest.get("share_target") or {}
-    assert target.get("action") == "./share.html"
+    assert target.get("action") == "./index.html"
     assert target.get("method") == "GET"
     assert target.get("params", {}).get("text") == "share_text"
     config = (PWA / "config.js").read_text(encoding="utf-8")
@@ -40,10 +40,13 @@ def main() -> None:
     assert "cloud1-" in config
 
     share = (PWA / "share.js").read_text(encoding="utf-8")
-    assert 'import { privateDatabase } from "./api.js";' in share
-    assert '"fl_web_share_inbox"' in share
-    assert '"{openid}"' in share
-    assert "不会直接写入正式记录" in share
+    legacy = (PWA / "share.html").read_text(encoding="utf-8")
+    app = (PWA / "app.js").read_text(encoding="utf-8")
+    assert "window.location.replace" in legacy
+    assert '"fl_web_share_inbox"' in app
+    assert '"{openid}"' in app
+    assert "不会直接写入正式档案" in app
+    assert "sendTrainingNote" in app
     for forbidden_collection in ("fl_daily_records", "fl_data_module_records", "fl_diet_records", "fl_training_sessions"):
         assert forbidden_collection not in share, f"share page must not write formal collection: {forbidden_collection}"
 
@@ -52,12 +55,10 @@ def main() -> None:
     assert "getLoginState" in api
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
-    assert 'fitness-ledger-pwa-v25' in service_worker
-    assert '"./share.html"' in service_worker
-    assert '"./share.js"' in service_worker
+    assert 'fitness-ledger-pwa-v26' in service_worker
+    assert '"./index.html"' in service_worker
 
-    app = (PWA / "app.js").read_text(encoding="utf-8")
-    assert 'register("./sw.js?v=20260816-01"' in app
+    assert 'register("./sw.js?v=20260816-02"' in app
     handoff_doc = (ROOT / "docs" / "maintenance" / "PWA_SHARE_INBOX_PHASE3.md").read_text(encoding="utf-8")
     assert 'Collection: `fl_web_share_inbox`' in handoff_doc
     assert "读取和修改本人数据 [PRIVATE]" in handoff_doc

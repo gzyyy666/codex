@@ -1,4 +1,4 @@
-"""Browser test for the formal PWA phone-to-desktop handoff surface."""
+"""Browser test for the formal PWA in-app phone handoff surface."""
 
 from __future__ import annotations
 
@@ -69,19 +69,15 @@ MOCK_CLOUDBASE = r"""
       orderBy() { return this; },
       limit() { return this; },
       async get() { return { data: rows.filter(row => matches(row, filter)).sort((a, b) => b.received_at - a.received_at) }; },
-      async update(payload) {
-        rows.filter(row => matches(row, filter)).forEach(row => Object.assign(row, payload.data || {}));
-        return { updated: rows.filter(row => matches(row, filter)).length };
-      }
+      async update(payload) { rows.filter(row => matches(row, filter)).forEach(row => Object.assign(row, payload.data || {})); return { updated: 1 }; }
     };
   }
   const collection = {
     where(filter) { return query(filter); },
+    doc(id) { return { async update(payload) { Object.assign(rows.find(row => row._id === id) || {}, payload.data || {}); }, async remove() { const index = rows.findIndex(row => row._id === id); if (index >= 0) rows.splice(index, 1); } }; },
     async add(payload) { const row = { _id: `row-${rows.length + 1}`, _openid: 'web-user', ...payload.data }; rows.push(row); return { _id: row._id }; }
   };
-  window.cloudbase = {
-    init() { return { auth: () => ({ async getLoginState() { return true; }, async getAccessToken() { return { accessToken: 'test-token' }; } }), database: () => ({ collection() { return collection; } }) }; }
-  };
+  window.cloudbase = { init() { return { auth: () => ({ async getLoginState() { return true; } }), database: () => ({ collection() { return collection; } }) }; } };
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { async writeText(value) { window.__copied = value; } } });
 })();
 """
@@ -92,8 +88,8 @@ def main() -> None:
     service: subprocess.Popen[str] | None = None
     edge: subprocess.Popen[bytes] | None = None
     browser: DevToolsSocket | None = None
-    profile = tempfile.TemporaryDirectory(prefix="fitness-ledger-formal-share-edge-")
-    screenshot = Path(tempfile.gettempdir()) / "fitness-ledger-formal-share.png"
+    profile = tempfile.TemporaryDirectory(prefix="fitness-ledger-pwa-in-app-edge-")
+    screenshot = Path(tempfile.gettempdir()) / "fitness-ledger-pwa-in-app.png"
     try:
         service = subprocess.Popen(
             [sys.executable, "-m", "http.server", str(port), "--bind", "127.0.0.1", "--directory", str(PWA_ROOT)],
@@ -111,21 +107,32 @@ def main() -> None:
         command(browser, "Runtime.enable")
         command(browser, "Page.addScriptToEvaluateOnNewDocument", {"source": MOCK_CLOUDBASE})
         command(browser, "Page.navigate", {"url": url})
-        wait(browser, "document.querySelector('[data-incoming-text]') !== null")
-        incoming = browser.evaluate("document.querySelector('[data-incoming-text]').value")
-        assert incoming == "2026-08-16 weight 71 kg", incoming
-        assert browser.evaluate("document.body.innerText.includes('发送到云端')") is True
-        browser.evaluate("document.querySelector('[data-action=send-incoming]').click()")
-        wait(browser, "document.querySelector('[data-status=pending]') !== null && document.body.innerText.includes('2026-08-16 weight 71 kg')")
-        assert browser.evaluate("document.body.innerText.includes('share-review') || document.body.innerText.includes('anonymous-review-fixture')") is False
-        browser.evaluate("document.querySelector('[data-action=copy-item]').click()")
-        wait(browser, "document.body.innerText.includes('已复制到剪贴板')")
-        assert browser.evaluate("window.__copied === '2026-08-16 weight 71 kg'") is True
-        browser.evaluate("document.querySelector('[data-action=process-item]').click()")
-        wait(browser, "document.querySelector('[data-status=processed]') !== null")
+        wait(browser, "document.querySelector('[data-share-draft]') !== null")
+        assert browser.evaluate("location.pathname.endsWith('/index.html')") is True
+        assert browser.evaluate("document.querySelector('[data-share-draft]').value") == "2026-08-16 weight 71 kg"
+        assert browser.evaluate("document.body.innerText.includes('确认发送')") is True
+        browser.evaluate("document.querySelector('[data-action=send-training-note]').click()")
+        wait(browser, "document.body.innerText.includes('已发送到电脑的')")
+        assert browser.evaluate("document.body.innerText.includes('不会直接写入正式档案')") is True
+        assert browser.evaluate("document.body.innerText.includes('最近发送')") is True
+
+        command(browser, "Page.navigate", {"url": f"http://127.0.0.1:{port}/pwa/index.html#reference?part=chest"})
+        wait(browser, "document.querySelector('.part-hero') !== null")
+        browser.evaluate("document.querySelector('.part-hero').click()")
+        wait(browser, "document.querySelector('[data-note]') !== null")
+        browser.evaluate("const n=document.querySelector('[data-note]'); n.value='今天训练 4 组'; n.dispatchEvent(new Event('input',{bubbles:true}))")
+        browser.evaluate("document.querySelector('[data-action=expand-note]').click()")
+        wait(browser, "document.querySelector('[data-action=send-training-note]') !== null")
+        assert browser.evaluate("document.body.innerText.includes('确认发送')") is True
+        browser.evaluate("document.querySelector('[data-action=close-share-panel]').click()")
+        wait(browser, "document.querySelector('[data-note]') !== null")
+        browser.evaluate("document.querySelector('[data-action=copy-note]').click()")
+        wait(browser, "document.querySelector('.copy-feedback-toast') !== null")
+        assert browser.evaluate("document.body.innerText.includes('已复制到剪贴板')") is True
+        assert browser.evaluate("window.__copied === '今天训练 4 组'") is True
         result = command(browser, "Page.captureScreenshot", {"format": "png", "captureBeyondViewport": False})
         screenshot.write_bytes(base64.b64decode(result["data"]))
-        print(json.dumps({"status": "PASS", "formal_share_target": True, "private_inbox_write": True, "processed_state": True, "candidate_trace_absent": True, "screenshot": str(screenshot)}, ensure_ascii=False))
+        print(json.dumps({"status": "PASS", "in_app_share_target": True, "second_confirmation": True, "private_inbox_write": True, "copy_feedback": True, "legacy_share_redirected": True, "screenshot": str(screenshot)}, ensure_ascii=False))
     finally:
         if browser is not None:
             browser.close()

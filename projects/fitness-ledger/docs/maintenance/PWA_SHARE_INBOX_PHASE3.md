@@ -7,15 +7,18 @@ part of the formal PWA bundle.
 
 ## User flow
 
-1. On the phone, share a text to Fitness Ledger or paste it into `share.html`.
-2. After the user confirms, the text is saved as one private pending inbox
-   item.
-3. On the computer, open the same authenticated PWA account and copy the
-   item.
-4. In the desktop Daily Entry page, use the existing “导入文字” flow.
+1. On the phone Daily Entry note board, tap “发送到电脑”. The expanded panel
+   shows the text and requires a second “确认发送” action.
+2. After confirmation, the text is saved as one private pending inbox item.
+3. On the computer, open Daily Entry and tap the light “当日训练记录” entry.
+   The recent items appear in an in-page modal; no second browser page is used.
+4. Choose “放入 Daily Entry”. The text returns to the original input board,
+   where natural language and the original standard format use the same parser
+   and review flow.
 5. Preview, edit, and confirm. Only that existing local save boundary can
    change the formal tracker or Data Module records.
-6. Mark the inbox item processed, or reject it without changing formal data.
+6. Mark the inbox item processed without changing formal data. The phone side
+   keeps the newest seven items and automatically removes older ones.
 
 The inbox is a transport buffer, not a second ledger. It stores no parsed
 record, no Data Module definition, no raw tracker backup, and no Cloud Sync
@@ -30,7 +33,7 @@ Fields written by the Web client:
 - `client_id`: deterministic duplicate key for one title/text pair;
 - `title`: at most 120 characters;
 - `text`: at most 4,000 characters;
-- `source`: `pwa_share`;
+- `source`: `pwa_note`;
 - `status`: `pending`, `copied`, `processed`, `rejected`, or `failed`;
 - `received_at`, `updated_at`, `expires_at`: millisecond timestamps.
 
@@ -72,10 +75,11 @@ permanently running server or an AI call. The actual bill depends on the
 CloudBase environment plan, resource-point rules, retention volume, and use
 frequency; check the environment billing page before release.
 
-The 30-day expiry field limits retained text, but automatic deletion is not
-enabled in this candidate because it would require a reviewed scheduled job.
-Before release choose either manual cleanup or a separately tested scheduled
-cleanup function.
+The PWA prunes the collection after each confirmed send: only the newest seven
+items remain. It attempts document deletion and falls back to an `expired`
+status if the collection rule does not allow deletion. The 30-day expiry field
+remains a secondary retention signal; there is no permanently running cleanup
+job.
 
 ## Required release evidence
 

@@ -1083,6 +1083,35 @@
 .admin-sync-local-state.is-pending i { background: #b27b1e; }
 .admin-sync-local-state.is-synced i { background: #4c8667; }
 
+.entry-input-row {
+  display: grid;
+  grid-template-columns: minmax(170px, 220px) 1fr;
+  gap: 12px 18px;
+  align-items: end;
+  margin-top: 12px;
+}
+.entry-input-mode { display: grid; gap: 5px; color: #6d675d; font-size: 11px; }
+.entry-input-mode select { min-height: 34px; padding: 0 10px; border: 1px solid rgba(36,34,28,.2); border-radius: 8px; background: rgba(255,255,255,.46); color: var(--ink); }
+.entry-input-help { margin: 0; color: #777067; font-size: 11px; line-height: 1.55; }
+.entry-support-actions { display: flex; flex-wrap: wrap; gap: 0 16px; margin-top: 3px; }
+.entry-support-actions .entry-template-trigger { margin-top: 8px; }
+
+.phone-inbox-copy, .phone-inbox-head p { margin: 0; color: #70695f; line-height: 1.6; }
+.phone-inbox-head { display: grid; gap: 7px; margin-bottom: 14px; }
+.phone-inbox-head > span { color: #8a8275; font-size: 11px; }
+.phone-inbox-list { display: grid; gap: 10px; max-height: min(55vh, 520px); overflow: auto; padding-right: 3px; }
+.phone-inbox-item { padding: 12px; border: 1px solid rgba(36,34,28,.13); border-radius: 12px; background: rgba(250,247,239,.75); }
+.phone-inbox-item header { display: flex; justify-content: space-between; gap: 12px; color: #5d574d; font-size: 11px; }
+.phone-inbox-item time { color: #91897d; white-space: nowrap; }
+.phone-inbox-item pre { max-height: 150px; margin: 9px 0 0; overflow: auto; white-space: pre-wrap; font: 13px/1.6 inherit; color: var(--ink); }
+.phone-inbox-item-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.phone-inbox-item-actions .btn { min-height: 30px; padding: 4px 10px; font-size: 11px; }
+.phone-inbox-empty { margin: 0; padding: 24px 8px; color: #867f73; text-align: center; }
+.phone-inbox-notice { margin: 12px 0 0; color: #4c8667; font-size: 12px; }
+.phone-inbox-login { display: grid; gap: 12px; }
+.phone-inbox-login label { display: grid; gap: 5px; color: #6d675d; font-size: 11px; }
+.phone-inbox-login input { min-height: 36px; padding: 0 10px; border: 1px solid rgba(36,34,28,.2); border-radius: 8px; background: rgba(255,255,255,.65); }
+
 @media (max-width: 680px) {
   .admin-sync-local-state {
     align-items: flex-start;

@@ -51,8 +51,11 @@ def main() -> int:
     if not manifest.get("icons"):
         errors.append("manifest.icons is empty")
     share_target = manifest.get("share_target") or {}
-    if share_target.get("action") != "./share.html" or share_target.get("method") != "GET":
-        errors.append("manifest.share_target must point to the formal share.html GET entry")
+    if share_target.get("action") != "./index.html" or share_target.get("method") != "GET":
+        errors.append("manifest.share_target must point to the in-app index.html GET entry")
+    share_entry = (PWA / "share.html").read_text(encoding="utf-8")
+    if "window.location.replace" not in share_entry or "./index.html" not in share_entry:
+        errors.append("legacy share.html must redirect into the in-app index.html flow")
 
     html = (PWA / "index.html").read_text(encoding="utf-8")
     config = (PWA / "config.js").read_text(encoding="utf-8")
