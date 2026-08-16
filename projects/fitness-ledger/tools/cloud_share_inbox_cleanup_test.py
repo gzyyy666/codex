@@ -20,6 +20,7 @@ def main() -> None:
     assert "received_at" in source
     assert "KEEP_PER_OWNER" in source
     assert "readAllRows" in source
+    assert "orphanIds" in source
     assert ".remove()" in source
     assert "process.env.TCB_ENV" in source
     function = next(item for item in config["functions"] if item["name"] == "fl_web_share_inbox_cleanup")

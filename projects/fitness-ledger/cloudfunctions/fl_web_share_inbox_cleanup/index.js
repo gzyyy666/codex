@@ -40,11 +40,13 @@ async function readAllRows() {
 exports.main = async (event) => {
   const rows = await readAllRows();
   const byOwner = new Map();
+  const orphanIds = [];
   let orphaned = 0;
   for (const row of rows) {
     const owner = String(row?._openid || "").trim();
     if (!owner) {
       orphaned += 1;
+      if (row?._id) orphanIds.push(row._id);
       continue;
     }
     const bucket = byOwner.get(owner) || [];
@@ -52,7 +54,7 @@ exports.main = async (event) => {
     byOwner.set(owner, bucket);
   }
 
-  const removeIds = [];
+  const removeIds = [...orphanIds];
   let kept = 0;
   for (const ownerRows of byOwner.values()) {
     ownerRows.sort((a, b) => receivedAt(b) - receivedAt(a) || String(b._id || "").localeCompare(String(a._id || "")));

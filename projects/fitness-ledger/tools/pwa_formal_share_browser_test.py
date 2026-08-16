@@ -62,6 +62,7 @@ def close_process(process: subprocess.Popen[Any] | None) -> None:
 MOCK_CLOUDBASE = r"""
 (() => {
   const rows = [];
+  window.__shareRows = rows;
   function matches(row, filter) { return Object.entries(filter || {}).every(([key, value]) => String(row[key] || '') === String(value || '').replace('{openid}', 'web-user')); }
   function query(filter = {}) {
     return {
@@ -69,13 +70,13 @@ MOCK_CLOUDBASE = r"""
       orderBy() { return this; },
       limit() { return this; },
       async get() { return { data: rows.filter(row => matches(row, filter)).sort((a, b) => b.received_at - a.received_at) }; },
-      async update(payload) { rows.filter(row => matches(row, filter)).forEach(row => Object.assign(row, payload.data || {})); return { updated: 1 }; }
+      async update(payload) { rows.filter(row => matches(row, filter)).forEach(row => Object.assign(row, payload.data || payload || {})); return { updated: 1 }; }
     };
   }
   const collection = {
     where(filter) { return query(filter); },
     doc(id) { return { async update(payload) { Object.assign(rows.find(row => row._id === id) || {}, payload.data || {}); }, async remove() { const index = rows.findIndex(row => row._id === id); if (index >= 0) rows.splice(index, 1); } }; },
-    async add(payload) { const row = { _id: `row-${rows.length + 1}`, _openid: 'web-user', ...payload.data }; rows.push(row); return { _id: row._id }; }
+    async add(payload) { const row = { _id: `row-${rows.length + 1}`, _openid: 'web-user', ...(payload.data || payload) }; rows.push(row); return { _id: row._id }; }
   };
   window.cloudbase = { init() { return { auth: () => ({ async getLoginState() { return true; } }), database: () => ({ collection() { return collection; } }) }; } };
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { async writeText(value) { window.__copied = value; } } });
@@ -111,10 +112,12 @@ def main() -> None:
         assert browser.evaluate("location.pathname.endsWith('/index.html')") is True
         assert browser.evaluate("document.querySelector('[data-share-draft]').value") == "2026-08-16 weight 71 kg"
         assert browser.evaluate("document.body.innerText.includes('确认并发送')") is True
+        assert browser.evaluate("document.body.innerText.includes('不会写入手机正式档案')") is True
         browser.evaluate("document.querySelector('[data-action=send-training-note]').click()")
         wait(browser, "document.body.innerText.includes('已发送到云端')")
-        assert browser.evaluate("document.body.innerText.includes('不会写入手机正式档案')") is True
-        assert browser.evaluate("document.body.innerText.includes('最近发送')") is True
+        assert browser.evaluate("document.querySelector('[data-share-draft]') === null") is True
+        assert browser.evaluate("document.querySelector('.copy-feedback-toast') !== null") is True
+        assert browser.evaluate("window.__shareRows.length === 1 && window.__shareRows[0].text === '2026-08-16 weight 71 kg'") is True
 
         command(browser, "Page.navigate", {"url": f"http://127.0.0.1:{port}/pwa/index.html#reference?part=chest"})
         wait(browser, "document.querySelector('.part-hero') !== null")

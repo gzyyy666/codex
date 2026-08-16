@@ -9,7 +9,7 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.0 · build 2026.08.16.04";
+const BUILD_VERSION = "PWA v1.1.0 · build 2026.08.16.05";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_LIMIT = 7;
 const moduleTools = window.FLDataModules || {
@@ -78,26 +78,31 @@ async function phoneInboxClientId(title, text) {
   for (const char of source) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
   return `pwa-${(hash >>> 0).toString(16)}`;
 }
+function normalizePhoneInboxItem(item) {
+  const nested = item?.data && typeof item.data === "object" ? item.data : {};
+  return { ...nested, ...item };
+}
 async function listPhoneInboxItems() {
   const inbox = await phoneInboxCollection();
   const result = await inbox.where({ _openid: "{openid}" }).orderBy("received_at", "desc").limit(PHONE_INBOX_LIMIT + 20).get();
-  return (Array.isArray(result.data) ? result.data : []).filter(item => item.status !== "expired").slice(0, PHONE_INBOX_LIMIT);
+  return (Array.isArray(result.data) ? result.data : []).map(normalizePhoneInboxItem).filter(item => item.status !== "expired").slice(0, PHONE_INBOX_LIMIT);
 }
 async function sendTrainingNote() {
   const textValue = String(state.shareDraft || "").trim().slice(0, 4000);
   if (!textValue) { state.shareError = "请先写下要发送的训练记录。"; render(); return; }
   state.shareBusy = true; state.shareError = ""; state.shareNotice = ""; render();
+  let sent = false;
   try {
     const title = state.shareTitle || "手机训练记录";
     const inbox = await phoneInboxCollection();
     const clientId = await phoneInboxClientId(title, textValue);
     const existing = await inbox.where({ _openid: "{openid}", client_id: clientId }).limit(1).get();
     const data = { client_id: clientId, title, text: textValue, source: "pwa_note", status: "pending", received_at: Date.now(), updated_at: Date.now() };
-    if (existing.data?.length) await inbox.doc(existing.data[0]._id).update({ data });
-    else await inbox.add({ data });
+    if (existing.data?.length) await inbox.doc(existing.data[0]._id).update(data);
+    else await inbox.add(data);
     state.phoneInboxItems = await listPhoneInboxItems();
     state.shareNotice = `已发送到云端“当日训练记录”。云端按账号保留最近 ${PHONE_INBOX_LIMIT} 次；电脑端打开后仍需预览和确认，不会直接保存。`;
-    state.shareOpen = true;
+    sent = true;
   } catch (error) {
     const code = String(error?.code || error?.message || error);
     if (code.includes("WEB_AUTH_DISABLED")) state.shareError = "当前是匿名 Review 预览，未连接真实 CloudBase；正式 PWA 登录后才能发送。";
@@ -105,7 +110,14 @@ async function sendTrainingNote() {
     else if (code.includes("CLOUDBASE_ENV_MISSING")) state.shareError = "当前环境没有配置 CloudBase，暂时不能发送。";
     else state.shareError = "发送失败，本次没有写入云端；当前记事内容仍保留在页面中。";
   }
-  state.shareBusy = false; render();
+  state.shareBusy = false;
+  if (sent) {
+    state.shareOpen = false;
+    state.noteExpanded = false;
+    state.noteCopyStatus = "已发送到云端";
+  }
+  render();
+  if (sent) window.setTimeout(() => { if (state.noteCopyStatus === "已发送到云端") { state.noteCopyStatus = ""; render(); } }, 2200);
 }
 function renderSharePanel() {
   if (!state.shareOpen) return "";
@@ -679,7 +691,7 @@ document.addEventListener("click", event => {
 });
 window.addEventListener("scroll", scheduleDockCheck, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260816-04", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260816-05", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

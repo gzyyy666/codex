@@ -50,7 +50,7 @@ def main() -> None:
     assert 'trigger = str(request.get("trigger") or "manual")' in server
     assert '"trigger": trigger' in server
 
-    for marker in ("shareDraft", "shareOpen", "sendTrainingNote", "PHONE_INBOX_LIMIT", "share-confirm-primary", "privateDatabase", "确认并发送", "loadIncomingShareIntent"):
+    for marker in ("shareDraft", "shareOpen", "sendTrainingNote", "PHONE_INBOX_LIMIT", "share-confirm-primary", "privateDatabase", "确认并发送", "loadIncomingShareIntent", "normalizePhoneInboxItem", "inbox.add(data)"):
         assert marker in pwa, f"missing PWA handoff marker: {marker}"
     assert "prunePhoneInboxItems" not in pwa, "phone must not own retention cleanup"
     for marker in ("@cloudbase/node-sdk", "KEEP_PER_OWNER = 7", "_openid", "received_at", ".remove()"):

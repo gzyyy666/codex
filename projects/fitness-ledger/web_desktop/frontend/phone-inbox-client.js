@@ -48,6 +48,11 @@ async function collection() {
   return app.database().collection(COLLECTION);
 }
 
+function normalizeItem(item) {
+  const nested = item?.data && typeof item.data === "object" ? item.data : {};
+  return { ...nested, ...item };
+}
+
 export async function signIn(username, password) {
   const current = await auth();
   await current.signIn({ username: String(username || "").trim(), password: String(password || "") });
@@ -58,13 +63,13 @@ export async function listRecent() {
   await requireLogin();
   const inbox = await collection();
   const result = await inbox.where({ _openid: "{openid}" }).orderBy("received_at", "desc").limit(MAX_ITEMS + 5).get();
-  return (Array.isArray(result.data) ? result.data : []).filter(item => item.status !== "expired").slice(0, MAX_ITEMS);
+  return (Array.isArray(result.data) ? result.data : []).map(normalizeItem).filter(item => item.status !== "expired").slice(0, MAX_ITEMS);
 }
 
 export async function updateStatus(id, status) {
   await requireLogin();
   const inbox = await collection();
-  await inbox.where({ _id: id, _openid: "{openid}" }).update({ data: { status, updated_at: Date.now() } });
+  await inbox.where({ _id: id, _openid: "{openid}" }).update({ status, updated_at: Date.now() });
   return listRecent();
 }
 
