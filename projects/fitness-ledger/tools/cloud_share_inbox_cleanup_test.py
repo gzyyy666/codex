@@ -15,8 +15,11 @@ def main() -> None:
     source = FUNCTION.read_text(encoding="utf-8")
     config = json.loads(CONFIG.read_text(encoding="utf-8"))
     assert '"fl_web_share_inbox"' in source
-    assert "expires_at" in source
-    assert "db.command.lt" in source
+    assert "KEEP_PER_OWNER = 7" in source
+    assert "_openid" in source
+    assert "received_at" in source
+    assert "KEEP_PER_OWNER" in source
+    assert "readAllRows" in source
     assert ".remove()" in source
     assert "process.env.TCB_ENV" in source
     function = next(item for item in config["functions"] if item["name"] == "fl_web_share_inbox_cleanup")

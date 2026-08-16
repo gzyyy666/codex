@@ -9,7 +9,7 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.0 · build 2026.08.16.03";
+const BUILD_VERSION = "PWA v1.1.0 · build 2026.08.16.04";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_LIMIT = 7;
 const moduleTools = window.FLDataModules || {
@@ -92,11 +92,11 @@ async function sendTrainingNote() {
     const inbox = await phoneInboxCollection();
     const clientId = await phoneInboxClientId(title, textValue);
     const existing = await inbox.where({ _openid: "{openid}", client_id: clientId }).limit(1).get();
-    const data = { client_id: clientId, title, text: textValue, source: "pwa_note", status: "pending", received_at: Date.now(), updated_at: Date.now(), expires_at: Date.now() + 30 * 24 * 60 * 60 * 1000 };
+    const data = { client_id: clientId, title, text: textValue, source: "pwa_note", status: "pending", received_at: Date.now(), updated_at: Date.now() };
     if (existing.data?.length) await inbox.doc(existing.data[0]._id).update({ data });
     else await inbox.add({ data });
     state.phoneInboxItems = await listPhoneInboxItems();
-    state.shareNotice = "已发送到云端“当日训练记录”。电脑端打开后仍需预览和确认，不会直接保存。";
+    state.shareNotice = `已发送到云端“当日训练记录”。云端按账号保留最近 ${PHONE_INBOX_LIMIT} 次；电脑端打开后仍需预览和确认，不会直接保存。`;
     state.shareOpen = true;
   } catch (error) {
     const code = String(error?.code || error?.message || error);
@@ -110,7 +110,7 @@ async function sendTrainingNote() {
 function renderSharePanel() {
   if (!state.shareOpen) return "";
   const recent = state.phoneInboxItems.length ? `<div class="share-recent"><span class="eyebrow">最近发送</span>${state.phoneInboxItems.slice(0, 3).map(item => `<div><b>${esc(item.title || "手机训练记录")}</b><small>${esc(date(item.received_at))}</small></div>`).join("")}</div>` : "";
-  return `<section class="share-confirm-backdrop" data-action="close-share-panel"><section class="share-confirm-sheet" data-action="noop"><div class="share-confirm-head"><div><div class="eyebrow">当日训练记录</div><h2>确认发送到电脑</h2></div><button data-action="close-share-panel" aria-label="关闭">×</button></div><p class="share-confirm-copy">这是发送前的最后确认。点击“确认并发送”后，文字会写入 CloudBase 的私有“当日训练记录”集合，不会写入手机正式档案。</p><textarea data-share-draft rows="8" aria-label="准备发送的训练记录">${esc(state.shareDraft)}</textarea>${state.shareError ? `<p class="share-confirm-error" role="alert">${esc(state.shareError)}</p>` : ""}${state.shareNotice ? `<p class="share-confirm-success" role="status">${esc(state.shareNotice)}</p>` : ""}<div class="share-confirm-actions"><button class="share-confirm-primary" data-action="send-training-note" ${state.shareBusy ? "disabled" : ""}>${state.shareBusy ? "正在写入云端…" : "确认并发送"}</button><button class="share-confirm-secondary" data-action="close-share-panel">取消</button></div>${recent}<small class="share-retention-note">云端只展示最近 ${PHONE_INBOX_LIMIT} 条；过期记录由 CloudBase 定时任务清理。</small></section></section>`;
+  return `<section class="share-confirm-backdrop" data-action="close-share-panel"><section class="share-confirm-sheet" data-action="noop"><div class="share-confirm-head"><div><div class="eyebrow">当日训练记录</div><h2>确认发送到电脑</h2></div><button data-action="close-share-panel" aria-label="关闭">×</button></div><p class="share-confirm-copy">这是发送前的最后确认。点击“确认并发送”后，文字会写入 CloudBase 的私有“当日训练记录”集合，不会写入手机正式档案。</p><textarea data-share-draft rows="8" aria-label="准备发送的训练记录">${esc(state.shareDraft)}</textarea>${state.shareError ? `<p class="share-confirm-error" role="alert">${esc(state.shareError)}</p>` : ""}${state.shareNotice ? `<p class="share-confirm-success" role="status">${esc(state.shareNotice)}</p>` : ""}<div class="share-confirm-actions"><button class="share-confirm-primary" data-action="send-training-note" ${state.shareBusy ? "disabled" : ""}>${state.shareBusy ? "正在写入云端…" : "确认并发送"}</button><button class="share-confirm-secondary" data-action="close-share-panel">取消</button></div>${recent}<small class="share-retention-note">云端按账号只保留最近 ${PHONE_INBOX_LIMIT} 次；旧记录由 CloudBase 定时任务清理。</small></section></section>`;
 }
 function loadIncomingShareIntent() {
   const params = new URLSearchParams(window.location.search);
@@ -679,7 +679,7 @@ document.addEventListener("click", event => {
 });
 window.addEventListener("scroll", scheduleDockCheck, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260816-03", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260816-04", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

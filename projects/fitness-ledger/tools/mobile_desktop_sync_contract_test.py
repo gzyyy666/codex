@@ -31,6 +31,8 @@ def main() -> None:
         "renderPhoneInboxModal",
         "data-phone-inbox-login",
         "data-phone-inbox-use",
+        "data-phone-inbox-copy",
+        "copyPhoneInboxItem",
         "phone-inbox-client.js",
         "entry-input-mode",
         "data-dm-llm-template",
@@ -48,10 +50,10 @@ def main() -> None:
     assert 'trigger = str(request.get("trigger") or "manual")' in server
     assert '"trigger": trigger' in server
 
-    for marker in ("shareDraft", "shareOpen", "sendTrainingNote", "PHONE_INBOX_LIMIT", "share-confirm-primary", "privateDatabase", "确认并发送", "loadIncomingShareIntent", "expires_at"):
+    for marker in ("shareDraft", "shareOpen", "sendTrainingNote", "PHONE_INBOX_LIMIT", "share-confirm-primary", "privateDatabase", "确认并发送", "loadIncomingShareIntent"):
         assert marker in pwa, f"missing PWA handoff marker: {marker}"
     assert "prunePhoneInboxItems" not in pwa, "phone must not own retention cleanup"
-    for marker in ("@cloudbase/node-sdk", "expires_at", "db.command.lt", ".remove()"):
+    for marker in ("@cloudbase/node-sdk", "KEEP_PER_OWNER = 7", "_openid", "received_at", ".remove()"):
         assert marker in cleanup, f"missing CloudBase cleanup marker: {marker}"
     for marker in ('"fl_web_share_inbox_cleanup"', '"type": "timer"', 'daily-share-inbox-cleanup'):
         assert marker in cleanup_config, f"missing cleanup trigger marker: {marker}"

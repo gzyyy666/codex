@@ -53,9 +53,10 @@ def main() -> None:
         browser.evaluate("document.querySelector('[data-phone-daily-records]').click()")
         _wait(browser, "document.querySelector('.phone-inbox-item') !== null")
         assert browser.evaluate("document.body.innerText.includes('今天腰围 82.5 cm')") is True
+        assert browser.evaluate("document.querySelector('[data-phone-inbox-copy]') !== null") is True
         browser.evaluate("document.querySelector('[data-phone-inbox-use]').click()")
         _wait(browser, "document.querySelector('#raw-entry') !== null && document.querySelector('#raw-entry').value.includes('今天腰围 82.5 cm')")
-        print(json.dumps({"status": "PASS", "tools_export_restored": True, "daily_entry_inbox_modal": True, "recent_item_visible": True, "returned_to_original_input_board": True}, ensure_ascii=False))
+        print(json.dumps({"status": "PASS", "tools_export_restored": True, "daily_entry_inbox_modal": True, "recent_item_visible": True, "copy_action_visible": True, "returned_to_original_input_board": True}, ensure_ascii=False))
     finally:
         if browser is not None:
             try:

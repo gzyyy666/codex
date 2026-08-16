@@ -36,7 +36,8 @@ Fields written by the Web client:
 - `text`: at most 4,000 characters;
 - `source`: `pwa_note`;
 - `status`: `pending`, `copied`, `processed`, `rejected`, or `failed`;
-- `received_at`, `updated_at`, `expires_at`: millisecond timestamps.
+- `received_at`, `updated_at`: millisecond timestamps. Retention is count-based,
+  not a 30-day expiry field.
 
 For the current Web-only PWA, create the collection with the console preset
 `读取和修改本人数据 [PRIVATE]`. This is sufficient; no custom JSON needs to be
@@ -76,11 +77,12 @@ permanently running server or an AI call. The actual bill depends on the
 CloudBase environment plan, resource-point rules, retention volume, and use
 frequency; check the environment billing page before release.
 
-The PWA writes an `expires_at` timestamp but does not delete collection items.
-The CloudBase function in `cloudfunctions/fl_web_share_inbox_cleanup/` removes
-expired items on a daily timer. The phone and desktop clients only limit the
-display query to the newest seven items. There is no permanently running
-server; the timer is an on-demand CloudBase function invocation.
+The PWA does not delete collection items. The CloudBase function in
+`cloudfunctions/fl_web_share_inbox_cleanup/` keeps the newest seven items per
+account and removes older items on a daily timer. The phone and desktop
+clients also limit the display query to the newest seven items. There is no
+permanently running server; the timer is an on-demand CloudBase function
+invocation.
 
 ## Required release evidence
 
