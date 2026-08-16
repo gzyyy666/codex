@@ -73,7 +73,7 @@ python tools/pwa_deployment_preflight.py
    `movementCatalog`、`movementHistory` 三个接口。
 3. 将 PWA 的 `config.js` 中 `apiBaseUrl` 指向审查过的 Web API，并将
    `requireWebAuth` 设为 `true`；不要把密钥放入 `config.js`。
-4. 登录 CloudBase 后上传静态文件。
+4. 登录 CloudBase 后上传静态文件；当前版本已上传到下方静态站点。
 5. 用 Safari 打开 HTTPS 地址，选择“分享”→“添加到主屏幕”→打开“作为 Web App
    打开”→“添加”。
 6. 手机上验证登录、最新训练日、动作候选、动作历史和状态页；确认失败时不会
@@ -92,8 +92,8 @@ python tools/pwa_deployment_preflight.py
 
 ## 手机文字传递的额外发布步骤
 
-当前分支只准备了正式 PWA 的静态入口和客户端契约，没有创建 CloudBase 集合、
-修改安全规则或上传静态文件。正式发布前还要在同一账号下验证：
+当前手机版静态入口已上传，`fl_web_share_inbox` 清理函数和每日触发器也已部署。
+收件集合当前查询记录数为 0；正式实机测试仍要在同一账号下验证：
 
 1. 手机与电脑登录的是同一个 CloudBase Web 账号；
 2. `fl_web_share_inbox` 选择的是 `PRIVATE`，只允许当前用户访问；

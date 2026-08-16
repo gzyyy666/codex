@@ -11,7 +11,7 @@
 
 ## 云端定时清理
 
-本仓库提供可直接上传的函数：
+本仓库提供并已部署的函数：
 
 `cloudfunctions/fl_web_share_inbox_cleanup/`
 
@@ -21,7 +21,7 @@
 
 `cloudbaserc.share-inbox.example.json`
 
-在已有 CloudBase 项目中，把函数配置合并到现有 `cloudbaserc.json`，或在 CloudBase 控制台创建同名 Node.js 云函数并上传该目录，然后配置每日定时触发器。触发器使用 7 段 Cron，样例为每天 03:00：
+当前环境已部署同名 Node.js 云函数，并创建每日定时触发器。触发器使用 7 段 Cron，每天 03:00：
 
 `0 0 3 * * * *`
 
@@ -34,4 +34,4 @@
 - 清理函数只处理每个账号超出最近 7 次的传输项；没有 `_openid` 的异常文档不会被混入其他账号的清理范围。
 - 函数没有写入 `fl_daily_records`、`fl_data_module_records` 或其他正式档案集合。
 
-本次开发只加入代码和配置样例，没有部署云函数、创建触发器或修改 CloudBase 数据。
+本次部署没有修改正式训练数据集合；清理函数首次手动检查结果为 0 条扫描、0 条删除。

@@ -75,8 +75,9 @@ only for development.
 ## Phone-to-desktop text handoff
 
 The release-candidate PWA has a separate `share.html` entry for text shared
-from a phone. It stores only the original text, title, timestamps, status, and
-an expiry time in the private CloudBase collection `fl_web_share_inbox`.
+from a phone. It stores only the original text, title, timestamps, and status
+in the private CloudBase collection `fl_web_share_inbox`; CloudBase keeps the
+newest seven items per account.
 
 The flow is deliberately two-step:
 
