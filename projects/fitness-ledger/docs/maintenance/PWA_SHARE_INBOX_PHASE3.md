@@ -8,17 +8,18 @@ part of the formal PWA bundle.
 ## User flow
 
 1. On the phone Daily Entry note board, tap “发送到电脑”. The expanded panel
-   shows the text and requires a second “确认发送” action.
+   shows the text and requires a second “确认并发送” action.
 2. After confirmation, the text is saved as one private pending inbox item.
 3. On the computer, open Daily Entry and tap the light “当日训练记录” entry.
    The recent items appear in an in-page modal; no second browser page is used.
-4. Choose “放入 Daily Entry”. The text returns to the original input board,
+4. Choose “放入 Daily Entry”. The cloud text returns to the original input board,
    where natural language and the original standard format use the same parser
    and review flow.
 5. Preview, edit, and confirm. Only that existing local save boundary can
    change the formal tracker or Data Module records.
-6. Mark the inbox item processed without changing formal data. The phone side
-   keeps the newest seven items and automatically removes older ones.
+6. Mark the inbox item processed without changing formal data. Phone and Web
+   only show the newest seven items; CloudBase removes expired items on its
+   scheduled cleanup run.
 
 The inbox is a transport buffer, not a second ledger. It stores no parsed
 record, no Data Module definition, no raw tracker backup, and no Cloud Sync
@@ -75,11 +76,11 @@ permanently running server or an AI call. The actual bill depends on the
 CloudBase environment plan, resource-point rules, retention volume, and use
 frequency; check the environment billing page before release.
 
-The PWA prunes the collection after each confirmed send: only the newest seven
-items remain. It attempts document deletion and falls back to an `expired`
-status if the collection rule does not allow deletion. The 30-day expiry field
-remains a secondary retention signal; there is no permanently running cleanup
-job.
+The PWA writes an `expires_at` timestamp but does not delete collection items.
+The CloudBase function in `cloudfunctions/fl_web_share_inbox_cleanup/` removes
+expired items on a daily timer. The phone and desktop clients only limit the
+display query to the newest seven items. There is no permanently running
+server; the timer is an on-demand CloudBase function invocation.
 
 ## Required release evidence
 

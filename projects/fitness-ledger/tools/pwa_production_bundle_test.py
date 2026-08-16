@@ -45,7 +45,9 @@ def main() -> None:
     assert "window.location.replace" in legacy
     assert '"fl_web_share_inbox"' in app
     assert '"{openid}"' in app
-    assert "不会直接写入正式档案" in app
+    assert "不会写入手机正式档案" in app
+    assert "确认并发送" in app
+    assert "prunePhoneInboxItems" not in app
     assert "sendTrainingNote" in app
     for forbidden_collection in ("fl_daily_records", "fl_data_module_records", "fl_diet_records", "fl_training_sessions"):
         assert forbidden_collection not in share, f"share page must not write formal collection: {forbidden_collection}"
@@ -55,10 +57,10 @@ def main() -> None:
     assert "getLoginState" in api
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
-    assert 'fitness-ledger-pwa-v26' in service_worker
+    assert 'fitness-ledger-pwa-v27' in service_worker
     assert '"./index.html"' in service_worker
 
-    assert 'register("./sw.js?v=20260816-02"' in app
+    assert 'register("./sw.js?v=20260816-03"' in app
     handoff_doc = (ROOT / "docs" / "maintenance" / "PWA_SHARE_INBOX_PHASE3.md").read_text(encoding="utf-8")
     assert 'Collection: `fl_web_share_inbox`' in handoff_doc
     assert "读取和修改本人数据 [PRIVATE]" in handoff_doc

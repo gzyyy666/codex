@@ -1,0 +1,21 @@
+{
+  "envId": "cloud1-d9g35v5s1a904a8ad",
+  "functionRoot": "./cloudfunctions",
+  "functions": [
+    {
+      "name": "fl_web_share_inbox_cleanup",
+      "timeout": 60,
+      "memorySize": 256,
+      "runtime": "Nodejs20.19",
+      "handler": "index.main",
+      "installDependency": true,
+      "triggers": [
+        {
+          "name": "daily-share-inbox-cleanup",
+          "type": "timer",
+          "config": "0 0 3 * * * *"
+        }
+      ]
+    }
+  ]
+}

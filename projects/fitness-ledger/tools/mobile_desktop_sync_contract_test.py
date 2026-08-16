@@ -12,6 +12,8 @@ WEB_SERVER = PROJECT / "web_desktop" / "backend" / "server.py"
 PWA_APP = PROJECT / "mobile_viewer" / "pwa" / "app.js"
 MANIFEST = PROJECT / "mobile_viewer" / "pwa" / "manifest.webmanifest"
 LEGACY_SHARE = PROJECT / "mobile_viewer" / "pwa" / "share.html"
+CLEANUP_FUNCTION = PROJECT / "cloudfunctions" / "fl_web_share_inbox_cleanup" / "index.js"
+CLEANUP_CONFIG = PROJECT / "cloudbaserc.share-inbox.example.json"
 
 
 def main() -> None:
@@ -21,6 +23,8 @@ def main() -> None:
     pwa = PWA_APP.read_text(encoding="utf-8")
     manifest = MANIFEST.read_text(encoding="utf-8")
     legacy_share = LEGACY_SHARE.read_text(encoding="utf-8")
+    cleanup = CLEANUP_FUNCTION.read_text(encoding="utf-8")
+    cleanup_config = CLEANUP_CONFIG.read_text(encoding="utf-8")
 
     for marker in (
         "data-phone-daily-records",
@@ -38,13 +42,19 @@ def main() -> None:
     for forbidden in ("PHONE_SHARE_URL", "data-phone-share-open", "data-phone-share-send", "window.open(buildPhoneShareUrl"):
         assert forbidden not in app, f"desktop must not expose old outbound phone flow: {forbidden}"
 
-    for marker in ("fl_web_share_inbox", "MAX_ITEMS", "export async function listRecent", "export async function prune", "{openid}"):
+    for marker in ("fl_web_share_inbox", "MAX_ITEMS", "export async function listRecent", "{openid}"):
         assert marker in client, f"missing private inbox client marker: {marker}"
+    assert "export async function prune" not in client, "client must not own retention cleanup"
     assert 'trigger = str(request.get("trigger") or "manual")' in server
     assert '"trigger": trigger' in server
 
-    for marker in ("shareDraft", "shareOpen", "sendTrainingNote", "PHONE_INBOX_LIMIT", "share-confirm-primary", "privateDatabase", "确认发送", "loadIncomingShareIntent"):
+    for marker in ("shareDraft", "shareOpen", "sendTrainingNote", "PHONE_INBOX_LIMIT", "share-confirm-primary", "privateDatabase", "确认并发送", "loadIncomingShareIntent", "expires_at"):
         assert marker in pwa, f"missing PWA handoff marker: {marker}"
+    assert "prunePhoneInboxItems" not in pwa, "phone must not own retention cleanup"
+    for marker in ("@cloudbase/node-sdk", "expires_at", "db.command.lt", ".remove()"):
+        assert marker in cleanup, f"missing CloudBase cleanup marker: {marker}"
+    for marker in ('"fl_web_share_inbox_cleanup"', '"type": "timer"', 'daily-share-inbox-cleanup'):
+        assert marker in cleanup_config, f"missing cleanup trigger marker: {marker}"
     assert "share_target" in manifest and '"action": "./index.html"' in manifest
     assert "window.location.replace" in legacy_share
     assert "noteCopyStatus" in pwa and "copyNoteToClipboard" in pwa

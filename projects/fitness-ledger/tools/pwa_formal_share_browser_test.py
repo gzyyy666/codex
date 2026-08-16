@@ -110,10 +110,10 @@ def main() -> None:
         wait(browser, "document.querySelector('[data-share-draft]') !== null")
         assert browser.evaluate("location.pathname.endsWith('/index.html')") is True
         assert browser.evaluate("document.querySelector('[data-share-draft]').value") == "2026-08-16 weight 71 kg"
-        assert browser.evaluate("document.body.innerText.includes('确认发送')") is True
+        assert browser.evaluate("document.body.innerText.includes('确认并发送')") is True
         browser.evaluate("document.querySelector('[data-action=send-training-note]').click()")
-        wait(browser, "document.body.innerText.includes('已发送到电脑的')")
-        assert browser.evaluate("document.body.innerText.includes('不会直接写入正式档案')") is True
+        wait(browser, "document.body.innerText.includes('已发送到云端')")
+        assert browser.evaluate("document.body.innerText.includes('不会写入手机正式档案')") is True
         assert browser.evaluate("document.body.innerText.includes('最近发送')") is True
 
         command(browser, "Page.navigate", {"url": f"http://127.0.0.1:{port}/pwa/index.html#reference?part=chest"})
@@ -123,9 +123,10 @@ def main() -> None:
         browser.evaluate("const n=document.querySelector('[data-note]'); n.value='今天训练 4 组'; n.dispatchEvent(new Event('input',{bubbles:true}))")
         browser.evaluate("document.querySelector('[data-action=expand-note]').click()")
         wait(browser, "document.querySelector('[data-action=send-training-note]') !== null")
-        assert browser.evaluate("document.body.innerText.includes('确认发送')") is True
+        assert browser.evaluate("document.body.innerText.includes('确认并发送')") is True
         browser.evaluate("document.querySelector('[data-action=close-share-panel]').click()")
         wait(browser, "document.querySelector('[data-note]') !== null")
+        assert browser.evaluate("document.querySelector('[data-action=expand-note]').textContent.trim() === '发送到电脑'") is True
         browser.evaluate("document.querySelector('[data-action=copy-note]').click()")
         wait(browser, "document.querySelector('.copy-feedback-toast') !== null")
         assert browser.evaluate("document.body.innerText.includes('已复制到剪贴板')") is True

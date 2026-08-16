@@ -68,20 +68,4 @@ export async function updateStatus(id, status) {
   return listRecent();
 }
 
-export async function prune() {
-  await requireLogin();
-  const inbox = await collection();
-  const result = await inbox.where({ _openid: "{openid}" }).orderBy("received_at", "desc").limit(MAX_ITEMS + 20).get();
-  const rows = Array.isArray(result.data) ? result.data : [];
-  const expired = rows.slice(MAX_ITEMS);
-  for (const item of expired) {
-    try {
-      await inbox.doc(item._id).remove();
-    } catch (_) {
-      await inbox.where({ _id: item._id, _openid: "{openid}" }).update({ data: { status: "expired", updated_at: Date.now() } });
-    }
-  }
-  return rows.slice(0, MAX_ITEMS);
-}
-
 export const maxItems = MAX_ITEMS;
