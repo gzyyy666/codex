@@ -43,6 +43,10 @@ For the current Web-only PWA, create the collection with the console preset
 `读取和修改本人数据 [PRIVATE]`. This is sufficient; no custom JSON needs to be
 pasted. The preset uses the document owner field and matches the PWA queries.
 
+Both ends must use a non-anonymous CloudBase Web account with a stable UID. A
+temporary or anonymous login state is rejected before the inbox write/read so a
+successful-looking write cannot become an ownerless record.
+
 If a later deployment needs a custom cross-platform rule, the equivalent
 private rule is:
 

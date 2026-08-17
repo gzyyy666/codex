@@ -44,13 +44,13 @@ def main() -> None:
     for forbidden in ("PHONE_SHARE_URL", "data-phone-share-open", "data-phone-share-send", "window.open(buildPhoneShareUrl"):
         assert forbidden not in app, f"desktop must not expose old outbound phone flow: {forbidden}"
 
-    for marker in ("fl_web_share_inbox", "MAX_ITEMS", "export async function listRecent", "{openid}"):
+    for marker in ("fl_web_share_inbox", "MAX_ITEMS", "export async function listRecent", "{openid}", "PHONE_INBOX_ACCOUNT_REQUIRED"):
         assert marker in client, f"missing private inbox client marker: {marker}"
     assert "export async function prune" not in client, "client must not own retention cleanup"
     assert 'trigger = str(request.get("trigger") or "manual")' in server
     assert '"trigger": trigger' in server
 
-    for marker in ("shareDraft", "shareOpen", "sendTrainingNote", "PHONE_INBOX_LIMIT", "share-confirm-primary", "privateDatabase", "确认并发送", "loadIncomingShareIntent", "normalizePhoneInboxItem", "inbox.add(data)"):
+    for marker in ("shareDraft", "shareOpen", "sendTrainingNote", "PHONE_INBOX_LIMIT", "share-confirm-primary", "privateDatabase", "确认并发送", "loadIncomingShareIntent", "normalizePhoneInboxItem", "inbox.add(data)", "AUTH_ACCOUNT_REQUIRED"):
         assert marker in pwa, f"missing PWA handoff marker: {marker}"
     assert "prunePhoneInboxItems" not in pwa, "phone must not own retention cleanup"
     for marker in ("@cloudbase/node-sdk", "KEEP_PER_OWNER = 7", "_openid", "received_at", ".remove()"):

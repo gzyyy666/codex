@@ -26,7 +26,7 @@ MOCK_CLOUDBASE = r"""
   function matches(row, filter) { return Object.entries(filter || {}).every(([key, value]) => String(row[key] || '') === String(value || '').replace('{openid}', 'web-user')); }
   function query(filter = {}) { return { where(extra) { return query({ ...filter, ...extra }); }, orderBy() { return this; }, limit() { return this; }, async get() { return { data: rows.filter(row => matches(row, filter)) }; }, async update(payload) { rows.forEach(row => { if (matches(row, filter)) Object.assign(row, payload.data || {}); }); return { updated: 1 }; } }; }
   const collection = { where(filter) { return query(filter); }, doc(id) { return { async update(payload) { Object.assign(rows.find(row => row._id === id) || {}, payload.data || {}); }, async remove() {} }; } };
-  window.cloudbase = { init() { return { auth: () => ({ async getLoginState() { return true; } }), database: () => ({ collection() { return collection; } }) }; } };
+  window.cloudbase = { init() { return { auth: () => ({ async getLoginState() { return { loginType: 'CUSTOM', isCustomAuth: true, user: { uid: 'web-user' } }; } }), database: () => ({ collection() { return collection; } }) }; } };
 })();
 """
 

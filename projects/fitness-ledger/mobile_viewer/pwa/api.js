@@ -5,6 +5,19 @@ let cloudbaseSdkPromise;
 let cloudbaseAppPromise;
 let webAuthPromise;
 
+function accountLoginState(loginState) {
+  const user = loginState?.user || {};
+  const loginType = String(loginState?.loginType || user.loginType || "").toUpperCase();
+  const uid = String(user.uid || loginState?.oauthLoginState?.sub || "").trim();
+  const anonymous = loginState?.isAnonymousAuth === true || loginType === "ANONYMOUS";
+  if (!loginState || anonymous || !uid) {
+    const error = new Error("AUTH_ACCOUNT_REQUIRED");
+    error.code = "AUTH_ACCOUNT_REQUIRED";
+    throw error;
+  }
+  return { loginState, uid };
+}
+
 function webAuthEnabled() {
   return config.requireWebAuth === true;
 }
@@ -57,7 +70,7 @@ export async function signOut() {
 async function authorizationHeader() {
   const auth = await webAuth();
   if (!auth) return {};
-  if (!(await auth.getLoginState())) throw new Error("AUTH_REQUIRED");
+  accountLoginState(await auth.getLoginState());
   const token = await auth.getAccessToken();
   if (!token?.accessToken) throw new Error("AUTH_REQUIRED");
   return { Authorization: `Bearer ${token.accessToken}` };
@@ -65,7 +78,8 @@ async function authorizationHeader() {
 
 export async function privateDatabase() {
   const auth = await webAuth();
-  if (!auth || !(await auth.getLoginState())) throw new Error("AUTH_REQUIRED");
+  if (!auth) throw new Error("AUTH_REQUIRED");
+  accountLoginState(await auth.getLoginState());
   const app = await cloudBaseApp();
   return app.database();
 }

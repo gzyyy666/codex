@@ -35,9 +35,13 @@ async function auth() {
 
 async function requireLogin() {
   const current = await auth();
-  if (!(await current.getLoginState())) {
-    const error = new Error("PHONE_INBOX_AUTH_REQUIRED");
-    error.code = "PHONE_INBOX_AUTH_REQUIRED";
+  const loginState = await current.getLoginState();
+  const user = loginState?.user || {};
+  const loginType = String(loginState?.loginType || user.loginType || "").toUpperCase();
+  const uid = String(user.uid || loginState?.oauthLoginState?.sub || "").trim();
+  if (!loginState || loginState.isAnonymousAuth === true || loginType === "ANONYMOUS" || !uid) {
+    const error = new Error("PHONE_INBOX_ACCOUNT_REQUIRED");
+    error.code = "PHONE_INBOX_ACCOUNT_REQUIRED";
     throw error;
   }
   return current;

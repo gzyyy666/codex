@@ -1,4 +1,4 @@
-import { apiDescription, call, privateDatabase, signIn } from "./api.js?v=20260816-02";
+import { apiDescription, call, privateDatabase, signIn } from "./api.js?v=20260817-01";
 
 const BODY_PARTS = [
   { id: "shoulders", cn: "肩", en: "SHOULDERS", tone: "amber" },
@@ -9,7 +9,7 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.1 · build 2026.08.16.07";
+const BUILD_VERSION = "PWA v1.1.1 · build 2026.08.17.01";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_LIMIT = 7;
 const moduleTools = window.FLDataModules || {
@@ -120,6 +120,7 @@ async function sendTrainingNote() {
   } catch (error) {
     const code = String(error?.code || error?.message || error);
     if (code.includes("WEB_AUTH_DISABLED")) state.shareError = "当前是匿名 Review 预览，未连接真实 CloudBase；正式 PWA 登录后才能发送。";
+    else if (code.includes("AUTH_ACCOUNT_REQUIRED")) state.shareError = "当前只有匿名或临时登录态，不能归入账号收件箱。请在状态页登录与电脑端相同的 CloudBase 账号。";
     else if (code.includes("AUTH_REQUIRED")) state.shareError = "请先登录与电脑端相同的 CloudBase 账号，再确认发送。";
     else if (code.includes("CLOUDBASE_ENV_MISSING")) state.shareError = "当前环境没有配置 CloudBase，暂时不能发送。";
     else if (code.includes("PHONE_INBOX_WRITE_VERIFY_FAILED")) state.shareError = "云端没有返回当前账号的收件记录，本次不会显示为发送成功。请确认手机打开的是正式地址，并已登录与电脑端相同的 CloudBase 账号。";
@@ -161,7 +162,7 @@ function resetViewport() {
 }
 function navigate(route) { resetViewport(); window.location.hash = route; }
 function setError(error) {
-  if (["AUTH_REQUIRED", "HTTP_401", "UNAUTHORIZED"].includes(error?.message)) {
+  if (["AUTH_REQUIRED", "AUTH_ACCOUNT_REQUIRED", "HTTP_401", "UNAUTHORIZED"].includes(error?.message)) {
     state.authRequired = true;
     state.authMessage = "请先登录 CloudBase 网页账号。";
     return;
@@ -349,7 +350,7 @@ async function refreshDataModules() {
     state.dataModuleContract = moduleTools.normalizeContract(await call("dataModules"));
     state.dataModuleError = "";
   } catch (error) {
-    if (["AUTH_REQUIRED", "HTTP_401", "UNAUTHORIZED"].includes(error?.message)) throw error;
+    if (["AUTH_REQUIRED", "AUTH_ACCOUNT_REQUIRED", "HTTP_401", "UNAUTHORIZED"].includes(error?.message)) throw error;
     state.dataModuleContract = moduleTools.normalizeContract({ modules: [] });
     state.dataModuleError = "DATA_MODULES_UNAVAILABLE";
   }
@@ -706,7 +707,7 @@ document.addEventListener("click", event => {
 });
 window.addEventListener("scroll", scheduleDockCheck, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260816-07", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260817-01", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

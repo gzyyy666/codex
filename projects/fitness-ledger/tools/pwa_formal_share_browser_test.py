@@ -78,7 +78,7 @@ MOCK_CLOUDBASE = r"""
     doc(id) { return { async update(payload) { Object.assign(rows.find(row => row._id === id) || {}, payload.data || {}); }, async remove() { const index = rows.findIndex(row => row._id === id); if (index >= 0) rows.splice(index, 1); } }; },
     async add(payload) { const row = { _id: `row-${rows.length + 1}`, _openid: 'web-user', ...(payload.data || payload) }; rows.push(row); return { _id: row._id }; }
   };
-  window.cloudbase = { init() { return { auth: () => ({ async getLoginState() { return true; } }), database: () => ({ collection() { return collection; } }) }; } };
+  window.cloudbase = { init() { return { auth: () => ({ async getLoginState() { return { loginType: 'CUSTOM', isCustomAuth: true, user: { uid: 'web-user' } }; } }), database: () => ({ collection() { return collection; } }) }; } };
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { async writeText(value) { window.__copied = value; } } });
 })();
 """
