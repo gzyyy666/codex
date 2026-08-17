@@ -57,8 +57,8 @@ private rule is:
 }
 ```
 
-Web queries include `_openid: "{openid}"` so the database rule can validate
-the query scope. The browser never sends or chooses an owner id.
+Web queries include `_openid: "{uid}"` so the database rule can validate the
+Web UID query scope. The browser never sends or chooses an owner id.
 
 ## Formal release boundary
 

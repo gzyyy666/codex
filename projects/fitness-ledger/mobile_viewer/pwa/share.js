@@ -41,7 +41,7 @@ async function collection() {
 }
 
 async function listItems() {
-  const rows = await (await collection()).where({ _openid: "{openid}" }).orderBy("received_at", "desc").limit(50).get();
+  const rows = await (await collection()).where({ _openid: "{uid}" }).orderBy("received_at", "desc").limit(50).get();
   return Array.isArray(rows.data) ? rows.data : [];
 }
 
@@ -51,7 +51,7 @@ async function enqueue(title, text) {
   const cleanTitle = String(title || "").trim().slice(0, 120);
   const clientId = await stableClientId(cleanTitle, cleanText);
   const inbox = await collection();
-  const existing = await inbox.where({ _openid: "{openid}", client_id: clientId }).limit(1).get();
+  const existing = await inbox.where({ _openid: "{uid}", client_id: clientId }).limit(1).get();
   if (!existing.data?.length) {
     await inbox.add({ data: {
       client_id: clientId,
@@ -70,7 +70,7 @@ async function enqueue(title, text) {
 
 async function updateStatus(itemId, status) {
   const inbox = await collection();
-  await inbox.where({ _id: itemId, _openid: "{openid}" }).update({ data: { status, updated_at: Date.now() } });
+  await inbox.where({ _id: itemId, _openid: "{uid}" }).update({ data: { status, updated_at: Date.now() } });
   state.items = await listItems();
 }
 

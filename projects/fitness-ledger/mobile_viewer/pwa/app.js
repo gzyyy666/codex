@@ -1,4 +1,4 @@
-import { apiDescription, call, privateDatabase, signIn } from "./api.js?v=20260817-01";
+import { apiDescription, call, privateDatabase, signIn } from "./api.js?v=20260817-02";
 
 const BODY_PARTS = [
   { id: "shoulders", cn: "肩", en: "SHOULDERS", tone: "amber" },
@@ -9,7 +9,7 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.1 · build 2026.08.17.01";
+const BUILD_VERSION = "PWA v1.1.1 · build 2026.08.17.02";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_LIMIT = 7;
 const moduleTools = window.FLDataModules || {
@@ -84,7 +84,7 @@ function normalizePhoneInboxItem(item) {
 }
 async function listPhoneInboxItems() {
   const inbox = await phoneInboxCollection();
-  const result = await inbox.where({ _openid: "{openid}" }).orderBy("received_at", "desc").limit(PHONE_INBOX_LIMIT + 20).get();
+  const result = await inbox.where({ _openid: "{uid}" }).orderBy("received_at", "desc").limit(PHONE_INBOX_LIMIT + 20).get();
   return (Array.isArray(result.data) ? result.data : []).map(normalizePhoneInboxItem).filter(item => item.status !== "expired").slice(0, PHONE_INBOX_LIMIT);
 }
 async function sendTrainingNote() {
@@ -96,7 +96,7 @@ async function sendTrainingNote() {
     const title = state.shareTitle || "手机训练记录";
     const inbox = await phoneInboxCollection();
     const clientId = await phoneInboxClientId(title, textValue);
-    const existing = await inbox.where({ _openid: "{openid}", client_id: clientId }).limit(1).get();
+    const existing = await inbox.where({ _openid: "{uid}", client_id: clientId }).limit(1).get();
     const data = { client_id: clientId, title, text: textValue, source: "pwa_note", status: "pending", received_at: Date.now(), updated_at: Date.now() };
     if (existing.data?.length) {
       await inbox.doc(existing.data[0]._id).update(data);
@@ -707,7 +707,7 @@ document.addEventListener("click", event => {
 });
 window.addEventListener("scroll", scheduleDockCheck, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260817-01", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260817-02", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

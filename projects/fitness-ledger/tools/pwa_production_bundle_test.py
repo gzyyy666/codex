@@ -44,7 +44,7 @@ def main() -> None:
     app = (PWA / "app.js").read_text(encoding="utf-8")
     assert "window.location.replace" in legacy
     assert '"fl_web_share_inbox"' in app
-    assert '"{openid}"' in app
+    assert '"{uid}"' in app
     assert "不会写入手机正式档案" in app
     assert "确认并发送" in app
     assert "prunePhoneInboxItems" not in app
@@ -57,10 +57,10 @@ def main() -> None:
     assert "getLoginState" in api
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
-    assert 'fitness-ledger-pwa-v32' in service_worker
+    assert 'fitness-ledger-pwa-v33' in service_worker
     assert '"./index.html"' in service_worker
 
-    assert 'register("./sw.js?v=20260817-01"' in app
+    assert 'register("./sw.js?v=20260817-02"' in app
     handoff_doc = (ROOT / "docs" / "maintenance" / "PWA_SHARE_INBOX_PHASE3.md").read_text(encoding="utf-8")
     assert 'Collection: `fl_web_share_inbox`' in handoff_doc
     assert "读取和修改本人数据 [PRIVATE]" in handoff_doc

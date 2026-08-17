@@ -63,7 +63,7 @@ MOCK_CLOUDBASE = r"""
 (() => {
   const rows = [];
   window.__shareRows = rows;
-  function matches(row, filter) { return Object.entries(filter || {}).every(([key, value]) => String(row[key] || '') === String(value || '').replace('{openid}', 'web-user')); }
+  function matches(row, filter) { return Object.entries(filter || {}).every(([key, value]) => String(row[key] || '') === String(value || '').replace('{openid}', 'web-user').replace('{uid}', 'web-user')); }
   function query(filter = {}) {
     return {
       where(extra) { return query({ ...filter, ...extra }); },

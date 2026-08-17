@@ -44,7 +44,7 @@ def main() -> None:
     for forbidden in ("PHONE_SHARE_URL", "data-phone-share-open", "data-phone-share-send", "window.open(buildPhoneShareUrl"):
         assert forbidden not in app, f"desktop must not expose old outbound phone flow: {forbidden}"
 
-    for marker in ("fl_web_share_inbox", "MAX_ITEMS", "export async function listRecent", "{openid}", "PHONE_INBOX_ACCOUNT_REQUIRED"):
+    for marker in ("fl_web_share_inbox", "MAX_ITEMS", "export async function listRecent", "{uid}", "PHONE_INBOX_ACCOUNT_REQUIRED"):
         assert marker in client, f"missing private inbox client marker: {marker}"
     assert "export async function prune" not in client, "client must not own retention cleanup"
     assert 'trigger = str(request.get("trigger") or "manual")' in server
