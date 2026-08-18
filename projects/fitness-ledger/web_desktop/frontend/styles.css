@@ -3640,3 +3640,14 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
   .entry-workbench-page .capture{padding-top:24px;padding-bottom:14px}
   .entry-workbench-page .capture textarea{min-height:230px;height:230px}
 }
+@media(min-width:761px) and (max-height:820px){
+  .entry-workbench-page .entry-header{margin-bottom:18px!important;padding-bottom:14px}
+  .entry-workbench-page .entry-title-lockup .page-title{font-size:clamp(56px,6vw,86px)}
+  .entry-workbench-page .entry-rule{margin-top:8px}
+  .entry-workbench-page .entry-spread{margin-top:10px}
+  .entry-workbench-page .capture{padding-top:20px}
+  .entry-workbench-page .capture h2{margin-top:0;margin-bottom:8px}
+  .entry-workbench-page .capture textarea{min-height:210px;height:210px}
+  .entry-workbench-page .entry-input-row{margin-top:4px}
+  .entry-workbench-page .capture .actions{margin-top:6px}
+}
