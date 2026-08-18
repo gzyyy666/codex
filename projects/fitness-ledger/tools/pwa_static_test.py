@@ -50,7 +50,7 @@ def main() -> None:
     assert "refreshCandidateOverlay" in app_source
     assert "noteHistoryCache" in app_source
     assert 'data-candidate-region' in app_source
-    assert 'PWA v1.1.0' in app_source
+    assert 'PWA v1.1.1' in app_source
     for marker in (
         'call("dataModules")',
         "mergeRecordsWithCategoryDates",
@@ -87,9 +87,12 @@ def main() -> None:
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'includes("/api/")' in service_worker
-    assert 'fitness-ledger-pwa-v25' in service_worker
+    assert 'fitness-ledger-pwa-v26' in service_worker
     assert '"./data-modules.js"' in service_worker
-    assert 'register("./sw.js?v=20260816-01", { updateViaCache: "none" })' in app_source
+    assert 'register("./sw.js?v=20260818-01", { updateViaCache: "none" })' in app_source
+    assert 'cache: "no-store"' in api_source
+    assert 'READ_TIMEOUT_MS' in api_source and 'READ_ATTEMPTS' in api_source
+    assert 'Promise.allSettled' in app_source
     desktop_icon = ROOT / "assets" / "fitness-ledger-monogram-v3.png"
     pwa_icon = PWA / "icons" / "fitness-ledger.png"
     assert hashlib.sha256(desktop_icon.read_bytes()).digest() == hashlib.sha256(pwa_icon.read_bytes()).digest()

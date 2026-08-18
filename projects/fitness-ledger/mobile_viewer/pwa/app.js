@@ -1,4 +1,4 @@
-import { apiDescription, call, signIn } from "./api.js?v=20260815-01";
+import { apiDescription, call, signIn } from "./api.js?v=20260818-01";
 
 const BODY_PARTS = [
   { id: "shoulders", cn: "肩", en: "SHOULDERS", tone: "amber" },
@@ -9,7 +9,7 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.0 · build 2026.08.16.01";
+const BUILD_VERSION = "PWA v1.1.1 · build 2026.08.18.01";
 const moduleTools = window.FLDataModules || {
   normalizeContract: () => ({ schema: "fitness-ledger-mobile-module-read-model-v1", modules: [] }),
   categoryEntriesForDate: () => [], detailEntriesForDate: () => [], extensionEntriesForDate: () => [],
@@ -289,12 +289,27 @@ function usableCandidateTerm(value) {
   if (/[\u3400-\u9fff]/.test(term)) return compactLength >= 2 ? term : "";
   return compactLength >= 3 ? term : "";
 }
+const MOVEMENT_QUALIFIER_PREFIXES = ["俯身", "上斜", "下斜", "坐姿", "站姿", "单臂", "双臂", "反向", "窄握", "宽握", "绳索", "杠铃", "哑铃", "器械", "仰卧"];
+function hasUnmatchedQualifier(source, position, term) {
+  if (!/[\u3400-\u9fff]/.test(term)) return false;
+  const prefix = source.slice(Math.max(0, position - 4), position);
+  return MOVEMENT_QUALIFIER_PREFIXES.some(value => prefix.endsWith(value) && !term.startsWith(value));
+}
+function candidateTermMatches(source, term) {
+  const matches = [];
+  let position = source.indexOf(term);
+  while (position >= 0) {
+    if (!hasUnmatchedQualifier(source, position, term)) matches.push({ term, position });
+    position = source.indexOf(term, position + Math.max(1, term.length));
+  }
+  return matches;
+}
 function findLastCandidate(note, catalog) {
   const source = normalizeCandidateText(note);
   if (!source) return null;
   const matches = (catalog || []).map(item => {
     const terms = [item.display_name, item.english_name, ...(item.aliases || [])].map(usableCandidateTerm).filter(Boolean);
-    const hits = terms.map(term => ({ term, position: source.indexOf(term) })).filter(hit => hit.position >= 0);
+    const hits = terms.flatMap(term => candidateTermMatches(source, term));
     hits.sort((a, b) => b.position - a.position || b.term.length - a.term.length);
     return hits.length ? { ...item, matched_term: hits[0].term, matched_position: hits[0].position } : null;
   }).filter(Boolean);
@@ -479,14 +494,38 @@ async function loadRoute() {
     const name = state.route.name; const part = state.route.params.get("part");
     await refreshDataModules();
     if (name === "reference") {
-      if (part) { const [area, records] = await Promise.all([call("bodyArea", { part }), call("trainingRecords")]); state.area = { ...area, sessions: (area.sessions || []).map(item => ({ ...item, full_summary: records.find(record => date(record.Date) === date(item.date))?.["Standardized Summary"] || item.full_summary })) }; }
-      else { [state.areas, state.status] = await Promise.all([call("bodyAreas"), call("status")]); }
-    } else if (name === "training") { [state.trainingRecords, state.status] = await Promise.all([call("trainingRecords"), call("status")]); }
-    else if (name === "status") { [state.status, state.identity] = await Promise.all([call("status"), call("whoami")]); }
+      if (part) {
+        const [areaResult, recordsResult] = await Promise.allSettled([call("bodyArea", { part }), call("trainingRecords")]);
+        if (areaResult.status === "rejected") throw areaResult.reason;
+        const records = recordsResult.status === "fulfilled" && Array.isArray(recordsResult.value) ? recordsResult.value : [];
+        state.area = { ...areaResult.value, sessions: (areaResult.value.sessions || []).map(item => ({ ...item, full_summary: records.find(record => date(record.Date) === date(item.date))?.["Standardized Summary"] || item.full_summary })) };
+      } else {
+        const [areasResult, statusResult] = await Promise.allSettled([call("bodyAreas"), call("status")]);
+        if (areasResult.status === "rejected") throw areasResult.reason;
+        state.areas = areasResult.value;
+        state.status = statusResult.status === "fulfilled" ? statusResult.value : null;
+      }
+    } else if (name === "training") {
+      const [trainingResult, statusResult] = await Promise.allSettled([call("trainingRecords"), call("status")]);
+      if (trainingResult.status === "rejected") throw trainingResult.reason;
+      state.trainingRecords = Array.isArray(trainingResult.value) ? trainingResult.value : [];
+      state.status = statusResult.status === "fulfilled" ? statusResult.value : null;
+    }
+    else if (name === "status") {
+      const [statusResult, identityResult] = await Promise.allSettled([call("status"), call("whoami")]);
+      if (statusResult.status === "rejected") throw statusResult.reason;
+      state.status = statusResult.value;
+      state.identity = identityResult.status === "fulfilled" ? identityResult.value : null;
+    }
     else if (name === "body") state.bodyRecords = await call("bodyRecords", { limit: 30 });
     else if (name === "diet") state.dietRecords = await call("dietRecords", { limit: 30 });
     else if (name === "record") { const params = Object.fromEntries(state.route.params.entries()); if (params.mode === "training") state.trainingDay = await call("trainingDayDetail", { date: params.date }); else state.record = await call("recordDetail", { date: params.date }); }
-    else if (name === "movement") { [state.movement, state.movementHistory] = await Promise.all([call("movement", { movementId: state.route.params.get("id") }), call("movementHistory", { movementId: state.route.params.get("id"), limit: 20 })]); }
+    else if (name === "movement") {
+      const [movementResult, historyResult] = await Promise.allSettled([call("movement", { movementId: state.route.params.get("id") }), call("movementHistory", { movementId: state.route.params.get("id"), limit: 20 })]);
+      if (movementResult.status === "rejected") throw movementResult.reason;
+      state.movement = movementResult.value;
+      state.movementHistory = historyResult.status === "fulfilled" && Array.isArray(historyResult.value) ? historyResult.value : [];
+    }
     if (name === "body") state.bodyRecords = moduleTools.mergeRecordsWithCategoryDates(state.bodyRecords, state.dataModuleContract, "body");
     if (name === "diet") state.dietRecords = moduleTools.mergeRecordsWithCategoryDates(state.dietRecords, state.dataModuleContract, "diet");
     if (name === "training") state.trainingRecords = moduleTools.mergeRecordsWithCategoryDates(state.trainingRecords, state.dataModuleContract, "training");
@@ -547,13 +586,14 @@ async function openNoteCandidate(movementId) {
   state.noteDetailHistory = [];
   render();
   try {
-    const [movement, history] = await Promise.all([
+    const [movementResult, historyResult] = await Promise.allSettled([
       call("movement", { movementId }),
       call("movementHistory", { movementId, limit: 20 })
     ]);
     if (request !== state.noteDetailRequest) return;
-    state.noteDetailMovement = movement;
-    state.noteDetailHistory = Array.isArray(history) ? history : [];
+    if (movementResult.status === "rejected") throw movementResult.reason;
+    state.noteDetailMovement = movementResult.value;
+    state.noteDetailHistory = historyResult.status === "fulfilled" && Array.isArray(historyResult.value) ? historyResult.value : [];
   } catch (error) {
     if (request !== state.noteDetailRequest) return;
     state.noteDetailError = error?.message === "HTTP_401" ? "当前 Web 账号尚未完成授权。" : "读取该动作历史失败，请稍后重试。";
@@ -614,7 +654,7 @@ document.addEventListener("click", event => {
 });
 window.addEventListener("scroll", scheduleDockCheck, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260816-01", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260818-01", { updateViaCache: "none" }).catch(() => {});
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();
   event.preventDefault();

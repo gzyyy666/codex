@@ -78,6 +78,9 @@ def main() -> None:
     assert "function load()" in notepad and "function save(text)" in notepad and "function clear()" in notepad
     candidate_helper = (ROOT / "miniprogram" / "utils" / "freeformCandidates.js").read_text(encoding="utf-8")
     assert "function findMatches" in candidate_helper and "body_part_label" in candidate_helper
+    assert "MOVEMENT_QUALIFIER_PREFIXES" in candidate_helper and "hasUnmatchedQualifier" in candidate_helper
+    ledger_service = (ROOT / "miniprogram" / "services" / "ledger.js").read_text(encoding="utf-8")
+    assert "attempt < 2" in ledger_service and "QUERY_FAILED" in ledger_service and "NETWORK_ERROR" in ledger_service
     dock = ROOT / "miniprogram" / "components" / "freeformNotepad"
     for suffix in (".js", ".json", ".wxml", ".wxss"):
         assert (dock / f"index{suffix}").exists()

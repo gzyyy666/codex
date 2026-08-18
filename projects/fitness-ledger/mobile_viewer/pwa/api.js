@@ -4,6 +4,46 @@ const SDK_URL = "https://static.cloudbase.net/cloudbase-js-sdk/2.27.1/cloudbase.
 let cloudbaseSdkPromise;
 let cloudbaseAppPromise;
 let webAuthPromise;
+const READ_TIMEOUT_MS = 12000;
+const READ_ATTEMPTS = 2;
+
+function retryableReadError(error) {
+  return !error?.status || error.status >= 500 || ["READ_NETWORK", "READ_TIMEOUT"].includes(error.code);
+}
+
+async function fetchRead(url, options = {}) {
+  let lastError;
+  for (let attempt = 0; attempt < READ_ATTEMPTS; attempt += 1) {
+    const controller = typeof AbortController === "function" ? new AbortController() : null;
+    const timer = window.setTimeout(() => controller?.abort(), READ_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, {
+        ...options,
+        cache: "no-store",
+        signal: controller?.signal
+      });
+      if (!response.ok) {
+        const error = new Error(`HTTP_${response.status}`);
+        error.code = `HTTP_${response.status}`;
+        error.status = response.status;
+        throw error;
+      }
+      return response;
+    } catch (error) {
+      const normalized = error?.name === "AbortError"
+        ? Object.assign(new Error("READ_TIMEOUT"), { code: "READ_TIMEOUT" })
+        : error?.status
+          ? error
+          : Object.assign(error instanceof Error ? error : new Error("READ_NETWORK"), { code: error?.code || "READ_NETWORK" });
+      lastError = normalized;
+      if (attempt >= READ_ATTEMPTS - 1 || !retryableReadError(normalized)) throw normalized;
+      await new Promise(resolve => window.setTimeout(resolve, 250 * (attempt + 1)));
+    } finally {
+      window.clearTimeout(timer);
+    }
+  }
+  throw lastError || new Error("READ_NETWORK");
+}
 
 function webAuthEnabled() {
   return config.requireWebAuth === true;
@@ -77,13 +117,17 @@ function buildUrl(action, params = {}) {
 
 export async function call(action, params = {}) {
   const authorization = await authorizationHeader();
-  const response = await fetch(buildUrl(action, params), {
+  const response = await fetchRead(buildUrl(action, params), {
     method: "GET",
     credentials: config.credentials || "include",
     headers: { Accept: "application/json", ...authorization }
   });
-  if (!response.ok) throw new Error(`HTTP_${response.status}`);
-  const payload = await response.json();
+  let payload;
+  try {
+    payload = await response.json();
+  } catch (_) {
+    throw Object.assign(new Error("READ_INVALID_JSON"), { code: "READ_INVALID_JSON" });
+  }
   if (!payload || payload.ok !== true) throw new Error(payload?.code || "API_FAILED");
   return payload.data;
 }
