@@ -371,6 +371,7 @@ function createGuardianPresentationSurface(body) {
   const overlayTitle = document.createElement('strong');
   const overlayLines = document.createElement('div');
   const effect = document.createElement('span');
+  const loading = document.createElement('div');
   const fallback = document.createElement('div');
   const hotspots = document.createElement('div');
   const summaries = new Map();
@@ -383,6 +384,9 @@ function createGuardianPresentationSurface(body) {
   effect.className = 'guardian-pet-effect';
   effect.hidden = true;
   effect.setAttribute('aria-hidden', 'true');
+  loading.className = 'guardian-pet-loading';
+  loading.setAttribute('role', 'status');
+  loading.innerHTML = '<span aria-hidden="true">FL</span><strong>Guardian loading</strong><small>Keeping the archive companion ready.</small>';
   fallback.className = 'guardian-pet-fallback';
   fallback.hidden = true;
   fallback.setAttribute('role', 'status');
@@ -399,7 +403,7 @@ function createGuardianPresentationSurface(body) {
     button.innerHTML = `<span>${definition.label}</span><small>0</small>`;
     hotspots.appendChild(button);
   });
-  body.append(effect, overlay, hotspots, fallback);
+  body.append(effect, overlay, hotspots, loading, fallback);
 
   const showOverlay = (data, request = {}) => {
     if (!data?.title && !data?.lines?.length) return;
@@ -434,6 +438,7 @@ function createGuardianPresentationSurface(body) {
     const detail = fallback.querySelector('small');
     if (detail && message) detail.textContent = message;
   };
+  const setLoading = visible => { loading.hidden = !visible; };
   const setRegions = nextSummaries => {
     summaries.clear();
     (Array.isArray(nextSummaries) ? nextSummaries : []).forEach(summary => {
@@ -485,6 +490,7 @@ function createGuardianPresentationSurface(body) {
     hideOverlay,
     playEffect,
     stopEffect,
+    setLoading,
     setFallback,
     setRegions,
     setRoute,
@@ -496,6 +502,7 @@ function createGuardianPresentationSurface(body) {
       hotspots.removeEventListener('focusout', hideHotspotHint);
       overlay.remove();
       effect.remove();
+      loading.remove();
       fallback.remove();
       hotspots.remove();
     }
@@ -827,11 +834,13 @@ function mountMousePet() {
       playEffect: presentationSurface.playEffect,
       stopEffect: presentationSurface.stopEffect,
       onReady: detail => {
+        presentationSurface.setLoading(false);
         body.dataset.ready = 'true';
         body.dataset.petStatus = `${detail.poses || 0} poses | Pause pointer to face cursor | Hold trophy: champion effect | Drag: move | Alt + drag: rotate view | Wheel or left/right`;
         applyRoutePose();
       },
       onError: error => {
+        presentationSurface.setLoading(false);
         body.dataset.ready = 'error';
         body.dataset.petStatus = error?.message || 'Guardian Pet model load error';
         presentationSurface.setFallback('The 3D model could not be loaded. Archive controls remain available.');
@@ -862,6 +871,7 @@ function mountMousePet() {
     body.dataset.moduleReady = 'true';
   }).catch(error => {
     console.error('[Guardian pet] controller load failed', error);
+    presentationSurface.setLoading(false);
     body.dataset.ready = 'error';
     body.dataset.petStatus = error?.message || 'Guardian Pet module error';
     presentationSurface.setFallback('The 3D module is unavailable. Archive controls remain available.');

@@ -1273,7 +1273,10 @@ class DataModuleEngine:
 
         The template intentionally contains no tracker records, raw input, or
         private notes.  It is regenerated from the active registry whenever it
-        is requested, so a newly saved module is available immediately.
+        is requested, so a newly saved module is available immediately.  The
+        copyable prompt asks the LLM for plain text because that is the format
+        accepted by the existing Daily Entry preview path; the JSON response is
+        a definition/reference package, not a direct write command.
         """
         category_labels = {item.category_id: item.label for item in self.category_registry.all()}
         modules = []
@@ -1303,24 +1306,151 @@ class DataModuleEngine:
             "categories": self.category_registry.to_dict(),
             "modules": modules,
         })
+        native_fields = [
+            {"section": "body", "field": "Date", "aliases": ["日期", "date"], "line_example": "日期：2026-08-16", "value_type": "YYYY-MM-DD"},
+            {"section": "body", "field": "Weight (kg)", "aliases": ["体重", "weight"], "line_example": "体重：70 kg", "value_type": "number"},
+            {"section": "body", "field": "Bowel Movement", "aliases": ["排便", "bowel"], "line_example": "排便：正常", "value_type": "text"},
+            {"section": "body", "field": "Training", "aliases": ["训练", "training"], "line_example": "训练：胸部", "value_type": "text"},
+            {"section": "body", "field": "Cardio", "aliases": ["有氧", "cardio"], "line_example": "有氧：跑步 30 分钟", "value_type": "text"},
+            {"section": "body", "field": "Notes", "aliases": ["备注", "notes"], "line_example": "备注：今天状态正常", "value_type": "text"},
+            {"section": "diet", "field": "Calories (kcal)", "aliases": ["热量", "calories"], "line_example": "热量：1590 kcal", "value_type": "number"},
+            {"section": "diet", "field": "Protein (g)", "aliases": ["蛋白质", "protein"], "line_example": "蛋白质：120 g", "value_type": "number"},
+            {"section": "diet", "field": "Carbs (g)", "aliases": ["碳水", "carbs"], "line_example": "碳水：168 g", "value_type": "number"},
+            {"section": "diet", "field": "Fat (g)", "aliases": ["脂肪", "fat"], "line_example": "脂肪：54 g", "value_type": "number"},
+            {"section": "diet", "field": "Food Summary", "aliases": ["饮食", "food"], "line_example": "饮食：鸡蛋、鸡胸肉和水果", "value_type": "text"},
+            {"section": "training", "field": "Split", "aliases": ["训练分组", "split"], "line_example": "训练分组：胸部", "value_type": "text"},
+            {"section": "training", "field": "Standardized Summary", "aliases": ["动作记录", "workout"], "line_example": "动作记录：卧推 60 kg × 8 × 3", "value_type": "text"},
+        ]
+        module_lines = []
+        for item in modules:
+            aliases = "、".join(str(alias) for alias in item["aliases"] if str(alias).strip()) or item["label"]
+            unit = item["actual_unit"] or "无单位"
+            module_lines.append(f"- {item['label']} | module_id={item['module_id']} | 可识别词={aliases} | 单位={unit}")
+        module_catalog_text = "\n".join(module_lines) or "- 当前没有已启用的自定义记录项；如需识别新词，请先在数据模块中建立定义。"
+        prompt_template = f"""你是 Fitness Ledger 的录入整理助手。
+请把“原始记录”整理成可以直接粘贴回 Daily Entry 输入板的纯文本。
+
+只输出整理后的记录，不要解释，不要 Markdown 代码围栏，不要输出 JSON。
+第一行必须是：日期：YYYY-MM-DD；原文没有明确日期时只输出：缺少日期：请补充 YYYY-MM-DD。
+每个有明确值的项目单独占一行；没有提到的项目不要补猜。
+原有项目使用下方原有字段名；自定义记录项必须使用下方登记过的名称或可识别词，格式为：记录项名称：数值 单位。
+单位必须保留实际单位；没有单位的记录项不要擅自添加单位。
+不要把动作名称当成自定义记录项；动作仍放在“动作记录”中。
+
+原有字段示例：
+日期：2026-08-16
+体重：70 kg
+排便：正常
+训练：胸部
+有氧：跑步 30 分钟
+热量：1590 kcal
+蛋白质：120 g
+碳水：168 g
+脂肪：54 g
+饮食：鸡蛋、鸡胸肉和水果
+动作记录：卧推 60 kg × 8 × 3
+备注：今天状态正常
+
+当前可用的自定义记录项：
+{module_catalog_text}
+
+输出示例（仅当对应记录项已经建立时使用）：
+日期：2026-08-16
+体重：70 kg
+腰围：82.5 cm
+静息心率：58 bpm
+
+原始记录：
+{{daily_text}}"""
+        prompt_template = prompt_template.replace(
+            "{{daily_text}}",
+            """【必须遵守的输出细则】
+1. 只输出可以直接粘贴回 Daily Entry 的纯文本；不要输出 JSON、Markdown 围栏、解释、标题前言或表格。
+2. 第一行必须是“日期：YYYY-MM-DD”。原文没有明确日期时，输出“缺少日期：请补充 YYYY-MM-DD”，不要猜日期。
+3. 按下面顺序输出有内容的区块：日期、体重、排便、训练、有氧、饮食、备注。字段名使用标准中文名；英文别名只在确有需要时放在同一行，不要创造新的字段名。
+4. 只记录原文明确说出的事实。原文没有体重、食物、训练动作或其他数值时不要补猜；可以在备注中写“未说明，请补充”。
+5. 排便是必查项：原文没有说明排便时，必须输出“排便：待补充”，并在“备注”中提醒“排便情况未说明，请补充”；这不是排便事实，不要写成“正常”。
+6. 如果原文包含力量训练，但没有明确有氧内容，必须补一行“有氧：跑步机爬坡 30 分钟（默认；原文未说明有氧）”。如果原文明确写了有氧，保留原文内容，不使用这个默认值；没有力量训练时不要添加默认有氧。
+7. 训练区块的每一条动作记录前必须有一个 ASCII 半角空格，不能用 Tab；这是解析动作、顺序和动作备注所需的格式。推荐写法如下：
+训练：肩部
+ 1. 悍马推肩
+   20 kg × 10 × 3
+   备注：最后一组接近力竭，动作稳定
+ 2. 绳索侧平举
+   7.5 kg × 12 × 3
+训练区块的动作顺序、重量、次数、组数和动作备注都要保留；不知道的项目不要填“未知”。
+8. 训练区块下的“备注：”必须继续保持缩进；每日训练总体说明写到“训练备注：”，饮食说明写到“饮食备注：”，不要把动作备注混进每日备注。
+9. Notes 要短而有用，不要逐项重复体重、热量和动作数字。每日备注只写状态、疼痛/不适、睡眠、疲劳、默认有氧或缺失信息；饮食备注写估算依据、食材重量/熟重假设和不确定性；训练备注写完成度、强度、动作顺序变化和有氧是否为默认。没有额外说明就省略 Notes。
+10. 根据原文食物和分量计算热量、蛋白质、碳水、脂肪；允许使用常见营养数据库和合理估算，但不要伪装成精确测量。估算结果写入“热量 / 蛋白质 / 碳水 / 脂肪”，并在“饮食备注”中明确“估算”及主要假设；“饮食”只保留食物、分量和烹饪方式的简洁摘要。
+11. 自定义记录项只能使用下方已登记的名称或可识别词，并按“记录项名称：数值 单位”单独成行。动作名称属于训练记录，不属于自定义记录项；无法归类的内容放入合适 Notes，不要自行创建字段。
+
+【可直接复制的完整示例】
+日期：2026-08-16
+体重：70 kg
+排便：待补充
+训练：肩部
+ 1. 悍马推肩
+   20 kg × 10 × 3
+   备注：动作稳定
+有氧：跑步机爬坡 30 分钟（默认；原文未说明有氧）
+饮食：鸡蛋 2 个、鸡胸肉 200 g、米饭 300 g
+热量：1590 kcal
+蛋白质：120 g
+碳水：168 g
+脂肪：54 g
+饮食备注：营养值为估算，按常见熟重计算。
+备注：排便情况未说明，请补充。
+
+【原始记录】
+{{daily_text}}""",
+        )
         return {
-            "schema": "fitness-ledger-llm-entry-template-v1",
-            "template_version": 1,
-            "purpose": "把自然语言整理为 Fitness Ledger 的 Data Module 预览输入。",
+            "schema": "fitness-ledger-llm-entry-template-v3",
+            "template_version": 3,
+            "purpose": "把自然语言整理为可直接粘贴回 Daily Entry 的预览输入，同时提供当前自定义记录项定义。",
+            "workflow": {
+                "step_1": "复制 prompt_template 给 LLM，并把原始记录放入 {{daily_text}}。",
+                "step_2": "只把 LLM 返回的纯文本粘贴回 Daily Entry 输入板。",
+                "step_3": "继续执行 Preview → Confirm；预览前不会写入，确认后才保存。",
+            },
             "source": {
                 "registry_fingerprint": registry_fingerprint,
                 "module_count": len(modules),
                 "contains_personal_records": False,
             },
+            "prompt_template": prompt_template,
+            "native_fields": native_fields,
+            "canonical_entry_format": {
+                "accepted_input": "plain_text",
+                "date_line": "日期：YYYY-MM-DD",
+                "native_line": "字段名：值 单位（单位按字段需要填写）",
+                "module_line": "已登记的记录项名称：数值 单位",
+                "unknown_line": "无法归类的原文不要猜测；保留到备注或先建立记录项定义。",
+            },
             "instructions": [
-                "只从 modules 中选择 module_id，不要自行创造字段名。",
+                "只使用 native_fields 或 modules 中已经登记的字段和记录项，不要自行创造 module_id。",
                 "日期使用 YYYY-MM-DD；如果原文没有日期，先要求补充日期。",
-                "value 只填记录项的实际值；有单位时同时校验 unit，不能用单位替代数值。",
-                "输出后仍必须经过 Fitness Ledger 的 Preview → Confirm 流程，不能直接写入。",
+                "自定义记录项的数值和单位必须分别保留，不能用单位替代数值。",
+                "LLM 输出只用于粘贴到输入板，仍必须经过 Fitness Ledger 的 Preview → Confirm 流程，不能直接写入。",
             ],
             "output_shape": {
+                "accepted_input": "plain_text",
                 "date": "YYYY-MM-DD",
-                "entries": [{"module_id": "从 modules 选择", "value": "记录值", "unit": "可选"}],
+                "native_lines": ["字段名：值 单位"],
+                "module_line": "module label：value unit",
+                "entries": [{"module_id": "从 modules 选择", "value": "记录值", "unit": "actual_unit"}],
+            },
+            "behavior_contract": {
+                "training_record_prefix": "one_ascii_space",
+                "strength_training_default_cardio": "跑步机爬坡 30 分钟；仅在力量训练存在且原文未说明有氧时添加，并在 Notes 标明默认。",
+                "bowel_missing_behavior": "输出‘排便：待补充’，并在每日 Notes 提醒补充；不得猜测为正常。",
+                "nutrition_estimation": "可根据食物和分量估算热量与 P/C/F；必须在饮食 Notes 标明估算依据和不确定性。",
+            },
+            "notes_contract": {
+                "daily": "状态、缺失信息、睡眠/疲劳或默认有氧；不要重复结构化数字。",
+                "diet": "估算依据、食材重量/熟重假设和不确定性。",
+                "training": "完成度、强度、顺序变化、动作表现和有氧是否为默认。",
+                "movement": "仅写该动作的技术、力竭、疼痛或表现变化；简短，不重复组数。",
             },
             "modules": modules,
         }
