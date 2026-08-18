@@ -3623,3 +3623,20 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
 .tools-page{padding-top:44px}.tools-hero{margin-bottom:18px;padding-bottom:17px}.tools-workbench{min-height:500px}.tools-ledger{position:relative;overflow:hidden;padding-top:33px}.tools-ledger::after{content:"ARCHIVE / 08";position:absolute;right:-4px;top:15px;color:rgba(255,250,241,.08);font:400 56px/.8 var(--font-editorial);letter-spacing:-.06em;transform:rotate(-8deg)}.tools-ledger-stamp{position:absolute;right:30px;bottom:26px;color:rgba(225,189,98,.18);font:400 92px/.8 var(--font-editorial);letter-spacing:-.08em}.tools-ledger-index{display:grid;gap:5px;margin:26px 0 auto;padding:11px 0;border-top:1px solid rgba(255,250,241,.14);border-bottom:1px solid rgba(255,250,241,.14);color:rgba(255,250,241,.48);font-size:9px;letter-spacing:.1em;text-transform:uppercase}.tools-ledger-index span:first-child{color:#e1bd62}.tools-actions{padding-top:10px;padding-bottom:10px}.tool-row{padding-top:21px;padding-bottom:21px}.tool-row-export{background:linear-gradient(90deg,rgba(239,214,148,.16),transparent 65%)}.tool-row-export:hover,.tool-row-export:focus-visible{background:linear-gradient(90deg,rgba(239,214,148,.28),rgba(239,214,148,.05) 72%)}.tool-row-export .tool-row-number,.tool-row-export .tool-row-copy>.eyebrow{color:#a67e2a}.tool-row-tags i:last-child{border-color:rgba(180,146,57,.38);color:#8d6a25;background:rgba(239,214,148,.18)}.tool-row-copy>strong{transition:transform .2s var(--ease-soft)}.tool-row:hover .tool-row-copy>strong,.tool-row:focus-visible .tool-row-copy>strong{transform:translateX(4px)}.tool-row:focus-visible{box-shadow:inset 2px 0 #b49239}.tools-footnote{padding-top:12px}
 @media(max-width:1000px){.protocol-mode-bar{grid-template-columns:1fr}.protocol-workbench{grid-template-columns:minmax(0,1fr)}.protocol-scope-digest dl{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:620px){.protocol-mode-switch button span{font-size:16px}.protocol-mode-switch button{padding:9px}.protocol-guided-card{grid-template-columns:auto 1fr}.protocol-guided-card em{grid-column:2;justify-self:start}.protocol-scope-digest dl{grid-template-columns:repeat(2,minmax(0,1fr))}.tools-page{padding-top:28px}.tools-ledger-index{margin-top:20px}}
+/* Keep Daily Entry support actions in place while bringing them into the first viewport. */
+.entry-workbench-page .entry-header{margin-bottom:26px!important;padding-bottom:24px}
+.entry-workbench-page .entry-spread{margin-top:18px}
+.entry-workbench-page .capture{padding-top:28px;padding-bottom:16px}
+.entry-workbench-page .capture h2{margin-top:4px;margin-bottom:12px}
+.entry-workbench-page .capture textarea{min-height:270px;height:clamp(270px,27vh,300px)}
+.entry-workbench-page .entry-input-row{margin-top:8px}
+.entry-workbench-page .capture .actions{margin-top:10px}
+.entry-workbench-page .entry-support-actions{margin-top:0}
+.entry-workbench-page .entry-support-actions .entry-template-trigger{min-height:32px;margin-top:0}
+.entry-workbench-page .phase{margin-top:8px}
+@media(max-width:760px){
+  .entry-workbench-page .entry-header{margin-bottom:22px!important;padding-bottom:20px}
+  .entry-workbench-page .entry-spread{margin-top:14px}
+  .entry-workbench-page .capture{padding-top:24px;padding-bottom:14px}
+  .entry-workbench-page .capture textarea{min-height:230px;height:230px}
+}
