@@ -6,6 +6,7 @@
     <view class="slip-index">{{index < 9 ? '0' + (index + 1) : index + 1}}</view>
     <view class="slip-date">{{item.Date}}</view><view class="slip-weight">{{item['Weight (kg)'] || '-'}}<text>kg</text></view>
     <view class="slip-facts"><view><text>训练</text><text>{{item.Training || '休息'}}</text></view><view><text>排便</text><text>{{item['Bowel Movement'] || '-'}}</text></view><view><text>有氧</text><text class="clamp-2">{{item.Cardio || '无'}}</text></view></view>
+    <data-module-card wx:for="{{item.dataModules}}" wx:for-item="module" wx:key="module_id" module="{{module}}" />
     <view class="slip-note clamp-2">{{item.Notes || '没有备注'}}</view>
     <view class="slip-action" data-date="{{item.Date}}" catchtap="open">查看记录 →</view>
   </view>

@@ -1,5 +1,46 @@
 # Fitness Ledger Changelog
 
+## 2026-08-15 - Production PWA text handoff preparation (release candidate)
+
+- Removed the accepted candidate Review surface from the formal PWA bundle;
+  candidate fixtures, simulator controls, and local JSON inbox remain only in
+  the separate Review worktree.
+- Added a formal PWA `share.html` handoff surface that sends original text to a
+  private `fl_web_share_inbox` collection and lets the desktop user copy it
+  into the existing Daily Entry preview/edit/confirm flow.
+- Kept formal tracker/Data Module writes out of the mobile handoff and left the
+  WeChat Mini Program unchanged.
+
+Release boundary: this is a release candidate only. CloudBase collection
+creation, private rule configuration, physical-device verification, merge,
+push, and deployment still require the release gate.
+
+## 2026-08-15 - Natural-language import phase 1 (review branch)
+
+- Added a desktop-only import boundary: paste natural language, preview the
+  parsed record, edit it, and confirm through the existing local save path.
+- Preview keeps the original text and performs no write; confirmation reuses
+  the existing review identity and preserved-raw-input checks.
+- This phase is intentionally not released to the formal app, cloud, or phone
+  PWA. Phone sharing will be a later inbox-to-preview step, not a direct write.
+
+## 2026-08-15 - Modal cursor and return control fix
+
+- Moved the shared route return control from the lower-left corner to the
+  upper-left area below the fixed navigation.
+- Restored the native pointer while an overlay is open, so record and Data
+  Module dialogs remain usable when the optional trophy cursor is enabled.
+
+## 2026-08-15 - Data Module production activation
+
+- The formal Web launcher now creates an empty local Data Module definition
+  store on first start and connects it to the shared command boundary.
+- The production store contains only system categories; review fixtures such
+  as waist or resting heart rate are never copied into formal data.
+- The phone home-screen PWA reads sanitized module definitions and records
+  through the authenticated read-only Web gateway and places them in Body,
+  Diet, Training, daily detail, or an optional edge widget.
+
 ## 2026-08-12 - Standardize selected shoulder movement loads
 
 - Updated every structured 7.5 load for Y Raise, Cable Rear Delt Fly, and

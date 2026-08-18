@@ -33,6 +33,7 @@ Use this index instead of scanning the project.
 | Reusable engineering and design lessons | `maintenance/WORKFLOW_LESSONS.md` |
 | Chronological changes | `../CHANGELOG.md` |
 | Cloud replica truth, collections, and review | `../cloud_sync/CLOUD_REVIEW.md` |
+| PWA phone-to-desktop text handoff and release gate | `maintenance/PWA_SHARE_INBOX_PHASE3.md` |
 | WeChat setup, API, UI states, and preview | `../mini_program/README.md`, `../mini_program/docs/` |
 
 ## Standardization

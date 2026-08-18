@@ -262,7 +262,8 @@ Always implement `prefers-reduced-motion: reduce` as a real behavior fallback.
 
 Before generating a new interface, the responsible conversation must:
 
-1. Read this file and `docs/design/DESIGN_RESOURCES.md`.
+1. Read this file, `docs/design/DESIGN_RESOURCES.md`, and
+   `docs/design/AI_DESIGN_REVIEW_CONTRACT.md`.
 2. Inspect the current route and the closest evidence screenshot.
 3. Reuse existing tokens, body-area mapping, asset paths, and interaction
    semantics before proposing new ones.

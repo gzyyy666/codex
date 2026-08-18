@@ -17,7 +17,11 @@ def main() -> None:
         assert path.is_file(), f"missing web function file: {path}"
 
     source = index.read_text(encoding="utf-8")
-    for marker in ("async function readAction", "exports.main", "OPTIONS", "Authorization", "bodyAreas", "movementHistory"):
+    for marker in (
+        "async function readAction", "exports.main", "OPTIONS", "Authorization", "bodyAreas", "movementHistory",
+        "dataModules", "fl_data_modules", "fl_data_module_records", "fl_data_module_contract",
+        "mobileDataModulePayload", "normalizedMobileContract",
+    ):
         assert marker in source, f"missing web read contract marker: {marker}"
     for forbidden in ("getWXContext", "FITNESS_LEDGER_ALLOWED_OPENIDS", ".add(", ".update(", ".set(", ".remove("):
         assert forbidden not in source, f"web function must not use Mini Program/write boundary: {forbidden}"

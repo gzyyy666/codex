@@ -1,0 +1,82 @@
+{
+  "schema_version": "fitness-ledger-data-module-registry-v1",
+  "modules": [
+    {
+      "module_id": "waist_cm",
+      "label": "腰围",
+      "aliases": ["腰围", "waist", "waist circumference"],
+      "category_id": "body",
+      "data_type": "quantity",
+      "actual_unit": "cm",
+      "display_unit": "cm",
+      "definition_version": 1,
+      "status": "active",
+      "capabilities": {
+        "recordable": true,
+        "queryable": true,
+        "history_enabled": true,
+        "exportable": true,
+        "analysis_visible": true,
+        "statistics_visible": true,
+        "cloud_syncable": true,
+        "mini_program_visible": true
+      },
+      "validation_contract": {
+        "minimum": 20,
+        "maximum": 300,
+        "decimal_places": 1,
+        "unit_aliases": ["cm", "厘米"]
+      },
+      "recording_behavior": {
+        "kind": "scalar",
+        "cardinality": "one_per_day"
+      },
+      "presentation": {
+        "section": "body",
+        "slot": "summary",
+        "order": 10,
+        "visible_by_default": true,
+        "renderer": "single_metric"
+      }
+    },
+    {
+      "module_id": "resting_hr",
+      "label": "静息心率",
+      "aliases": ["静息心率", "resting hr", "resting heart rate"],
+      "category_id": "body",
+      "data_type": "quantity",
+      "actual_unit": "bpm",
+      "display_unit": "bpm",
+      "definition_version": 1,
+      "status": "active",
+      "capabilities": {
+        "recordable": true,
+        "queryable": true,
+        "history_enabled": true,
+        "exportable": true,
+        "analysis_visible": false,
+        "statistics_visible": false,
+        "cloud_syncable": true,
+        "mini_program_visible": true
+      },
+      "validation_contract": {
+        "minimum": 20,
+        "maximum": 240,
+        "decimal_places": 0,
+        "integer": true,
+        "unit_aliases": ["bpm", "次/分"]
+      },
+      "recording_behavior": {
+        "kind": "scalar",
+        "cardinality": "one_per_day"
+      },
+      "presentation": {
+        "section": "body",
+        "slot": "summary",
+        "order": 20,
+        "visible_by_default": true,
+        "renderer": "metric_history"
+      }
+    }
+  ]
+}

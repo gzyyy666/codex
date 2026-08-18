@@ -5,6 +5,7 @@
   <view wx:for="{{records}}" wx:key="_id" class="diet-slip offset-{{index % 3}}">
     <view class="diet-head"><view><view class="eyebrow">NUTRITION NOTE</view><view class="diet-date">{{item.Date}}</view></view><view class="diet-kcal">{{item['Calories (kcal)'] || '-'}}<text>kcal</text></view></view>
     <view class="macro-strip"><view><text>P</text><text>{{item['Protein (g)'] || '-'}}g</text></view><view><text>C</text><text>{{item['Carbs (g)'] || '-'}}g</text></view><view><text>F</text><text>{{item['Fat (g)'] || '-'}}g</text></view></view>
+    <data-module-card wx:for="{{item.dataModules}}" wx:for-item="module" wx:key="module_id" module="{{module}}" />
     <view class="diet-summary clamp-3">{{item['Food Summary'] || '没有饮食摘要'}}</view>
     <view class="diet-action" data-date="{{item.Date}}" catchtap="open">阅读全文 →</view>
   </view>

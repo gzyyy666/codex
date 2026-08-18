@@ -96,7 +96,7 @@ def load_sync_config(config_path: str | Path | None = None) -> dict:
         "import_command": os.environ.get("FITNESS_LEDGER_CLOUD_IMPORT_COMMAND") or file_config.get("import_command") or "",
         "meta_command": os.environ.get("FITNESS_LEDGER_CLOUD_META_COMMAND") or file_config.get("meta_command") or "",
         "auto_sync_enabled": bool(
-            str(os.environ.get("FITNESS_LEDGER_CLOUD_AUTO_SYNC", file_config.get("auto_sync_enabled", "false"))).lower()
+            str(os.environ.get("FITNESS_LEDGER_CLOUD_AUTO_SYNC", file_config.get("auto_sync_enabled", "true"))).lower()
             in {"1", "true", "yes", "on"}
         ),
         "config_file": str(path),

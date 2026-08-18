@@ -17,6 +17,21 @@ function usableTerm(value) {
   if (/[\u3400-\u9fff]/.test(term)) return compactLength >= 2 ? term : "";
   return compactLength >= 3 ? term : "";
 }
+const MOVEMENT_QUALIFIER_PREFIXES = ["俯身", "上斜", "下斜", "坐姿", "站姿", "单臂", "双臂", "反向", "窄握", "宽握", "绳索", "杠铃", "哑铃", "器械", "仰卧"];
+function hasUnmatchedQualifier(source, position, term) {
+  if (!/[\u3400-\u9fff]/.test(term)) return false;
+  const prefix = source.slice(Math.max(0, position - 4), position);
+  return MOVEMENT_QUALIFIER_PREFIXES.some(value => prefix.endsWith(value) && !term.startsWith(value));
+}
+function termMatches(source, term) {
+  const matches = [];
+  let position = source.indexOf(term);
+  while (position >= 0) {
+    if (!hasUnmatchedQualifier(source, position, term)) matches.push({ term, position });
+    position = source.indexOf(term, position + Math.max(1, term.length));
+  }
+  return matches;
+}
 
 function buildIndex(responses) {
   const byId = {};
@@ -92,8 +107,7 @@ function findMatches(text, index) {
   if (!source || !Array.isArray(index)) return [];
   return index.map(item => {
     const matches = item.terms
-      .map(term => ({ term, position: source.indexOf(term) }))
-      .filter(match => match.position >= 0)
+      .flatMap(term => termMatches(source, term))
       .sort((a, b) => a.position - b.position || b.term.length - a.term.length);
     if (!matches.length) return null;
     return {

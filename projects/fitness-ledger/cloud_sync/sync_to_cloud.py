@@ -24,6 +24,10 @@ EXPECTED = {
     "fl_raw_entries", "fl_search_index", "fl_data_quality_issues",
 }
 
+OPTIONAL_DATA_MODULE_COLLECTIONS = {
+    "fl_data_modules", "fl_data_module_records", "fl_data_module_contract",
+}
+
 
 def _now() -> str:
     return datetime.now().replace(microsecond=0).isoformat()
@@ -53,6 +57,13 @@ def validate_payload() -> dict:
     payload = _read_json(PAYLOAD_PATH)
     missing = sorted(EXPECTED.difference(payload))
     invalid = sorted(name for name, rows in payload.items() if not isinstance(rows, list))
+    present_module_extensions = set(payload).intersection(OPTIONAL_DATA_MODULE_COLLECTIONS)
+    if present_module_extensions and present_module_extensions != OPTIONAL_DATA_MODULE_COLLECTIONS:
+        invalid.append("incomplete_data_module_extension")
+    for row in payload.get("fl_data_module_records", []):
+        if any(key in row for key in ("raw_text", "private", "notes", "source_raw_hash")):
+            invalid.append("data_module_raw_or_private_leak")
+            break
     if missing or invalid:
         raise ValueError(f"Invalid cloud payload; missing={missing}, non_list={invalid}")
 

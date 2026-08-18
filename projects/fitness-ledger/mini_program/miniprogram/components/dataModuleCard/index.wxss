@@ -1,0 +1,7 @@
+.data-module-row { margin-top: 14rpx; padding-top: 13rpx; border-top: 1rpx solid rgba(23,23,20,.13); font-size: 22rpx; }
+.data-module-main { display: flex; align-items: baseline; justify-content: space-between; gap: 16rpx; }
+.data-module-label { opacity: .78; }
+.data-module-value { font-variant-numeric: tabular-nums; font-weight: 650; }
+.data-module-unit { font-size: 18rpx; font-weight: 500; }
+.data-module-empty { opacity: .58; }
+.data-module-history { display: flex; flex-wrap: wrap; gap: 8rpx 16rpx; margin-top: 8rpx; opacity: .72; font-size: 18rpx; }

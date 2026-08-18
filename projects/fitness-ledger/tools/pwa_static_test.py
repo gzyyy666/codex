@@ -16,6 +16,7 @@ def main() -> None:
         PWA / "index.html",
         PWA / "manifest.webmanifest",
         PWA / "app.js",
+        PWA / "data-modules.js",
         PWA / "api.js",
         PWA / "styles.css",
         PWA / "sw.js",
@@ -49,7 +50,17 @@ def main() -> None:
     assert "refreshCandidateOverlay" in app_source
     assert "noteHistoryCache" in app_source
     assert 'data-candidate-region' in app_source
-    assert 'PWA v1.0.0' in app_source
+    assert 'PWA v1.1.1' in app_source
+    for marker in (
+        'call("dataModules")',
+        "mergeRecordsWithCategoryDates",
+        "enhanceCategoryArchive",
+        "enhanceRecordDetail",
+        "renderPageWidgets",
+        "route-back",
+        "手机扩展指标",
+    ):
+        assert marker in source, f"missing phone Data Module marker: {marker}"
     candidate_update = app_source.split("async function updateCandidates()", 1)[1].split("async function openNoteCandidate", 1)[0]
     assert "render()" not in candidate_update, "candidate recognition must not redraw the whole page"
     assert 'autocomplete="off"' in app_source and 'autocorrect="off"' in app_source
@@ -76,8 +87,12 @@ def main() -> None:
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'includes("/api/")' in service_worker
-    assert 'fitness-ledger-pwa-v21' in service_worker
-    assert 'register("./sw.js?v=20260803-21", { updateViaCache: "none" })' in app_source
+    assert 'fitness-ledger-pwa-v26' in service_worker
+    assert '"./data-modules.js"' in service_worker
+    assert 'register("./sw.js?v=20260818-01", { updateViaCache: "none" })' in app_source
+    assert 'cache: "no-store"' in api_source
+    assert 'READ_TIMEOUT_MS' in api_source and 'READ_ATTEMPTS' in api_source
+    assert 'Promise.allSettled' in app_source
     desktop_icon = ROOT / "assets" / "fitness-ledger-monogram-v3.png"
     pwa_icon = PWA / "icons" / "fitness-ledger.png"
     assert hashlib.sha256(desktop_icon.read_bytes()).digest() == hashlib.sha256(pwa_icon.read_bytes()).digest()

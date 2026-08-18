@@ -54,6 +54,77 @@ def _write_json_atomic(path: Path, value) -> None:
 
 _NON_SEMANTIC_FIELDS = {"id", "created_at", "updated_at", "superseded_at", "superseded_by", "save_mode", "source"}
 
+_PRODUCT_PLACEMENTS = {
+    "main": {"label": "主内容", "slot": "top", "visible_by_default": True},
+    "detail": {"label": "详情区", "slot": "secondary", "visible_by_default": True},
+    "history": {"label": "仅历史", "slot": "history", "visible_by_default": True},
+    "record": {"label": "仅记录，不展示", "slot": "auxiliary", "visible_by_default": False},
+}
+
+_PRODUCT_SURFACES = {
+    "category_page": {
+        "label": "跟随所属类别页面",
+        "description": "例如 Body 的腰围，进入 Body 记录里的同级指标。",
+    },
+    "page_widget": {
+        "label": "页面角落小模块",
+        "description": "不创建新页面，可放在首页、Body、Diet、Training 或 Movement 的角落。",
+    },
+    "history_only": {
+        "label": "只在记录、历史和导出中保留",
+        "description": "不自动放进任何页面，但仍可输入、查询、导出。",
+    },
+    "record_only": {
+        "label": "只记录，不自动展示",
+        "description": "保留正式记录和历史，页面不显示。",
+    },
+}
+
+
+def _product_placement(category_id: str, choice: str, order: int = 0, surface: str = "category_page", display_page: str = "home") -> dict:
+    key = str(choice or "main").strip().lower()
+    if key == "summary":
+        key = "main"
+    placement = _PRODUCT_PLACEMENTS.get(key, _PRODUCT_PLACEMENTS["main"])
+    surface_key = str(surface or "category_page").strip().lower()
+    if surface_key in {"home_widget", "page_widget"}:
+        section = display_page if display_page in {"home", "body", "diet", "training", "movement"} else "home"
+        slot = "auxiliary"
+        visible = True
+    elif surface_key in {"history_only", "record_only"}:
+        section = "extension"
+        slot = "history" if surface_key == "history_only" else "auxiliary"
+        visible = surface_key == "history_only"
+    else:
+        section = category_id if category_id in {"body", "diet", "training", "movement"} else "extension"
+        slot = placement["slot"]
+        visible = bool(placement["visible_by_default"])
+    return {
+        "section": section,
+        "slot": slot,
+        "order": int(order or 0),
+        "visible_by_default": visible,
+        "renderer": "metric_history" if key in {"detail", "history"} or surface_key == "history_only" else "single_metric",
+    }
+
+
+def _product_surface(category_id: str, presentation: dict) -> str:
+    section = str((presentation or {}).get("section", "extension"))
+    slot = str((presentation or {}).get("slot", "top"))
+    if slot == "summary":
+        slot = "top"
+    if section == "home":
+        return "page_widget"
+    if slot == "history":
+        return "history_only"
+    if not bool((presentation or {}).get("visible_by_default", True)):
+        return "record_only"
+    if section in {"body", "diet", "training", "movement"} and slot == "auxiliary":
+        return "page_widget"
+    if section in {"body", "diet", "training", "movement"} and section == str(category_id):
+        return "category_page"
+    return "history_only"
+
 
 def _normalise_business_value(value, field_name: str = ""):
     """Compare ledger content, not JSON layout or write-time bookkeeping."""
@@ -214,11 +285,13 @@ class LedgerCommandService:
         dictionary_file: Path,
         backup_dir: Path,
         parser: ParserCallback,
+        module_registry_file: Path | None = None,
     ) -> None:
         self.data_file = Path(data_file)
         self.dictionary_file = Path(dictionary_file)
         self.backup_dir = Path(backup_dir)
         self.parser = parser
+        self.module_registry_file = Path(module_registry_file) if module_registry_file else None
         self.lock_file = self.data_file.parent / ".fitness-ledger-write.lock"
 
     def load_state(self) -> tuple[dict, dict]:
@@ -228,6 +301,428 @@ class LedgerCommandService:
         )
         dictionary = _read_json(self.dictionary_file, {"version": "1.0", "movements": []})
         return database, dictionary
+
+    def data_module_engine(self, registry_file: Path | None = None):
+        """Return the registry-driven extension engine at the shared save boundary."""
+        from fitness_ledger_core.data_module_engine import DataModuleDefinitionStore, DataModuleEngine
+
+        path = Path(registry_file) if registry_file else self.module_registry_file
+        if path is None:
+            raise LedgerCommandError(
+                "Data Module registry is not configured.",
+                "MODULE_REGISTRY_REQUIRED",
+            )
+        try:
+            store = DataModuleDefinitionStore(path, backup_dir=self.backup_dir / "data_module_definitions")
+            categories, registry, issues = store.load(strict=False)
+            return DataModuleEngine(
+                registry,
+                self.data_file,
+                self.dictionary_file,
+                self.backup_dir,
+                command_service=self,
+                category_registry=categories,
+                definition_issues=issues,
+            )
+        except Exception as exc:
+            if isinstance(exc, LedgerCommandError):
+                raise
+            code = getattr(exc, "code", "MODULE_REGISTRY_INVALID")
+            details = getattr(exc, "details", {})
+            raise LedgerCommandError(str(exc), code, details) from exc
+
+    def data_module_definition_store(self, registry_file: Path | None = None):
+        from fitness_ledger_core.data_module_engine import DataModuleDefinitionStore
+
+        path = Path(registry_file) if registry_file else self.module_registry_file
+        if path is None:
+            raise LedgerCommandError("Data Module definition store is not configured.", "MODULE_REGISTRY_REQUIRED")
+        return DataModuleDefinitionStore(path, backup_dir=self.backup_dir / "data_module_definitions")
+
+    def data_module_catalog(self) -> dict:
+        try:
+            return self.data_module_definition_store().catalog()
+        except Exception as exc:
+            code = getattr(exc, "code", "DEFINITION_STORE_ERROR")
+            details = getattr(exc, "details", {})
+            raise LedgerCommandError(str(exc), code, details) from exc
+
+    def data_module_product_catalog(self) -> dict:
+        """Return the ordinary-user view of the registry for the formal Web mirror."""
+        catalog = self.data_module_catalog()
+        categories = catalog.get("categories", [])
+        labels = {str(item.get("category_id")): str(item.get("label") or item.get("category_id")) for item in categories}
+        placement_labels = {key: value["label"] for key, value in _PRODUCT_PLACEMENTS.items()}
+        modules = []
+        for item in catalog.get("modules", []):
+            presentation = item.get("presentation", {}) or {}
+            display_surface = _product_surface(item.get("category_id", ""), presentation)
+            placement = "widget" if display_surface == "page_widget" else next(
+                (key for key, value in _PRODUCT_PLACEMENTS.items() if value["slot"] == ("top" if presentation.get("slot") == "summary" else presentation.get("slot")) and bool(value["visible_by_default"]) == bool(presentation.get("visible_by_default", True))),
+                "main",
+            )
+            display_page = str(presentation.get("section", "")) if display_surface == "page_widget" else ""
+            modules.append({
+                "module_id": item.get("module_id", ""),
+                "label": item.get("label", ""),
+                "aliases": list(item.get("aliases", []) or []),
+                "category_id": item.get("category_id", ""),
+                "category_label": labels.get(str(item.get("category_id")), item.get("category_id", "")),
+                "actual_unit": item.get("actual_unit", ""),
+                "display_unit": item.get("display_unit", ""),
+                "data_type": item.get("data_type", "number" if not item.get("actual_unit", "") else "quantity"),
+                "status": item.get("status", "active"),
+                "definition_version": item.get("definition_version", 1),
+                "placement": placement,
+                "placement_label": placement_labels.get(placement, placement),
+                "display_surface": display_surface,
+                "display_surface_label": _PRODUCT_SURFACES.get(display_surface, {}).get("label", ""),
+                "display_page": display_page,
+                "record_level": "daily_scalar",
+                "record_level_label": "每日一个数值",
+                "capabilities": {
+                    "recordable": bool((item.get("capabilities") or {}).get("recordable", False)),
+                    "exportable": bool((item.get("capabilities") or {}).get("exportable", False)),
+                    "analysis_visible": bool((item.get("capabilities") or {}).get("analysis_visible", False)),
+                    "statistics_visible": bool((item.get("capabilities") or {}).get("statistics_visible", False)),
+                    "cloud_syncable": bool((item.get("capabilities") or {}).get("cloud_syncable", False)),
+                    "mini_program_visible": bool((item.get("capabilities") or {}).get("mini_program_visible", False)),
+                },
+            })
+        return {
+            "schema": "fitness-ledger-data-module-product-catalog-v1",
+            "categories": [
+                {
+                    "category_id": item.get("category_id", ""),
+                    "label": item.get("label", item.get("category_id", "")),
+                    "status": item.get("status", "active"),
+                    "system": bool(item.get("system", False)),
+                }
+                for item in categories
+            ],
+            "modules": modules,
+            "placement_choices": [{"value": key, "label": value["label"]} for key, value in _PRODUCT_PLACEMENTS.items()],
+            "record_levels": [{"value": "daily_scalar", "label": "每日一个数值", "description": "每天最多保存一个数值，例如腰围、静息心率、肌酸摄入量。", "supported": True}],
+            "display_page_choices": [
+                {"value": "home", "label": "首页"},
+                {"value": "body", "label": "Body 身体"},
+                {"value": "diet", "label": "Diet 饮食"},
+                {"value": "training", "label": "Training 训练"},
+                {"value": "movement", "label": "Movement 动作"},
+            ],
+            "display_surfaces": [{"value": key, **value} for key, value in _PRODUCT_SURFACES.items()],
+            "issues": catalog.get("issues", []),
+            "source_fingerprint": catalog.get("source_fingerprint", ""),
+        }
+
+    def data_module_import_preview(self, payload: dict | str) -> dict:
+        """Recognize a data-module package without importing or writing it."""
+        if isinstance(payload, str):
+            try:
+                payload = json.loads(payload)
+            except json.JSONDecodeError as exc:
+                raise LedgerCommandError("导入内容不是有效的 JSON。", "MODULE_IMPORT_JSON_INVALID") from exc
+        if not isinstance(payload, dict):
+            raise LedgerCommandError("导入内容必须是对象。", "MODULE_IMPORT_PAYLOAD_INVALID")
+        source_schema = str(payload.get("schema", "")).strip()
+        supported_schemas = {
+            "fitness-ledger-data-module-export-v1",
+            "fitness-ledger-data-module-cloud-v1",
+            "fitness-ledger-mini-module-contract-v1",
+        }
+        if source_schema not in supported_schemas:
+            raise LedgerCommandError("这不是可识别的 Data Module 导出包。", "MODULE_IMPORT_SCHEMA_UNSUPPORTED", {"schema": source_schema})
+        current = self.data_module_product_catalog()
+        known = {str(item.get("module_id")): item for item in current.get("modules", [])}
+        incoming_modules = [item for item in payload.get("modules", []) if isinstance(item, dict)]
+        incoming_records = [item for item in payload.get("records", []) if isinstance(item, dict)]
+        recognized = []
+        unknown = []
+        for item in incoming_modules:
+            module_id = str(item.get("module_id", ""))
+            target = known.get(module_id)
+            (recognized if target else unknown).append({
+                "module_id": module_id,
+                "label": item.get("label", ""),
+                "category_id": item.get("category_id", ""),
+                "current_status": target.get("status") if target else "unknown",
+                "record_level": "每日一个数值",
+                "display_surface": target.get("display_surface") if target else "需要先建立定义",
+            })
+        known_ids = {item["module_id"] for item in recognized}
+        orphan_records = [
+            {"module_id": str(item.get("module_id", "")), "date": item.get("date", "")}
+            for item in incoming_records
+            if str(item.get("module_id", "")) not in known_ids
+        ]
+        return {
+            "schema": "fitness-ledger-data-module-import-preview-v1",
+            "source_schema": source_schema,
+            "status": "preview_ready",
+            "write_attempted": False,
+            "recognized_modules": recognized,
+            "unknown_modules": unknown,
+            "orphan_records": orphan_records,
+            "record_count": len(incoming_records),
+            "next_step": "先确认类别和展示去向，再进行人工审核；本候选不自动导入。",
+        }
+
+    def data_module_discover(self, raw_text: str, record_date: str | None = None) -> dict:
+        """Recognize an existing module or offer a generic numeric module candidate."""
+        raw = str(raw_text or "").strip()
+        if not raw:
+            raise LedgerCommandError("请先写下要记录的内容。", "MODULE_RAW_EMPTY")
+        try:
+            preview = self.data_module_preview(raw, record_date)
+            return {"kind": "known", "preview": preview}
+        except LedgerCommandError as exc:
+            if exc.code != "MODULE_NOT_RECOGNIZED":
+                # Existing aliases with a bad value/date should keep the useful
+                # validation message instead of being mistaken for a new field.
+                if exc.code not in {"MODULE_NOT_RECOGNIZED", "MODULE_DATE_REQUIRED"}:
+                    raise
+
+        without_dates = re.sub(r"\d{4}[-/.]\d{1,2}[-/.]\d{1,2}", " ", raw)
+        without_dates = re.sub(r"(?:今天|today)", " ", without_dates, flags=re.IGNORECASE)
+        number = re.search(r"(?<![\d.])[-+]?(?:\d+(?:\.\d+)?|\.\d+)(?![\d.])", without_dates)
+        if not number:
+            return {"kind": "not_data_module", "message": "这段话里还没有可识别的数值。"}
+        label = without_dates[: number.start()].strip(" \t,，。:：=是为的")
+        label = re.sub(r"^(?:记录|测量|我的|当前|早上|上午|晚上|晚间)+", "", label).strip(" \t,，。:：=是为的")
+        label = re.sub(r"\s+", " ", label)
+        if not label:
+            return {"kind": "not_data_module", "message": "请把记录项名称写在数值前面，例如“晨间脉搏 58”。"}
+        tail = without_dates[number.end():].strip()
+        unit_match = re.match(r"(次/分|厘米|公斤|小时|分钟|bpm|cm|kg|mm|%|h|min|g|mg|mcg|ml|l|克|毫克|毫升|斤)", tail, flags=re.IGNORECASE)
+        unit = unit_match.group(1) if unit_match else ""
+        value_text = number.group(0)
+        value = float(value_text)
+        if value.is_integer():
+            value = int(value)
+        label_lower = label.casefold()
+        category_hints = [
+            ("body", r"腰围|体重|体脂|心率|脉搏|体温|睡眠|血压|排便|围度|waist|weight|body|heart|pulse|sleep|temperature"),
+            ("diet", r"肌酸|蛋白|碳水|脂肪|热量|饮食|饮水|水|钠|糖|creatine|protein|carb|fat|calorie|diet|water|sodium"),
+            ("training", r"训练|有氧|跑步|步数|训练时长|training|cardio|run|steps|workout"),
+            ("movement", r"动作|卧推|深蹲|硬拉|引体|movement|bench|squat|deadlift|pullup"),
+        ]
+        suggested_category_id = "extension"
+        suggestion_reason = "没有匹配到现有类别，默认放入“其他扩展”；不会创建新的一级页面。"
+        for category_id, pattern in category_hints:
+            if re.search(pattern, label_lower, flags=re.IGNORECASE):
+                suggested_category_id = category_id
+                suggestion_reason = f"根据名称中的常见词，建议归入“{category_id}”；你仍然可以手动改选。"
+                break
+        return {
+            "kind": "new_candidate",
+            "candidate": {
+                "label": label,
+                "aliases": [label],
+                "value": value,
+                "unit": unit,
+                "date": record_date or date.today().isoformat(),
+                "raw": raw,
+                "suggested_category_id": suggested_category_id,
+                "suggested_display_surface": "category_page" if suggested_category_id != "extension" else "page_widget",
+                "suggestion_reason": suggestion_reason,
+                "record_level": "daily_scalar",
+            },
+        }
+
+    def data_module_product_definition_preview(self, request: dict) -> dict:
+        """Map the small user form to the engine's stable definition contract."""
+        kind = str(request.get("kind", "module")).strip().lower()
+        action = str(request.get("action", "create")).strip().lower()
+        if kind == "category":
+            if action == "delete":
+                category_id = str(request.get("category_id", "")).strip()
+                if not category_id:
+                    raise LedgerCommandError("缺少要删除的类别。", "CATEGORY_ID_REQUIRED")
+                return self.data_module_definition_preview({"kind": "category", "action": "delete", "category_id": category_id})
+            if action in {"retire", "re_enable", "reenable"}:
+                category_id = str(request.get("category_id", "")).strip()
+                if not category_id:
+                    raise LedgerCommandError("缺少要操作的类别。", "CATEGORY_ID_REQUIRED")
+                return self.data_module_definition_preview({"kind": "category", "action": action, "category_id": category_id, "changes": {}})
+            values = dict(request.get("values", request))
+            values["label"] = str(values.get("label", "")).strip()
+            if not values["label"]:
+                raise LedgerCommandError("请填写类别名称。", "CATEGORY_LABEL_REQUIRED")
+            return self.data_module_definition_preview({"kind": "category", "action": action, "values": values, "category_id": request.get("category_id"), "changes": request.get("changes", {})})
+        if action == "delete":
+            module_id = str(request.get("module_id", "")).strip()
+            if not module_id:
+                raise LedgerCommandError("缺少要删除的记录项。", "MODULE_ID_REQUIRED")
+            return self.data_module_definition_preview({"kind": "module", "action": "delete", "module_id": module_id})
+        if action in {"retire", "re_enable", "reenable"}:
+            module_id = str(request.get("module_id", "")).strip()
+            if not module_id:
+                raise LedgerCommandError("缺少要操作的记录项。", "MODULE_ID_REQUIRED")
+            return self.data_module_definition_preview({"kind": "module", "action": action, "module_id": module_id, "changes": {}})
+        values = dict(request.get("values", request))
+        label = str(values.get("label", "")).strip()
+        category_id = str(values.get("category_id", "")).strip()
+        if not label:
+            raise LedgerCommandError("请填写记录项名称。", "MODULE_LABEL_REQUIRED")
+        if not category_id:
+            raise LedgerCommandError("请选择一个类别。", "MODULE_CATEGORY_REQUIRED")
+        aliases = values.get("aliases", [])
+        if isinstance(aliases, str):
+            aliases = [item.strip() for item in re.split(r"[,，\n]", aliases) if item.strip()]
+        values["label"] = label
+        values["aliases"] = aliases
+        values["actual_unit"] = str(values.get("actual_unit", values.get("unit", ""))).strip()
+        values["display_unit"] = str(values.get("display_unit", values["actual_unit"])).strip()
+        values["data_type"] = str(values.get("data_type") or ("quantity" if values["actual_unit"] else "number")).strip().lower()
+        values["capabilities"] = values.get("capabilities") if isinstance(values.get("capabilities"), dict) else {}
+        placement = str(values.get("placement", values.get("placement_choice", "main"))).strip().lower()
+        if placement == "summary":
+            placement = "main"
+        display_surface = str(values.get("display_surface", "category_page")).strip().lower()
+        if display_surface == "home_widget":
+            display_surface = "page_widget"
+        display_page = str(values.get("display_page", "home")).strip().lower()
+        values["display_surface"] = display_surface
+        values["display_page"] = display_page
+        values["presentation"] = _product_placement(category_id, placement, int(values.get("order", 0) or 0), display_surface, display_page)
+        if action == "create":
+            return self.data_module_definition_preview({"kind": "module", "action": "create", "values": values})
+        module_id = str(request.get("module_id", values.get("module_id", ""))).strip()
+        changes = dict(request.get("changes", values))
+        changes.pop("module_id", None)
+        changes["aliases"] = aliases
+        changes["actual_unit"] = values["actual_unit"]
+        changes["display_unit"] = values["display_unit"]
+        changes["label"] = label
+        changes["category_id"] = category_id
+        changes.update(values["presentation"])
+        return self.data_module_definition_preview({"kind": "module", "action": action, "module_id": module_id, "changes": changes})
+
+    def data_module_definition_preview(self, request: dict) -> dict:
+        try:
+            store = self.data_module_definition_store()
+            kind = str(request.get("kind", "")).strip().lower()
+            action = str(request.get("action", "create")).strip().lower()
+            if kind == "category" and action == "create":
+                return store.preview_create_category(request.get("values", request))
+            if kind == "category" and action == "delete":
+                return store.preview_delete_category(str(request.get("category_id", "")).strip())
+            if kind == "category" and action in {"update", "rename", "retire", "re_enable", "reenable"}:
+                category_id = str(request.get("category_id", "")).strip()
+                changes = dict(request.get("changes", {}))
+                if action == "retire":
+                    changes.update({"status": "retired"})
+                elif action in {"re_enable", "reenable"}:
+                    changes.update({"status": "active"})
+                return store.preview_update_category(category_id, changes)
+            if kind == "module" and action == "create":
+                return store.preview_create_module(request.get("values", request))
+            if kind == "module" and action == "delete":
+                return store.preview_delete_module(str(request.get("module_id", "")).strip())
+            if kind == "module" and action in {"update", "rename", "retire", "re_enable", "reenable"}:
+                module_id = str(request.get("module_id", "")).strip()
+                changes = dict(request.get("changes", {}))
+                if action == "retire":
+                    changes.update({"status": "retired", "capabilities": {"recordable": False}})
+                elif action in {"re_enable", "reenable"}:
+                    changes.update({"status": "active", "capabilities": {"recordable": True}})
+                return store.preview_update_module(module_id, changes)
+            raise LedgerCommandError("Unsupported definition preview action.", "DEFINITION_ACTION_UNSUPPORTED")
+        except LedgerCommandError:
+            raise
+        except Exception as exc:
+            code = getattr(exc, "code", "DEFINITION_PREVIEW_INVALID")
+            details = getattr(exc, "details", {})
+            raise LedgerCommandError(str(exc), code, details) from exc
+
+    def data_module_definition_save(self, preview: dict, *, confirmed: bool = False) -> dict:
+        try:
+            with self.write_lock():
+                result = self.data_module_definition_store().commit_preview(preview, confirmed=confirmed)
+                if (preview or {}).get("operation") == "delete_module":
+                    module_id = str(preview.get("module_id", ""))
+                    database, _dictionary = self.load_state()
+                    records = database.get("data_module_records", []) or []
+                    kept = [item for item in records if not isinstance(item, dict) or str(item.get("module_id", "")) != module_id]
+                    removed = len(records) - len(kept)
+                    if removed:
+                        database["data_module_records"] = kept
+                        _write_json_atomic(self.data_file, database)
+                    result["deleted_record_count"] = removed
+                return result
+        except LedgerCommandError:
+            raise
+        except Exception as exc:
+            code = getattr(exc, "code", "DEFINITION_SAVE_FAILED")
+            details = getattr(exc, "details", {})
+            raise LedgerCommandError(str(exc), code, details) from exc
+
+    def _data_module_call(self, method: str, *args, **kwargs):
+        try:
+            return getattr(self.data_module_engine(), method)(*args, **kwargs)
+        except LedgerCommandError:
+            raise
+        except Exception as exc:
+            code = getattr(exc, "code", "DATA_MODULE_ERROR")
+            details = getattr(exc, "details", {})
+            raise LedgerCommandError(str(exc), code, details) from exc
+
+    def data_module_preview(self, raw_text: str, record_date: str | None = None) -> dict:
+        return self._data_module_call("preview", raw_text, record_date)
+
+    def data_module_save(self, preview: dict, *, confirmed: bool = False, raw_entry_id: str | None = None) -> dict:
+        return self._data_module_call("save_preview", preview, confirmed=confirmed, raw_entry_id=raw_entry_id)
+
+    def data_module_query(self, module_id: str, start: str = "", end: str = "", *, latest: bool = False, category_id: str = "") -> list[dict]:
+        return self._data_module_call("query", module_id, start, end, latest=latest, category_id=category_id)
+
+    def data_module_history(self, module_id: str, start: str = "", end: str = "") -> dict:
+        return self._data_module_call("history", module_id, start, end)
+
+    def data_module_llm_template(self) -> dict:
+        return self._data_module_call("llm_entry_template")
+
+    def data_module_statistics(self, module_id: str, start: str = "", end: str = "") -> dict:
+        return self._data_module_call("statistics", module_id, start, end)
+
+    def data_module_export(self) -> dict:
+        return self._data_module_call("normal_export")
+
+    def data_module_analysis_catalog(self) -> dict:
+        return self._data_module_call("analysis_catalog")
+
+    def data_module_analysis_preview(self, module_ids: list[str]) -> dict:
+        return self._data_module_call("analysis_preview", module_ids)
+
+    def data_module_check(self) -> list[dict]:
+        return self._data_module_call("data_check")
+
+    def data_module_cloud_payload(self) -> dict:
+        return self._data_module_call("build_cloud_payload")
+
+    def data_module_cloud_verify(self, payload: dict) -> dict:
+        from fitness_ledger_core.data_module_engine import DataModuleEngine
+
+        return DataModuleEngine.verify_cloud_payload(payload)
+
+    def data_module_cloud_roundtrip(self, payload: dict) -> dict:
+        from fitness_ledger_core.data_module_engine import DataModuleEngine
+
+        try:
+            return DataModuleEngine.cloud_roundtrip(payload)
+        except Exception as exc:
+            code = getattr(exc, "code", "MODULE_CLOUD_VERIFY_FAILED")
+            details = getattr(exc, "details", {})
+            raise LedgerCommandError(str(exc), code, details) from exc
+
+    def data_module_mini_contract(self) -> dict:
+        return self._data_module_call("build_mini_program_contract")
+
+    def data_module_release_readiness(self) -> dict:
+        return self._data_module_call("release_readiness")
+
+    def data_module_presentation_contract(self) -> dict:
+        return self._data_module_call("presentation_contract")
 
     def undo_status(self) -> dict:
         """Describe the newest valid paired checkpoint without changing data."""

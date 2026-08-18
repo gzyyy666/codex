@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fitness Ledger · Self-Service Data Module Candidate</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    body { max-width: 1220px; margin: 0 auto; padding: 24px 18px 80px; color: #20242a; background: #f5f7f9; }
+    main { display: grid; gap: 16px; }
+    section { background: #fff; border: 1px solid #dfe4e9; border-radius: 14px; padding: 18px; box-shadow: 0 2px 8px #2632380d; }
+    h1, h2, h3 { margin: 0 0 10px; } h1 { font-size: 26px; } h2 { font-size: 19px; } h3 { font-size: 16px; }
+    p { line-height: 1.5; } .muted { color: #68737d; } .notice { border-left: 4px solid #5084b8; padding-left: 12px; }
+    form { display: grid; gap: 12px; } .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px 14px; }
+    label { display: grid; gap: 5px; font-size: 13px; font-weight: 650; } input, select, textarea { width: 100%; box-sizing: border-box; border: 1px solid #cbd3da; border-radius: 7px; padding: 8px 9px; font: inherit; background: #fff; }
+    textarea { min-height: 78px; } input:disabled { background: #f1f3f5; }
+    button { border: 1px solid #a9b5c0; border-radius: 7px; background: #fff; padding: 8px 13px; cursor: pointer; font: inherit; } button.primary { color: #fff; background: #2e6f9e; border-color: #2e6f9e; } button.danger { color: #9f2f2f; } button:disabled { opacity: .5; cursor: default; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; } .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(245px, 1fr)); gap: 10px; }
+    .card { border: 1px solid #dfe4e9; border-radius: 9px; padding: 12px; } .card.retired { opacity: .7; background: #fafafa; }
+    .tag { display: inline-block; padding: 2px 7px; margin: 2px; border-radius: 999px; background: #edf2f6; font-size: 12px; } .error { color: #a52828; } .success { color: #216b42; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f1f3f5; padding: 12px; border-radius: 8px; max-height: 420px; overflow: auto; }
+    .check-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 7px; } .check-grid label { display: flex; grid-template-columns: auto 1fr; align-items: center; gap: 6px; font-weight: 500; }
+    .check-grid input { width: auto; } .split { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(300px, 1fr); gap: 16px; } @media (max-width: 760px) { .split { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <section>
+      <h1>Fitness Ledger · Self-Service Data Module Candidate</h1>
+      <p class="notice">隔离 Candidate：你可以创建 Category、创建或编辑 Module、保存匿名定义并立即录入。这里不连接正式 tracker、CloudBase 或线上 Mini Program；事件/Session/Meal/Structured 记录行为当前明确不支持。</p>
+      <p class="muted" id="runtime-status">正在读取 Candidate Sandbox…</p>
+    </section>
+
+    <section>
+      <h2 id="category-heading">1. Category 管理</h2>
+      <div class="split">
+        <form id="category-form">
+          <div class="grid">
+            <label>Category 名称<input id="category-label" required placeholder="例如 Recovery"></label>
+            <label>高级 ID（可留空自动生成）<input id="category-id" placeholder="例如 recovery"></label>
+            <label>显示顺序<input id="category-order" type="number" min="0" value="60"></label>
+          </div>
+          <div class="actions"><button type="button" id="category-cancel" hidden>取消编辑</button><button type="button" id="category-preview">预览创建 Category（零写入）</button><button type="button" class="primary" id="category-save" disabled>确认创建 Category</button></div>
+          <pre id="category-result">等待操作…</pre>
+        </form>
+        <div><h3>Existing / Custom Categories</h3><div id="category-cards" class="cards"></div></div>
+      </div>
+    </section>
+
+    <section>
+      <h2 id="module-heading">2. 创建 Module</h2>
+      <form id="module-form">
+        <div class="grid">
+          <label>Label<input id="module-label" required placeholder="例如 Morning Pulse"></label>
+          <label>高级 stable ID（可留空自动生成）<input id="module-id" placeholder="系统会安全生成"></label>
+          <label>Category<select id="module-category" required></select></label>
+          <label>Data type<select id="module-type"><option value="quantity">Quantity</option><option value="number">Numeric</option></select></label>
+          <label>Actual unit<input id="actual-unit" required placeholder="例如 bpm、cm、分"></label>
+          <label>Display unit<input id="display-unit" placeholder="默认同 Actual unit"></label>
+          <label>Minimum<input id="minimum" type="number" step="any" placeholder="可选"></label>
+          <label>Maximum<input id="maximum" type="number" step="any" placeholder="可选"></label>
+        </div>
+        <label>Aliases（每行一个）<textarea id="module-aliases" placeholder="静息心率\n静息心跳\nRHR"></textarea></label>
+        <p class="muted">Recording behaviour：scalar / one-per-day（本 Candidate 已实现）；其他行为会被明确拒绝，不会创建不可用 Module。</p>
+        <div class="grid">
+          <label>Renderer<select id="module-renderer"><option value="single_metric">single_metric</option><option value="metric_history">metric_history</option></select></label>
+          <label>Section<select id="module-section"><option value="extension">extension</option><option value="body">body</option><option value="home">home</option><option value="analysis">analysis</option></select></label>
+          <label>Slot<select id="module-slot"><option value="summary">summary</option><option value="top">top</option><option value="history">history</option><option value="secondary">secondary</option><option value="auxiliary">auxiliary</option></select></label>
+          <label>Order<input id="module-order" type="number" min="0" value="60"></label>
+        </div>
+        <div><strong>Capabilities（默认安全）</strong><div class="check-grid">
+          <label><input type="checkbox" id="cap-recordable" checked> recordable</label>
+          <label><input type="checkbox" id="cap-queryable" checked> queryable</label>
+          <label><input type="checkbox" id="cap-history" checked> history_enabled</label>
+          <label><input type="checkbox" id="cap-exportable" checked> exportable</label>
+          <label><input type="checkbox" id="cap-analysis"> analysis_visible</label>
+          <label><input type="checkbox" id="cap-cloud"> cloud_syncable</label>
+          <label><input type="checkbox" id="cap-mini"> mini_program_visible</label>
+          <label><input type="checkbox" id="cap-visible" checked> visible_by_default</label>
+        </div></div>
+        <div class="actions"><button type="button" id="module-cancel" hidden>取消编辑</button><button type="button" id="module-preview">预览 Definition（零写入）</button><button type="button" class="primary" id="module-save" disabled>确认保存 Module</button></div>
+        <pre id="module-result">等待操作…</pre>
+      </form>
+    </section>
+
+    <section>
+      <h2>3. 已注册 Modules</h2><div id="module-cards" class="cards"></div>
+    </section>
+
+    <section>
+      <h2>4. Natural-language Record → Preview → Confirm → History</h2>
+      <textarea id="raw">今天静息心率 58</textarea>
+      <p class="muted">新建 Module 后不改代码，直接在这里输入它的 label 或 alias。日期未写入时使用今天。</p>
+      <div class="actions"><button type="button" class="primary" id="record-preview">预览（零写入）</button><button type="button" id="record-save" disabled>确认保存匿名记录</button><select id="history-module"></select><button type="button" id="history-load">查看 History</button></div>
+      <pre id="record-result">等待操作…</pre><pre id="history-result">History 等待查询…</pre>
+    </section>
+
+    <section>
+      <h2>5. Downstream Capability Evidence</h2>
+      <p class="muted">这些是受控契约检查，不会上传 CloudBase、改变 AnalysisExportRequest v1.1 或发布 Mini。</p>
+      <button type="button" id="refresh-downstream">刷新 Export / Analysis / Cloud dry-run / Mini / Presentation</button>
+      <pre id="downstream">等待检查…</pre>
+    </section>
+
+    <section><h2>Data Check</h2><button type="button" id="data-check">检查 Definition / Category / Record</button><pre id="data-check-result">等待检查…</pre></section>
+  </main>
+  <script>
+    let catalog = null
+    let latestCategoryPreview = null
+    let latestModulePreview = null
+    let latestRecordPreview = null
+    let editingModuleId = ''
+    let editingCategoryId = ''
+    const byId = (id) => document.getElementById(id)
+    const request = async (url, options) => {
+      const response = await fetch(url, options)
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.error || payload.detail || '请求失败')
+      return payload
+    }
+    const json = (id, payload) => { byId(id).textContent = JSON.stringify(payload, null, 2) }
+    const showError = (id, error) => { byId(id).textContent = JSON.stringify({ error: error.message }, null, 2) }
+    const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]))
+    const capabilities = () => ({
+      recordable: byId('cap-recordable').checked, queryable: byId('cap-queryable').checked,
+      history_enabled: byId('cap-history').checked, exportable: byId('cap-exportable').checked,
+      analysis_visible: byId('cap-analysis').checked, cloud_syncable: byId('cap-cloud').checked,
+      mini_program_visible: byId('cap-mini').checked,
+    })
+    const moduleValues = () => ({
+      label: byId('module-label').value.trim(), module_id: byId('module-id').value.trim(), category_id: byId('module-category').value,
+      data_type: byId('module-type').value, actual_unit: byId('actual-unit').value.trim(), display_unit: byId('display-unit').value.trim(),
+      aliases: byId('module-aliases').value.split(/\n|,/).map((value) => value.trim()).filter(Boolean),
+      minimum: byId('minimum').value === '' ? undefined : Number(byId('minimum').value), maximum: byId('maximum').value === '' ? undefined : Number(byId('maximum').value),
+      renderer: byId('module-renderer').value, section: byId('module-section').value, slot: byId('module-slot').value,
+      order: Number(byId('module-order').value || 0), visible_by_default: byId('cap-visible').checked, capabilities: capabilities(),
+    })
+    const renderCatalog = () => {
+      const categories = catalog?.categories || []
+      byId('module-category').innerHTML = categories.filter((category) => category.status === 'active').map((category) => `<option value="${esc(category.category_id)}">${esc(category.label)} (${esc(category.category_id)})</option>`).join('')
+      byId('history-module').innerHTML = (catalog?.modules || []).map((module) => `<option value="${esc(module.module_id)}">${esc(module.label)} (${esc(module.module_id)})</option>`).join('')
+      byId('category-cards').innerHTML = categories.map((category) => `<article class="card ${category.status === 'retired' ? 'retired' : ''}"><strong>${esc(category.label)}</strong><br><span class="tag">${esc(category.category_id)}</span><span class="tag">${esc(category.status)}</span><span class="tag">order ${category.order}</span><div class="actions"><button data-category-edit="${esc(category.category_id)}">编辑</button><button data-category-action="${esc(category.category_id)}" data-category-status="${category.status === 'retired' ? 're_enable' : 'retire'}">${category.status === 'retired' ? '重新启用' : '停用'}</button></div></article>`).join('') || '<span class="muted">暂无 Category</span>'
+      byId('module-cards').innerHTML = (catalog?.modules || []).map((module) => `<article class="card ${module.status === 'retired' ? 'retired' : ''}"><strong>${esc(module.label)}</strong><br><span class="tag">${esc(module.module_id)}</span><span class="tag">${esc(module.category_id)}</span><span class="tag">${esc(module.actual_unit)}</span><span class="tag">v${module.definition_version}</span><p class="muted">aliases: ${module.aliases.map(esc).join(', ')}<br>renderer: ${esc(module.presentation.renderer || module.renderer || '')}</p><div class="actions"><button data-module-edit="${esc(module.module_id)}">编辑</button><button data-module-action="${esc(module.module_id)}" data-module-status="${module.status === 'retired' ? 're_enable' : 'retire'}" class="${module.status === 'retired' ? '' : 'danger'}">${module.status === 'retired' ? '重新启用' : '停用'}</button><button data-module-history="${esc(module.module_id)}">History</button></div></article>`).join('') || '<span class="muted">暂无 Module</span>'
+      byId('runtime-status').textContent = `Candidate Sandbox definition fingerprint: ${catalog?.source_fingerprint || ''} · ${categories.length} categories · ${(catalog?.modules || []).length} modules`
+      document.querySelectorAll('[data-module-edit]').forEach((button) => { button.onclick = () => editModule(button.dataset.moduleEdit) })
+      document.querySelectorAll('[data-module-action]').forEach((button) => { button.onclick = () => changeModuleStatus(button.dataset.moduleAction, button.dataset.moduleStatus) })
+      document.querySelectorAll('[data-category-action]').forEach((button) => { button.onclick = () => changeCategoryStatus(button.dataset.categoryAction, button.dataset.categoryStatus) })
+      document.querySelectorAll('[data-category-edit]').forEach((button) => { button.onclick = () => editCategory(button.dataset.categoryEdit) })
+      document.querySelectorAll('[data-module-history]').forEach((button) => { button.onclick = () => { byId('history-module').value = button.dataset.moduleHistory; loadHistory() } })
+    }
+    const loadCatalog = async () => { catalog = await request('/api/data-modules/catalog'); renderCatalog(); return catalog }
+    const definitionPreview = async (payload) => request('/api/data-modules/definition-preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+    const definitionSave = async (preview) => request('/api/data-modules/definition-save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ preview, confirmed: true }) })
+    const resetCategoryForm = () => { editingCategoryId = ''; byId('category-heading').textContent = '1. Category 管理'; byId('category-save').textContent = '确认创建 Category'; byId('category-id').disabled = false; byId('category-cancel').hidden = true; byId('category-form').reset(); byId('category-order').value = 60; renderCatalog() }
+    const editCategory = (categoryId) => { const category = catalog.categories.find((item) => item.category_id === categoryId); if (!category) return; editingCategoryId = categoryId; byId('category-heading').textContent = `1. 编辑 Category：${category.label}`; byId('category-label').value = category.label; byId('category-id').value = category.category_id; byId('category-id').disabled = true; byId('category-order').value = category.order; byId('category-save').textContent = '确认保存 Category 编辑'; byId('category-cancel').hidden = false }
+    byId('category-cancel').onclick = resetCategoryForm
+    byId('category-preview').onclick = async () => { try { const values = { label: byId('category-label').value, category_id: byId('category-id').value, order: Number(byId('category-order').value || 0) }; latestCategoryPreview = editingCategoryId ? await definitionPreview({ kind: 'category', action: 'update', category_id: editingCategoryId, changes: values }) : await definitionPreview({ kind: 'category', action: 'create', values }); byId('category-save').disabled = false; json('category-result', latestCategoryPreview) } catch (error) { showError('category-result', error); byId('category-save').disabled = true } }
+    byId('category-save').onclick = async () => { try { json('category-result', await definitionSave(latestCategoryPreview)); byId('category-save').disabled = true; resetCategoryForm(); await loadCatalog() } catch (error) { showError('category-result', error) } }
+    const resetModuleForm = () => { editingModuleId = ''; byId('module-heading').textContent = '2. 创建 Module'; byId('module-save').textContent = '确认保存 Module'; byId('module-id').disabled = false; byId('module-cancel').hidden = true; byId('module-form').reset(); byId('cap-recordable').checked = true; byId('cap-queryable').checked = true; byId('cap-history').checked = true; byId('cap-exportable').checked = true; byId('cap-visible').checked = true; renderCatalog() }
+    byId('module-cancel').onclick = resetModuleForm
+    const editModule = (moduleId) => { const module = catalog.modules.find((item) => item.module_id === moduleId); if (!module) return; editingModuleId = moduleId; byId('module-heading').textContent = `2. 编辑 Module：${module.label}`; byId('module-id').value = module.module_id; byId('module-id').disabled = true; byId('module-label').value = module.label; byId('module-category').value = module.category_id; byId('module-type').value = module.data_type; byId('actual-unit').value = module.actual_unit; byId('display-unit').value = module.display_unit; byId('module-aliases').value = module.aliases.join('\n'); byId('minimum').value = module.validation_contract.minimum ?? ''; byId('maximum').value = module.validation_contract.maximum ?? ''; byId('module-renderer').value = module.presentation.renderer || module.renderer || 'single_metric'; byId('module-section').value = module.presentation.section; byId('module-slot').value = module.presentation.slot; byId('module-order').value = module.presentation.order; Object.entries(module.capabilities).forEach(([key, value]) => { const element = byId(`cap-${key === 'history_enabled' ? 'history' : key}`); if (element) element.checked = value }); byId('cap-visible').checked = module.presentation.visible_by_default; byId('module-save').textContent = '确认保存编辑'; byId('module-cancel').hidden = false; window.scrollTo({ top: byId('module-form').getBoundingClientRect().top + window.scrollY - 20, behavior: 'smooth' }) }
+    byId('module-preview').onclick = async () => { try { const values = moduleValues(); latestModulePreview = editingModuleId ? await definitionPreview({ kind: 'module', action: 'update', module_id: editingModuleId, changes: values }) : await definitionPreview({ kind: 'module', action: 'create', values }); byId('module-save').disabled = false; json('module-result', latestModulePreview) } catch (error) { showError('module-result', error); byId('module-save').disabled = true } }
+    byId('module-save').onclick = async () => { try { json('module-result', await definitionSave(latestModulePreview)); byId('module-save').disabled = true; resetModuleForm(); await loadCatalog() } catch (error) { showError('module-result', error) } }
+    const changeModuleStatus = async (moduleId, action) => { try { const preview = await definitionPreview({ kind: 'module', action, module_id: moduleId }); json('module-result', await definitionSave(preview)); await loadCatalog() } catch (error) { showError('module-result', error) } }
+    const changeCategoryStatus = async (categoryId, action) => { try { const preview = await definitionPreview({ kind: 'category', action, category_id: categoryId }); json('category-result', await definitionSave(preview)); await loadCatalog() } catch (error) { showError('category-result', error) } }
+    byId('record-preview').onclick = async () => { try { latestRecordPreview = await request('/api/data-modules/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ raw: byId('raw').value }) }); byId('record-save').disabled = false; json('record-result', latestRecordPreview) } catch (error) { showError('record-result', error); byId('record-save').disabled = true } }
+    byId('record-save').onclick = async () => { try { json('record-result', await request('/api/data-modules/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ preview: latestRecordPreview, confirmed: true }) })); byId('record-save').disabled = true; await loadCatalog(); await loadDownstream() } catch (error) { showError('record-result', error) } }
+    const loadHistory = async () => { try { json('history-result', await request(`/api/data-modules/history?module_id=${encodeURIComponent(byId('history-module').value)}`)) } catch (error) { showError('history-result', error) } }
+    byId('history-load').onclick = loadHistory
+    const loadDownstream = async () => { try { const [normalExport, analysis, cloud, mini, presentation] = await Promise.all([request('/api/data-modules/export'), request('/api/data-modules/analysis-catalog'), request('/api/data-modules/cloud-dry-run'), request('/api/data-modules/mini-contract'), request('/api/data-modules/presentation')]); json('downstream', { normal_export: { category_count: normalExport.categories?.length || 0, module_count: normalExport.modules.length, record_count: normalExport.records.length }, analysis_gate: { visible: analysis.modules.map((module) => module.module_id), hidden: analysis.hidden_module_ids }, cloud_dry_run: { payload_hash: cloud.meta.payload_hash, network_request_made: cloud.meta.network_request_made, raw_policy: cloud.meta.raw_policy }, mini_renderer_contract: { renderers: mini.renderers, module_count: mini.modules.length }, presentation: { category_count: presentation.categories.length, module_count: presentation.modules.length } }) } catch (error) { showError('downstream', error) } }
+    byId('refresh-downstream').onclick = loadDownstream
+    byId('data-check').onclick = async () => { try { json('data-check-result', await request('/api/data-modules/check')) } catch (error) { showError('data-check-result', error) } }
+    loadCatalog().then(loadDownstream).catch((error) => { byId('runtime-status').textContent = error.message })
+  </script>
+</body>
+</html>

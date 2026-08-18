@@ -2,7 +2,18 @@
 
 Schema: `fitness-ledger-read-replica-v2`
 
-The authoritative contract is the output of `fitness_ledger_core.cloud_payload.build_cloud_payload`. It contains ten collections documented in `CLOUD_REVIEW.md`.
+The authoritative contract is the output of `fitness_ledger_core.cloud_payload.build_cloud_payload`. It contains ten base collections documented in `CLOUD_REVIEW.md`.
+
+When a local Data Module definition store is explicitly configured, the same
+payload may add three sanitized extension collections: `fl_data_modules`,
+`fl_data_module_records`, and `fl_data_module_contract`. The extension is
+additive; with no configured registry the ten-collection payload is retained.
+`fl_data_module_contract` is the compact read-only mobile projection shared by
+the WeChat client and the phone home-screen PWA. The PWA Web gateway may prefer
+the full sanitized module and record collections so its dated archive is not
+limited by the compact contract history window. None of these views contains
+raw input, private fields, notes, or source hashes, and neither client writes
+these collections.
 
 ## Guarantees
 

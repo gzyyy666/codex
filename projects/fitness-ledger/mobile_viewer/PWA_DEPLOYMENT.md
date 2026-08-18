@@ -24,7 +24,11 @@
 5. 一个 Web 只读 API 地址，接口需要覆盖 PWA 当前使用的 `pwa/read` action：
    `status`、`whoami`、`bodyAreas`、`bodyArea`、`trainingRecords`、
    `bodyRecords`、`dietRecords`、`recordDetail`、`trainingDayDetail`、
-   `movementCatalog`、`movement`、`movementHistory`、`search`。
+  `movementCatalog`、`movement`、`movementHistory`、`search`。
+
+6. 若启用手机文字传递，先创建 `fl_web_share_inbox` 集合并选择
+   `读取和修改本人数据 [PRIVATE]`；当前 Web-only PWA 不需要粘贴自定义规则。
+   该集合只保存原文待处理项，不属于 `fl_*` 正式同步数据。
 
 不一定要马上购买域名：CloudBase 静态托管可以先用平台默认 HTTPS 地址做开发/个人
 测试。正式通过浏览器访问时，应按当前 CloudBase 控制台和文档要求配置自定义域名；
@@ -34,7 +38,8 @@
 
 - PWA 静态资源已具备 `manifest.webmanifest`、`service worker`、图标和离线缓存。
 - 资源使用相对路径，适合上传到静态托管根目录或 `/pwa/` 子路径。
-- 当前 PWA 保持只读，不包含 CloudBase SecretId、SecretKey 或写入接口。
+- 正式 ledger 页面保持只读，不包含 CloudBase SecretId、SecretKey 或正式记录写入接口；
+  手机文字传递使用独立的私有待处理集合，不直接写入 ledger。
 - `tools/pwa_deployment_preflight.py` 可以在上传前检查静态包、清单、相对路径和
   敏感配置。
 - CloudBase 静态托管 CLI 的上传命令已确认，登录后可使用：
@@ -84,3 +89,16 @@ python tools/pwa_deployment_preflight.py
   重复登录。已安装旧图标时，需要先删除旧主屏幕图标再重新添加，iOS 才会刷新图标。
 
 现有小程序 `ledgerRead`、正式数据集合和同步流程没有被此次 PWA 网关部署修改。
+
+## 手机文字传递的额外发布步骤
+
+当前分支只准备了正式 PWA 的静态入口和客户端契约，没有创建 CloudBase 集合、
+修改安全规则或上传静态文件。正式发布前还要在同一账号下验证：
+
+1. 手机与电脑登录的是同一个 CloudBase Web 账号；
+2. `fl_web_share_inbox` 选择的是 `PRIVATE`，只允许当前用户访问；
+3. 重复分享只产生一个待处理项；
+4. 复制/标记处理不会改动 `fl_daily_records` 或 Data Module records；
+5. 真实手机分享菜单和手动粘贴路径都能工作。
+
+完成以上验证后，才可在显式封板指令下执行集合规则、静态托管和版本发布。

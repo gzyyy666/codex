@@ -24,6 +24,13 @@ today_payload = today_api.get_json()
 assert isinstance(today_payload, dict)
 assert "date" in today_payload
 
+modules_api = client.get("/api/pwa/read?action=dataModules")
+assert modules_api.status_code == 200
+modules_payload = modules_api.get_json()
+assert modules_payload["ok"] is True
+assert modules_payload["data"]["schema"] == "fitness-ledger-mini-module-contract-v1"
+assert isinstance(modules_payload["data"]["modules"], list)
+
 search_api = client.get("/api/search?q=bench&scope=all")
 assert search_api.status_code == 200
 search_payload = search_api.get_json()
@@ -35,6 +42,16 @@ movement_api = client.get("/api/movement/bench press?limit=3")
 assert movement_api.status_code == 200
 movement_payload = movement_api.get_json()
 assert "history" in movement_payload
+
+training_api = client.get("/api/pwa/read?action=trainingRecords")
+assert training_api.status_code == 200
+training_payload = training_api.get_json()
+assert training_payload["ok"] is True and isinstance(training_payload["data"], list)
+training_date = next((str(item.get("Date", ""))[:10] for item in training_payload["data"] if item.get("Date")), "2099-12-31")
+training_day_api = client.get(f"/api/pwa/read?action=trainingDayDetail&date={training_date}")
+assert training_day_api.status_code == 200
+training_day_payload = training_day_api.get_json()
+assert training_day_payload["ok"] is True and training_day_payload["data"]["date"] == training_date
 
 page_search = client.get("/search?q=%E8%83%8C%E9%83%A8&scope=all")
 assert page_search.status_code == 200

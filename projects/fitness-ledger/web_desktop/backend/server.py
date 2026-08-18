@@ -78,6 +78,7 @@ class LedgerWebService:
         build_info_path: Path | None = None,
         build_info_override: dict | None = None,
         analysis_export_protocol: AnalysisExportProtocolService | None = None,
+        data_module_registry_file: Path | None = None,
     ) -> None:
         if data_file is None and dictionary_file is None:
             configured_formal_dir = str(os.environ.get("FITNESS_LEDGER_FORMAL_DIR", "")).strip()
@@ -92,10 +93,18 @@ class LedgerWebService:
         data_file = data_file or PROJECT_DIR / "data" / "tracker.json"
         dictionary_file = dictionary_file or PROJECT_DIR / "data" / "movement_dictionary.json"
         backup_dir = backup_dir or PROJECT_DIR / "data" / "backups"
+        if data_module_registry_file is None:
+            configured_registry = str(os.environ.get("FITNESS_LEDGER_DATA_MODULE_REGISTRY", "")).strip()
+            if configured_registry:
+                data_module_registry_file = Path(configured_registry).expanduser()
+            else:
+                adjacent_registry = Path(data_file).parent / "data_module_definitions.json"
+                data_module_registry_file = adjacent_registry if adjacent_registry.is_file() else None
+        self.data_module_registry_file = data_module_registry_file
         self.data = LedgerDataAccess(data_file, dictionary_file)
         self.views = LedgerViewModels(data_file, dictionary_file)
         self.stable = load_stable_module()
-        self.commands = LedgerCommandService(data_file, dictionary_file, backup_dir, self._parse_with_stable_app)
+        self.commands = LedgerCommandService(data_file, dictionary_file, backup_dir, self._parse_with_stable_app, data_module_registry_file)
         self.data_check_state_file = Path(data_file).parent / "data_check_state.json"
         self.silent_health = SilentHealthCheck(
             Path(data_file), Path(dictionary_file), self.stable, self.data_check_state_file
@@ -155,6 +164,8 @@ class LedgerWebService:
                 "availability_status",
                 "ready",
             ),
+            "data_module_candidate": bool(self.data_module_registry_file and self.data_module_registry_file.is_file()),
+            "data_module_registry": str(self.data_module_registry_file) if self.data_module_registry_file else "",
             "phase": "shared-platform-services",
         }
 
@@ -169,6 +180,78 @@ class LedgerWebService:
     def data_check(self) -> dict:
         database, dictionary = self.commands.load_state()
         return collect_issues(database, dictionary, self.stable, self.data_check_state_file)
+
+    def data_module_engine(self):
+        return self.commands.data_module_engine(self.data_module_registry_file)
+
+    def data_module_capabilities(self) -> dict:
+        return self.data_module_engine().registry.capability_catalog()
+
+    def data_module_catalog(self) -> dict:
+        return self.commands.data_module_catalog()
+
+    def data_module_product_catalog(self) -> dict:
+        return self.commands.data_module_product_catalog()
+
+    def data_module_import_preview(self, payload: dict | str) -> dict:
+        return self.commands.data_module_import_preview(payload)
+
+    def data_module_discover(self, request: dict) -> dict:
+        return self.commands.data_module_discover(str(request.get("raw", "")), request.get("date"))
+
+    def data_module_definition_preview(self, request: dict) -> dict:
+        return self.commands.data_module_definition_preview(request)
+
+    def data_module_product_definition_preview(self, request: dict) -> dict:
+        return self.commands.data_module_product_definition_preview(request)
+
+    def data_module_definition_save(self, request: dict) -> dict:
+        return self.commands.data_module_definition_save(request.get("preview"), confirmed=bool(request.get("confirmed", False)))
+
+    def data_module_preview(self, request: dict) -> dict:
+        return self.commands.data_module_preview(str(request.get("raw", "")), request.get("date"))
+
+    def data_module_save(self, request: dict) -> dict:
+        return self.commands.data_module_save(
+            request.get("preview"),
+            confirmed=bool(request.get("confirmed", False)),
+            raw_entry_id=request.get("raw_entry_id"),
+        )
+
+    def data_module_query(self, request: dict) -> list[dict]:
+        return self.commands.data_module_query(
+            str(request.get("module_id", "")),
+            str(request.get("start", "")),
+            str(request.get("end", "")),
+            latest=bool(request.get("latest", False)),
+            category_id=str(request.get("category_id", "")),
+        )
+
+    def data_module_history(self, request: dict) -> dict:
+        return self.commands.data_module_history(
+            str(request.get("module_id", "")),
+            str(request.get("start", "")),
+            str(request.get("end", "")),
+        )
+
+    def data_module_llm_template(self) -> dict:
+        return self.commands.data_module_llm_template()
+
+    def data_module_statistics(self, request: dict) -> dict:
+        return self.commands.data_module_statistics(
+            str(request.get("module_id", "")),
+            str(request.get("start", "")),
+            str(request.get("end", "")),
+        )
+
+    def data_module_release_readiness(self) -> dict:
+        return self.commands.data_module_release_readiness()
+
+    def data_module_analysis_preview(self, request: dict) -> dict:
+        module_ids = request.get("module_ids", [])
+        if not isinstance(module_ids, list):
+            raise LedgerCommandError("module_ids must be a list.", "MODULE_ANALYSIS_REQUEST_INVALID")
+        return self.commands.data_module_analysis_preview([str(item) for item in module_ids])
 
     def archive_health(self) -> dict:
         return self.silent_health.summary()
@@ -420,11 +503,12 @@ class LedgerWebService:
         return {**self.cloud_sync_status(), "validation": report}
 
     def run_cloud_sync(self, request: dict) -> dict:
+        trigger = str(request.get("trigger") or "manual")
         try:
             build_cloud_replica()
             result = sync_payload(force=bool(request.get("force")))
             LedgerWebService._cloud_sync_log({
-                "trigger": "manual",
+                "trigger": trigger,
                 "mode": "sync_payload",
                 "result": result.get("status", ""),
                 "latest_record_date": result.get("latest_record_date", ""),
@@ -433,7 +517,7 @@ class LedgerWebService:
             })
         except Exception as exc:
             LedgerWebService._cloud_sync_log({
-                "trigger": "manual", "mode": "sync_payload", "result": "error",
+                "trigger": trigger, "mode": "sync_payload", "result": "error",
                 "latest_record_date": "", "error": str(exc),
             })
             raise
@@ -693,6 +777,27 @@ class LedgerWebService:
             self.pending_reviews[review_id] = copy.deepcopy(payload["review"])
         return payload
 
+    def import_preview(self, request: dict) -> dict:
+        """Preview one pasted natural-language daily entry without writing it."""
+        raw = str(request.get("raw", "")).strip()
+        if not raw:
+            raise LedgerCommandError("请先粘贴或输入要导入的文字。", "IMPORT_RAW_EMPTY")
+        payload = self.parse_entry(raw)
+        payload["schema"] = "fitness-ledger-natural-language-import-preview-v1"
+        payload["source"] = {
+            "kind": "natural_language_import",
+            "transport": str(request.get("transport", "paste") or "paste"),
+            "raw_preserved": True,
+        }
+        payload["write_attempted"] = False
+        return payload
+
+    def import_confirm(self, request: dict) -> dict:
+        """Confirm an import preview through the existing review/save boundary."""
+        result = self.save_review(request)
+        result["source_kind"] = "natural_language_import"
+        return result
+
     def save_review(self, request: dict) -> dict:
         review_id = str(request.get("review_id", ""))
         submitted = request.get("review")
@@ -880,6 +985,48 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.undo_status())
             elif parsed.path == "/api/data-check":
                 self.send_json(self.service.data_check())
+            elif parsed.path == "/api/data-modules/capabilities":
+                self.send_json(self.service.data_module_capabilities())
+            elif parsed.path == "/api/data-modules/catalog":
+                self.send_json(self.service.data_module_catalog())
+            elif parsed.path == "/api/data-modules/product-catalog":
+                self.send_json(self.service.data_module_product_catalog())
+            elif parsed.path == "/api/data-modules/export":
+                self.send_json(self.service.commands.data_module_export())
+            elif parsed.path == "/api/data-modules/analysis-catalog":
+                self.send_json(self.service.commands.data_module_analysis_catalog())
+            elif parsed.path == "/api/data-modules/check":
+                self.send_json(self.service.commands.data_module_check())
+            elif parsed.path == "/api/data-modules/cloud-dry-run":
+                self.send_json(self.service.commands.data_module_cloud_payload())
+            elif parsed.path == "/api/data-modules/mini-contract":
+                self.send_json(self.service.commands.data_module_mini_contract())
+            elif parsed.path == "/api/data-modules/presentation":
+                self.send_json(self.service.commands.data_module_presentation_contract())
+            elif parsed.path == "/api/data-modules/query":
+                self.send_json(self.service.data_module_query({
+                    "module_id": query.get("module_id", [""])[0],
+                    "start": query.get("start", [""])[0],
+                    "end": query.get("end", [""])[0],
+                    "latest": query.get("latest", ["false"])[0].casefold() == "true",
+                    "category_id": query.get("category_id", [""])[0],
+                }))
+            elif parsed.path == "/api/data-modules/history":
+                self.send_json(self.service.data_module_history({
+                    "module_id": query.get("module_id", [""])[0],
+                    "start": query.get("start", [""])[0],
+                    "end": query.get("end", [""])[0],
+                }))
+            elif parsed.path == "/api/data-modules/llm-template":
+                self.send_json(self.service.data_module_llm_template())
+            elif parsed.path == "/api/data-modules/statistics":
+                self.send_json(self.service.data_module_statistics({
+                    "module_id": query.get("module_id", [""])[0],
+                    "start": query.get("start", [""])[0],
+                    "end": query.get("end", [""])[0],
+                }))
+            elif parsed.path == "/api/data-modules/release-readiness":
+                self.send_json(self.service.data_module_release_readiness())
             elif parsed.path == "/api/archive-health":
                 self.send_json(self.service.archive_health())
             elif parsed.path == "/api/cloud-sync/status":
@@ -956,8 +1103,32 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         try:
             request = self.read_json_body()
-            if parsed.path == "/api/parse":
+            if parsed.path == "/api/data-modules/discover":
+                self.send_json(self.service.data_module_discover(request))
+            elif parsed.path == "/api/data-modules/import-preview":
+                self.send_json(self.service.data_module_import_preview(request.get("payload", request)))
+            elif parsed.path == "/api/data-modules/preview":
+                self.send_json(self.service.data_module_preview(request))
+            elif parsed.path == "/api/data-modules/product-definition-preview":
+                self.send_json(self.service.data_module_product_definition_preview(request))
+            elif parsed.path == "/api/data-modules/definition-preview":
+                self.send_json(self.service.data_module_definition_preview(request))
+            elif parsed.path == "/api/data-modules/definition-save":
+                self.send_json(self.service.data_module_definition_save(request))
+            elif parsed.path == "/api/data-modules/save":
+                self.send_json(self.service.data_module_save(request))
+            elif parsed.path == "/api/data-modules/analysis-preview":
+                self.send_json(self.service.data_module_analysis_preview(request))
+            elif parsed.path == "/api/data-modules/cloud-verify":
+                self.send_json(self.service.commands.data_module_cloud_verify(request.get("payload", {})))
+            elif parsed.path == "/api/data-modules/cloud-roundtrip":
+                self.send_json(self.service.commands.data_module_cloud_roundtrip(request.get("payload", {})))
+            elif parsed.path == "/api/parse":
                 self.send_json(self.service.parse_entry(request.get("raw", "")))
+            elif parsed.path == "/api/import/preview":
+                self.send_json(self.service.import_preview(request))
+            elif parsed.path == "/api/import/confirm":
+                self.send_json(self.service.import_confirm(request))
             elif parsed.path == "/api/undo":
                 self.send_json(self.service.undo_last_write())
             elif parsed.path == "/api/data-check/acknowledge":
