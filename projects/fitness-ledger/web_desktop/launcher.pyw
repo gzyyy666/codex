@@ -55,7 +55,7 @@ def main() -> None:
     edge = find_edge()
     if edge:
         profile = BASE_DIR / ".edge-profile"
-        process = subprocess.Popen(
+        subprocess.Popen(
             [
                 str(edge),
                 f"--app={URL}",
@@ -69,7 +69,11 @@ def main() -> None:
             close_fds=True,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
-        process.wait()
+        # Edge may hand the app URL to an already-running browser process and
+        # return immediately.  Its return is not a reliable signal that the
+        # desktop app was closed, so keep owning the local service here.
+        while True:
+            time.sleep(60)
     else:
         webbrowser.open(URL)
         while True:
