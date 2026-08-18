@@ -3649,5 +3649,6 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
   .entry-workbench-page .capture h2{margin-top:0;margin-bottom:8px}
   .entry-workbench-page .capture textarea{min-height:210px;height:210px}
   .entry-workbench-page .entry-input-row{margin-top:4px}
-  .entry-workbench-page .capture .actions{margin-top:6px}
+  .entry-workbench-page .capture .actions{margin-top:4px}
+  .entry-workbench-page .entry-support-actions .entry-template-trigger{min-height:30px}
 }
