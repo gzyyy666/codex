@@ -350,9 +350,15 @@ def extract_training_section(text: str) -> tuple[str, str]:
     if start is None:
         return "", ""
     body_lines = []
-    for line in lines[start + 1 :]:
-        if is_structural_boundary(line):
-            break
+    for index, line in enumerate(lines[start + 1 :], start + 1):
+        if is_structural_boundary(line) and not line[:1].isspace():
+            next_line = lines[index + 1] if index + 1 < len(lines) else ""
+            legacy_action_note = bool(
+                re.match(r"^\s*(?:notes?|备注)\s*[:：]", line, re.I)
+                and re.match(r"^\s*\d+\s*[.)、。]", next_line)
+            )
+            if not legacy_action_note:
+                break
         body_lines.append(line)
     return split, "\n".join(body_lines).strip()
 
@@ -504,7 +510,7 @@ def extract_training_section(text: str) -> tuple[str, str]:
     split = ""
     body_lines = []
     in_training = False
-    for line in lines:
+    for index, line in enumerate(lines):
         if not in_training:
             match = re.match(r"^\s*(?:training|璁粌)\s*[:锛歖\s*(.*)$", line, re.I)
             if match:
@@ -3598,15 +3604,21 @@ def extract_training_section(text: str) -> tuple[str, str]:
     split = ""
     body_lines = []
     in_training = False
-    for line in lines:
+    for index, line in enumerate(lines):
         if not in_training:
             match = re.match(r"^\s*(?:training|\u8bad\u7ec3|\u8bad\u7ec3\u90e8\u4f4d|training\s+(?:part|split))\s*[:\uFF1A]\s*(.*)$", line, re.I)
             if match:
                 split = match.group(1).strip()
                 in_training = True
             continue
-        if re.match(r"^\s*(?:cardio|\u6709\u6c27|diet|\u996e\u98df)\s*[:\uFF1A]", line, re.I):
-            break
+        if is_structural_boundary(line) and not line[:1].isspace():
+            next_line = lines[index + 1] if index + 1 < len(lines) else ""
+            legacy_action_note = bool(
+                re.match(r"^\s*(?:notes?|备注)\s*[:：]", line, re.I)
+                and re.match(r"^\s*\d+\s*[.)、。]", next_line)
+            )
+            if not legacy_action_note:
+                break
         body_lines.append(line)
     return split, "\n".join(body_lines).strip()
 
