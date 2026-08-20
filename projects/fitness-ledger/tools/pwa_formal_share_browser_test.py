@@ -80,7 +80,7 @@ MOCK_CLOUDBASE = r"""
     async add(payload) { const row = { _id: `row-${rows.length + 1}`, _openid: 'web-user', ...payload.data }; rows.push(row); return { _id: row._id }; }
   };
   window.cloudbase = {
-    init() { return { auth: () => ({ async getLoginState() { return true; }, async getAccessToken() { return { accessToken: 'test-token' }; } }), database: () => ({ collection() { return collection; } }) }; }
+    init() { return { auth: () => ({ async getLoginState() { return { user: { uid: 'web-user' }, loginType: 'CUSTOM' }; }, async getAccessToken() { return { accessToken: 'test-token' }; } }), database: () => ({ collection() { return collection; } }) }; }
   };
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { async writeText(value) { window.__copied = value; } } });
 })();
