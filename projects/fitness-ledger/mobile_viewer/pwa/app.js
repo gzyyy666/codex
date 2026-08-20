@@ -1,4 +1,4 @@
-import { apiDescription, call, privateAccountIdentity, privateDatabase, signIn } from "./api.js?v=20260820-03";
+import { apiDescription, call, privateAccountIdentity, privateDatabase, signIn } from "./api.js?v=20260820-04";
 
 const BODY_PARTS = [
   { id: "shoulders", cn: "肩", en: "SHOULDERS", tone: "amber" },
@@ -9,9 +9,10 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.4 · build 2026.08.20.03";
+const BUILD_VERSION = "PWA v1.1.5 · build 2026.08.20.04";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_LIMIT = 7;
+const PHONE_INBOX_TIMEOUT_MS = 15000;
 const moduleTools = window.FLDataModules || {
   normalizeContract: () => ({ schema: "fitness-ledger-mobile-module-read-model-v1", modules: [] }),
   categoryEntriesForDate: () => [], detailEntriesForDate: () => [], extensionEntriesForDate: () => [],
@@ -42,6 +43,13 @@ function parseRoute() {
 }
 function esc(value) { return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;"); }
 function text(value, fallback = "-") { const result = String(value ?? "").trim(); return result || fallback; }
+function withPhoneInboxTimeout(promise, code) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => { timer = window.setTimeout(() => reject(Object.assign(new Error(code), { code })), PHONE_INBOX_TIMEOUT_MS); })
+  ]).finally(() => window.clearTimeout(timer));
+}
 function date(value) { return String(value || "").slice(0, 10) || "暂无日期"; }
 function loadNote() {
   try {
@@ -90,19 +98,19 @@ async function listPhoneInboxItems() {
 }
 async function sendTrainingNote() {
   const textValue = String(state.shareDraft || "").trim().slice(0, 4000);
-  if (!textValue) { state.noteCopyStatus = "请先写下要发送的训练记录。"; render(); return; }
-  state.shareBusy = true; state.shareError = ""; state.shareNotice = ""; state.noteCopyStatus = "正在发送到电脑…"; render();
+  if (!textValue) { state.shareError = "请先写下要发送的训练记录。"; render(); return; }
+  state.shareBusy = true; state.shareError = ""; state.shareNotice = ""; render();
   let sent = false;
   try {
     const title = state.shareTitle || "手机训练记录";
-    const { uid } = await privateAccountIdentity();
-    const inbox = await phoneInboxCollection();
+    const { uid } = await withPhoneInboxTimeout(privateAccountIdentity(), "PHONE_INBOX_AUTH_TIMEOUT");
+    const inbox = await withPhoneInboxTimeout(phoneInboxCollection(), "PHONE_INBOX_CONNECT_TIMEOUT");
     const clientId = await phoneInboxClientId(title, textValue);
-    const existing = await inbox.where({ owner_uid: uid, client_id: clientId }).limit(1).get();
+    const existing = await withPhoneInboxTimeout(inbox.where({ owner_uid: uid, client_id: clientId }).limit(1).get(), "PHONE_INBOX_WRITE_TIMEOUT");
     const data = { owner_uid: uid, client_id: clientId, title, text: textValue, source: "pwa_note", status: "pending", received_at: Date.now(), updated_at: Date.now() };
-    if (existing.data?.length) await inbox.doc(existing.data[0]._id).update(data);
-    else await inbox.add(data);
-    state.phoneInboxItems = await listPhoneInboxItems();
+    if (existing.data?.length) await withPhoneInboxTimeout(inbox.doc(existing.data[0]._id).update(data), "PHONE_INBOX_WRITE_TIMEOUT");
+    else await withPhoneInboxTimeout(inbox.add(data), "PHONE_INBOX_WRITE_TIMEOUT");
+    state.phoneInboxItems = await withPhoneInboxTimeout(listPhoneInboxItems(), "PHONE_INBOX_READ_TIMEOUT");
     const verified = state.phoneInboxItems.some(item => item.client_id === clientId && item.text === textValue && item.source === "pwa_note" && item.status !== "expired");
     if (!verified) throw Object.assign(new Error("PHONE_INBOX_WRITE_VERIFY_FAILED"), { code: "PHONE_INBOX_WRITE_VERIFY_FAILED" });
     state.shareNotice = `已发送到云端“当日训练记录”。云端按账号保留最近 ${PHONE_INBOX_LIMIT} 次；电脑端打开后仍需预览和确认，不会直接保存。`;
@@ -113,12 +121,12 @@ async function sendTrainingNote() {
     else if (code.includes("AUTH_ACCOUNT_REQUIRED")) state.shareError = "当前只有匿名或临时登录态，不能归入账号收件箱。请在状态页登录与电脑端相同的 CloudBase 账号。";
     else if (code.includes("AUTH_REQUIRED")) state.shareError = "请先登录与电脑端相同的 CloudBase 账号，再确认发送。";
     else if (code.includes("CLOUDBASE_ENV_MISSING")) state.shareError = "当前环境没有配置 CloudBase，暂时不能发送。";
+    else if (code.includes("PHONE_INBOX_") && code.includes("TIMEOUT")) state.shareError = "发送等待超过 15 秒，未显示为成功；记事内容仍保留。请检查网络后重试。";
     else if (code.includes("PHONE_INBOX_WRITE_VERIFY_FAILED")) state.shareError = "云端没有返回当前账号的收件记录，本次不会显示为发送成功。请确认手机打开的是正式地址，并已登录与电脑端相同的 CloudBase 账号。";
     else state.shareError = "发送失败，本次没有写入云端；当前记事内容仍保留在页面中。";
   }
   state.shareBusy = false;
   if (sent) { state.shareOpen = false; state.noteExpanded = false; state.noteCopyStatus = "已发送到云端"; }
-  else state.noteCopyStatus = state.shareError || "发送失败，本次没有写入云端；当前记事内容仍保留在页面中。";
   render();
   if (sent) window.setTimeout(() => { if (state.noteCopyStatus === "已发送到云端") { state.noteCopyStatus = ""; render(); } }, 2200);
 }
@@ -443,7 +451,7 @@ function updateNoteStatus(message = "已自动保存") {
 function renderReferenceArea(selected) {
   const area = state.area || { ...bodyPart(selected), label: bodyPart(selected).cn, labelEn: bodyPart(selected).en, movements: [], sessions: [] };
   const part = bodyPart(selected);
-  const note = state.noteOpen ? `<section class="notepad-card"><div class="notepad-head"><div><div class="eyebrow">LOCAL ONLY / TRAINING NOTE</div><h2>TRAINING NOTE / 训练记录</h2></div><button data-action="toggle-note">FLIP</button></div><textarea data-note data-note-surface="inline" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="enter" aria-label="训练记录备忘录" placeholder="支持中文、英文、数字与任意格式……">${esc(state.note)}</textarea><div class="notepad-actions"><button data-action="copy-note">${state.noteExpanded ? "COPY ALL" : "COPY"}</button><button class="danger-link" data-action="clear-note">CLEAR</button><button data-action="expand-note" ${state.shareBusy ? "disabled" : ""}>${state.shareBusy ? "正在发送…" : "发送到电脑"}</button></div><div class="notepad-status" data-note-status>${esc(state.noteCopyStatus || "已自动保存")}</div></section>` : `<button class="part-hero tone-${part.tone}" data-action="toggle-note"><div class="hero-top"><span class="eyebrow">${esc(area.labelEn || part.en)} ARCHIVE</span><span class="flip-hint">FLIP</span></div><div class="part-title">${esc(area.label || part.cn)}</div><div class="part-meta">${area.session_count || 0} 次训练 · ${area.movement_count || 0} 个动作</div><div class="part-latest">最近训练 ${esc(area.latest_date || "暂无")}</div></button>`;
+  const note = state.noteOpen ? `<section class="notepad-card"><div class="notepad-head"><div><div class="eyebrow">LOCAL ONLY / TRAINING NOTE</div><h2>TRAINING NOTE / 训练记录</h2></div><button data-action="toggle-note">FLIP</button></div><textarea data-note data-note-surface="inline" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="enter" aria-label="训练记录备忘录" placeholder="支持中文、英文、数字与任意格式……">${esc(state.note)}</textarea><div class="notepad-actions"><button data-action="copy-note">${state.noteExpanded ? "COPY ALL" : "COPY"}</button><button class="danger-link" data-action="clear-note">CLEAR</button><button data-action="expand-note">发送到电脑</button></div><div class="notepad-status" data-note-status>${esc(state.noteCopyStatus || "已自动保存")}</div></section>` : `<button class="part-hero tone-${part.tone}" data-action="toggle-note"><div class="hero-top"><span class="eyebrow">${esc(area.labelEn || part.en)} ARCHIVE</span><span class="flip-hint">FLIP</span></div><div class="part-title">${esc(area.label || part.cn)}</div><div class="part-meta">${area.session_count || 0} 次训练 · ${area.movement_count || 0} 个动作</div><div class="part-latest">最近训练 ${esc(area.latest_date || "暂无")}</div></button>`;
   const sort = state.sortBy;
   const movements = [...(area.movements || [])].sort((a, b) => sort === "recent" ? String(b.latest?.date || "").localeCompare(String(a.latest?.date || "")) : sort === "days" ? 0 : (Number(b.pinned) - Number(a.pinned) || Number(a.focus_rank || 9999) - Number(b.focus_rank || 9999) || b.sessions - a.sessions));
   const body = state.loading ? stateMessage(`正在读取${area.label || part.cn}部档案…`) : state.error ? stateMessage(state.error, true) : sort === "days" ? renderSessions(area.sessions || [], area.label || part.cn) : `<section class="movement-list"><div class="list-heading"><div><div class="eyebrow">MOVEMENTS / FREQUENCY</div><h2 class="section-title">动作与最近表现</h2></div><span class="count">${area.movement_count || movements.length}</span></div>${movements.length ? movements.map(renderMovementCard).join("") : stateMessage("该部位暂时没有动作历史。")}</section>`;
@@ -732,7 +740,7 @@ document.addEventListener("click", event => {
   const action = event.target.closest("[data-action]")?.dataset.action; if (!action) return;
   if (action === "toggle-order") { state.order = state.order === "newest" ? "oldest" : "newest"; render(); }
   if (action === "toggle-note") { state.noteOpen = !state.noteOpen; render(); }
-  if (action === "expand-note") { state.shareDraft = state.note; state.shareTitle = "手机训练记录"; state.shareError = ""; state.shareNotice = ""; state.shareOpen = false; void sendTrainingNote(); }
+  if (action === "expand-note") { state.noteExpanded = true; state.shareDraft = state.note; state.shareTitle = "手机训练记录"; state.shareError = ""; state.shareNotice = ""; state.shareOpen = true; render(); }
   if (action === "toggle-dock") { state.dockOpen = !state.dockOpen; render(); }
   if (action === "toggle-candidates") { state.noteCandidatesCollapsed = !state.noteCandidatesCollapsed; refreshCandidateOverlay(); }
   if (action === "copy-note") { void copyNoteToClipboard(); }
@@ -752,7 +760,7 @@ document.addEventListener("click", event => {
 });
 window.addEventListener("scroll", scheduleDockCheck, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260820-03", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260820-04", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

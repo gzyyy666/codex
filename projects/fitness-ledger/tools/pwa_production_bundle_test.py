@@ -40,7 +40,7 @@ def main() -> None:
     assert "cloud1-" in config
 
     share = (PWA / "share.js").read_text(encoding="utf-8")
-    assert 'import { privateAccountIdentity, privateDatabase } from "./api.js?v=20260820-03";' in share
+    assert 'import { privateAccountIdentity, privateDatabase } from "./api.js?v=20260820-04";' in share
     assert '"fl_web_share_inbox"' in share
     assert 'owner_uid' in share
     assert "不会直接写入正式记录" in share
@@ -52,12 +52,12 @@ def main() -> None:
     assert "getLoginState" in api
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
-    assert 'fitness-ledger-pwa-v29' in service_worker
+    assert 'fitness-ledger-pwa-v30' in service_worker
     assert '"./share.html"' in service_worker
-    assert '"./share.js?v=20260820-03"' in service_worker
+    assert '"./share.js?v=20260820-04"' in service_worker
 
     app = (PWA / "app.js").read_text(encoding="utf-8")
-    assert 'register("./sw.js?v=20260820-03"' in app
+    assert 'register("./sw.js?v=20260820-04"' in app
     handoff_doc = (ROOT / "docs" / "maintenance" / "PWA_SHARE_INBOX_PHASE3.md").read_text(encoding="utf-8")
     assert 'Collection: `fl_web_share_inbox`' in handoff_doc
     assert "读取和修改本人数据 [PRIVATE]" in handoff_doc

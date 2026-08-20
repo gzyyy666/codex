@@ -3,10 +3,19 @@ const ENV_ID = "cloud1-d9g35v5s1a904a8ad";
 const REGION = "ap-shanghai";
 const COLLECTION = "fl_web_share_inbox";
 const MAX_ITEMS = 7;
+const REQUEST_TIMEOUT_MS = 15000;
 
 let sdkPromise;
 let appPromise;
 let authPromise;
+
+function withTimeout(promise, code) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => { timer = window.setTimeout(() => reject(Object.assign(new Error(code), { code })), REQUEST_TIMEOUT_MS); })
+  ]).finally(() => window.clearTimeout(timer));
+}
 
 function loadSdk() {
   if (window.cloudbase) return Promise.resolve(window.cloudbase);
@@ -18,7 +27,7 @@ function loadSdk() {
       script.onload = () => window.cloudbase ? resolve(window.cloudbase) : reject(new Error("PHONE_INBOX_SDK_MISSING"));
       script.onerror = () => reject(new Error("PHONE_INBOX_SDK_LOAD_FAILED"));
       document.head.appendChild(script);
-    });
+    }).catch(error => { sdkPromise = null; throw error; });
   }
   return sdkPromise;
 }
@@ -35,7 +44,7 @@ async function auth() {
 
 async function requireLogin() {
   const current = await auth();
-  const loginState = await current.getLoginState();
+  const loginState = await withTimeout(current.getLoginState(), "PHONE_INBOX_AUTH_TIMEOUT");
   const user = loginState?.user || {};
   const loginType = String(loginState?.loginType || user.loginType || "").toUpperCase();
   const uid = String(user.uid || loginState?.oauthLoginState?.sub || "").trim();
@@ -59,21 +68,21 @@ function normalizeItem(item) {
 
 export async function signIn(username, password) {
   const current = await auth();
-  await current.signIn({ username: String(username || "").trim(), password: String(password || "") });
+  await withTimeout(current.signIn({ username: String(username || "").trim(), password: String(password || "") }), "PHONE_INBOX_AUTH_TIMEOUT");
   return listRecent();
 }
 
 export async function listRecent() {
   const { uid } = await requireLogin();
   const inbox = await collection();
-  const result = await inbox.where({ owner_uid: uid }).orderBy("received_at", "desc").limit(MAX_ITEMS + 5).get();
+  const result = await withTimeout(inbox.where({ owner_uid: uid }).orderBy("received_at", "desc").limit(MAX_ITEMS + 5).get(), "PHONE_INBOX_READ_TIMEOUT");
   return (Array.isArray(result.data) ? result.data : []).map(normalizeItem).filter(item => item.status !== "expired").slice(0, MAX_ITEMS);
 }
 
 export async function updateStatus(id, status) {
   const { uid } = await requireLogin();
   const inbox = await collection();
-  await inbox.where({ _id: id, owner_uid: uid }).update({ status, updated_at: Date.now() });
+  await withTimeout(inbox.where({ _id: id, owner_uid: uid }).update({ status, updated_at: Date.now() }), "PHONE_INBOX_WRITE_TIMEOUT");
   return listRecent();
 }
 
