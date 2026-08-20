@@ -50,9 +50,9 @@ def main() -> None:
     assert "refreshCandidateOverlay" in app_source
     assert "noteHistoryCache" in app_source
     assert 'data-candidate-region' in app_source
-    assert 'PWA v1.1.3' in app_source
-    assert 'data-action="expand-note">${state.noteExpanded ? "关闭发送" : "发送到电脑"}</button>' in app_source
-    assert 'renderSharePanel()' in app_source
+    assert 'PWA v1.1.4' in app_source
+    assert 'data-action="expand-note" ${state.shareBusy ? "disabled" : ""}>${state.shareBusy ? "正在发送…" : "发送到电脑"}</button>' in app_source
+    assert 'if (action === "expand-note") { state.shareDraft = state.note; state.shareTitle = "手机训练记录"; state.shareError = ""; state.shareNotice = ""; state.shareOpen = false; void sendTrainingNote(); }' in app_source
     assert 'href="./share.html"' not in app_source
     assert 'const dataModuleRequest = refreshDataModules();' in app_source
     assert 'await refreshDataModules();' not in app_source
@@ -92,9 +92,9 @@ def main() -> None:
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'includes("/api/")' in service_worker
-    assert 'fitness-ledger-pwa-v28' in service_worker
-    assert '"./data-modules.js?v=20260820-02"' in service_worker
-    assert 'register("./sw.js?v=20260820-02", { updateViaCache: "none" })' in app_source
+    assert 'fitness-ledger-pwa-v29' in service_worker
+    assert '"./data-modules.js?v=20260820-03"' in service_worker
+    assert 'register("./sw.js?v=20260820-03", { updateViaCache: "none" })' in app_source
     assert 'cache: "no-store"' in api_source
     assert 'READ_TIMEOUT_MS' in api_source and 'READ_ATTEMPTS' in api_source
     assert 'Promise.allSettled' in app_source
