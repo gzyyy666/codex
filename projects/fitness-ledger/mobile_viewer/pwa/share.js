@@ -1,4 +1,4 @@
-import { privateDatabase } from "./api.js";
+import { privateDatabase } from "./api.js?v=20260820-01";
 
 const root = document.querySelector("#share-app");
 const COLLECTION = "fl_web_share_inbox";

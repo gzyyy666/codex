@@ -1,4 +1,4 @@
-import { apiDescription, call, signIn } from "./api.js?v=20260818-01";
+import { apiDescription, call, signIn } from "./api.js?v=20260820-01";
 
 const BODY_PARTS = [
   { id: "shoulders", cn: "肩", en: "SHOULDERS", tone: "amber" },
@@ -9,7 +9,7 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.1 · build 2026.08.18.01";
+const BUILD_VERSION = "PWA v1.1.2 · build 2026.08.20.01";
 const moduleTools = window.FLDataModules || {
   normalizeContract: () => ({ schema: "fitness-ledger-mobile-module-read-model-v1", modules: [] }),
   categoryEntriesForDate: () => [], detailEntriesForDate: () => [], extensionEntriesForDate: () => [],
@@ -256,15 +256,20 @@ function enhanceDataModuleSurface() {
   }
 }
 
-async function refreshDataModules() {
-  try {
-    state.dataModuleContract = moduleTools.normalizeContract(await call("dataModules"));
+function refreshDataModules() {
+  if (dataModulePromise) return dataModulePromise;
+  dataModulePromise = call("dataModules").then(payload => {
+    state.dataModuleContract = moduleTools.normalizeContract(payload);
     state.dataModuleError = "";
-  } catch (error) {
+    return state.dataModuleContract;
+  }).catch(error => {
+    dataModulePromise = null;
     if (["AUTH_REQUIRED", "HTTP_401", "UNAUTHORIZED"].includes(error?.message)) throw error;
     state.dataModuleContract = moduleTools.normalizeContract({ modules: [] });
     state.dataModuleError = "DATA_MODULES_UNAVAILABLE";
-  }
+    return state.dataModuleContract;
+  });
+  return dataModulePromise;
 }
 
 function renderShell(content) {
@@ -385,7 +390,7 @@ function filterRecords(records, query, order) { const needle = String(query || "
 
 function renderStatus() {
   const fresh = state.status;
-  return renderShell(`${pageStart("status-page")}${header("LOCAL-FIRST / READ ONLY", "同步与档案。")}${state.loading ? stateMessage("检查中…") : state.error ? stateMessage(state.error, true) : `<section class="status-slab"><span class="status-dot"></span><div class="eyebrow">REPLICA STATUS</div><h2>只读副本已连接</h2><div class="row"><span>最后同步</span><b>${esc(fresh?.generated_at || "尚未同步")}</b></div><div class="row"><span>最新记录</span><b>${esc(fresh?.latest_record_date || "暂无")}</b></div><div class="row"><span>数据结构</span><b>${esc(fresh?.schema || "-")}</b></div></section><button class="archive-entry" data-route="body"><span><span class="eyebrow">SECONDARY ARCHIVE</span><strong>身体记录</strong><small>体重、排便、训练与有氧</small></span><b>→</b></button><button class="archive-entry diet-entry" data-route="diet"><span><span class="eyebrow">SECONDARY ARCHIVE</span><strong>饮食记录</strong><small>热量、三大营养素与餐食便签</small></span><b>→</b></button><section class="debug-card"><div class="eyebrow">ACCESS DIAGNOSTICS / NO PRIVATE DATA</div><div class="row"><span>权限</span><b>${state.identity?.openid ? "已识别账号" : "未识别 / Web 端"}</b></div><div class="row"><span>OpenID</span><b>${esc(state.identity?.openid || "未获取")}</b></div><div class="row"><span>Environment</span><b>${esc(state.identity?.env || "当前部署环境")}</b></div><div class="row"><span>前端版本</span><b>${BUILD_VERSION}</b></div></section>`}${pageEnd()}`);
+  return renderShell(`${pageStart("status-page")}${header("LOCAL-FIRST / READ ONLY", "同步与档案。")}${state.loading ? stateMessage("检查中…") : state.error ? stateMessage(state.error, true) : `<section class="status-slab"><span class="status-dot"></span><div class="eyebrow">REPLICA STATUS</div><h2>只读副本已连接</h2><div class="row"><span>最后同步</span><b>${esc(fresh?.generated_at || "尚未同步")}</b></div><div class="row"><span>最新记录</span><b>${esc(fresh?.latest_record_date || "暂无")}</b></div><div class="row"><span>数据结构</span><b>${esc(fresh?.schema || "-")}</b></div></section><button class="archive-entry" data-route="body"><span><span class="eyebrow">SECONDARY ARCHIVE</span><strong>身体记录</strong><small>体重、排便、训练与有氧</small></span><b>→</b></button><button class="archive-entry diet-entry" data-route="diet"><span><span class="eyebrow">SECONDARY ARCHIVE</span><strong>饮食记录</strong><small>热量、三大营养素与餐食便签</small></span><b>→</b></button><a class="archive-entry share-entry" href="./share.html"><span><span class="eyebrow">PHONE → DESKTOP</span><strong>发送到电脑</strong><small>打开手机文字收件箱，发送后在电脑端处理</small></span><b>→</b></a><section class="debug-card"><div class="eyebrow">ACCESS DIAGNOSTICS / NO PRIVATE DATA</div><div class="row"><span>权限</span><b>${state.identity?.openid ? "已识别账号" : "未识别 / Web 端"}</b></div><div class="row"><span>OpenID</span><b>${esc(state.identity?.openid || "未获取")}</b></div><div class="row"><span>Environment</span><b>${esc(state.identity?.env || "当前部署环境")}</b></div><div class="row"><span>前端版本</span><b>${BUILD_VERSION}</b></div></section>`}${pageEnd()}`);
 }
 
 function renderArchive(kind) {
@@ -488,11 +493,12 @@ function render() {
 }
 
 async function loadRoute() {
+  const requestId = ++routeRequest;
   resetViewport();
   state.route = parseRoute(); state.loading = true; state.error = ""; state.dockVisible = false; state.dockOpen = false; state.noteDetailOpen = false; state.noteDetailRequest += 1; render();
+  const dataModuleRequest = refreshDataModules();
   try {
     const name = state.route.name; const part = state.route.params.get("part");
-    await refreshDataModules();
     if (name === "reference") {
       if (part) {
         const [areaResult, recordsResult] = await Promise.allSettled([call("bodyArea", { part }), call("trainingRecords")]);
@@ -530,11 +536,23 @@ async function loadRoute() {
     if (name === "diet") state.dietRecords = moduleTools.mergeRecordsWithCategoryDates(state.dietRecords, state.dataModuleContract, "diet");
     if (name === "training") state.trainingRecords = moduleTools.mergeRecordsWithCategoryDates(state.trainingRecords, state.dataModuleContract, "training");
   } catch (error) { setError(error); }
+  if (requestId !== routeRequest) return;
   state.loading = false; render();
+  try {
+    await dataModuleRequest;
+    if (requestId === routeRequest) render();
+  } catch (error) {
+    if (requestId !== routeRequest) return;
+    setError(error);
+    state.loading = false;
+    render();
+  }
 }
 
 let noteTimer;
 let noteCatalogPromise;
+let dataModulePromise;
+let routeRequest = 0;
 function loadNoteCatalog() {
   if (Array.isArray(state.noteCatalog)) return Promise.resolve(state.noteCatalog);
   if (!noteCatalogPromise) {
@@ -654,7 +672,7 @@ document.addEventListener("click", event => {
 });
 window.addEventListener("scroll", scheduleDockCheck, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260818-01", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260820-01", { updateViaCache: "none" }).catch(() => {});
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();
   event.preventDefault();
