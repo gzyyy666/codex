@@ -1,4 +1,4 @@
-import { privateDatabase } from "./api.js?v=20260820-01";
+import { privateAccountIdentity, privateDatabase } from "./api.js?v=20260820-02";
 
 const root = document.querySelector("#share-app");
 const COLLECTION = "fl_web_share_inbox";
@@ -41,7 +41,8 @@ async function collection() {
 }
 
 async function listItems() {
-  const rows = await (await collection()).where({ _openid: "{openid}" }).orderBy("received_at", "desc").limit(50).get();
+  const { uid } = await privateAccountIdentity();
+  const rows = await (await collection()).where({ owner_uid: uid }).orderBy("received_at", "desc").limit(50).get();
   return Array.isArray(rows.data) ? rows.data : [];
 }
 
@@ -50,10 +51,12 @@ async function enqueue(title, text) {
   if (!cleanText) throw new Error("请先输入要发送的文字。");
   const cleanTitle = String(title || "").trim().slice(0, 120);
   const clientId = await stableClientId(cleanTitle, cleanText);
+  const { uid } = await privateAccountIdentity();
   const inbox = await collection();
-  const existing = await inbox.where({ _openid: "{openid}", client_id: clientId }).limit(1).get();
+  const existing = await inbox.where({ owner_uid: uid, client_id: clientId }).limit(1).get();
   if (!existing.data?.length) {
     await inbox.add({ data: {
+      owner_uid: uid,
       client_id: clientId,
       title: cleanTitle,
       text: cleanText,
@@ -69,8 +72,9 @@ async function enqueue(title, text) {
 }
 
 async function updateStatus(itemId, status) {
+  const { uid } = await privateAccountIdentity();
   const inbox = await collection();
-  await inbox.where({ _id: itemId, _openid: "{openid}" }).update({ data: { status, updated_at: Date.now() } });
+  await inbox.where({ _id: itemId, owner_uid: uid }).update({ data: { status, updated_at: Date.now() } });
   state.items = await listItems();
 }
 

@@ -49,6 +49,15 @@ function webAuthEnabled() {
   return config.requireWebAuth === true;
 }
 
+function accountLoginState(loginState) {
+  const user = loginState?.user || {};
+  const loginType = String(loginState?.loginType || user.loginType || "").toUpperCase();
+  const uid = String(user.uid || loginState?.oauthLoginState?.sub || "").trim();
+  const anonymous = loginState?.isAnonymousAuth === true || loginType === "ANONYMOUS";
+  if (!loginState || anonymous || !uid) throw Object.assign(new Error("AUTH_ACCOUNT_REQUIRED"), { code: "AUTH_ACCOUNT_REQUIRED" });
+  return { loginState, uid };
+}
+
 async function loadCloudBaseSdk() {
   if (window.cloudbase) return window.cloudbase;
   if (!cloudbaseSdkPromise) {
@@ -108,6 +117,12 @@ export async function privateDatabase() {
   if (!auth || !(await auth.getLoginState())) throw new Error("AUTH_REQUIRED");
   const app = await cloudBaseApp();
   return app.database();
+}
+
+export async function privateAccountIdentity() {
+  const auth = await webAuth();
+  if (!auth) throw new Error("AUTH_REQUIRED");
+  return accountLoginState(await auth.getLoginState());
 }
 
 function buildUrl(action, params = {}) {

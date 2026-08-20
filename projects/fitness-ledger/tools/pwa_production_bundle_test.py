@@ -40,9 +40,9 @@ def main() -> None:
     assert "cloud1-" in config
 
     share = (PWA / "share.js").read_text(encoding="utf-8")
-    assert 'import { privateDatabase } from "./api.js?v=20260820-01";' in share
+    assert 'import { privateAccountIdentity, privateDatabase } from "./api.js?v=20260820-02";' in share
     assert '"fl_web_share_inbox"' in share
-    assert '"{openid}"' in share
+    assert 'owner_uid' in share
     assert "不会直接写入正式记录" in share
     for forbidden_collection in ("fl_daily_records", "fl_data_module_records", "fl_diet_records", "fl_training_sessions"):
         assert forbidden_collection not in share, f"share page must not write formal collection: {forbidden_collection}"
@@ -52,12 +52,12 @@ def main() -> None:
     assert "getLoginState" in api
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
-    assert 'fitness-ledger-pwa-v27' in service_worker
+    assert 'fitness-ledger-pwa-v28' in service_worker
     assert '"./share.html"' in service_worker
-    assert '"./share.js?v=20260820-01"' in service_worker
+    assert '"./share.js?v=20260820-02"' in service_worker
 
     app = (PWA / "app.js").read_text(encoding="utf-8")
-    assert 'register("./sw.js?v=20260820-01"' in app
+    assert 'register("./sw.js?v=20260820-02"' in app
     handoff_doc = (ROOT / "docs" / "maintenance" / "PWA_SHARE_INBOX_PHASE3.md").read_text(encoding="utf-8")
     assert 'Collection: `fl_web_share_inbox`' in handoff_doc
     assert "读取和修改本人数据 [PRIVATE]" in handoff_doc
