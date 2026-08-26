@@ -129,16 +129,14 @@ async function sendTrainingNote() {
     else state.shareError = "发送失败，本次没有写入云端；当前记事内容仍保留在页面中。";
   }
   state.shareBusy = false;
-  if (sent) { state.shareSent = true; state.noteExpanded = false; state.noteCopyStatus = "已发送到云端"; }
+  if (sent) { state.shareOpen = false; state.shareSent = false; state.noteExpanded = false; state.noteCopyStatus = "已发送到电脑"; }
   render();
-  if (sent) window.setTimeout(() => { if (state.noteCopyStatus === "已发送到云端") { state.noteCopyStatus = ""; render(); } }, 2200);
+  if (sent) window.setTimeout(() => { if (state.noteCopyStatus === "已发送到电脑") { state.noteCopyStatus = ""; render(); } }, 2200);
 }
 function renderSharePanel() {
   if (!state.shareOpen) return "";
-  const actions = state.shareSent
-    ? `<button class="share-confirm-primary" data-action="close-share-panel">完成</button>`
-    : `<button class="share-confirm-primary" data-action="send-training-note" ${state.shareBusy ? "disabled" : ""}>${state.shareBusy ? "正在写入云端…" : "确认发送到电脑"}</button><button class="share-confirm-secondary" data-action="close-share-panel">返回修改</button>`;
-  return `<dialog id="share-confirm-dialog" class="share-confirm-dialog" aria-labelledby="share-confirm-title"><section class="share-confirm-sheet"><div class="share-confirm-head"><div><div class="eyebrow">发送到电脑</div><h2 id="share-confirm-title">${state.shareSent ? "已发送到电脑" : "确认发送这条记录？"}</h2></div><button data-action="close-share-panel" aria-label="关闭">×</button></div><p class="share-confirm-copy">${state.shareSent ? "电脑端“当日训练记录”将在近 7 天内显示这条文字。它尚未写入正式训练档案。" : "确认后，这条文字会显示在电脑端“当日训练记录”的近 7 天列表。随后仍须放入 Daily Entry、预览并确认，才会保存为正式记录。"}</p><textarea data-share-draft rows="8" aria-label="准备发送的训练记录" ${state.shareSent ? "readonly" : ""}>${esc(state.shareDraft)}</textarea>${state.shareError ? `<p class="share-confirm-error" role="alert">${esc(state.shareError)}</p>` : ""}${state.shareNotice ? `<p class="share-confirm-success" role="status">${esc(state.shareNotice)}</p>` : ""}<div class="share-confirm-actions">${actions}</div></section></dialog>`;
+  const actions = `<button class="share-confirm-secondary" data-action="close-share-panel" ${state.shareBusy ? "disabled" : ""}>取消</button><button class="share-confirm-primary" data-action="send-training-note" ${state.shareBusy ? "disabled" : ""}>${state.shareBusy ? "正在发送…" : "确认发送"}</button>`;
+  return `<dialog id="share-confirm-dialog" class="share-confirm-dialog" aria-labelledby="share-confirm-title"><section class="share-confirm-sheet"><span class="share-confirm-mark" aria-hidden="true">↑</span><h2 id="share-confirm-title">发送到电脑？</h2><p class="share-confirm-copy">确认后发送这条训练记录。</p>${state.shareError ? `<p class="share-confirm-error" role="alert">${esc(state.shareError)}</p>` : ""}<div class="share-confirm-actions">${actions}</div></section></dialog>`;
 }
 function loadIncomingShareIntent() {
   const params = new URLSearchParams(window.location.search);
