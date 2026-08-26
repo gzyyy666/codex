@@ -19,6 +19,7 @@ def main() -> None:
     assert "await autoSyncAfterSave()" in source
     assert "latestStatus.sync_status==='SYNCED'" in source
     assert "reconciled:true" in source
+    assert "reconciled:!['SYNCED','NO_CHANGES'].includes(result.status)" in source
 
     script = f"""
 {helper}

@@ -9,7 +9,7 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.6 · build 2026.08.26.01";
+const BUILD_VERSION = "PWA v1.1.6 · build 2026.08.26.02";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -33,7 +33,7 @@ const state = {
   expanded: {}, candidatesRequest: 0, noteComposing: false, noteCatalog: null,
   noteHistoryCache: new Map(), deferredRender: false, noteCopyStatus: "",
   authRequired: false, authBusy: false, authMessage: "",
-  shareDraft: "", shareTitle: "", shareOpen: false, shareBusy: false, shareConfirmReady: false, shareSent: false, shareError: "", shareNotice: "",
+  shareDraft: "", shareTitle: "", shareOpen: false, shareBusy: false, shareSent: false, shareError: "", shareNotice: "",
   phoneInboxItems: [], phoneInboxLoaded: false
 };
 
@@ -102,13 +102,6 @@ async function listPhoneInboxItems() {
 async function sendTrainingNote() {
   const textValue = String(state.shareDraft || "").trim().slice(0, 4000);
   if (!textValue) { state.shareError = "请先写下要发送的训练记录。"; render(); return; }
-  if (!state.shareConfirmReady) {
-    state.shareConfirmReady = true;
-    state.shareError = "";
-    state.shareNotice = "请再次确认：发送后，电脑端“当日训练记录”将在近 7 天列表中显示这条文字；它不会自动写入正式记录。";
-    render();
-    return;
-  }
   state.shareBusy = true; state.shareError = ""; state.shareNotice = ""; render();
   let sent = false;
   try {
@@ -136,17 +129,16 @@ async function sendTrainingNote() {
     else state.shareError = "发送失败，本次没有写入云端；当前记事内容仍保留在页面中。";
   }
   state.shareBusy = false;
-  if (sent) { state.shareSent = true; state.shareConfirmReady = false; state.noteExpanded = false; state.noteCopyStatus = "已发送到云端"; }
+  if (sent) { state.shareSent = true; state.noteExpanded = false; state.noteCopyStatus = "已发送到云端"; }
   render();
   if (sent) window.setTimeout(() => { if (state.noteCopyStatus === "已发送到云端") { state.noteCopyStatus = ""; render(); } }, 2200);
 }
 function renderSharePanel() {
   if (!state.shareOpen) return "";
-  const recent = state.phoneInboxItems.length ? `<div class="share-recent"><span class="eyebrow">最近发送</span>${state.phoneInboxItems.slice(0, 3).map(item => `<div><b>${esc(item.title || "手机训练记录")}</b><small>${esc(date(item.received_at))}</small></div>`).join("")}</div>` : "";
   const actions = state.shareSent
     ? `<button class="share-confirm-primary" data-action="close-share-panel">完成</button>`
-    : `<button class="share-confirm-primary" data-action="send-training-note" ${state.shareBusy ? "disabled" : ""}>${state.shareBusy ? "正在写入云端…" : (state.shareConfirmReady ? "再次确认并发送" : "下一步确认")}</button><button class="share-confirm-secondary" data-action="close-share-panel">取消</button>`;
-  return `<section class="share-confirm-backdrop" data-action="close-share-panel"><section class="share-confirm-sheet" data-action="noop"><div class="share-confirm-head"><div><div class="eyebrow">当日训练记录</div><h2>${state.shareSent ? "已发送到电脑" : "确认发送到电脑"}</h2></div><button data-action="close-share-panel" aria-label="关闭">×</button></div><p class="share-confirm-copy">文字会写入 CloudBase 的私有“当日训练记录”集合，不会写入手机正式档案。发送后，电脑端仍须放入 Daily Entry、预览并确认才会保存。</p><textarea data-share-draft rows="8" aria-label="准备发送的训练记录" ${state.shareSent ? "readonly" : ""}>${esc(state.shareDraft)}</textarea>${state.shareError ? `<p class="share-confirm-error" role="alert">${esc(state.shareError)}</p>` : ""}${state.shareNotice ? `<p class="share-confirm-success" role="status">${esc(state.shareNotice)}</p>` : ""}<div class="share-confirm-actions">${actions}</div>${recent}<small class="share-retention-note">电脑端只显示近 ${PHONE_INBOX_RECENT_DAYS} 天发送的文字。</small></section></section>`;
+    : `<button class="share-confirm-primary" data-action="send-training-note" ${state.shareBusy ? "disabled" : ""}>${state.shareBusy ? "正在写入云端…" : "确认发送到电脑"}</button><button class="share-confirm-secondary" data-action="close-share-panel">返回修改</button>`;
+  return `<section class="share-confirm-backdrop" data-action="close-share-panel"><section class="share-confirm-sheet" data-action="noop" role="dialog" aria-modal="true" aria-labelledby="share-confirm-title"><div class="share-confirm-head"><div><div class="eyebrow">发送到电脑</div><h2 id="share-confirm-title">${state.shareSent ? "已发送到电脑" : "确认发送这条记录？"}</h2></div><button data-action="close-share-panel" aria-label="关闭">×</button></div><p class="share-confirm-copy">${state.shareSent ? "电脑端“当日训练记录”将在近 7 天内显示这条文字。它尚未写入正式训练档案。" : "确认后，这条文字会显示在电脑端“当日训练记录”的近 7 天列表。随后仍须放入 Daily Entry、预览并确认，才会保存为正式记录。"}</p><textarea data-share-draft rows="8" aria-label="准备发送的训练记录" ${state.shareSent ? "readonly" : ""}>${esc(state.shareDraft)}</textarea>${state.shareError ? `<p class="share-confirm-error" role="alert">${esc(state.shareError)}</p>` : ""}${state.shareNotice ? `<p class="share-confirm-success" role="status">${esc(state.shareNotice)}</p>` : ""}<div class="share-confirm-actions">${actions}</div></section></section>`;
 }
 function loadIncomingShareIntent() {
   const params = new URLSearchParams(window.location.search);
@@ -154,7 +146,6 @@ function loadIncomingShareIntent() {
   if (!sharedText) return;
   state.shareTitle = params.get("share_title") || "手机训练记录";
   state.shareDraft = sharedText.slice(0, 4000);
-  state.shareConfirmReady = false;
   state.shareSent = false;
   state.shareOpen = true;
   try { history.replaceState({}, "", `${window.location.pathname}${window.location.hash || "#training"}`); } catch (_) {}
@@ -755,12 +746,12 @@ document.addEventListener("click", event => {
   const action = event.target.closest("[data-action]")?.dataset.action; if (!action) return;
   if (action === "toggle-order") { state.order = state.order === "newest" ? "oldest" : "newest"; render(); }
   if (action === "toggle-note") { state.noteOpen = !state.noteOpen; render(); }
-  if (action === "expand-note") { state.noteExpanded = true; state.shareDraft = state.note; state.shareTitle = "手机训练记录"; state.shareConfirmReady = false; state.shareSent = false; state.shareError = ""; state.shareNotice = ""; state.shareOpen = true; render(); }
+  if (action === "expand-note") { state.noteExpanded = true; state.shareDraft = state.note; state.shareTitle = "手机训练记录"; state.shareSent = false; state.shareError = ""; state.shareNotice = ""; state.shareOpen = true; render(); }
   if (action === "toggle-dock") { state.dockOpen = !state.dockOpen; render(); }
   if (action === "toggle-candidates") { state.noteCandidatesCollapsed = !state.noteCandidatesCollapsed; refreshCandidateOverlay(); }
   if (action === "copy-note") { void copyNoteToClipboard(); }
   if (action === "send-training-note") { void sendTrainingNote(); }
-  if (action === "close-share-panel") { state.shareOpen = false; state.shareBusy = false; state.shareConfirmReady = false; state.shareSent = false; state.noteExpanded = false; state.shareError = ""; state.shareNotice = ""; render(); }
+  if (action === "close-share-panel") { state.shareOpen = false; state.shareBusy = false; state.shareSent = false; state.noteExpanded = false; state.shareError = ""; state.shareNotice = ""; render(); }
   if (action === "clear-note") { if (window.confirm("清空当前 TRAINING NOTE？不会影响正式训练记录。")) { saveNote(""); state.noteCandidates = []; state.noteCandidatesLoading = false; render(); } }
   if (action === "aliases") { state.showAliases = !state.showAliases; render(); }
   if (action === "candidate") { const candidate = event.target.closest("[data-id]"); if (candidate) openNoteCandidate(candidate.dataset.id); }
@@ -775,7 +766,7 @@ document.addEventListener("click", event => {
 });
 window.addEventListener("scroll", scheduleDockCheck, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260826-01", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260826-02", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

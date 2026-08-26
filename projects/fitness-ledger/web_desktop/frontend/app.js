@@ -217,7 +217,7 @@ async function autoSyncAfterSave(){
     latestStatus=await api('/api/cloud-sync/status');
     state.syncStatus={...latestStatus,sync_result:result};
     updateSyncNav();
-    if(['SYNCED','NO_CHANGES'].includes(result.status)&&latestStatus.sync_status==='SYNCED')return {status:'SYNCED',syncStatus:state.syncStatus};
+    if(latestStatus.sync_status==='SYNCED')return {status:'SYNCED',reconciled:!['SYNCED','NO_CHANGES'].includes(result.status),syncStatus:state.syncStatus};
     if(['UPLOAD_FAILED','CLOUD_MISMATCH','NOT_CONFIGURED'].includes(result.status))return {status:result.status,syncStatus:state.syncStatus};
     return {status:'PENDING',syncStatus:state.syncStatus};
   }catch(error){
