@@ -40,6 +40,7 @@ Use this index instead of scanning the project.
 
 | Local paths, authority boundaries, and migration rules | `maintenance/PROJECT_LAYOUT.md` |
 | Confirmed cleanup and retained-resource audit | `maintenance/RESOURCE_AUDIT.md` |
+| Agent task routing, route-specific workflows, and exit evidence | `agent/FL_TASK_ROUTING.md` |
 
 ## 2026-07 Maintenance Entry
 

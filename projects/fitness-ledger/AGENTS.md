@@ -21,6 +21,24 @@ Before starting work that touches an existing module, data structure, or archite
 
 Do not copy formal `data/**` into Git or a Worktree. The status file contains hashes and dates only, never training-record content.
 
+## Task routing before skill invocation
+
+Before selecting a research-heavy skill, subagent, external tool, or release
+action, read `docs/agent/FL_TASK_ROUTING.md` and classify the task as S, M, L,
+or R3.
+
+- S tasks skip `two-role-community-first`, broad web research, and parallel
+  agent machinery.
+- M tasks use a short context/plan/implementation/verification path; use Lite
+  research only when unfamiliarity or reuse risk justifies it.
+- L tasks use the full two-role workflow and independent review.
+- R3 tasks additionally require the release/data gates below and never receive
+  formal writeback or provider upload authorization implicitly.
+
+If the route is uncertain, escalate one level. Do not use a longer route merely
+because it is available; use it only when the task's risk or uncertainty calls
+for it.
+
 ## Deployment and service rules
 
 - Derive deployment scope from `git diff --name-status`.
