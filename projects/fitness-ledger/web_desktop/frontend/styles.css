@@ -108,6 +108,7 @@ tbody tr{position:relative;transition:background .18s,padding .18s}
   --theme-glow:rgba(184,137,36,.16);
   --theme-wash:radial-gradient(circle at 18% 12%,var(--theme-glow),transparent 36%);
 }
+.weight-average-dialog{width:min(430px,calc(100vw - 32px));padding:0;border:0;border-radius:18px;background:#fffdf8;box-shadow:0 20px 60px rgba(36,29,18,.28)}.weight-average-dialog::backdrop{background:rgba(30,26,18,.24);backdrop-filter:blur(2px)}.weight-average-dialog form{padding:20px}.weight-average-dialog header{display:flex;justify-content:space-between;align-items:center}.weight-average-dialog header button{border:0;background:transparent;font-size:22px;cursor:pointer;color:var(--ink)}.weight-average-dialog h2{margin:12px 0 4px;font-size:20px}.weight-average-dialog p{margin:0;color:var(--graphite);font-size:12px}
 
 /* Final Export reconciliation. Keep this after legacy page rules. */
 body:has(.export-page) .sidebar{
