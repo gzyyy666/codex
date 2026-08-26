@@ -121,6 +121,8 @@
 body:has(.overlay) .tools-pet-floating,body:has(.overlay) .tools-pet-cursor-trail{opacity:0!important;pointer-events:none!important}
 html[data-pet-cursor="trophy"]:has(body .overlay),html[data-pet-cursor="trophy"]:has(body .overlay) *{cursor:auto!important}
 html[data-pet-cursor="trophy"]:has(body .overlay) button,html[data-pet-cursor="trophy"]:has(body .overlay) [role="button"],html[data-pet-cursor="trophy"]:has(body .overlay) a,html[data-pet-cursor="trophy"]:has(body .overlay) select{cursor:pointer!important}
+html[data-pet-cursor="trophy"]:has(dialog[open]),html[data-pet-cursor="trophy"]:has(dialog[open]) *{cursor:auto!important}
+html[data-pet-cursor="trophy"]:has(dialog[open]) button,html[data-pet-cursor="trophy"]:has(dialog[open]) [role="button"],html[data-pet-cursor="trophy"]:has(dialog[open]) a,html[data-pet-cursor="trophy"]:has(dialog[open]) select{cursor:pointer!important}
 body:has(.dm-management-page) .tools-pet-floating,body:has(.dm-management-page) .tools-pet-cursor-trail{opacity:0!important;pointer-events:none!important}
 .dm-definition-form-compact .dm-suggestion{display:none}
 .dm-module-only-record .dm-native-field{margin:0}

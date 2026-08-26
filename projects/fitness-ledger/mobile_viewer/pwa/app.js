@@ -9,7 +9,7 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.6 · build 2026.08.26.04";
+const BUILD_VERSION = "PWA v1.1.6 · build 2026.08.26.05";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -136,7 +136,7 @@ async function sendTrainingNote() {
 function renderSharePanel() {
   if (!state.shareOpen) return "";
   const actions = `<button class="share-confirm-secondary" data-action="close-share-panel" ${state.shareBusy ? "disabled" : ""}>取消</button><button class="share-confirm-primary" data-action="send-training-note" ${state.shareBusy ? "disabled" : ""}>${state.shareBusy ? "正在发送…" : "确认发送"}</button>`;
-  return `<dialog id="share-confirm-dialog" class="share-confirm-dialog" aria-labelledby="share-confirm-title"><section class="share-confirm-sheet"><span class="share-confirm-mark" aria-hidden="true">↑</span><h2 id="share-confirm-title">发送到电脑？</h2><p class="share-confirm-copy">确认后发送这条训练记录。</p>${state.shareError ? `<p class="share-confirm-error" role="alert">${esc(state.shareError)}</p>` : ""}<div class="share-confirm-actions">${actions}</div></section></dialog>`;
+  return `<dialog id="share-confirm-dialog" class="share-confirm-dialog" aria-labelledby="share-confirm-title"><section class="share-confirm-sheet"><span class="share-confirm-eyebrow">LOCAL → DESKTOP</span><span class="share-confirm-mark" aria-hidden="true">↑</span><h2 id="share-confirm-title">发送到电脑？</h2><p class="share-confirm-copy">确认后，这条训练记录会发送到电脑端的「当日训练记录」。</p>${state.shareError ? `<p class="share-confirm-error" role="alert">${esc(state.shareError)}</p>` : ""}<div class="share-confirm-actions">${actions}</div></section></dialog>`;
 }
 function loadIncomingShareIntent() {
   const params = new URLSearchParams(window.location.search);
@@ -766,7 +766,7 @@ document.addEventListener("click", event => {
 });
 window.addEventListener("scroll", scheduleDockCheck, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260826-04", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260826-05", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

@@ -189,24 +189,24 @@ button { color: inherit; cursor: pointer; }
 .auth-card input { width: 100%; box-sizing: border-box; min-height: 46px; border: 1px solid var(--line, #ded8cc); border-radius: 10px; padding: 0 12px; background: #fffdfa; color: var(--ink, #24221f); font: inherit; letter-spacing: normal; }
 .auth-card input { font-size: 16px; }
 
-.share-confirm-dialog { width: min(560px, calc(100vw - 32px)); max-width: 560px; max-height: min(760px, calc(100dvh - 32px)); margin: auto; padding: 0; border: 0; border-radius: 24px; background: transparent; color: #eff8fa; }
-.share-confirm-dialog::backdrop { background: rgba(8, 18, 24, .58); backdrop-filter: blur(3px); }
-.share-confirm-sheet { overflow: auto; padding: 20px; border: 1px solid rgba(255,255,255,.14); border-radius: 24px; background: #10232d; box-shadow: 0 18px 56px rgba(0,0,0,.42); }
-.share-confirm-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.share-confirm-head h2 { margin: 4px 0 0; font-size: 22px; line-height: 1.2; }
-.share-confirm-head button { appearance: none; border: 0; background: transparent; color: inherit; font-size: 30px; line-height: 1; padding: 0 2px; }
-.share-confirm-copy { margin: 16px 0 12px; color: #c5d4d8; line-height: 1.6; }
-.share-confirm-sheet textarea { display: block; box-sizing: border-box; width: 100%; resize: vertical; min-height: 150px; padding: 12px; border: 1px solid rgba(255,255,255,.18); border-radius: 12px; background: #08171e; color: #f4fbfc; font: inherit; font-size: 16px; line-height: 1.5; }
-.share-confirm-sheet textarea[readonly] { opacity: .82; }
-.share-confirm-actions { display: flex; gap: 10px; margin-top: 16px; }
-.share-confirm-primary, .share-confirm-secondary { min-height: 46px; padding: 0 16px; border-radius: 12px; font: inherit; font-weight: 700; }
-.share-confirm-primary { flex: 1; border: 0; background: #78ddc5; color: #06201d; }
-.share-confirm-primary:disabled { opacity: .62; }
-.share-confirm-secondary { border: 1px solid rgba(255,255,255,.24); background: transparent; color: #eff8fa; }
-.share-confirm-error, .share-confirm-success { margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; line-height: 1.45; }
-.share-confirm-error { background: rgba(213, 87, 87, .2); color: #ffd2d2; }
-.share-confirm-success { background: rgba(91, 193, 153, .18); color: #c9f5e6; }
-.share-confirm-dialog{width:min(330px,calc(100vw - 36px));padding:0;border:0;border-radius:22px;background:transparent;box-shadow:0 18px 50px rgba(7,18,23,.28)}.share-confirm-dialog::backdrop{background:rgba(18,28,31,.28);backdrop-filter:blur(4px)}.share-confirm-sheet{padding:24px 22px 20px;border:1px solid rgba(255,255,255,.5);border-radius:22px;background:linear-gradient(145deg,#f5f8f6,#e8f0ec);color:#24312e;text-align:center;box-shadow:0 16px 34px rgba(7,18,23,.18)}.share-confirm-mark{display:grid;place-items:center;width:34px;height:34px;margin:0 auto 12px;border-radius:50%;background:#b8d5c9;color:#315d50;font-weight:800}.share-confirm-sheet h2{margin:0;font-size:20px;letter-spacing:.01em}.share-confirm-copy{margin:8px 0 18px;color:#64716d;font-size:13px}.share-confirm-actions{justify-content:center}.share-confirm-primary,.share-confirm-secondary{min-height:40px;border-radius:999px;font-size:13px}.share-confirm-primary{background:#315d50;color:#fff}.share-confirm-secondary{border-color:#b8c7c0;color:#315d50}
+.share-confirm-dialog { width: min(330px, calc(100vw - 36px)); max-width: 330px; margin: auto; padding: 0; border: 0; border-radius: 24px; background: transparent; color: #24312e; }
+.share-confirm-dialog::backdrop { background: rgba(18, 28, 31, .32); backdrop-filter: blur(4px); }
+.share-confirm-sheet { overflow: auto; padding: 26px 24px 22px; border: 1px solid rgba(255,255,255,.6); border-radius: 24px; background: linear-gradient(145deg, #f6faf7 0%, #e9f1ec 100%); color: #24312e; text-align: center; box-shadow: 0 1px 1px rgba(7,18,23,.08), 0 22px 54px rgba(7,18,23,.22); }
+.share-confirm-eyebrow { display: block; margin: 0 0 12px; color: #6f9c8d; font-size: 10px; letter-spacing: .18em; text-transform: uppercase; }
+.share-confirm-mark { display: grid; place-items: center; width: 40px; height: 40px; margin: 0 auto 14px; border: 1px solid rgba(44,114,82,.18); border-radius: 14px; background: #d6e9df; color: #2c7252; font: 700 20px/1 Georgia, serif; box-shadow: inset 0 1px 0 rgba(255,255,255,.7); }
+.share-confirm-sheet h2 { margin: 0; font: 400 22px/1.2 Georgia, "Times New Roman", serif; letter-spacing: .005em; color: #1d2b26; }
+.share-confirm-copy { margin: 10px 0 20px; color: #64716d; font-size: 13.5px; line-height: 1.6; }
+.share-confirm-actions { display: flex; justify-content: center; gap: 10px; margin-top: 0; }
+.share-confirm-primary, .share-confirm-secondary { min-height: 42px; padding: 0 18px; border-radius: 999px; font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; transition: transform .16s ease-out, box-shadow .16s ease-out, opacity .16s ease-out; }
+.share-confirm-primary { border: 0; background: #2c7252; color: #fff; box-shadow: 0 1px 1px rgba(7,18,23,.12), 0 8px 20px rgba(44,114,82,.28); }
+.share-confirm-primary:hover { transform: translateY(-1px); box-shadow: 0 2px 2px rgba(7,18,23,.12), 0 12px 26px rgba(44,114,82,.32); }
+.share-confirm-primary:disabled { opacity: .6; transform: none; cursor: not-allowed; box-shadow: none; }
+.share-confirm-secondary { border: 1px solid #b8c7c0; background: transparent; color: #2c7252; }
+.share-confirm-primary:focus-visible, .share-confirm-secondary:focus-visible { outline: 2px solid #1d2b26; outline-offset: 2px; }
+.share-confirm-error, .share-confirm-success { margin: 12px 0 0; padding: 10px 12px; border-radius: 12px; line-height: 1.45; font-size: 13px; text-align: left; }
+.share-confirm-error { background: rgba(213, 87, 87, .14); color: #9b4c3e; }
+.share-confirm-success { background: rgba(91, 193, 153, .16); color: #2c7252; }
+@media (prefers-reduced-motion: reduce) { .share-confirm-primary, .share-confirm-secondary { transition: none; } .share-confirm-primary:hover { transform: none; } }
 .auth-submit { width: 100%; min-height: 46px; border: 0; border-radius: 10px; background: #28251f; color: #fffdfa; font: inherit; cursor: pointer; }
 .auth-submit:disabled { opacity: .55; cursor: wait; }
 .auth-error { margin: 14px 0 0; color: #a44c3d; font-size: 13px; }
