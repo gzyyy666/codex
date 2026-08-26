@@ -1,5 +1,46 @@
 # Fitness Ledger Changelog
 
+## 2026-08-26 - Weight comparison, dialog polish, and PWA v35 deployment
+
+- Added the Body Records 7-day average comparison and restyled it to the design
+  tokens: 30px panel radius, warm paper gradient, layered shadows, editorial
+  serif title, and a styled trigger in the weight rhythm header.
+- Removed the modal backdrop mosaic blur on the weight-average dialog.
+- Restored the native pointer over native `<dialog>` elements while the trophy
+  pet cursor is enabled.
+- Unified the mobile "send to computer" confirmation sheet into one light-mint
+  surface with eyebrow and layered depth; removed the stale dark rule set.
+- Aligned PWA build/version strings and bumped the Service Worker cache to v35;
+  deployed the bundle to CloudBase static hosting.
+
+## 2026-08-26 - Phone handoff and weight comparison (worktree merge)
+
+- Presented phone-to-desktop handoff as a modal confirmation and hardened the
+  sync feedback path.
+- Added the compact weight comparison and weight-average tool on the Body page.
+- Forced a PWA cache refresh so phone updates apply without a stale shell.
+
+## 2026-08-20 - PWA phone handoff and daily entry fixes
+
+- Restored the direct phone training handoff and the authenticated PWA share
+  flow.
+- Retained daily entry text when returning from review.
+
+## 2026-08-19 - Daily entry layout and launcher lifetime
+
+- Tightened the daily entry first-viewport fit and LLM template.
+- Fixed the desktop launcher service lifetime.
+
+## 2026-08-18 - Daily import and mobile read fixes
+
+- Fixed daily entry import/export recovery and mobile read-only reads.
+- Improved movement candidate matching.
+
+## 2026-08-16 - Phone inbox and automatic sync
+
+- Added the phone inbox and automatic save sync; enabled automatic sync in the
+  config example.
+
 ## 2026-08-15 - Production PWA text handoff preparation (release candidate)
 
 - Removed the accepted candidate Review surface from the formal PWA bundle;
