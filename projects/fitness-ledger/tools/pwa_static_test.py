@@ -54,8 +54,9 @@ def main() -> None:
     assert 'data-action="expand-note">发送到电脑</button>' in app_source
     assert 'if (action === "expand-note") { state.noteExpanded = true; state.shareDraft = state.note; state.shareTitle = "手机训练记录"; state.shareSent = false;' in app_source
     assert '确认发送到电脑' in app_source and 'PHONE_INBOX_TIMEOUT_MS = 15000' in app_source
-    assert 'role="dialog" aria-modal="true"' in app_source
-    assert '.share-confirm-backdrop { position: fixed; z-index: 90;' in css_source
+    assert '<dialog id="share-confirm-dialog"' in app_source
+    assert 'shareDialog.showModal()' in app_source
+    assert '.share-confirm-dialog::backdrop' in css_source
     assert 'href="./share.html"' not in app_source
     assert 'const dataModuleRequest = refreshDataModules();' in app_source
     assert 'await refreshDataModules();' not in app_source

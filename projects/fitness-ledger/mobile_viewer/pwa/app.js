@@ -138,7 +138,7 @@ function renderSharePanel() {
   const actions = state.shareSent
     ? `<button class="share-confirm-primary" data-action="close-share-panel">完成</button>`
     : `<button class="share-confirm-primary" data-action="send-training-note" ${state.shareBusy ? "disabled" : ""}>${state.shareBusy ? "正在写入云端…" : "确认发送到电脑"}</button><button class="share-confirm-secondary" data-action="close-share-panel">返回修改</button>`;
-  return `<section class="share-confirm-backdrop" data-action="close-share-panel"><section class="share-confirm-sheet" data-action="noop" role="dialog" aria-modal="true" aria-labelledby="share-confirm-title"><div class="share-confirm-head"><div><div class="eyebrow">发送到电脑</div><h2 id="share-confirm-title">${state.shareSent ? "已发送到电脑" : "确认发送这条记录？"}</h2></div><button data-action="close-share-panel" aria-label="关闭">×</button></div><p class="share-confirm-copy">${state.shareSent ? "电脑端“当日训练记录”将在近 7 天内显示这条文字。它尚未写入正式训练档案。" : "确认后，这条文字会显示在电脑端“当日训练记录”的近 7 天列表。随后仍须放入 Daily Entry、预览并确认，才会保存为正式记录。"}</p><textarea data-share-draft rows="8" aria-label="准备发送的训练记录" ${state.shareSent ? "readonly" : ""}>${esc(state.shareDraft)}</textarea>${state.shareError ? `<p class="share-confirm-error" role="alert">${esc(state.shareError)}</p>` : ""}${state.shareNotice ? `<p class="share-confirm-success" role="status">${esc(state.shareNotice)}</p>` : ""}<div class="share-confirm-actions">${actions}</div></section></section>`;
+  return `<dialog id="share-confirm-dialog" class="share-confirm-dialog" aria-labelledby="share-confirm-title"><section class="share-confirm-sheet"><div class="share-confirm-head"><div><div class="eyebrow">发送到电脑</div><h2 id="share-confirm-title">${state.shareSent ? "已发送到电脑" : "确认发送这条记录？"}</h2></div><button data-action="close-share-panel" aria-label="关闭">×</button></div><p class="share-confirm-copy">${state.shareSent ? "电脑端“当日训练记录”将在近 7 天内显示这条文字。它尚未写入正式训练档案。" : "确认后，这条文字会显示在电脑端“当日训练记录”的近 7 天列表。随后仍须放入 Daily Entry、预览并确认，才会保存为正式记录。"}</p><textarea data-share-draft rows="8" aria-label="准备发送的训练记录" ${state.shareSent ? "readonly" : ""}>${esc(state.shareDraft)}</textarea>${state.shareError ? `<p class="share-confirm-error" role="alert">${esc(state.shareError)}</p>` : ""}${state.shareNotice ? `<p class="share-confirm-success" role="status">${esc(state.shareNotice)}</p>` : ""}<div class="share-confirm-actions">${actions}</div></section></dialog>`;
 }
 function loadIncomingShareIntent() {
   const params = new URLSearchParams(window.location.search);
@@ -570,6 +570,8 @@ function render() {
   const content = name === "reference" ? renderReference() : name === "training" ? renderTraining() : name === "status" ? renderStatus() : name === "body" ? renderArchive("body") : name === "diet" ? renderArchive("diet") : name === "record" ? renderRecord() : name === "movement" ? renderMovement() : renderReference();
   const copyFeedback = state.noteCopyStatus ? `<div class="copy-feedback-toast" role="status" aria-live="polite">✓ ${esc(state.noteCopyStatus)}</div>` : "";
   app.innerHTML = `${content}${renderBackControl()}${copyFeedback}${renderSharePanel()}`;
+  const shareDialog = document.querySelector("#share-confirm-dialog");
+  if (shareDialog && !shareDialog.open) shareDialog.showModal();
   enhanceDataModuleSurface();
   if (focusedControl) {
     const nextControl = app.querySelector(focusedSelector);

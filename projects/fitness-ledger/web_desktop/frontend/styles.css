@@ -3272,6 +3272,7 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
 }
 .body-weight-slot{min-width:0}
 .body-weight-slot:empty{display:none}
+.weight-average-compare{display:grid;grid-template-columns:1.35fr repeat(2,minmax(120px,.72fr));gap:10px;align-items:end;margin-top:12px;padding:13px 15px;border:1px solid rgba(23,23,20,.14);border-radius:14px;background:rgba(255,253,247,.72)}.weight-average-compare>div{display:grid;gap:2px}.weight-average-compare strong{font-size:13px}.weight-average-compare label{display:grid;gap:4px;color:var(--graphite);font-size:9px;font-weight:700;letter-spacing:.08em}.weight-average-compare input{min-height:34px;border:1px solid rgba(23,23,20,.18);border-radius:8px;padding:0 8px;background:#fffdfa;font:inherit;font-size:12px;letter-spacing:normal}.weight-average-compare output{grid-column:1/-1;padding-top:2px;color:var(--ink);font-size:12px;font-variant-numeric:tabular-nums}@media(max-width:680px){.weight-average-compare{grid-template-columns:1fr 1fr}.weight-average-compare>div{grid-column:1/-1}}
 .body-weight-rhythm header{
   display:flex;
   align-items:baseline;
