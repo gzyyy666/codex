@@ -35,11 +35,16 @@ def main() -> None:
     assert "trigger = str(request.get(\"trigger\") or \"manual\")" in server
     assert '"trigger": trigger' in server
     assert "owner_uid" in phone_client and "listRecent" in phone_client and "updateStatus" in phone_client
+    assert "RECENT_DAYS = 7" in phone_client and "QUERY_LIMIT = 50" in phone_client
+    assert "Number(item.received_at || 0) >= cutoff" in phone_client
     assert "REQUEST_TIMEOUT_MS = 15000" in phone_client and "PHONE_INBOX_READ_TIMEOUT" in phone_client
-    assert 'phone-inbox-client.js?v=20260820-04' in app
+    assert 'phone-inbox-client.js?v=20260826-01' in app
+    assert "autoSyncOutcomeMessage" in app and "reconciled:true" in app
     assert "notice" in share and "已复制到剪贴板" in share
+    assert "pendingSend" in share and "confirm-send" in share
     assert 'state.incoming.mode === "outbound"' in share
     assert "noteCopyStatus" in pwa and "copyNoteToClipboard" in pwa
+    assert "shareConfirmReady" in pwa and "再次确认并发送" in pwa
     print("FITNESS_LEDGER_MOBILE_DESKTOP_SYNC_CONTRACT_OK")
 
 

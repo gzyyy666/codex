@@ -2,7 +2,7 @@ import { privateAccountIdentity, privateDatabase } from "./api.js?v=20260820-04"
 
 const root = document.querySelector("#share-app");
 const COLLECTION = "fl_web_share_inbox";
-const state = { incoming: null, items: [], loading: true, busy: false, error: "", notice: "", authRequired: false };
+const state = { incoming: null, items: [], loading: true, busy: false, error: "", notice: "", authRequired: false, pendingSend: null };
 
 const statusObserver = new MutationObserver(() => {
   document.querySelectorAll(".share-item").forEach((node, index) => {
@@ -113,7 +113,17 @@ function renderItems() {
   return state.items.map(item => `<article class="share-item"><div class="share-item-head"><strong>${esc(statusLabel(item.status))}</strong><span class="share-status">${esc(item.title || "文字收件")}</span></div><div class="share-item-text">${esc(item.text)}</div><div class="share-item-meta">${esc(formatDate(item.received_at))}</div><div class="share-actions"><button class="share-button" data-action="copy-item" data-item-id="${esc(item._id)}">复制文字</button><button class="share-button" data-action="process-item" data-item-id="${esc(item._id)}">标记已处理</button><button class="share-button" data-action="reject-item" data-item-id="${esc(item._id)}">拒绝</button></div></article>`).join("");
 }
 
+function renderSendConfirmation() {
+  const pending = state.pendingSend;
+  if (!pending) return "";
+  return `<section class="share-card share-send-confirm" role="dialog" aria-modal="true" aria-label="再次确认发送"><div class="share-kicker">再次确认</div><h2>发送到电脑？</h2><p>发送后，电脑端“当日训练记录”会在近 7 天列表中显示这条文字；它不会自动写入正式训练记录。</p><pre class="share-item-text">${esc(pending.text)}</pre><div class="share-actions"><button class="share-button primary" data-action="confirm-send">确认发送到电脑</button><button class="share-button" data-action="cancel-send">返回修改</button></div></section>`;
+}
+
 function render() {
+  if (state.pendingSend) {
+    root.innerHTML = `<div class="share-shell">${renderSendConfirmation()}</div>`;
+    return;
+  }
   if (state.authRequired) {
     root.innerHTML = `<div class="share-shell"><section class="share-card share-auth"><div class="share-kicker">每日健身 / 文字收件箱</div><h1>需要登录</h1><p>请先在正式 PWA 中登录，再接收手机发来的文字。</p><a class="share-button" href="./#status">返回工作台</a></section></div>`;
     return;
@@ -141,7 +151,10 @@ async function send(title, text) {
   state.busy = true;
   state.error = "";
   state.notice = "";
-  try { await enqueue(title, text); }
+  try {
+    await enqueue(title, text);
+    state.notice = "已发送到云端“当日训练记录”。电脑端打开“当日训练记录”即可在近 7 天列表看到；放入 Daily Entry 后仍需预览并确认。";
+  }
   catch (error) { state.error = error.message || "发送失败，正式记录未改变。"; }
   state.busy = false;
   render();
@@ -151,8 +164,10 @@ root.addEventListener("click", async event => {
   const action = event.target.closest("[data-action]")?.dataset.action;
   if (!action || state.busy) return;
   if (action === "clear-incoming") { state.incoming = null; render(); return; }
-  if (action === "send-incoming") { await send(state.incoming?.mode === "outbound" ? "电脑 Daily Entry" : "手机分享", root.querySelector("[data-incoming-text]")?.value); return; }
-  if (action === "send-manual") { await send("手动输入", root.querySelector("[data-manual-text]")?.value); return; }
+  if (action === "send-incoming") { state.pendingSend = { title: state.incoming?.mode === "outbound" ? "电脑 Daily Entry" : "手机分享", text: root.querySelector("[data-incoming-text]")?.value || "" }; render(); return; }
+  if (action === "send-manual") { state.pendingSend = { title: "手动输入", text: root.querySelector("[data-manual-text]")?.value || "" }; render(); return; }
+  if (action === "cancel-send") { state.pendingSend = null; render(); return; }
+  if (action === "confirm-send") { const pending = state.pendingSend; state.pendingSend = null; await send(pending?.title, pending?.text); return; }
   const item = state.items.find(row => row._id === event.target.closest("[data-item-id]")?.dataset.itemId);
   if (!item) return;
   try {

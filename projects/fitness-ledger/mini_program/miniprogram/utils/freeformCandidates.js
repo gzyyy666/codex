@@ -17,7 +17,7 @@ function usableTerm(value) {
   if (/[\u3400-\u9fff]/.test(term)) return compactLength >= 2 ? term : "";
   return compactLength >= 3 ? term : "";
 }
-const MOVEMENT_QUALIFIER_PREFIXES = ["俯身", "上斜", "下斜", "坐姿", "站姿", "单臂", "双臂", "反向", "窄握", "宽握", "绳索", "杠铃", "哑铃", "器械", "仰卧"];
+const MOVEMENT_QUALIFIER_PREFIXES = ["俯身", "上斜", "下斜", "坐姿", "站姿", "单臂", "双臂", "反向", "窄握", "宽握", "绳索", "杠铃", "哑铃", "器械", "仰卧", "史密斯", "固定", "地雷管", "T杠", "ez杠", "直臂", "高位", "低位", "单腿", "双腿", "单侧", "双侧", "跪姿", "悬垂"];
 function hasUnmatchedQualifier(source, position, term) {
   if (!/[\u3400-\u9fff]/.test(term)) return false;
   const prefix = source.slice(Math.max(0, position - 4), position);
@@ -27,6 +27,9 @@ function termMatches(source, term) {
   const matches = [];
   let position = source.indexOf(term);
   while (position >= 0) {
+    // Candidates are intentionally a conservative lookup, not a parser. A
+    // reference card may appear only for a full dictionary name/alias, never
+    // for a shortened action hidden behind an unmatched qualifier.
     if (!hasUnmatchedQualifier(source, position, term)) matches.push({ term, position });
     position = source.indexOf(term, position + Math.max(1, term.length));
   }
@@ -88,14 +91,11 @@ function loadIndex() {
   if (indexPromise) return indexPromise;
   indexPromise = ledger.call("movementCatalog")
     .then(catalog => {
-      if (catalog.ok && Array.isArray(catalog.data)) {
-        cachedIndex = buildCatalogIndex(catalog.data);
-        return cachedIndex;
-      }
-      return Promise.all(BODY_PARTS.map(part => ledger.call("bodyArea", { part: part.id }))).then(responses => {
-        cachedIndex = buildIndex(responses);
-        return cachedIndex;
-      });
+      // Do not fall back to body-area display cards: they do not carry the
+      // alias library, so a fallback could create a reference popup for a
+      // name that has not been explicitly approved in the dictionary.
+      cachedIndex = catalog.ok && Array.isArray(catalog.data) ? buildCatalogIndex(catalog.data) : [];
+      return cachedIndex;
     })
     .catch(() => [])
     .finally(() => { indexPromise = null; });

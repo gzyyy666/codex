@@ -116,6 +116,9 @@ def main() -> None:
         assert incoming == "2026-08-16 weight 71 kg", incoming
         assert browser.evaluate("document.body.innerText.includes('发送到云端')") is True
         browser.evaluate("document.querySelector('[data-action=send-incoming]').click()")
+        wait(browser, "document.querySelector('[data-action=confirm-send]') !== null")
+        assert browser.evaluate("document.body.innerText.includes('再次确认')") is True
+        browser.evaluate("document.querySelector('[data-action=confirm-send]').click()")
         wait(browser, "document.querySelector('[data-status=pending]') !== null && document.body.innerText.includes('2026-08-16 weight 71 kg')")
         assert browser.evaluate("document.body.innerText.includes('share-review') || document.body.innerText.includes('anonymous-review-fixture')") is False
         browser.evaluate("document.querySelector('[data-action=copy-item]').click()")

@@ -2,7 +2,8 @@ const SDK_URL = "https://static.cloudbase.net/cloudbase-js-sdk/2.27.1/cloudbase.
 const ENV_ID = "cloud1-d9g35v5s1a904a8ad";
 const REGION = "ap-shanghai";
 const COLLECTION = "fl_web_share_inbox";
-const MAX_ITEMS = 7;
+const RECENT_DAYS = 7;
+const QUERY_LIMIT = 50;
 const REQUEST_TIMEOUT_MS = 15000;
 
 let sdkPromise;
@@ -75,8 +76,10 @@ export async function signIn(username, password) {
 export async function listRecent() {
   const { uid } = await requireLogin();
   const inbox = await collection();
-  const result = await withTimeout(inbox.where({ owner_uid: uid }).orderBy("received_at", "desc").limit(MAX_ITEMS + 5).get(), "PHONE_INBOX_READ_TIMEOUT");
-  return (Array.isArray(result.data) ? result.data : []).map(normalizeItem).filter(item => item.status !== "expired").slice(0, MAX_ITEMS);
+  const cutoff = Date.now() - RECENT_DAYS * 24 * 60 * 60 * 1000;
+  const result = await withTimeout(inbox.where({ owner_uid: uid }).orderBy("received_at", "desc").limit(QUERY_LIMIT).get(), "PHONE_INBOX_READ_TIMEOUT");
+  return (Array.isArray(result.data) ? result.data : []).map(normalizeItem)
+    .filter(item => item.status !== "expired" && Number(item.received_at || 0) >= cutoff);
 }
 
 export async function updateStatus(id, status) {
@@ -86,4 +89,4 @@ export async function updateStatus(id, status) {
   return listRecent();
 }
 
-export const maxItems = MAX_ITEMS;
+export const recentDays = RECENT_DAYS;

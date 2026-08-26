@@ -62,7 +62,7 @@ function checksPage(){main.innerHTML=`<section class="page page-grid"><div class
 function reviewPage(raw){main.innerHTML=`<section class="page review"><div class="review-top">${pageHeader('?????','Review extracted data before saving to your local journal.')}<button class="btn" data-back>Back to edit</button></div><div class="summary-strip">${[['Date','2026-07-01'],['Weight','67.8 kg'],['Bowel','少量'],['Calories','1570 kcal'],['Training','胸部, 肩部'],['Movements','6 · New 1']].map(x=>`<div class="metric"><label>${x[0]}</label><strong>${x[1]}</strong></div>`).join('')}</div>${['BODY 身体','DIET 饮食','TRAINING 训练','MOVEMENTS 动作识别','WARNINGS 警告'].map((t,i)=>`<section class="review-section"><h3>${t}</h3><p>${i===4?'Duplicate date · New movement · Unrecognized sets':i===3?'1. 卧推 · 4 sets &nbsp; 2. 引体向上 · 3 sets &nbsp; 3. 绳索面拉 · 3 sets':esc(short(raw||'Preview data from the current draft.',180))}</p></section>`).join('')}<div class="bottom-bar"><button class="btn" data-back>Cancel</button><button class="btn" data-back>← Back to edit</button><button class="btn btn-primary" data-duplicate>Confirm & Save</button></div></section>`}
 
  function modal(title,content,options={}){const legacyActions=typeof options==='string'?options:'';const config=options&&typeof options==='object'?options:{};const light=Boolean(config.light);const actions=legacyActions||config.actions||'';root.innerHTML=`<div class="overlay"><section class="modal ${light?'light':''}"><button class="close" data-close>×</button><h2>${esc(title)}</h2>${content}${actions?`<div class="modal-actions">${actions}</div>`:''}</section></div>`}
-async function loadPhoneInboxClient(){if(!phoneInboxClientPromise)phoneInboxClientPromise=import(`./phone-inbox-client.js?v=20260820-04`);return phoneInboxClientPromise}
+async function loadPhoneInboxClient(){if(!phoneInboxClientPromise)phoneInboxClientPromise=import(`./phone-inbox-client.js?v=20260826-01`);return phoneInboxClientPromise}
 function phoneInboxDate(value){const date=new Date(Number(value)||value);return Number.isNaN(date.getTime())?String(value||''):date.toLocaleString('zh-CN',{hour12:false})}
 function phoneInboxError(error){if(error?.code==='PHONE_INBOX_ACCOUNT_REQUIRED')return '当前只是匿名或临时登录，无法归入账号收件箱。请登录与手机端相同的 CloudBase 账号。';if(error?.code==='PHONE_INBOX_AUTH_REQUIRED'||String(error?.message||'').includes('AUTH_REQUIRED'))return '请先登录 CloudBase 账号，才能读取手机发送的内容。';if(String(error?.code||'').includes('PHONE_INBOX_')&&String(error?.code||'').includes('TIMEOUT'))return '读取等待超过 15 秒，未显示为成功。请检查网络后重试。';return error?.message||'手机发送记录暂时无法读取，请稍后重试。'}
 function renderPhoneInboxModal(){
@@ -72,7 +72,7 @@ function renderPhoneInboxModal(){
   if(inbox.status==='auth'){modal('当日训练记录',`<p class="phone-inbox-copy">手机内容会先保存在你的私有 CloudBase 收件集合中。登录只用于读取和处理这些内容，不会直接写入正式记录。</p><form class="phone-inbox-login" data-phone-inbox-login><label><span>CloudBase 账号</span><input name="username" autocomplete="username" required></label><label><span>密码</span><input name="password" type="password" autocomplete="current-password" required></label><p class="dm-form-error">${esc(inbox.error||"请登录后继续。")}</p><button class="btn btn-primary" type="submit" ${inbox.busy?'disabled':''}>${inbox.busy?'登录中…':'登录并读取'}</button></form>`);return}
   const items=inbox.items||[];
   const list=items.length?items.map(item=>`<article class="phone-inbox-item"><header><strong>${esc(item.title||'手机训练记录')}</strong><time>${esc(phoneInboxDate(item.received_at))}</time></header><pre>${esc(item.text||'')}</pre><div class="phone-inbox-item-actions"><button class="btn btn-primary" data-phone-inbox-use="${esc(item._id)}">放入 Daily Entry</button><button class="btn" data-phone-inbox-copy="${esc(item._id)}">复制内容</button><button class="btn btn-light" data-phone-inbox-processed="${esc(item._id)}">标记已处理</button></div></article>`).join(''):'<p class="phone-inbox-empty">目前没有手机发送的内容。</p>';
-  modal('当日训练记录',`<div class="phone-inbox-head"><p>手机发来的内容会先出现在这里。可以复制原文，或选择“放入 Daily Entry”继续识别、预览和确认保存。</p><span>云端保留最近 ${items.length} 条 · 超过 7 条由 CloudBase 清理</span></div><div class="phone-inbox-list">${list}</div>${inbox.notice?`<p class="phone-inbox-notice" role="status">${esc(inbox.notice)}</p>`:''}`,`<button class="btn" data-phone-inbox-refresh>${inbox.busy?'读取中…':'刷新'}</button><button class="btn btn-primary" data-close>关闭</button>`);
+  modal('当日训练记录',`<div class="phone-inbox-head"><p>手机发来的内容会先出现在这里。可以复制原文，或选择“放入 Daily Entry”继续识别、预览和确认保存。</p><span>近 7 天收到 ${items.length} 条 · 已按发送时间筛选</span></div><div class="phone-inbox-list">${list}</div>${inbox.notice?`<p class="phone-inbox-notice" role="status">${esc(inbox.notice)}</p>`:''}`,`<button class="btn" data-phone-inbox-refresh>${inbox.busy?'读取中…':'刷新'}</button><button class="btn btn-primary" data-close>关闭</button>`);
 }
 async function openPhoneDailyRecords(){
   state.phoneInbox={status:'loading',items:[],error:'',notice:'',busy:false};renderPhoneInboxModal();
@@ -205,26 +205,38 @@ reviewPage=function(payload){reviewPageWithDuplicateStatus(payload);const choice
 function collectReviewForm(){if(!state.reviewPayload)return null;$$('[data-review-field]').forEach(input=>setReviewValue(input.dataset.reviewField,input.type==='number'?(input.value===''?null:Number(input.value)):input.value));const movements=state.reviewPayload.review.training?.movements||[];movements.forEach((movement,index)=>{movement.display_name=$(`[data-movement-name="${index}"]`)?.value.trim()||movement.name;movement.notes=$(`[data-movement-note="${index}"]`)?.value.trim()||'';movement._review_action=$(`[data-movement-action="${index}"]`)?.value||'use';movement._mapped_movement_id=$(`[data-movement-map="${index}"]`)?.value||'';movement._muscle_group=$(`[data-movement-group="${index}"]`)?.value||'';const progressToggle=$(`[data-progress-review-toggle="${index}"]`);if(progressToggle)movement.exclude_from_progress=!progressToggle.checked});return state.reviewPayload.review}
 async function parseWebEntry(){const raw=$('#raw-entry')?.value.trim();if(!raw){showToast('请先输入每日记录。');return}const mode=$('#entry-input-mode')?.value||'auto';state.draftRaw=raw;state.reviewSource=mode==='natural'?'daily_entry_natural_language':'daily_entry';showToast('正在识别…');try{const payload=mode==='standard'?await postApi('/api/parse',{raw}):await postApi('/api/import/preview',{raw,transport:'daily_entry_board'});reviewPage(payload)}catch(error){showToast(error.message||'识别失败。')}}
 async function autoSyncAfterSave(){
+  let latestStatus=null;
   try{
-    const status=await api('/api/cloud-sync/status');
-    state.syncStatus=status;
+    latestStatus=await api('/api/cloud-sync/status');
+    state.syncStatus=latestStatus;
     updateSyncNav();
-    if(status.auto_sync_enabled===false||!status.upload_provider_ready)return status;
-    const synced=await postApi('/api/cloud-sync/sync',{trigger:'auto_save'});
-    state.syncStatus=synced;
+    if(latestStatus.auto_sync_enabled===false)return {status:'AUTO_SYNC_DISABLED',syncStatus:latestStatus};
+    if(!latestStatus.upload_provider_ready)return {status:'AUTO_SYNC_NOT_CONFIGURED',syncStatus:latestStatus};
+    const response=await postApi('/api/cloud-sync/sync',{trigger:'auto_save'});
+    const result=response.sync_result||{};
+    latestStatus=await api('/api/cloud-sync/status');
+    state.syncStatus={...latestStatus,sync_result:result};
     updateSyncNav();
-    const result=synced.sync_result||{};
-    if(['SYNCED','NO_CHANGES'].includes(result.status))showToast('记录已保存，并已自动同步。');
-    else showToast('记录已保存；云端同步待处理，可在 Cloud Sync 中手动重试。');
-    return synced;
+    if(['SYNCED','NO_CHANGES'].includes(result.status)&&latestStatus.sync_status==='SYNCED')return {status:'SYNCED',syncStatus:state.syncStatus};
+    if(['UPLOAD_FAILED','CLOUD_MISMATCH','NOT_CONFIGURED'].includes(result.status))return {status:result.status,syncStatus:state.syncStatus};
+    return {status:'PENDING',syncStatus:state.syncStatus};
   }catch(error){
-    console.warn('[Daily Entry] save committed; automatic cloud sync failed',error);
-    state.syncStatus={...(state.syncStatus||{}),sync_status:'SYNC_ERROR',payload_stale:true};
+    console.warn('[Daily Entry] auto-sync response was not confirmed',error);
+    try{
+      latestStatus=await api('/api/cloud-sync/status');
+      state.syncStatus=latestStatus;
+      updateSyncNav();
+      if(latestStatus.sync_status==='SYNCED')return {status:'SYNCED',reconciled:true,syncStatus:latestStatus};
+      return {status:'UNKNOWN',syncStatus:latestStatus};
+    }catch(statusError){
+      console.warn('[Daily Entry] auto-sync status reconciliation failed',statusError);
+      state.syncStatus={...(state.syncStatus||{}),sync_status:'SYNC_ERROR',payload_stale:true};
+    }
     updateSyncNav();
-    showToast('记录已保存；自动同步未完成，可在 Cloud Sync 中手动重试。');
-    return null;
+    return {status:'UNKNOWN',syncStatus:state.syncStatus};
   }
 }
+function autoSyncOutcomeMessage(outcome){const status=String(outcome?.status||'UNKNOWN');if(status==='SYNCED')return outcome?.reconciled?'记录已保存；自动同步结果已复核为成功。':'记录已保存，并已自动同步到云端。';if(status==='AUTO_SYNC_DISABLED')return '记录已保存；自动同步未启用，云端副本等待手动同步。';if(status==='AUTO_SYNC_NOT_CONFIGURED')return '记录已保存；自动同步未配置，云端副本等待手动同步。';if(status==='PENDING')return '记录已保存；云端尚未确认同步，请在 Cloud Sync 中查看状态。';if(status==='UPLOAD_FAILED'||status==='CLOUD_MISMATCH'||status==='NOT_CONFIGURED')return `记录已保存；云端同步未完成（${status}），可在 Cloud Sync 中手动重试。`;return '记录已保存；自动同步结果暂无法确认，请在 Cloud Sync 中查看最终状态。'}
 function updateSyncNav(){
   const nav=$('[data-sync-nav-entry]'),marker=nav?.querySelector('.sync-nav-status');
   if(!nav||!marker)return;
@@ -266,10 +278,11 @@ async function saveWebReview(saveMode=null){
     if(result.status!=='NO_CHANGES'&&(result.training_updated||Number(result.saved_movements||0)>0)){
       try{invalidateMovementUsage()}catch(error){console.warn('[Daily Entry] save committed; movement cache refresh failed',error)}
     }
+    const autoSyncOutcome=result.status!=='NO_CHANGES'?await autoSyncAfterSave():null;
     const refreshPromise=refreshWebState().catch(error=>{console.warn('[Daily Entry] save committed; archive refresh failed',error);showToast('记录已保存，但页面状态刷新失败，请稍后查看。');return null});
-    if(result.status!=='NO_CHANGES')void autoSyncAfterSave();
     try{navigate('quick')}catch(error){console.warn('[Daily Entry] save committed; route refresh failed',error)}
     try{showSaveReceipt(result)}catch(error){console.warn('[Daily Entry] save receipt failed',error)}
+    if(autoSyncOutcome)showToast(autoSyncOutcomeMessage(autoSyncOutcome));
     void refreshPromise.then(()=>{if(state.view==='quick'&&!state.saving)quickPage()});
     try{
       if(result.status!=='NO_CHANGES'&&result.training_updated)emitGuardianIntent('training-save',buildTrainingSaveSummary(result),{id:`training-save:${result.record_id||result.date}`});
