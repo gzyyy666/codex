@@ -5,7 +5,7 @@
 ## Git 基线
 
 - 当前分支：`main`
-- `HEAD` / `main` / `origin/main`：`e4275aa8c14060df3f05b7c4da840c75eb5d3b73`
+- `HEAD` / `main` / `origin/main`：见启动时实时状态；本次基线文档提交为 `b5f0614fe27cc218063cbdfc3834751b2a2d9c9f`
 - 远端：`https://github.com/gzyyy666/codex.git`
 - 源码工作区存在用户已有文档改动：`AGENTS.md`、`docs/INDEX.md`、`docs/agent/`；不要覆盖或清理。
 
