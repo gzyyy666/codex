@@ -39,6 +39,9 @@ If no closure phrase is given, default to **先开发/先让我验收**. This pr
 
 ## Current Authority
 
+Read `docs/CURRENT_STATUS.md` for the latest durable handoff summary, then
+confirm its Git, formal, and CloudBase values with `project_status.py`.
+
 - Desktop application and parser: `stable_app.pyw`
 - Shared safe write boundary: `ledger_commands.py`
 - Live local data: local-only `data/tracker.json` and `data/movement_dictionary.json`
