@@ -2,6 +2,8 @@ import { privateAccountIdentity, privateDatabase } from "./api.js?v=20260820-04"
 
 const root = document.querySelector("#share-app");
 const COLLECTION = "fl_web_share_inbox";
+// 同一次发送的重试保护窗口：窗口内相同内容视为重试会更新原记录，窗口外每次发送都是新记录。
+const RETRY_WINDOW_MS = 10 * 60 * 1000;
 const state = { incoming: null, items: [], loading: true, busy: false, error: "", notice: "", authRequired: false, pendingSend: null };
 
 const statusObserver = new MutationObserver(() => {
@@ -53,8 +55,20 @@ async function enqueue(title, text) {
   const clientId = await stableClientId(cleanTitle, cleanText);
   const { uid } = await privateAccountIdentity();
   const inbox = await collection();
-  const existing = await inbox.where({ owner_uid: uid, client_id: clientId }).limit(1).get();
-  if (!existing.data?.length) {
+  const existing = await inbox.where({ owner_uid: uid, client_id: clientId }).orderBy("received_at", "desc").limit(1).get();
+  const existingRow = existing.data?.[0];
+  // 以次为单位：只有重试窗口内的相同内容才视为同一次发送（更新），否则新建一条记录。
+  const isRetry = existingRow && (Date.now() - Number(existingRow.received_at || 0)) < RETRY_WINDOW_MS;
+  if (isRetry) {
+    await inbox.doc(existingRow._id).update({ data: {
+      title: cleanTitle,
+      text: cleanText,
+      source: "pwa_share",
+      status: "pending",
+      updated_at: Date.now(),
+      expires_at: Date.now() + 30 * 24 * 60 * 60 * 1000
+    }});
+  } else {
     await inbox.add({ data: {
       owner_uid: uid,
       client_id: clientId,

@@ -5,6 +5,9 @@ const COLLECTION = "fl_web_share_inbox";
 const RECENT_DAYS = 7;
 const QUERY_LIMIT = 50;
 const REQUEST_TIMEOUT_MS = 15000;
+// 电脑端保留最近 7 次发送；云端读取成功后自动落到本地缓存，云端不可用时回退。
+const KEEP_COUNT = 7;
+const CACHE_KEY = "fitness-ledger:phone-inbox-recent:v1";
 
 let sdkPromise;
 let appPromise;
@@ -67,6 +70,19 @@ function normalizeItem(item) {
   return { ...nested, ...item };
 }
 
+function saveCache(items) {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ saved_at: Date.now(), items })); } catch (_) {}
+}
+
+export function readCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed?.items) ? parsed.items : [];
+  } catch (_) { return []; }
+}
+
 export async function signIn(username, password) {
   const current = await auth();
   await withTimeout(current.signIn({ username: String(username || "").trim(), password: String(password || "") }), "PHONE_INBOX_AUTH_TIMEOUT");
@@ -78,14 +94,24 @@ export async function listRecent() {
   const inbox = await collection();
   const cutoff = Date.now() - RECENT_DAYS * 24 * 60 * 60 * 1000;
   const result = await withTimeout(inbox.where({ owner_uid: uid }).orderBy("received_at", "desc").limit(QUERY_LIMIT).get(), "PHONE_INBOX_READ_TIMEOUT");
-  return (Array.isArray(result.data) ? result.data : []).map(normalizeItem)
-    .filter(item => item.status !== "expired" && Number(item.received_at || 0) >= cutoff);
+  const items = (Array.isArray(result.data) ? result.data : []).map(normalizeItem)
+    .filter(item => item.status !== "expired" && Number(item.received_at || 0) >= cutoff)
+    .slice(0, KEEP_COUNT);
+  saveCache(items);
+  return items;
 }
 
 export async function updateStatus(id, status) {
   const { uid } = await requireLogin();
   const inbox = await collection();
   await withTimeout(inbox.where({ _id: id, owner_uid: uid }).update({ status, updated_at: Date.now() }), "PHONE_INBOX_WRITE_TIMEOUT");
+  return listRecent();
+}
+
+export async function removeItem(id) {
+  const { uid } = await requireLogin();
+  const inbox = await collection();
+  await withTimeout(inbox.where({ _id: id, owner_uid: uid }).remove(), "PHONE_INBOX_WRITE_TIMEOUT");
   return listRecent();
 }
 

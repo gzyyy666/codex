@@ -9,11 +9,13 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.6 · build 2026.08.26.05";
+const BUILD_VERSION = "PWA v1.1.7 · build 2026.08.27.01";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
 const PHONE_INBOX_TIMEOUT_MS = 15000;
+// 同一次发送的重试保护窗口：窗口内相同内容视为重试会更新原记录，窗口外每次发送都是新记录。
+const PHONE_INBOX_RETRY_WINDOW_MS = 10 * 60 * 1000;
 const moduleTools = window.FLDataModules || {
   normalizeContract: () => ({ schema: "fitness-ledger-mobile-module-read-model-v1", modules: [] }),
   categoryEntriesForDate: () => [], detailEntriesForDate: () => [], extensionEntriesForDate: () => [],
@@ -109,9 +111,12 @@ async function sendTrainingNote() {
     const { uid } = await withPhoneInboxTimeout(privateAccountIdentity(), "PHONE_INBOX_AUTH_TIMEOUT");
     const inbox = await withPhoneInboxTimeout(phoneInboxCollection(), "PHONE_INBOX_CONNECT_TIMEOUT");
     const clientId = await phoneInboxClientId(title, textValue);
-    const existing = await withPhoneInboxTimeout(inbox.where({ owner_uid: uid, client_id: clientId }).limit(1).get(), "PHONE_INBOX_WRITE_TIMEOUT");
+    const existing = await withPhoneInboxTimeout(inbox.where({ owner_uid: uid, client_id: clientId }).orderBy("received_at", "desc").limit(1).get(), "PHONE_INBOX_WRITE_TIMEOUT");
+    const existingRow = existing.data?.[0];
+    // 以次为单位：只有重试窗口内的相同内容才视为同一次发送（更新），否则新建一条记录。
+    const isRetry = existingRow && (Date.now() - Number(existingRow.received_at || 0)) < PHONE_INBOX_RETRY_WINDOW_MS;
     const data = { owner_uid: uid, client_id: clientId, title, text: textValue, source: "pwa_note", status: "pending", received_at: Date.now(), updated_at: Date.now() };
-    if (existing.data?.length) await withPhoneInboxTimeout(inbox.doc(existing.data[0]._id).update(data), "PHONE_INBOX_WRITE_TIMEOUT");
+    if (isRetry) await withPhoneInboxTimeout(inbox.doc(existingRow._id).update(data), "PHONE_INBOX_WRITE_TIMEOUT");
     else await withPhoneInboxTimeout(inbox.add(data), "PHONE_INBOX_WRITE_TIMEOUT");
     state.phoneInboxItems = await withPhoneInboxTimeout(listPhoneInboxItems(), "PHONE_INBOX_READ_TIMEOUT");
     const verified = state.phoneInboxItems.some(item => item.client_id === clientId && item.text === textValue && item.source === "pwa_note" && item.status !== "expired");
