@@ -118,12 +118,17 @@
 .dm-route-back-button{position:fixed;top:96px;bottom:auto;left:20px;z-index:70;border:1px solid rgba(44,48,43,.22);border-radius:999px;padding:9px 13px;background:rgba(255,253,247,.94);box-shadow:0 6px 18px rgba(54,71,56,.12);color:#35483b;font:600 12px/1.2 var(--sans,Arial,sans-serif);cursor:pointer;backdrop-filter:blur(8px)}
 .dm-route-back-button:hover{background:#fffdf7;color:#1f3025}
 .dm-has-route-back .entry-page .home-text-link,.dm-has-route-back .review-document-head .home-text-link,.dm-has-route-back .movement-detail-page>.movement-back,.dm-has-route-back .dictionary-page .dictionary-back,.dm-has-route-back .cloud-sync-page>.movement-back{display:none!important}
-body:has(.overlay) .tools-pet-floating,body:has(.overlay) .tools-pet-cursor-trail{opacity:0!important;pointer-events:none!important}
-html[data-pet-cursor="trophy"]:has(body .overlay),html[data-pet-cursor="trophy"]:has(body .overlay) *{cursor:auto!important}
-html[data-pet-cursor="trophy"]:has(body .overlay) button,html[data-pet-cursor="trophy"]:has(body .overlay) [role="button"],html[data-pet-cursor="trophy"]:has(body .overlay) a,html[data-pet-cursor="trophy"]:has(body .overlay) select{cursor:pointer!important}
+body:has(.overlay) .tools-pet-floating,body:has(.overlay) .tools-pet-navigator,body:has(.overlay) .tools-pet-nav,body:has(.overlay) .tools-pet-menu{opacity:0!important;pointer-events:none!important}
+/* Deterministic cursor restore inside any modal overlay. Does NOT depend on the
+   data-pet-cursor attribute, which the guardian pet re-applies on every pointer move
+   and would otherwise re-trigger the global cursor:none rule. */
+body:has(.overlay) input,body:has(.overlay) textarea,body:has(.overlay) select,body:has(.overlay) [contenteditable]{cursor:text!important}
+body:has(.overlay) input:focus,body:has(.overlay) textarea:focus,body:has(.overlay) [contenteditable]:focus{caret-color:currentColor!important}
 html[data-pet-cursor="trophy"]:has(dialog[open]),html[data-pet-cursor="trophy"]:has(dialog[open]) *{cursor:auto!important}
 html[data-pet-cursor="trophy"]:has(dialog[open]) button,html[data-pet-cursor="trophy"]:has(dialog[open]) [role="button"],html[data-pet-cursor="trophy"]:has(dialog[open]) a,html[data-pet-cursor="trophy"]:has(dialog[open]) select{cursor:pointer!important}
-body:has(.dm-management-page) .tools-pet-floating,body:has(.dm-management-page) .tools-pet-cursor-trail{opacity:0!important;pointer-events:none!important}
+html[data-pet-cursor="trophy"] input,html[data-pet-cursor="trophy"] textarea,html[data-pet-cursor="trophy"] select,html[data-pet-cursor="trophy"] [contenteditable="true"],html[data-pet-cursor="trophy"] [contenteditable=""]{cursor:text!important}
+html[data-pet-cursor="trophy"] input:focus,html[data-pet-cursor="trophy"] textarea:focus,html[data-pet-cursor="trophy"] [contenteditable]:focus{caret-color:currentColor!important}
+body:has(.dm-management-page) .tools-pet-floating,body:has(.dm-management-page) .tools-pet-navigator,body:has(.dm-management-page) .tools-pet-nav,body:has(.dm-management-page) .tools-pet-menu{opacity:0!important;pointer-events:none!important}
 .dm-definition-form-compact .dm-suggestion{display:none}
 .dm-module-only-record .dm-native-field{margin:0}
 .dm-body-module-record .body-slip-weight b{opacity:.32}

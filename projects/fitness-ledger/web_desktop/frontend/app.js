@@ -6,6 +6,9 @@ const fetchWithTimeout=async(input,init={},timeout=API_TIMEOUT_MS)=>{const contr
 const api=async p=>{const r=await fetchWithTimeout(p,{cache:'no-store'});if(!r.ok)throw Error(`${r.status}`);return r.json()};
 const state={view:'home',today:{},recent:[],body:[],diet:[],training:[],movements:[],dictionary:[],movementGroups:[],movementSelection:'',movementHistory:null,movementUsage:{},usageLoaded:false,selectedBodyPart:null,page:1,syncStatus:null,archiveHealth:null,dataCheck:null,dataCheckOverlayOpen:false,saving:false,composing:false,trainingQuery:'',trainingOrder:'recent',movementQuery:'',routeParams:{},routeState:null,hoverTimer:null,hoverNode:null,movementMerge:null,buildInfo:null,formalSemanticPreview:null,formalSemanticBusy:false,reviewSource:'',phoneInboxDraft:'',phoneInboxClient:null,phoneInbox:{status:'closed',items:[],error:'',notice:'',busy:false}};
 const main=$('#main'),root=$('#overlay-root'),toast=$('#toast');
+// Keep the passive trophy cursor in modals, but hide the interactive guardian body:
+// its fixed z-index:999999 hitbox would otherwise swallow form clicks.
+(function(){const petSel='.tools-pet-floating,.tools-pet-guardian,.tools-pet-navigator,.tools-pet-nav,.tools-pet-menu';let suspended=false;const sync=()=>{const hasOverlay=!!document.querySelector('#overlay-root .overlay');if(hasOverlay&&!suspended){document.querySelectorAll(petSel).forEach(el=>{if(el.style.display!=='none'){el.dataset.flPrevDisplay=el.style.display;el.style.display='none';}});suspended=true;}else if(!hasOverlay&&suspended){document.querySelectorAll(petSel).forEach(el=>{el.style.display=el.dataset.flPrevDisplay||'';delete el.dataset.flPrevDisplay;});suspended=false;}};new MutationObserver(sync).observe(root,{childList:true,subtree:true});sync();})();
 const guardianNumberOrNull=value=>{const number=Number(value);return Number.isFinite(number)?number:null};
 const guardianCompact=value=>Number(value).toFixed(2).replace(/\.00$/,'').replace(/(\.\d)0$/,'');
 const guardianDateOf=record=>String(record?.Date||record?.date||'').slice(0,10);
@@ -278,11 +281,10 @@ async function saveWebReview(saveMode=null){
     if(result.status!=='NO_CHANGES'&&(result.training_updated||Number(result.saved_movements||0)>0)){
       try{invalidateMovementUsage()}catch(error){console.warn('[Daily Entry] save committed; movement cache refresh failed',error)}
     }
-    const autoSyncOutcome=result.status!=='NO_CHANGES'?await autoSyncAfterSave():null;
+    if(result.status!=='NO_CHANGES'){void autoSyncAfterSave().then(outcome=>{if(outcome)showToast(autoSyncOutcomeMessage(outcome))}).catch(error=>console.warn('[Daily Entry] auto-sync deferred',error))}
     const refreshPromise=refreshWebState().catch(error=>{console.warn('[Daily Entry] save committed; archive refresh failed',error);showToast('记录已保存，但页面状态刷新失败，请稍后查看。');return null});
     try{navigate('quick')}catch(error){console.warn('[Daily Entry] save committed; route refresh failed',error)}
     try{showSaveReceipt(result)}catch(error){console.warn('[Daily Entry] save receipt failed',error)}
-    if(autoSyncOutcome)showToast(autoSyncOutcomeMessage(autoSyncOutcome));
     void refreshPromise.then(()=>{if(state.view==='quick'&&!state.saving)quickPage()});
     try{
       if(result.status!=='NO_CHANGES'&&result.training_updated)emitGuardianIntent('training-save',buildTrainingSaveSummary(result),{id:`training-save:${result.record_id||result.date}`});
