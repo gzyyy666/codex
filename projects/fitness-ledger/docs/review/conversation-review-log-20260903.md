@@ -83,3 +83,4 @@
 - 新增统一编辑命令：正式 Body/Diet/Training、数据模块值、动作定义、动作实例和训练原文都使用稳定 ID；旧页面 revision 提交会返回 `REVISION_CONFLICT`；训练原文必须先走差异预览再确认。
 - 日期详情 API/候选页现在包括 Body、Diet、Training、数据模块、原始输入和修订；动作长期备注属于词典，单次训练备注属于 MovementHistory，保存逻辑分离。
 - 自动验收：`tools/unified_edit_chain_test.py` 5 项通过；现有数据模块 10 项、动作生命周期、动作进步、手机/桌面同步契约测试也通过。候选网页尚待人工 Review；正式运行服务目前仍报告旧构建版本，未重启、未发布。
+- 候选 Review 地址：`http://127.0.0.1:8770`；API、迁移确认和日期详情契约证据保存在 `D:\FitnessLedger\scratch\fitness-ledger-unified-edit-20260903\candidate_evidence.json`。候选使用正式数据副本，未写入 `D:\FitnessLedger\app`。
