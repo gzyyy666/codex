@@ -2292,6 +2292,7 @@ class LedgerCommandService:
                 if move_scope not in {"record", "day"}:
                     raise LedgerCommandError("move_scope must be 'record' or 'day'.")
                 if move_scope == "day":
+                    record["record_day_id"] = record_day_id(new_date)
                     self._move_day_entities(database, old_date, new_date, anchor_type=record_type, anchor_id=record_id)
                 else:
                     record["record_day_id"] = record_day_id(new_date)
