@@ -71,6 +71,9 @@ def build_cloud_payload(
             "active": bool(definition.get("active", True)),
             "pinned": bool(definition.get("pinned", False)) or focus_rank > 0,
             "focus_rank": focus_rank,
+            "notes": definition.get("notes", ""),
+            "revision": int(definition.get("revision", 1) or 1),
+            "updated_at": definition.get("updated_at", ""),
         }
         movements.append(movement)
         search_index.append({
@@ -78,7 +81,7 @@ def build_cloud_payload(
             "id": item["movement_id"],
             "text": " ".join(str(value) for value in (
                 movement["display_name"], movement["english_name"],
-                " ".join(movement["aliases"]), movement["muscle_group"],
+                " ".join(movement["aliases"]), movement["muscle_group"], movement["notes"],
             ) if value),
         })
         for history in item["history"]:

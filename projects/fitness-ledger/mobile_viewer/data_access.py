@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
 
+from fitness_ledger_core.record_relations import migrate_state, record_day_id
+
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE_DIR / "data"
@@ -151,6 +153,7 @@ class LedgerDataAccess:
             {"daily_records": [], "diet_records": [], "training_sessions": [], "movements": {}, "raw_entries": []},
         )
         dictionary = read_json(self.dictionary_file, {"movements": []})
+        tracker, dictionary, _report = migrate_state(tracker, dictionary)
 
         movements_by_id = {}
         alias_index: dict[str, list[MovementMatch]] = {}
@@ -194,7 +197,7 @@ class LedgerDataAccess:
     def all_dates(self) -> list[str]:
         tracker = self._tracker()
         dates = set()
-        for section in ("daily_records", "diet_records", "training_sessions", "raw_entries"):
+        for section in ("daily_records", "diet_records", "training_sessions", "data_module_records", "raw_entries"):
             for record in tracker.get(section, []):
                 value = record.get("Date") if section != "raw_entries" else record.get("date")
                 if value:
@@ -214,18 +217,23 @@ class LedgerDataAccess:
                 item for item in tracker.get("training_sessions", []) if str(item.get("Date", ""))[:10] == entry_date
             ],
             "raw": [item for item in tracker.get("raw_entries", []) if str(item.get("date", ""))[:10] == entry_date],
+            "data_modules": [item for item in tracker.get("data_module_records", []) if str(item.get("date", ""))[:10] == entry_date],
+            "raw_revisions": [item for item in tracker.get("raw_entry_revisions", []) if str(item.get("date", ""))[:10] == entry_date],
+            "record_day_id": record_day_id(entry_date),
         }
 
     def display_name_for_movement_id(self, movement_id: str, fallback: str = "") -> str:
         match = self._movements_by_id().get(str(movement_id).strip())
         return match.display_name if match and match.display_name else fallback
 
-    def _movement_rows_for_training_day(self, day_number: int | str) -> list[dict]:
+    def _movement_rows_for_training_day(self, day_number: int | str, session_id: str = "") -> list[dict]:
         tracker = self._tracker()
         rows = []
         for movement in tracker.get("movements", {}).values():
             for history in movement.get("history", []) or []:
-                if str(history.get("training_day", "")) == str(day_number):
+                if (session_id and str(history.get("training_session_id", "")) == str(session_id)) or (
+                    not session_id and str(history.get("training_day", "")) == str(day_number)
+                ):
                     rows.append(
                         {
                             "movement_id": history.get("movement_id") or movement.get("movement_id", ""),
@@ -238,6 +246,10 @@ class LedgerDataAccess:
                             "notes": str(history.get("notes", "") or "").strip(),
                             "raw": str(history.get("raw", "") or "").strip(),
                             "date": str(history.get("date", ""))[:10],
+                            "training_session_id": history.get("training_session_id", ""),
+                            "record_day_id": history.get("record_day_id", record_day_id(history.get("date", ""))),
+                            "revision": int(history.get("revision", 1) or 1),
+                            "movement_notes": str((self._movements_by_id().get(str(history.get("movement_id") or movement.get("movement_id", ""))) or MovementMatch("", "", "", [], "", "", True, "")).notes or "").strip(),
                         }
                     )
         return sorted(rows, key=lambda item: (int(item["order"] or 9999), item["display_name"]))
@@ -255,7 +267,10 @@ class LedgerDataAccess:
                     "notes": str(session.get("Notes", "") or "").strip(),
                     "raw_record": str(session.get("Raw Record", "") or "").strip(),
                     "standardized_summary": str(session.get("Standardized Summary", "") or "").strip(),
-                    "movements": self._movement_rows_for_training_day(day_number),
+                    "training_session_id": session.get("id", ""),
+                    "record_day_id": session.get("record_day_id", record_day_id(session.get("Date", ""))),
+                    "revision": int(session.get("revision", 1) or 1),
+                    "movements": self._movement_rows_for_training_day(day_number, str(session.get("id", ""))),
                 }
             )
         return {"date": str(entry_date)[:10], "sessions": sessions}
@@ -290,6 +305,9 @@ class LedgerDataAccess:
             "diet": diet,
             "training": training["sessions"],
             "raw_entries": grouped["raw"],
+            "raw_revisions": grouped["raw_revisions"],
+            "data_modules": grouped["data_modules"],
+            "record_day_id": grouped["record_day_id"],
         }
 
     def find_movement_candidates(self, query: str, limit: int = 12) -> list[MovementMatch]:

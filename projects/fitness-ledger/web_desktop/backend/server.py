@@ -110,6 +110,7 @@ class LedgerWebService:
             Path(data_file), Path(dictionary_file), self.stable, self.data_check_state_file
         )
         self.pending_reviews: dict[str, dict] = {}
+        self.pending_raw_edits: dict[str, dict] = {}
         self.pending_lock = threading.RLock()
         # The Web candidate exposes the deterministic Core only.  The adapter
         # is injected for the Core contract but ``IntelligentExportService.run``
@@ -731,7 +732,11 @@ class LedgerWebService:
         movement_id = str(request.get("movement_id", "")).strip()
         if not movement_id:
             raise LedgerCommandError("Missing movement_id.")
-        result = self.commands.update_movement_definition(movement_id, request.get("definition") or {})
+        result = self.commands.update_movement_definition(
+            movement_id,
+            request.get("definition") or {},
+            expected_revision=request.get("expected_revision"),
+        )
         self.data._cache = None
         return result
 
@@ -757,6 +762,8 @@ class LedgerWebService:
             str(request.get("record_type", "")),
             str(request.get("record_id", "")),
             request.get("values") or {},
+            expected_revision=request.get("expected_revision"),
+            move_scope=str(request.get("move_scope", "record") or "record"),
         )
         self.data._cache = None
         return result
@@ -766,7 +773,45 @@ class LedgerWebService:
             str(request.get("movement_id", "")),
             str(request.get("history_id", "")),
             request.get("values") or {},
+            expected_revision=request.get("expected_revision"),
         )
+        self.data._cache = None
+        return result
+
+    def update_data_module_record(self, request: dict) -> dict:
+        result = self.commands.update_data_module_record(
+            str(request.get("record_id", "")),
+            request.get("values") or {},
+            expected_revision=request.get("expected_revision"),
+        )
+        self.data._cache = None
+        return result
+
+    def schema_status(self) -> dict:
+        return self.commands.migration_preview()
+
+    def schema_migrate(self, request: dict) -> dict:
+        result = self.commands.migrate_legacy_state(confirmed=bool(request.get("confirmed", False)))
+        self.data._cache = None
+        return result
+
+    def preview_training_raw_edit(self, request: dict) -> dict:
+        preview = self.commands.preview_training_raw_edit(
+            str(request.get("training_session_id", "")),
+            str(request.get("raw_text", "")),
+            request.get("expected_revision"),
+        )
+        with self.pending_lock:
+            self.pending_raw_edits[str(preview["preview_id"])] = copy.deepcopy(preview)
+        return preview
+
+    def apply_training_raw_edit(self, request: dict) -> dict:
+        preview_id = str(request.get("preview_id", ""))
+        with self.pending_lock:
+            preview = self.pending_raw_edits.get(preview_id)
+        result = self.commands.apply_training_raw_edit(preview or {}, confirmed=bool(request.get("confirmed", False)))
+        with self.pending_lock:
+            self.pending_raw_edits.pop(preview_id, None)
         self.data._cache = None
         return result
 
@@ -986,6 +1031,8 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.undo_status())
             elif parsed.path == "/api/data-check":
                 self.send_json(self.service.data_check())
+            elif parsed.path == "/api/schema/status":
+                self.send_json(self.service.schema_status())
             elif parsed.path == "/api/data-modules/capabilities":
                 self.send_json(self.service.data_module_capabilities())
             elif parsed.path == "/api/data-modules/catalog":
@@ -1118,6 +1165,8 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.data_module_definition_save(request))
             elif parsed.path == "/api/data-modules/save":
                 self.send_json(self.service.data_module_save(request))
+            elif parsed.path == "/api/schema/migrate":
+                self.send_json(self.service.schema_migrate(request))
             elif parsed.path == "/api/data-modules/analysis-preview":
                 self.send_json(self.service.data_module_analysis_preview(request))
             elif parsed.path == "/api/data-modules/cloud-verify":
@@ -1182,6 +1231,12 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.update_record(request))
             elif parsed.path == "/api/movement-history/update":
                 self.send_json(self.service.update_movement_history(request))
+            elif parsed.path == "/api/data-module-record/update":
+                self.send_json(self.service.update_data_module_record(request))
+            elif parsed.path == "/api/training/raw-preview":
+                self.send_json(self.service.preview_training_raw_edit(request))
+            elif parsed.path == "/api/training/raw-apply":
+                self.send_json(self.service.apply_training_raw_edit(request))
             else:
                 self.send_json({"error": "Unknown command."}, HTTPStatus.NOT_FOUND)
         except DuplicateDateError as exc:
@@ -1199,7 +1254,7 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 HTTPStatus.INTERNAL_SERVER_ERROR
                 if exc.code == "MIGRATION_FAILED"
                 else HTTPStatus.CONFLICT
-                if exc.code in {"PREVIEW_STALE", "MIGRATION_BLOCKED"}
+                if exc.code in {"PREVIEW_STALE", "MIGRATION_BLOCKED", "REVISION_CONFLICT", "RAW_EDIT_REQUIRES_PREVIEW"}
                 else HTTPStatus.BAD_REQUEST
             )
             self.send_json(

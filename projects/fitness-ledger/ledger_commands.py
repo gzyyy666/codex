@@ -15,6 +15,13 @@ from typing import Callable
 
 from fitness_ledger_core.shared_view_models import LedgerViewModels, movement_in_progress
 from fitness_ledger_core.notes import normalize_note_text
+from fitness_ledger_core.record_relations import (
+    canonical_date,
+    migrate_state,
+    now_iso,
+    record_day_id,
+    validate_relations,
+)
 
 
 ParserCallback = Callable[[str, dict, dict], dict]
@@ -45,14 +52,20 @@ def _write_json_atomic(path: Path, value) -> None:
     temp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
     try:
         payload = json.dumps(value, ensure_ascii=False, indent=2)
-        temp.write_text(payload, encoding="utf-8")
+        with temp.open("w", encoding="utf-8", newline="") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
         json.loads(temp.read_text(encoding="utf-8"))
         os.replace(temp, path)
     finally:
         temp.unlink(missing_ok=True)
 
 
-_NON_SEMANTIC_FIELDS = {"id", "created_at", "updated_at", "superseded_at", "superseded_by", "save_mode", "source"}
+_NON_SEMANTIC_FIELDS = {
+    "id", "created_at", "updated_at", "superseded_at", "superseded_by", "save_mode", "source",
+    "record_day_id", "training_session_id", "raw_entry_id", "raw_revision_id", "revision",
+}
 
 _PRODUCT_PLACEMENTS = {
     "main": {"label": "主内容", "slot": "top", "visible_by_default": True},
@@ -300,7 +313,59 @@ class LedgerCommandService:
             {"daily_records": [], "diet_records": [], "training_sessions": [], "movements": {}, "raw_entries": []},
         )
         dictionary = _read_json(self.dictionary_file, {"version": "1.0", "movements": []})
+        database, dictionary, _report = migrate_state(database, dictionary)
         return database, dictionary
+
+    def migration_preview(self) -> dict:
+        database = _read_json(self.data_file, {})
+        dictionary = _read_json(self.dictionary_file, {})
+        migrated, migrated_dictionary, report = migrate_state(database, dictionary)
+        return {
+            "status": "preview_ready", "source_schema": database.get("record_schema_version", "legacy"),
+            "target_schema": migrated.get("record_schema_version", ""), "report": report,
+            "before_issues": validate_relations(database, dictionary),
+            "after_issues": validate_relations(migrated, migrated_dictionary),
+            "write_attempted": False,
+        }
+
+    def migrate_legacy_state(self, *, confirmed: bool = False) -> dict:
+        preview = self.migration_preview()
+        if not confirmed:
+            raise LedgerCommandError("Migration preview must be explicitly confirmed before writing.", "MIGRATION_CONFIRMATION_REQUIRED", preview)
+        if preview["report"].get("changed") is not True:
+            return {**preview, "status": "NO_CHANGES", "changed": False}
+        with self.write_lock():
+            database = _read_json(self.data_file, {})
+            dictionary = _read_json(self.dictionary_file, {})
+            migrated, migrated_dictionary, report = migrate_state(database, dictionary)
+            self._validate_relations_or_raise(migrated, migrated_dictionary)
+            tracker_backup, dictionary_backup = self._checkpoint()
+            self._write_pair(migrated, migrated_dictionary, tracker_backup, dictionary_backup)
+            return {"status": "MIGRATED", "changed": True, "report": report, "checkpoint": str(tracker_backup), "sync_state": "LOCAL_NEWER"}
+
+    @staticmethod
+    def _touch_record_day(database: dict, entry_date: str) -> None:
+        day = record_day_id(entry_date)
+        if not day:
+            return
+        days = database.setdefault("record_days", [])
+        row = next((item for item in days if str(item.get("record_day_id")) == day), None)
+        if row is None:
+            row = {"record_day_id": day, "date": canonical_date(entry_date), "revision": 1}
+            days.append(row)
+        else:
+            row["revision"] = int(row.get("revision", 1) or 1) + 1
+        row["updated_at"] = now_iso()
+
+    @staticmethod
+    def _validate_relations_or_raise(database: dict, dictionary: dict) -> None:
+        issues = validate_relations(database, dictionary)
+        if issues:
+            raise LedgerCommandError(
+                "The record relationship graph is inconsistent; save was cancelled.",
+                "RELATION_INTEGRITY_FAILED",
+                {"issues": issues[:30], "issue_count": len(issues)},
+            )
 
     def data_module_engine(self, registry_file: Path | None = None):
         """Return the registry-driven extension engine at the shared save boundary."""
@@ -909,6 +974,10 @@ class LedgerCommandService:
                 "mtime_ns": after.st_mtime_ns,
             }
         fingerprint["identity"] = _stable_json_hash(fingerprint)
+        # Merge/visibility commands use this strict byte snapshot to preserve
+        # their established no-op compatibility on legacy archive fixtures.
+        # Commands that edit business facts use load_state(), which performs
+        # the relation migration before writing.
         return decoded["tracker"], decoded["dictionary"], fingerprint
 
     @staticmethod
@@ -1078,7 +1147,7 @@ class LedgerCommandService:
         if len(target_rows) > 1:
             block("TARGET_TRACKER_NOT_UNIQUE", "Target has multiple tracker movement rows.", count=len(target_rows))
         for key, row in source_rows:
-            unknown_fields = sorted(set(row) - {"movement_id", "name", "aliases", "history", "created_at"})
+            unknown_fields = sorted(set(row) - {"id", "movement_id", "name", "aliases", "history", "created_at", "updated_at", "revision", "record_day_id"})
             if unknown_fields:
                 block(
                     "SOURCE_ROW_UNKNOWN_FIELDS",
@@ -1943,6 +2012,7 @@ class LedgerCommandService:
 
     def _write_pair(self, database: dict, dictionary: dict, tracker_backup: Path, dictionary_backup: Path) -> None:
         try:
+            self._validate_relations_or_raise(database, dictionary)
             _write_json_atomic(self.dictionary_file, dictionary)
             _write_json_atomic(self.data_file, database)
         except Exception as exc:
@@ -1987,15 +2057,24 @@ class LedgerCommandService:
                 "active": bool(values.get("active", True)),
                 "pinned": bool(values.get("pinned", False)) or max(0, int(values.get("focus_rank", 0) or 0)) > 0,
                 "focus_rank": max(0, int(values.get("focus_rank", 0) or 0)),
+                "revision": 1,
+                "updated_at": now_iso(),
             })
             reconciliation = self._reconcile_definition(database, dictionary, definition)
             self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
             return {"definition": copy.deepcopy(definition), "reconciliation": reconciliation}
 
-    def update_movement_definition(self, movement_id: str, values: dict) -> dict:
+    def update_movement_definition(self, movement_id: str, values: dict, *, expected_revision: int | None = None) -> dict:
         with self.write_lock():
             database, dictionary = self.load_state()
             definition = self._definition_by_id(dictionary, movement_id)
+            current_revision = int(definition.get("revision", 1) or 1)
+            if expected_revision is not None and int(expected_revision) != current_revision:
+                raise LedgerCommandError(
+                    "This movement definition changed after the page was opened. Reload it before saving.",
+                    "REVISION_CONFLICT",
+                    {"expected_revision": expected_revision, "current_revision": current_revision, "definition": copy.deepcopy(definition)},
+                )
             display_name = str(values.get("display_name", definition.get("display_name", ""))).strip()
             if not display_name:
                 raise LedgerCommandError("Display name cannot be blank.")
@@ -2012,6 +2091,8 @@ class LedgerCommandService:
                 "notes": str(values.get("notes", definition.get("notes", ""))).strip(),
                 "pinned": bool(values.get("pinned", definition.get("pinned", False))) or max(0, int(values.get("focus_rank", definition.get("focus_rank", 0)) or 0)) > 0,
                 "focus_rank": max(0, int(values.get("focus_rank", definition.get("focus_rank", 0)) or 0)),
+                "revision": current_revision + 1,
+                "updated_at": now_iso(),
             })
             for movement in database.get("movements", {}).values():
                 if str(movement.get("movement_id", "")) == str(movement_id):
@@ -2019,7 +2100,7 @@ class LedgerCommandService:
                     movement["aliases"] = list(dict.fromkeys([*movement.get("aliases", []), *aliases]))
             reconciliation = self._reconcile_definition(database, dictionary, definition)
             self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
-            return {"definition": copy.deepcopy(definition), "reconciliation": reconciliation}
+            return {"definition": copy.deepcopy(definition), "reconciliation": reconciliation, "sync_state": "LOCAL_NEWER"}
 
     def set_movement_active(self, movement_id: str, active: bool) -> dict:
         with self.write_lock():
@@ -2147,7 +2228,15 @@ class LedgerCommandService:
             raise LedgerCommandError("Unsupported record type.")
         return configs[record_type]
 
-    def update_record(self, record_type: str, record_id: str, values: dict) -> dict:
+    def update_record(
+        self,
+        record_type: str,
+        record_id: str,
+        values: dict,
+        *,
+        expected_revision: int | None = None,
+        move_scope: str = "record",
+    ) -> dict:
         collection, allowed_fields, numeric_fields = self._record_config(record_type)
         if not isinstance(values, dict):
             raise LedgerCommandError("Record values must be an object.")
@@ -2159,6 +2248,13 @@ class LedgerCommandService:
             )
             if not record:
                 raise LedgerCommandError("Record was not found.")
+            current_revision = int(record.get("revision", 1) or 1)
+            if expected_revision is not None and int(expected_revision) != current_revision:
+                raise LedgerCommandError(
+                    "This record changed after the page was opened. Reload it before saving.",
+                    "REVISION_CONFLICT",
+                    {"expected_revision": expected_revision, "current_revision": current_revision, "record": copy.deepcopy(record)},
+                )
             updates = {}
             for field in allowed_fields:
                 if field not in values:
@@ -2179,14 +2275,65 @@ class LedgerCommandService:
                     date.fromisoformat(updates["Date"])
                 except ValueError as exc:
                     raise LedgerCommandError("Date must use YYYY-MM-DD format.") from exc
+            if "Raw Record" in updates and updates["Raw Record"] != str(record.get("Raw Record", "")):
+                raise LedgerCommandError(
+                    "Training raw text must be previewed and confirmed before it is saved.",
+                    "RAW_EDIT_REQUIRES_PREVIEW",
+                )
             before = copy.deepcopy(record)
+            old_date = canonical_date(record.get("Date"))
             record.update(updates)
             if _same_business_content(before, record):
                 return {"status": "NO_CHANGES", "changed": False, "record_type": record_type, "record": copy.deepcopy(before)}
-            record["updated_at"] = datetime.now().replace(microsecond=0).isoformat()
+            record["revision"] = current_revision + 1
+            record["updated_at"] = now_iso()
+            new_date = canonical_date(record.get("Date"))
+            if new_date != old_date:
+                if move_scope not in {"record", "day"}:
+                    raise LedgerCommandError("move_scope must be 'record' or 'day'.")
+                if move_scope == "day":
+                    self._move_day_entities(database, old_date, new_date, anchor_type=record_type, anchor_id=record_id)
+                else:
+                    record["record_day_id"] = record_day_id(new_date)
+                    if record_type == "training":
+                        for movement in database.get("movements", {}).values():
+                            for history in movement.get("history", []) or []:
+                                if str(history.get("training_session_id", "")) == str(record_id):
+                                    history["date"] = new_date
+                                    history["record_day_id"] = record_day_id(new_date)
+                                    history["updated_at"] = now_iso()
+                self._touch_record_day(database, old_date)
+                self._touch_record_day(database, new_date)
+            else:
+                self._touch_record_day(database, old_date)
             tracker_backup, dictionary_backup = self._checkpoint()
             self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
-            return {"status": "UPDATED", "changed": True, "record_type": record_type, "record": copy.deepcopy(record)}
+            return {"status": "UPDATED", "changed": True, "record_type": record_type, "record": copy.deepcopy(record), "sync_state": "LOCAL_NEWER"}
+
+    @staticmethod
+    def _move_day_entities(database: dict, source_date: str, target_date: str, *, anchor_type: str, anchor_id: str) -> None:
+        """Move the complete date aggregate, preserving entity IDs and links."""
+        for collection, date_field in (("daily_records", "Date"), ("diet_records", "Date"), ("training_sessions", "Date"), ("data_module_records", "date"), ("raw_entries", "date")):
+            for row in database.get(collection, []) or []:
+                if canonical_date(row.get(date_field)) != source_date:
+                    continue
+                row[date_field] = target_date
+                row["record_day_id"] = record_day_id(target_date)
+                row["revision"] = int(row.get("revision", 1) or 1) + 1
+                row["updated_at"] = now_iso()
+        for revision in database.get("raw_entry_revisions", []) or []:
+            if canonical_date(revision.get("date")) == source_date:
+                revision["date"] = target_date
+                revision["record_day_id"] = record_day_id(target_date)
+                revision["revision"] = int(revision.get("revision", 1) or 1) + 1
+                revision["updated_at"] = now_iso()
+        for movement in database.get("movements", {}).values():
+            for history in movement.get("history", []) or []:
+                if canonical_date(history.get("date")) == source_date:
+                    history["date"] = target_date
+                    history["record_day_id"] = record_day_id(target_date)
+                    history["revision"] = int(history.get("revision", 1) or 1) + 1
+                    history["updated_at"] = now_iso()
 
     @staticmethod
     def _parse_sets_text(text: str) -> list[dict]:
@@ -2207,7 +2354,14 @@ class LedgerCommandService:
             raise LedgerCommandError("Sets must use 'weight x reps x sets', one set block per line.")
         return sets
 
-    def update_movement_history(self, movement_id: str, history_id: str, values: dict) -> dict:
+    def update_movement_history(
+        self,
+        movement_id: str,
+        history_id: str,
+        values: dict,
+        *,
+        expected_revision: int | None = None,
+    ) -> dict:
         if not isinstance(values, dict):
             raise LedgerCommandError("Movement history values must be an object.")
         with self.write_lock():
@@ -2224,6 +2378,13 @@ class LedgerCommandService:
             )
             if not history:
                 raise LedgerCommandError("Movement history record was not found.")
+            current_revision = int(history.get("revision", 1) or 1)
+            if expected_revision is not None and int(expected_revision) != current_revision:
+                raise LedgerCommandError(
+                    "This movement instance changed after the page was opened. Reload it before saving.",
+                    "REVISION_CONFLICT",
+                    {"expected_revision": expected_revision, "current_revision": current_revision, "history": copy.deepcopy(history)},
+                )
             try:
                 order_text = str(values.get("order", history.get("order", ""))).strip()
                 order = int(order_text) if order_text else None
@@ -2247,7 +2408,7 @@ class LedgerCommandService:
                 "cardio": cardio,
                 "raw": str(values.get("raw", history.get("raw", ""))).strip(),
                 "notes": normalize_note_text(values.get("notes", history.get("notes", ""))),
-                "updated_at": datetime.now().replace(microsecond=0).isoformat(),
+                "updated_at": now_iso(),
             }
             if "exclude_from_progress" in values:
                 excluded = values.get("exclude_from_progress")
@@ -2263,9 +2424,69 @@ class LedgerCommandService:
                 unchanged = copy.deepcopy(before)
                 unchanged.setdefault("exclude_from_progress", False)
                 return {"status": "NO_CHANGES", "changed": False, "movement_id": movement_id, "history": unchanged}
+            history["revision"] = current_revision + 1
+            session_id = str(history.get("training_session_id", ""))
+            session = next(
+                (row for row in database.get("training_sessions", []) if str(row.get("id", "")) == session_id),
+                None,
+            )
+            if session:
+                session["revision"] = int(session.get("revision", 1) or 1) + 1
+                session["updated_at"] = now_iso()
+                refs = []
+                for item in database.get("movements", {}).values():
+                    for candidate in item.get("history", []) or []:
+                        if str(candidate.get("training_session_id", "")) == session_id:
+                            refs.append(candidate)
+                refs.sort(key=lambda item: (int(item.get("order", 9999) or 9999), str(item.get("movement_id", ""))))
+                session["Standardized Summary"] = "；".join(
+                    f"第{item.get('order')}个动作：{next((definition.get('display_name', item.get('movement_id', '')) for definition in dictionary.get('movements', []) if str(definition.get('movement_id')) == str(item.get('movement_id'))), item.get('movement_id', ''))}"
+                    for item in refs
+                )
+            history.setdefault("record_day_id", record_day_id(history.get("date")))
+            self._touch_record_day(database, history.get("date", ""))
             tracker_backup, dictionary_backup = self._checkpoint()
             self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
-            return {"status": "UPDATED", "changed": True, "movement_id": movement_id, "history": copy.deepcopy(history)}
+            return {"status": "UPDATED", "changed": True, "movement_id": movement_id, "history": copy.deepcopy(history), "session": copy.deepcopy(session) if session else None, "sync_state": "LOCAL_NEWER"}
+
+    def update_data_module_record(self, record_id: str, values: dict, *, expected_revision: int | None = None) -> dict:
+        """Edit one module value through the same paired tracker transaction."""
+        if not isinstance(values, dict):
+            raise LedgerCommandError("Data Module values must be an object.")
+        with self.write_lock():
+            database, dictionary = self.load_state()
+            record = next((item for item in database.get("data_module_records", []) if str(item.get("record_id")) == str(record_id)), None)
+            if record is None:
+                raise LedgerCommandError("Data Module record was not found.")
+            current_revision = int(record.get("revision", 1) or 1)
+            if expected_revision is not None and int(expected_revision) != current_revision:
+                raise LedgerCommandError("This Data Module record changed after the page was opened. Reload it before saving.", "REVISION_CONFLICT", {"expected_revision": expected_revision, "current_revision": current_revision, "record": copy.deepcopy(record)})
+            engine = self.data_module_engine()
+            definition = engine.registry.require(str(record.get("module_id", "")))
+            if "value" not in values:
+                raise LedgerCommandError("A module value is required.")
+            value = definition.normalize_value(values.get("value")) if hasattr(definition, "normalize_value") else None
+            if value is None:
+                from fitness_ledger_core.data_module_engine import normalize_value
+                value = normalize_value(values.get("value"), definition)
+            before = copy.deepcopy(record)
+            record["value"] = copy.deepcopy(value)
+            if "date" in values and str(values.get("date", "")).strip() != str(record.get("date", "")):
+                target = str(values.get("date", "")).strip()
+                try:
+                    date.fromisoformat(target)
+                except ValueError as exc:
+                    raise LedgerCommandError("Date must use YYYY-MM-DD format.") from exc
+                record["date"] = target
+                record["record_day_id"] = record_day_id(target)
+            if _same_business_content(before, record):
+                return {"status": "NO_CHANGES", "changed": False, "record": before}
+            record["revision"] = current_revision + 1
+            record["updated_at"] = now_iso()
+            self._touch_record_day(database, record.get("date", ""))
+            tracker_backup, dictionary_backup = self._checkpoint()
+            self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
+            return {"status": "UPDATED", "changed": True, "record": copy.deepcopy(record), "sync_state": "LOCAL_NEWER"}
 
     @contextmanager
     def write_lock(self, timeout: float = 8.0):
@@ -2301,6 +2522,121 @@ class LedgerCommandService:
         parsed = self.parser(raw, database, dictionary)
         self._prepare_generated_training_fields(parsed)
         return self.review_payload(parsed, database, dictionary)
+
+    @staticmethod
+    def _session_histories(database: dict, session_id: str) -> list[tuple[dict, dict]]:
+        rows = []
+        for movement in database.get("movements", {}).values():
+            for history in movement.get("history", []) or []:
+                if str(history.get("training_session_id", "")) == str(session_id):
+                    rows.append((movement, history))
+        return rows
+
+    def preview_training_raw_edit(self, session_id: str, raw_text: str, expected_revision: int | None = None) -> dict:
+        raw = str(raw_text or "").strip()
+        if not raw:
+            raise LedgerCommandError("Training raw text cannot be blank.")
+        database, dictionary = self.load_state()
+        session = next((row for row in database.get("training_sessions", []) if str(row.get("id")) == str(session_id)), None)
+        if session is None:
+            raise LedgerCommandError("Training session was not found.")
+        current_revision = int(session.get("revision", 1) or 1)
+        if expected_revision is not None and int(expected_revision) != current_revision:
+            raise LedgerCommandError("This training session changed after the page was opened. Reload it before previewing.", "REVISION_CONFLICT", {"expected_revision": expected_revision, "current_revision": current_revision})
+        parsed = self.parser(raw, database, dictionary)
+        parsed["date"] = canonical_date(session.get("Date"))
+        self._prepare_generated_training_fields(parsed)
+        by_id, by_alias = _dictionary_indexes(dictionary)
+        new_items = []
+        unmapped = []
+        for item in parsed.get("training", {}).get("movements", []) or []:
+            candidate = str(item.get("name", "")).strip()
+            definition = by_id.get(str(item.get("movement_id", ""))) or by_alias.get(_normalize_name(candidate))
+            if not definition:
+                unmapped.append(candidate)
+                continue
+            new_items.append({
+                "movement_id": definition["movement_id"], "display_name": definition.get("display_name", candidate),
+                "order": item.get("order"), "sets": copy.deepcopy(item.get("sets", []) or []),
+                "cardio": copy.deepcopy(item.get("cardio", {}) or {}), "raw": item.get("raw", ""),
+                "notes": normalize_note_text(item.get("notes", "")), "exclude_from_progress": bool(item.get("exclude_from_progress", False)),
+            })
+        old_items = []
+        for _movement, history in self._session_histories(database, session_id):
+            old_items.append({
+                "history_id": history.get("id", ""), "movement_id": history.get("movement_id", ""),
+                "order": history.get("order"), "sets": copy.deepcopy(history.get("sets", []) or []),
+                "notes": normalize_note_text(history.get("notes", "")),
+            })
+        old_by_key = {(str(item.get("movement_id")), str(item.get("order"))): item for item in old_items}
+        new_by_key = {(str(item.get("movement_id")), str(item.get("order"))): item for item in new_items}
+        updated = [new_by_key[key] for key in sorted(set(old_by_key) & set(new_by_key)) if not _same_business_content(old_by_key[key], new_by_key[key])]
+        added = [new_by_key[key] for key in sorted(set(new_by_key) - set(old_by_key))]
+        removed = [old_by_key[key] for key in sorted(set(old_by_key) - set(new_by_key))]
+        preview_id = _stable_json_hash({"session_id": session_id, "revision": current_revision, "raw": raw})[:24]
+        return {
+            "status": "raw_edit_preview", "preview_id": preview_id, "training_session_id": session_id,
+            "expected_revision": current_revision, "raw_text": raw, "parsed": parsed,
+            "diff": {"added": added, "removed": removed, "updated": updated, "unmapped": unmapped},
+            "requires_confirmation": True,
+        }
+
+    def apply_training_raw_edit(self, preview: dict, *, confirmed: bool = False) -> dict:
+        if not confirmed:
+            raise LedgerCommandError("The training raw diff must be explicitly confirmed.", "RAW_EDIT_CONFIRMATION_REQUIRED")
+        if not isinstance(preview, dict) or preview.get("status") != "raw_edit_preview":
+            raise LedgerCommandError("A valid training raw edit preview is required.", "RAW_EDIT_PREVIEW_REQUIRED")
+        session_id = str(preview.get("training_session_id", ""))
+        raw_text = str(preview.get("raw_text", "")).strip()
+        with self.write_lock():
+            database, dictionary = self.load_state()
+            session = next((row for row in database.get("training_sessions", []) if str(row.get("id")) == session_id), None)
+            if session is None:
+                raise LedgerCommandError("Training session was not found.")
+            current_revision = int(session.get("revision", 1) or 1)
+            if current_revision != int(preview.get("expected_revision", 0) or 0):
+                raise LedgerCommandError("This training session changed after preview. Run the raw diff again.", "REVISION_CONFLICT", {"current_revision": current_revision})
+            parsed = preview.get("parsed") or {}
+            by_id, by_alias = _dictionary_indexes(dictionary)
+            desired = []
+            for item in parsed.get("training", {}).get("movements", []) or []:
+                candidate = str(item.get("name", "")).strip()
+                definition = by_id.get(str(item.get("movement_id", ""))) or by_alias.get(_normalize_name(candidate))
+                if definition:
+                    desired.append((definition, item))
+            existing = {(str(history.get("movement_id")), str(history.get("order"))): (movement, history) for movement, history in self._session_histories(database, session_id)}
+            desired_keys = set()
+            for definition, item in desired:
+                key = (str(definition["movement_id"]), str(item.get("order")))
+                desired_keys.add(key)
+                if key in existing:
+                    _movement, history = existing[key]
+                    history.update({"sets": copy.deepcopy(item.get("sets", []) or []), "cardio": copy.deepcopy(item.get("cardio", {}) or {}), "raw": item.get("raw", ""), "notes": normalize_note_text(item.get("notes", "")), "exclude_from_progress": bool(item.get("exclude_from_progress", False)), "revision": int(history.get("revision", 1) or 1) + 1, "updated_at": now_iso()})
+                else:
+                    movement = self._tracker_movement(database, definition, str(item.get("name", "")).strip())
+                    movement.setdefault("history", []).append({"id": str(uuid.uuid4()), "movement_id": definition["movement_id"], "date": canonical_date(session.get("Date")), "training_day": session.get("No.", ""), "order": item.get("order"), "sets": copy.deepcopy(item.get("sets", []) or []), "cardio": copy.deepcopy(item.get("cardio", {}) or {}), "raw": item.get("raw", ""), "notes": normalize_note_text(item.get("notes", "")), "exclude_from_progress": bool(item.get("exclude_from_progress", False)), "source": "raw edit", "record_day_id": record_day_id(session.get("Date")), "training_session_id": session_id, "raw_entry_id": session.get("raw_entry_id", ""), "raw_revision_id": session.get("raw_revision_id", ""), "revision": 1, "updated_at": now_iso()})
+            for key, (movement, history) in existing.items():
+                if key not in desired_keys:
+                    movement["history"] = [item for item in movement.get("history", []) if item is not history]
+            raw_entry = next((item for item in database.get("raw_entries", []) if str(item.get("id")) == str(session.get("raw_entry_id", ""))), None)
+            if raw_entry is None:
+                raw_entry = {"id": _stable_json_hash({"session_id": session_id, "raw": raw_text})[:24], "date": canonical_date(session.get("Date")), "source": "raw edit", "record_day_id": record_day_id(session.get("Date")), "revision": 0}
+                database.setdefault("raw_entries", []).append(raw_entry)
+                session["raw_entry_id"] = raw_entry["id"]
+            next_raw_revision = int(raw_entry.get("revision", 0) or 0) + 1
+            raw_entry.update({"date": canonical_date(session.get("Date")), "text": raw_text, "raw_revision_id": f"rawrev:{raw_entry['id']}:{next_raw_revision}", "revision": next_raw_revision, "updated_at": now_iso(), "record_day_id": record_day_id(session.get("Date"))})
+            database.setdefault("raw_entry_revisions", []).append({"raw_revision_id": raw_entry["raw_revision_id"], "raw_entry_id": raw_entry["id"], "record_day_id": raw_entry["record_day_id"], "date": raw_entry["date"], "revision": next_raw_revision, "text": raw_text, "created_at": raw_entry.get("created_at", raw_entry["updated_at"]), "updated_at": raw_entry["updated_at"], "source": "raw edit"})
+            for _movement, history in self._session_histories(database, session_id):
+                history["raw_entry_id"] = raw_entry["id"]
+                history["raw_revision_id"] = raw_entry["raw_revision_id"]
+            session.update({"Raw Record": raw_text, "raw_entry_id": raw_entry["id"], "raw_revision_id": raw_entry["raw_revision_id"], "Standardized Summary": "；".join(f"第{item.get('order')}个动作：{definition.get('display_name', '')}" for definition, item in desired), "revision": current_revision + 1, "updated_at": now_iso()})
+            if parsed.get("training", {}).get("split"):
+                session["Split"] = str(parsed["training"]["split"]).strip()
+            session["Notes"] = normalize_note_text(parsed.get("training", {}).get("notes", session.get("Notes", "")))
+            self._touch_record_day(database, session.get("Date", ""))
+            tracker_backup, dictionary_backup = self._checkpoint()
+            self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
+            return {"status": "UPDATED", "changed": True, "training_session_id": session_id, "session": copy.deepcopy(session), "diff": preview.get("diff", {}), "sync_state": "LOCAL_NEWER"}
 
     def _prepare_generated_training_fields(self, parsed: dict) -> None:
         training = parsed.setdefault("training", {})
@@ -2529,6 +2865,7 @@ class LedgerCommandService:
                         "movements_added": 0, "movements_removed": 0,
                     }
                 tracker_backup, dictionary_backup = self._checkpoint()
+                self._validate_relations_or_raise(database, dictionary)
                 if not _same_business_content(before_dictionary, dictionary):
                     _write_json_atomic(self.dictionary_file, dictionary)
                 _write_json_atomic(self.data_file, database)
@@ -2562,6 +2899,7 @@ class LedgerCommandService:
                     or any(str(item.get("notes", "")).strip() for item in parsed.get("training", {}).get("movements", []))
                 ),
                 "movements_added": result.get("saved_movements", 0), "movements_removed": 0,
+                "sync_state": "LOCAL_NEWER",
             })
             return result
 
@@ -2577,8 +2915,18 @@ class LedgerCommandService:
             "text": parsed["raw"],
             "created_at": datetime.now().replace(microsecond=0).isoformat(),
             "save_mode": save_mode,
+            "record_day_id": record_day_id(entry_date),
+            "raw_revision_id": f"rawrev:{parsed['id']}:1",
+            "revision": 1,
+            "updated_at": now_iso(),
         }
         database.setdefault("raw_entries", []).append(raw_record)
+        database.setdefault("raw_entry_revisions", []).append({
+            "raw_revision_id": raw_record["raw_revision_id"], "raw_entry_id": raw_record["id"],
+            "record_day_id": record_day_id(entry_date), "date": entry_date, "revision": 1,
+            "text": parsed["raw"], "created_at": raw_record["created_at"],
+            "updated_at": raw_record["updated_at"], "source": "text entry",
+        })
         save_primary = save_mode != "append_training"
         body = parsed.get("body", {})
         body["notes"] = normalize_note_text(body.get("notes", ""))
@@ -2590,6 +2938,7 @@ class LedgerCommandService:
                     "Sleep (h)": body.get("sleep"), "Steps": body.get("steps"), "Context": body.get("context", ""),
                     "Bowel Movement": body.get("bowel_movement", ""), "Training": body.get("training_summary", ""),
                     "Cardio": body.get("cardio_summary", ""), "Notes": body.get("notes", ""), "source": "text entry",
+                    "record_day_id": record_day_id(entry_date), "revision": 1, "updated_at": now_iso(),
                 }
             )
         diet = parsed.get("diet", {})
@@ -2601,6 +2950,7 @@ class LedgerCommandService:
                     "Calories (kcal)": diet.get("calories"), "Protein (g)": diet.get("protein"),
                     "Carbs (g)": diet.get("carbs"), "Fat (g)": diet.get("fat"),
                     "Notes": diet.get("notes", ""), "source": "text entry",
+                    "record_day_id": record_day_id(entry_date), "revision": 1, "updated_at": now_iso(),
                 }
             )
         training = parsed.get("training", {})
@@ -2611,6 +2961,7 @@ class LedgerCommandService:
         personal_records = []
         training_record_id = None
         if training.get("split") or training.get("movements"):
+            training_record_id = str(uuid.uuid4())
             existing_days = [int(row.get("No.") or 0) for row in database.get("training_sessions", [])]
             day_number = replacement_day or (max(existing_days, default=0) + 1)
             summary_parts = []
@@ -2650,6 +3001,9 @@ class LedgerCommandService:
                     "notes": normalize_note_text(movement_data.get("notes", "")),
                     "exclude_from_progress": bool(movement_data.get("exclude_from_progress", False)),
                     "source": "text entry",
+                    "record_day_id": record_day_id(entry_date), "training_session_id": training_record_id,
+                    "raw_entry_id": raw_record["id"], "raw_revision_id": raw_record["raw_revision_id"],
+                    "revision": 1, "updated_at": now_iso(),
                 }
                 variant = str(movement_data.get("variant") or "").strip()
                 if variant:
@@ -2668,7 +3022,6 @@ class LedgerCommandService:
             training_notes = normalize_note_text(training.get("notes", ""))
             if save_mode == "append_training":
                 training_notes = f"同日追加训练。{training_notes}" if training_notes else "同日追加训练。"
-            training_record_id = str(uuid.uuid4())
             database.setdefault("training_sessions", []).append(
                 {
                     "id": training_record_id, "No.": day_number, "Date": entry_date,
@@ -2676,10 +3029,13 @@ class LedgerCommandService:
                     "Standardized Summary": training.get("standardized_summary") or "；".join(summary_parts),
                     "Notes": training_notes,
                     "save_mode": save_mode, "source": "text entry",
+                    "record_day_id": record_day_id(entry_date), "raw_entry_id": raw_record["id"],
+                    "raw_revision_id": raw_record["raw_revision_id"], "revision": 1, "updated_at": now_iso(),
                 }
             )
             if skipped:
                 raw_record["skipped_movements"] = skipped
+        self._touch_record_day(database, entry_date)
         return {
             "ok": True,
             "date": entry_date,

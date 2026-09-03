@@ -256,3 +256,15 @@ sequenceDiagram
 | 修改记录日期 | Body/Diet/Training、raw、动作历史、数据模块和云端投影整体迁移 |
 | 新增数据模块无值 | 分类页显示明确空模块位置；详情页显示暂无数据；不生成假数值记录 |
 | 手机发送第 8 条 | 云端仍保留接收内容；电脑本地仅淘汰最旧一条，保留最新 7 条完整记录 |
+
+## 8. 候选实现落点（2026-09-03）
+
+本候选分支已把谱系落到现有 JSON 和命令服务，不另建第二套业务数据库：
+
+- `fitness_ledger_core/record_relations.py` 提供幂等兼容迁移、`record_day_id`、`raw_revision_id` 和关系完整性校验；旧数据先在内存兼容，明确迁移写入时才通过成对备份持久化。
+- `ledger_commands.py` 的 Body/Diet/Training、动作实例、动作词典、数据模块值和训练原文入口统一经过 revision 校验、成对 checkpoint、原子写入和重新读取；训练原文保存前必须先生成差异并确认。
+- `mobile_viewer/data_access.py` 和 `fitness_ledger_core/shared_view_models.py` 都从同一 tracker/dictionary 快照读取，日期详情补齐数据模块和原始修订；训练动作优先使用 `training_session_id`，旧数据保留日期/No. 兼容回退。
+- 云端 payload 增加动作定义长期备注与关系/版本字段；云端仍是只读投影，本地成功写入回执为 `LOCAL_NEWER`。
+- Web 候选增加日期详情的 Body/Diet/Training 编辑、数据模块值编辑、动作实例 revision 编辑和训练原文差异确认入口。
+
+候选专用自动证据为 `tools/unified_edit_chain_test.py`，覆盖迁移、跨模型读取、revision 冲突、备注分离、原文确认、模块编辑和中途写入失败回滚。

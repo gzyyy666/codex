@@ -22,6 +22,8 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Iterable
 
+from .record_relations import now_iso, record_day_id
+
 
 MODULE_ID_RE = re.compile(r"^[a-z][a-z0-9_]{1,63}$")
 DATE_RE = re.compile(r"(?<!\d)(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?!\d)")
@@ -1157,6 +1159,8 @@ class DataModuleEngine:
             database = self._database()
             working = copy.deepcopy(database)
             records = working.setdefault("data_module_records", [])
+            raw_text = str(preview.get("raw_text", "")).strip()
+            entry_id = raw_entry_id or f"dmraw:{stable_hash({'raw': raw_text, 'candidates': candidates})[:16]}"
             changed = []
             created_record_ids = []
             unchanged = []
@@ -1179,6 +1183,7 @@ class DataModuleEngine:
                         unchanged.append(str(current.get("record_id")))
                         continue
                     current.update(self._record_payload(definition, record_date, value, str(current.get("record_id")), raw_candidate.get("raw_text", "")))
+                    current["revision"] = int(current.get("revision", 1) or 1) + 1
                     changed.append(str(current["record_id"]))
                 else:
                     record = self._record_payload(definition, record_date, value, _record_id(definition.module_id, record_date, len(records)), raw_candidate.get("raw_text", ""))
@@ -1187,12 +1192,24 @@ class DataModuleEngine:
                     created_record_ids.append(str(record["record_id"]))
             if not changed:
                 return {"status": "NO_CHANGES", "changed": False, "unchanged_record_ids": unchanged, "write_attempted": False}
-            raw_text = str(preview.get("raw_text", "")).strip()
             if raw_text:
                 raw_entries = working.setdefault("raw_entries", [])
-                entry_id = raw_entry_id or f"dmraw:{stable_hash({'raw': raw_text, 'records': changed})[:16]}"
-                if not any(isinstance(item, dict) and str(item.get("id")) == entry_id for item in raw_entries):
-                    raw_entries.append({"id": entry_id, "date": candidates[0].get("date", ""), "text": raw_text, "source": "data_module", "data_module_record_ids": changed})
+                existing_raw = next((item for item in raw_entries if isinstance(item, dict) and str(item.get("id")) == entry_id), None)
+                if existing_raw is None:
+                    existing_raw = {"id": entry_id, "date": candidates[0].get("date", ""), "text": raw_text, "source": "data_module", "data_module_record_ids": changed, "record_day_id": record_day_id(candidates[0].get("date", "")), "raw_revision_id": f"rawrev:{entry_id}:1", "revision": 1, "updated_at": now_iso()}
+                    raw_entries.append(existing_raw)
+                    working.setdefault("raw_entry_revisions", []).append({"raw_revision_id": existing_raw["raw_revision_id"], "raw_entry_id": entry_id, "record_day_id": existing_raw["record_day_id"], "date": existing_raw["date"], "revision": 1, "text": raw_text, "created_at": existing_raw["updated_at"], "updated_at": existing_raw["updated_at"], "source": "data_module"})
+                else:
+                    existing_raw["data_module_record_ids"] = changed
+                for record in records:
+                    if str(record.get("record_id")) in {str(item) for item in changed}:
+                        record["raw_entry_id"] = entry_id
+                        record["raw_revision_id"] = existing_raw.get("raw_revision_id", "")
+            for candidate in candidates:
+                record_date = validate_iso_date(candidate.get("date"))
+                day_id = record_day_id(record_date)
+                if not any(str(day.get("record_day_id")) == day_id for day in working.setdefault("record_days", [])):
+                    working["record_days"].append({"record_day_id": day_id, "date": record_date, "revision": 1, "created_at": f"{record_date}T00:00:00", "updated_at": now_iso()})
             issues = self.data_check(database=working, focus_module_ids={str(item.get("module_id")) for item in candidates})
             blocking = [item for item in issues if item.get("severity") == "high"]
             if blocking:
@@ -1223,6 +1240,7 @@ class DataModuleEngine:
                 "raw_preserved": bool(raw_text),
                 "checkpoint": str(tracker_backup) if tracker_backup else "",
                 "undo": {"available": bool(tracker_backup), "checkpoint": str(tracker_backup) if tracker_backup else ""},
+                "sync_state": "LOCAL_NEWER",
             }
 
     @staticmethod
@@ -1238,6 +1256,11 @@ class DataModuleEngine:
             "definition_version": definition.definition_version,
             "definition_snapshot": definition.snapshot(),
             "source_raw_hash": stable_hash(raw_text) if raw_text else "",
+            "record_day_id": record_day_id(record_date),
+            "raw_entry_id": "",
+            "raw_revision_id": "",
+            "revision": 1,
+            "updated_at": now_iso(),
         }
 
     def query(self, module_id: str, start: str = "", end: str = "", *, latest: bool = False, category_id: str = "") -> list[dict[str, Any]]:

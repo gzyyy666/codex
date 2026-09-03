@@ -8,6 +8,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from .notes import normalize_note_text
+from .record_relations import migrate_state
 
 
 def _number(value) -> float | None:
@@ -47,6 +48,7 @@ class LedgerViewModels:
     def snapshot(self) -> tuple[dict, dict]:
         tracker = json.loads(self.tracker_file.read_text(encoding="utf-8"))
         dictionary = json.loads(self.dictionary_file.read_text(encoding="utf-8"))
+        tracker, dictionary, _report = migrate_state(tracker, dictionary)
         return copy.deepcopy(tracker), copy.deepcopy(dictionary)
 
     def dictionary_indexes(self, dictionary: dict) -> tuple[dict, dict]:
@@ -271,7 +273,12 @@ class LedgerViewModels:
                         if definition:
                             break
                 movement_id = str(definition.get("movement_id", "")) if definition else ""
-                key = (_date(history.get("date")), str(history.get("training_day", "")))
+                key = (
+                    "session:" + str(history.get("training_session_id"))
+                    if history.get("training_session_id")
+                    else _date(history.get("date")),
+                    "" if history.get("training_session_id") else str(history.get("training_day", "")),
+                )
                 row = copy.deepcopy(history)
                 row.update({
                     "movement_id": movement_id,
@@ -288,8 +295,12 @@ class LedgerViewModels:
         for session in sorted(tracker.get("training_sessions", []) or [], key=lambda row: _date(row.get("Date")), reverse=True):
             projected = copy.deepcopy(session)
             projected["training_notes"] = normalize_note_text(session.get("Notes", ""))
-            date_key = _date(session.get("Date"))
-            day_key = str(session.get("No.", ""))
+            date_key = (
+                "session:" + str(session.get("id"))
+                if session.get("id")
+                else _date(session.get("Date"))
+            )
+            day_key = "" if session.get("id") else str(session.get("No.", ""))
             movement_refs = sorted(
                 history_by_day.get((date_key, day_key), []),
                 key=lambda row: (int(row.get("order", 9999) or 9999), row.get("movement_id", "")),
@@ -308,6 +319,8 @@ class LedgerViewModels:
                     "movement_notes": normalize_note_text(row.get("notes", "")),
                     "exclude_from_progress": bool(row.get("exclude_from_progress", False)),
                     "has_structured_sets": bool(row.get("has_structured_sets")),
+                    "training_session_id": row.get("training_session_id", session.get("id", "")),
+                    "revision": int(row.get("revision", 1) or 1),
                 }
                 for row in movement_refs
             ]
@@ -384,6 +397,10 @@ class LedgerViewModels:
             raw_refs.append({
                 "id": item.get("id", ""), "date": item.get("date", ""),
                 "preview": str(item.get("text", ""))[:180] if include_raw_preview else "",
+                "record_day_id": item.get("record_day_id", ""),
+                "raw_revision_id": item.get("raw_revision_id", ""),
+                "revision": int(item.get("revision", 1) or 1),
+                "updated_at": item.get("updated_at", ""),
             })
         weights = [_number(row.get("Weight (kg)")) for row in body]
         weights = [item for item in weights if item is not None]
@@ -398,4 +415,5 @@ class LedgerViewModels:
             },
             "body": body, "diet": diet, "training": training,
             "movements": movements, "raw_entries": raw_refs,
+            "data_modules": [copy.deepcopy(row) for row in tracker.get("data_module_records", []) if in_range(row.get("date"))],
         }
