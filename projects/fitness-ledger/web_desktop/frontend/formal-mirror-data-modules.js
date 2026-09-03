@@ -346,11 +346,35 @@ function ensureReviewHub(){return}
   document.addEventListener('click',event=>{const target=event.target.closest?.('[data-dm-route-back]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();if(target.dataset.dmBackMode==='history'&&history.length>1){history.back();return}bridge.navigate(target.dataset.dmBackView||target.dataset.dmBackFallback||'home',{})},true);
   document.addEventListener('click',event=>{const target=event.target.closest?.('[data-dm-open-day]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();bridge.recordDetail(target.dataset.dmOpenDay)},true);
   const surfaceControlIds=new Set(['body-search','diet-search','training-search','body-time','body-order','diet-order','training-order']);
-  const refreshNativeSurface=event=>{if(surfaceControlIds.has(event.target?.id))setTimeout(finalNativeCategorySurface,0)};
+  let finalSurfaceTimer=null,finalSurfaceRunning=false;
+  const ensureEmptyModuleSlots=()=>{
+    $$('.dm-empty-module-slot').forEach(node=>node.remove());
+    const view=bridge.currentRoute().view;
+    if(!['body','diet','training'].includes(view))return;
+    const modules=(state.catalog?.modules||[]).filter(item=>item.status==='active'&&item.display_surface==='category_page'&&selectableModuleCategory(item.category_id)===view&&reviewPlacementValue(item.placement)==='main');
+    const empty=modules.filter(item=>!document.querySelector(`.dm-native-field[data-dm-module-id="${CSS.escape(item.module_id)}"]`));
+    if(!empty.length)return;
+    const anchor=document.querySelector(`#${view}-rows`);
+    if(!anchor)return;
+    const slot=document.createElement('section');
+    slot.className='dm-empty-module-slot';
+    slot.innerHTML=`<span class="eyebrow">${esc(view.toUpperCase())} / EMPTY SLOT</span><h3>暂无记录项数据</h3><p>${esc(empty.map(item=>item.label||item.module_id).join(' · '))} 已创建，但当前没有可展示的值。</p>`;
+    anchor.insertAdjacentElement('afterend',slot);
+  };
+  const queueFinalSurface=()=>{
+    clearTimeout(finalSurfaceTimer);
+    finalSurfaceTimer=setTimeout(()=>{
+      if(finalSurfaceRunning)return;
+      finalSurfaceRunning=true;
+      Promise.resolve(finalNativeCategorySurface()).then(ensureEmptyModuleSlots).finally(()=>{finalSurfaceRunning=false});
+    },80);
+  };
+  const refreshNativeSurface=event=>{if(surfaceControlIds.has(event.target?.id))queueFinalSurface()};
   document.addEventListener('input',refreshNativeSurface);
   document.addEventListener('change',refreshNativeSurface);
   const finalManagementWithBack=renderManagementPage;renderManagementPage=async function(){await finalManagementWithBack();$$('.dm-module-group>header').forEach(header=>{const kicker=$('.admin-kicker',header),title=$('h2',header);if(kicker&&title)title.textContent=`${kicker.textContent.trim()} 记录项`});syncRouteBackButton()};
-  const finalRenderCurrent=renderCurrent;renderCurrent=function(){finalRenderCurrent();setTimeout(()=>{syncRouteBackButton();finalNativeCategorySurface()},700)};
-  window.addEventListener('fitness-ledger-pet:route-change',()=>[0,240,700,1200].forEach(delay=>setTimeout(()=>{removeLegacyCategoryDecorations();syncRouteBackButton();if(['home','body','diet','training','movement'].includes(bridge.currentRoute().view))finalNativeCategorySurface()},delay)));
+  const finalRenderCurrent=renderCurrent;renderCurrent=function(){finalRenderCurrent();syncRouteBackButton();queueFinalSurface()};
+  enhanceSurfacePage=()=>queueFinalSurface();
+  window.addEventListener('fitness-ledger-pet:route-change',()=>{removeLegacyCategoryDecorations();syncRouteBackButton();queueFinalSurface()});
   renderCurrent();
 }

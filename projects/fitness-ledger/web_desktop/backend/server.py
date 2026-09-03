@@ -913,6 +913,7 @@ class LedgerWebService:
                 "muscle_group": item.muscle_group,
                 "category": item.category,
                 "active": item.active,
+                "notes": item.notes,
                 "pinned": pinned_by_id.get(str(item.movement_id), False),
                 "focus_rank": rank_by_id.get(str(item.movement_id), 0),
                 "exclude_from_progress": False,

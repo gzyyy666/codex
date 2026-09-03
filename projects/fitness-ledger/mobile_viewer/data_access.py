@@ -125,6 +125,7 @@ class MovementMatch:
     muscle_group: str
     category: str
     active: bool
+    notes: str
 
 
 class LedgerDataAccess:
@@ -162,6 +163,7 @@ class LedgerDataAccess:
                 muscle_group=str(entry.get("muscle_group", "")).strip(),
                 category=str(entry.get("category", "")).strip(),
                 active=bool(entry.get("active", True)),
+                notes=str(entry.get("notes", "") or "").strip(),
             )
             if not match.movement_id:
                 continue
@@ -354,6 +356,7 @@ class LedgerDataAccess:
                 "muscle_group": movement.muscle_group,
                 "category": movement.category,
                 "active": movement.active,
+                "notes": movement.notes,
             },
             "history": history[:limit],
         }

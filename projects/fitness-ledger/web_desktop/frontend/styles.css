@@ -2353,6 +2353,7 @@ table{border-collapse:collapse}thead{background:rgba(18,17,15,.035)}th{font-size
 .movement-group .movement-tile{backdrop-filter:blur(1.5px)}
 .movement-group.group-core .movement-tile{background:rgba(255,255,255,.14)}
 .movement-group.group-core .movement-tile.tile-lead{background:rgba(255,215,67,.86);color:var(--ink)}
+.movement-definition-note{display:block;margin:9px 0 0;color:rgba(255,250,242,.78);font-size:11px;line-height:1.45;text-align:left}.movement-tile.tile-lead .movement-definition-note{color:rgba(38,28,10,.72)}.movement-definition-note-detail{margin-top:10px;color:var(--muted,#6b7169);font-size:13px}.movement-definition-note-detail b{display:block;margin-bottom:3px;color:var(--ink,#252923);font-size:10px;letter-spacing:.08em;text-transform:uppercase}
 
 .movement-detail-compact{
   grid-template-columns:minmax(250px,.85fr) minmax(420px,1.25fr);

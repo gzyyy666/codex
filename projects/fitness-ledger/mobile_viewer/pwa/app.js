@@ -121,7 +121,7 @@ async function sendTrainingNote() {
     state.phoneInboxItems = await withPhoneInboxTimeout(listPhoneInboxItems(), "PHONE_INBOX_READ_TIMEOUT");
     const verified = state.phoneInboxItems.some(item => item.client_id === clientId && item.text === textValue && item.source === "pwa_note" && item.status !== "expired");
     if (!verified) throw Object.assign(new Error("PHONE_INBOX_WRITE_VERIFY_FAILED"), { code: "PHONE_INBOX_WRITE_VERIFY_FAILED" });
-    state.shareNotice = "已发送到云端“当日训练记录”。电脑端打开“当日训练记录”即可在近 7 天列表看到；放入 Daily Entry 后仍需预览和确认，不会直接保存。";
+    state.shareNotice = "已发送到云端“当日训练记录”。电脑端读取后会在本地保留最近 7 次完整记录；放入 Daily Entry 后仍需预览和确认，不会直接保存。";
     sent = true;
   } catch (error) {
     const code = String(error?.code || error?.message || error);

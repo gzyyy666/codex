@@ -130,7 +130,7 @@ function renderItems() {
 function renderSendConfirmation() {
   const pending = state.pendingSend;
   if (!pending) return "";
-  return `<section class="share-card share-send-confirm" role="dialog" aria-modal="true" aria-label="再次确认发送"><div class="share-kicker">再次确认</div><h2>发送到电脑？</h2><p>发送后，电脑端“当日训练记录”会在近 7 天列表中显示这条文字；它不会自动写入正式训练记录。</p><pre class="share-item-text">${esc(pending.text)}</pre><div class="share-actions"><button class="share-button primary" data-action="confirm-send">确认发送到电脑</button><button class="share-button" data-action="cancel-send">返回修改</button></div></section>`;
+  return `<section class="share-card share-send-confirm" role="dialog" aria-modal="true" aria-label="再次确认发送"><div class="share-kicker">再次确认</div><h2>发送到电脑？</h2><p>发送后，电脑端会在本地保留最近 7 次完整发送；它不会自动写入正式训练记录。</p><pre class="share-item-text">${esc(pending.text)}</pre><div class="share-actions"><button class="share-button primary" data-action="confirm-send">确认发送到电脑</button><button class="share-button" data-action="cancel-send">返回修改</button></div></section>`;
 }
 
 function render() {
@@ -167,7 +167,7 @@ async function send(title, text) {
   state.notice = "";
   try {
     await enqueue(title, text);
-    state.notice = "已发送到云端“当日训练记录”。电脑端打开“当日训练记录”即可在近 7 天列表看到；放入 Daily Entry 后仍需预览并确认。";
+    state.notice = "已发送到云端“当日训练记录”。电脑端读取后会在本地保留最近 7 次完整记录；放入 Daily Entry 后仍需预览并确认。";
   }
   catch (error) { state.error = error.message || "发送失败，正式记录未改变。"; }
   state.busy = false;
