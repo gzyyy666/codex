@@ -100,6 +100,16 @@ class UnifiedEditChainTests(unittest.TestCase):
         self.assertEqual(cloud["fl_movements"][0]["notes"], "new long note")
         self.assertEqual(cloud["fl_movement_history"][0]["notes"], "new instance note")
 
+    def test_day_move_preserves_the_explicit_aggregate_relationship(self) -> None:
+        self.service.migrate_legacy_state(confirmed=True)
+        self.service.update_record("body", "body-1", {"Date": "2026-01-03"}, expected_revision=1, move_scope="day")
+        database, _dictionary = self.service.load_state()
+        self.assertEqual(database["daily_records"][0]["record_day_id"], "day:2026-01-03")
+        self.assertEqual(database["diet_records"][0]["record_day_id"], "day:2026-01-03")
+        self.assertEqual(database["training_sessions"][0]["record_day_id"], "day:2026-01-03")
+        self.assertEqual(database["movements"]["M1"]["history"][0]["date"], "2026-01-03")
+        self.assertFalse(validate_relations(database, _dictionary))
+
     def test_raw_edit_requires_diff_confirmation_and_updates_graph(self) -> None:
         self.service.migrate_legacy_state(confirmed=True)
         preview = self.service.preview_training_raw_edit("session-1", "new raw", expected_revision=1)
