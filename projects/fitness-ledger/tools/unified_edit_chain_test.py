@@ -77,6 +77,8 @@ class UnifiedEditChainTests(unittest.TestCase):
     def test_base_edit_propagates_to_detail_export_and_cloud(self) -> None:
         self.service.migrate_legacy_state(confirmed=True)
         self.service.update_record("body", "body-1", {"Weight (kg)": 70}, expected_revision=1)
+        self.service.update_record("diet", "diet-1", {"Protein (g)": 125, "Carbs (g)": 155}, expected_revision=1)
+        self.service.update_record("training", "session-1", {"Split": "Pull", "Notes": "updated session note"}, expected_revision=1)
         try:
             self.service.update_record("body", "body-1", {"Weight (kg)": 71}, expected_revision=1)
         except LedgerCommandError as exc:
@@ -86,7 +88,12 @@ class UnifiedEditChainTests(unittest.TestCase):
         detail = LedgerDataAccess(self.tracker, self.dictionary).get_record_detail("2026-01-02")
         cloud = build_cloud_payload(LedgerViewModels(self.tracker, self.dictionary))
         self.assertEqual(detail["body"]["Weight (kg)"], 70)
+        self.assertEqual(detail["diet"]["Protein (g)"], 125)
+        self.assertEqual(detail["training"][0]["split"], "Pull")
         self.assertEqual(cloud["fl_daily_records"][0]["Weight (kg)"], 70)
+        self.assertEqual(cloud["fl_diet_records"][0]["Protein (g)"], 125)
+        self.assertEqual(cloud["fl_training_sessions"][0]["Split"], "Pull")
+        self.assertEqual(LedgerViewModels(self.tracker, self.dictionary).training_archive()[0]["Split"], "Pull")
         self.assertIn("data_modules", detail)
 
     def test_movement_definition_and_instance_notes_are_separate(self) -> None:
