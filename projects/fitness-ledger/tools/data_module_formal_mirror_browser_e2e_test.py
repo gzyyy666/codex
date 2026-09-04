@@ -439,17 +439,24 @@ def main() -> None:
         _wait(browser, "!!document.querySelector('#dm-definition-form')")
         _set_css(browser, "[name=label]", "\u65e5\u95f4\u4f53\u6e29\uff08\u5c45\u5bb6\uff09")
         _set_css(browser, "[name=aliases]", "\u65e5\u95f4\u4f53\u6e29\uff08\u5c45\u5bb6\uff09,day temperature")
-        _select(browser, "[name=placement]", "detail")
+        _select(browser, "[name=placement]", "main")
         _set_checked(browser, "[name=statistics_visible]", True)
         _click(browser, "[data-dm-submit-definition]")
         _wait(browser, "!document.querySelector('#dm-definition-form')")
         edited = next(item for item in _json_get(browser, "/api/data-modules/product-catalog")["modules"] if item["module_id"] == temperature_id)
-        assert edited["label"] == "\u65e5\u95f4\u4f53\u6e29\uff08\u5c45\u5bb6\uff09" and edited["placement"] == "detail" and edited["capabilities"]["statistics_visible"] is True
+        assert edited["label"] == "\u65e5\u95f4\u4f53\u6e29\uff08\u5c45\u5bb6\uff09" and edited["placement"] == "main" and edited["capabilities"]["statistics_visible"] is True
         for raw in ("2026-08-10 \u65e5\u95f4\u4f53\u6e29\uff08\u5c45\u5bb6\uff09 36.5 C", "2026-08-12 \u65e5\u95f4\u4f53\u6e29\uff08\u5c45\u5bb6\uff09 36.8 C"):
             temperature_preview = _json_post(browser, "/api/data-modules/preview", {"raw": raw})
             assert temperature_preview["status"] == 200, temperature_preview
             assert _json_post(browser, "/api/data-modules/save", {"preview": temperature_preview["body"], "confirmed": True})["status"] == 200
         _wait(browser, "!!document.querySelector('[data-dm-statistics]')")
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.refreshWebState()")
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('body')")
+        _wait(browser, "!!document.querySelector('.body-slip-meta .dm-inline-statistics-button')")
+        inline_statistics = browser.evaluate("({label:document.querySelector('.body-slip-meta .dm-inline-statistics-button')?.textContent.trim(),pointer:getComputedStyle(document.querySelector('.body-slip-meta .dm-inline-statistics-button')).pointerEvents})")
+        assert inline_statistics == {"label": "\u8d8b\u52bf", "pointer": "auto"}, inline_statistics
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools',{panel:'data-modules'})")
+        _wait(browser, "!!document.querySelector('.dm-management-page')")
         _click_dataset(browser, "[data-dm-statistics]", "dmStatistics", temperature_id)
         _wait(browser, "!!document.querySelector('.dm-stat-chart')")
         stats_text = browser.evaluate("document.querySelector('.dm-module-statistics').innerText")
