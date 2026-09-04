@@ -453,8 +453,8 @@ def main() -> None:
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.refreshWebState()")
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('body')")
         _wait(browser, "!!document.querySelector('.body-slip-meta .dm-inline-statistics-button')")
-        inline_statistics = browser.evaluate("({label:document.querySelector('.body-slip-meta .dm-inline-statistics-button')?.textContent.trim(),pointer:getComputedStyle(document.querySelector('.body-slip-meta .dm-inline-statistics-button')).pointerEvents})")
-        assert inline_statistics == {"label": "\u8d8b\u52bf", "pointer": "auto"}, inline_statistics
+        inline_statistics = browser.evaluate("(() => { const button=document.querySelector('.body-slip-meta .dm-inline-statistics-button'); const style=button?getComputedStyle(button):null; return {label:button?.textContent.trim(),pointer:style?.pointerEvents,border:style?.borderStyle,fontSize:style?.fontSize,height:style?.height}; })()")
+        assert inline_statistics["label"] == "\u8d8b\u52bf" and inline_statistics["pointer"] == "auto" and inline_statistics["border"] == "solid" and float(inline_statistics["height"].replace("px","")) < 30, inline_statistics
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools',{panel:'data-modules'})")
         _wait(browser, "!!document.querySelector('.dm-management-page')")
         _click_dataset(browser, "[data-dm-statistics]", "dmStatistics", temperature_id)

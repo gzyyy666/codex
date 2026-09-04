@@ -146,3 +146,11 @@ body:has(.dm-management-page) .tools-pet-floating,body:has(.dm-management-page) 
 .dm-advanced-grid input[name="statistics_visible"]:disabled{appearance:auto!important;width:auto!important;height:auto!important;margin:0!important;border:revert!important;border-radius:revert!important;background:revert!important;opacity:.55!important}
 .dm-advanced-grid label:has(input[name="statistics_visible"]:disabled)::before{content:'\00d7';position:absolute;left:0;top:50%;z-index:1;transform:translateY(-52%);pointer-events:none;color:#858981;font-size:12px;font-weight:600;line-height:1}
 .dm-module-actions [data-dm-statistics].is-disabled{border-color:rgba(44,48,43,.14);color:#9a9d96;background:rgba(44,48,43,.035)}
+
+/* Surface action: a quiet text control, aligned with the existing record link. */
+.dm-inline-statistics-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;margin:-5px 0 -5px auto;padding:4px 6px;border:1px solid transparent;border-radius:999px;background:transparent;color:inherit;font:600 11px/1.2 var(--sans,Arial,sans-serif);cursor:pointer;opacity:.82;vertical-align:middle}
+.dm-inline-statistics-button:hover,.dm-inline-statistics-button:focus-visible{border-color:color-mix(in srgb,currentColor 18%,transparent);background:color-mix(in srgb,currentColor 7%,transparent);opacity:1;outline:none}
+.body-slip-meta .dm-inline-statistics-button{margin-left:auto}
+.macro-line .dm-inline-statistics-button{margin-left:6px}
+.dm-widget-chip .dm-inline-statistics-button{margin:0 0 0 2px;padding:3px 6px;color:#385847}
+.dm-widget-chip .dm-inline-statistics-button:hover,.dm-widget-chip .dm-inline-statistics-button:focus-visible{border-color:rgba(56,88,71,.28);background:rgba(56,88,71,.06)}
