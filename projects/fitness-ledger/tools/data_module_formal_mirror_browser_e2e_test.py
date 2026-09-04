@@ -248,6 +248,8 @@ def main() -> None:
         readiness_text = browser.evaluate("document.querySelector('.detail-list').innerText")
         assert "Cloud dry-run" in readiness_text and "Mini contract" in readiness_text and "无网络" in readiness_text, readiness_text
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.root.innerHTML='' ")
+        statistics_entries = browser.evaluate("({enabled:document.querySelectorAll('[data-dm-statistics]:not(:disabled)').length,disabled:document.querySelectorAll('[data-dm-statistics]:disabled').length})")
+        assert statistics_entries["enabled"] >= 1 and statistics_entries["disabled"] >= 1, statistics_entries
 
         # Management create: a second module in the existing Body category.
         _click(browser, "[data-dm-new-module]")
@@ -261,7 +263,7 @@ def main() -> None:
         format_shape = browser.evaluate("({values:[...document.querySelectorAll('[name=data_type] option')].map(item=>item.value),selected:document.querySelector('[name=data_type]')?.value,statsDisabled:document.querySelector('[name=statistics_visible]')?.disabled})")
         assert format_shape == {"values": ["text", "number"], "selected": "text", "statsDisabled": True}, format_shape
         disabled_stats_style = browser.evaluate("(() => { const input=document.querySelector('[name=statistics_visible]'); const label=input?.closest('label'); return {appearance:input?getComputedStyle(input).appearance:'',hint:label?getComputedStyle(label,'::after').content:''}; })()")
-        assert disabled_stats_style["appearance"] == "none" and disabled_stats_style["hint"] == '"仅数字"', disabled_stats_style
+        assert disabled_stats_style["appearance"] != "none" and disabled_stats_style["hint"] == '"仅数字"', disabled_stats_style
         _select(browser, "[name=data_type]", "number")
         assert browser.evaluate("document.querySelector('[name=statistics_visible]')?.disabled") is False
         _select(browser, "[name=data_type]", "text")
