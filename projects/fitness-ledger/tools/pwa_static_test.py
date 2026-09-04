@@ -50,7 +50,7 @@ def main() -> None:
     assert "refreshCandidateOverlay" in app_source
     assert "noteHistoryCache" in app_source
     assert 'data-candidate-region' in app_source
-    assert 'PWA v1.1.6' in app_source
+    assert 'PWA v1.1.7' in app_source
     assert 'data-action="expand-note">发送到电脑</button>' in app_source
     assert 'if (action === "expand-note") { state.noteExpanded = true; state.shareDraft = state.note; state.shareTitle = "手机训练记录"; state.shareSent = false;' in app_source
     assert '确认发送' in app_source and 'PHONE_INBOX_TIMEOUT_MS = 15000' in app_source
@@ -96,7 +96,7 @@ def main() -> None:
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'includes("/api/")' in service_worker
-    assert 'fitness-ledger-pwa-v35' in service_worker
+    assert 'fitness-ledger-pwa-v36' in service_worker
     assert '"./data-modules.js?v=20260820-04"' in service_worker
     assert 'register("./sw.js?v=20260826-05", { updateViaCache: "none" })' in app_source
     assert 'cache: "no-store"' in api_source

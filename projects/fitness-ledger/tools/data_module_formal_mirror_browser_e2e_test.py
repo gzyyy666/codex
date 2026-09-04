@@ -219,7 +219,16 @@ def main() -> None:
         pulse = next(item for item in first_catalog["modules"] if item["label"] == "\u6668\u95f4\u8109\u640f")
         pulse_id = pulse["module_id"]
         assert pulse["category_id"] == "body" and pulse["display_surface"] == "category_page" and pulse["record_level"] == "daily_scalar", pulse
-        _click(browser, "[data-dm-go-body]")
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('quick')")
+        _wait(browser, "!!document.querySelector('#raw-entry')")
+        _set_css(browser, "#raw-entry", "2026-08-13 \u6668\u95f4\u8109\u640f 59")
+        _click(browser, "#parse")
+        _wait(browser, "!!document.querySelector('.review-data-module-field')")
+        review_module_evidence = browser.evaluate("({count:document.querySelectorAll('.review-data-module-field').length,value:document.querySelector('.review-data-module-field textarea,.review-data-module-field input')?.value||'',body:!!document.querySelector('#review-body .review-data-module-field')})")
+        assert review_module_evidence["count"] >= 1 and review_module_evidence["value"] == "59" and review_module_evidence["body"], review_module_evidence
+        _click(browser, "[data-review-cancel]")
+        _wait(browser, "!!document.querySelector('#raw-entry')")
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('body')")
         _wait(browser, "!!document.querySelector('.archive-heading')")
         _wait(browser, "!!document.querySelector('.dm-inline-metrics,.dm-native-field')")
         body_snapshot=browser.evaluate("({url:location.href,hasShelf:!!document.querySelector('.dm-surface-shelf'),hasCompact:!!document.querySelector('.dm-inline-metrics,.dm-native-field'),nativeValue:document.querySelector('.body-slip-meta .dm-native-field')?.innerText||'',summary:document.querySelectorAll('.dm-category-summary-row').length,legacy:document.querySelectorAll('.dm-category-native-line').length,text:document.body.innerText.slice(0,1200)})")
@@ -368,7 +377,12 @@ def main() -> None:
         _wait(browser, "!document.querySelector('#dm-definition-form')")
         catalog = _json_get(browser, "/api/data-modules/product-catalog")
         recovery_module = next(item for item in catalog["modules"] if item["label"] == "\u6062\u590d\u8bc4\u5206")
-        assert recovery_module["category_id"] == "extension" and recovery_module["display_surface"] == "page_widget" and recovery_module["actual_unit"] == "" and recovery_module["data_type"] == "number", recovery_module
+        assert recovery_module["category_id"] == "extension" and recovery_module["display_surface"] == "page_widget" and recovery_module["actual_unit"] == "" and recovery_module["data_type"] == "text", recovery_module
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('home')")
+        _wait(browser, "!document.querySelector('.dm-page-widget-strip')")
+        recovery_preview = _json_post(browser, "/api/data-modules/preview", {"raw": "2026-08-15 \u6062\u590d\u8bc4\u5206: 8"})
+        assert _json_post(browser, "/api/data-modules/save", {"preview": recovery_preview["body"], "confirmed": True})["status"] == 200
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.refreshWebState()")
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('home')")
         _wait(browser, "!!document.querySelector('.dm-page-widget-strip')")
         assert browser.evaluate("document.body.innerText.includes('恢复评分')")
@@ -386,7 +400,12 @@ def main() -> None:
         _click(browser, "[data-dm-submit-definition]")
         _wait(browser, "!document.querySelector('#dm-definition-form')")
         movement_module = next(item for item in _json_get(browser, "/api/data-modules/product-catalog")["modules"] if item["label"] == "\u52a8\u4f5c\u51c6\u5907\u5ea6")
-        assert movement_module["category_id"] == "extension" and movement_module["display_page"] == "movement" and movement_module["actual_unit"] == "" and movement_module["data_type"] == "number", movement_module
+        assert movement_module["category_id"] == "extension" and movement_module["display_page"] == "movement" and movement_module["actual_unit"] == "" and movement_module["data_type"] == "text", movement_module
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('movements')")
+        _wait(browser, "!document.querySelector('.dm-page-widget-strip')")
+        movement_preview = _json_post(browser, "/api/data-modules/preview", {"raw": "2026-08-15 \u52a8\u4f5c\u51c6\u5907\u5ea6: 8"})
+        assert _json_post(browser, "/api/data-modules/save", {"preview": movement_preview["body"], "confirmed": True})["status"] == 200
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.refreshWebState()")
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('movements')")
         _wait(browser, "!!document.querySelector('.dm-page-widget-strip')")
         assert browser.evaluate("document.body.innerText.includes('动作准备度')")

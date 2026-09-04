@@ -95,6 +95,10 @@ _PRODUCT_SURFACES = {
         "label": "只记录，不自动展示",
         "description": "保留正式记录和历史，页面不显示。",
     },
+    "detail_page": {
+        "label": "训练详情上方的其他扩展",
+        "description": "不占 Body、Diet、Training 列表位置，在打开每日详情时显示在训练记录上方。",
+    },
 }
 
 
@@ -112,6 +116,10 @@ def _product_placement(category_id: str, choice: str, order: int = 0, surface: s
         section = "extension"
         slot = "history" if surface_key == "history_only" else "auxiliary"
         visible = surface_key == "history_only"
+    elif surface_key == "detail_page":
+        section = "extension"
+        slot = "secondary"
+        visible = True
     else:
         section = category_id if category_id in {"body", "diet", "training", "movement"} else "extension"
         slot = placement["slot"]
@@ -140,6 +148,8 @@ def _product_surface(category_id: str, presentation: dict) -> str:
         return "page_widget"
     if section in {"body", "diet", "training", "movement"} and section == str(category_id):
         return "category_page"
+    if section == "extension" and str(category_id) == "extension" and slot in {"top", "secondary"}:
+        return "detail_page"
     return "history_only"
 
 
@@ -537,7 +547,7 @@ class LedgerCommandService:
         }
 
     def data_module_discover(self, raw_text: str, record_date: str | None = None) -> dict:
-        """Recognize an existing module or offer a generic numeric module candidate."""
+        """Recognize an existing module or offer a generic explicit-field candidate."""
         raw = str(raw_text or "").strip()
         if not raw:
             raise LedgerCommandError("请先写下要记录的内容。", "MODULE_RAW_EMPTY")
@@ -553,9 +563,50 @@ class LedgerCommandService:
 
         without_dates = re.sub(r"\d{4}[-/.]\d{1,2}[-/.]\d{1,2}", " ", raw)
         without_dates = re.sub(r"(?:今天|today)", " ", without_dates, flags=re.IGNORECASE)
+
+        # A new free-content field must be explicit (``名称: 内容``).  This
+        # prevents ordinary prose from accidentally becoming a new module,
+        # while allowing text such as mental state, symptoms, or a long note.
+        text_match = re.match(r"^\s*([^:\n：=]{1,80}?)\s*[:：=]\s*(.+?)\s*$", without_dates, flags=re.DOTALL)
+        if text_match:
+            label = text_match.group(1).strip(" \t,，。")
+            label = re.sub(r"^(?:记录|测量|我的|当前|早上|上午|晚上|晚间)+", "", label).strip(" \t,，。")
+            value = text_match.group(2).strip()
+            if label and value:
+                label_lower = label.casefold()
+                category_hints = [
+                    ("body", r"腰围|体重|体脂|心率|脉搏|体温|睡眠|血压|排便|围度|精神|情绪|大脑|状态|waist|weight|body|heart|pulse|sleep|temperature|mood|emotion|mental"),
+                    ("diet", r"肌酸|蛋白|碳水|脂肪|热量|饮食|饮水|水|钠|糖|creatine|protein|carb|fat|calorie|diet|water|sodium"),
+                    ("training", r"训练|有氧|跑步|步数|训练时长|training|cardio|run|steps|workout"),
+                    ("movement", r"动作|卧推|深蹲|硬拉|引体|movement|bench|squat|deadlift|pullup"),
+                ]
+                suggested_category_id = "extension"
+                suggestion_reason = "这是显式的文字记录项，默认放入“其他扩展”；你仍然可以手动改选类别和展示位置。"
+                for category_id, pattern in category_hints:
+                    if re.search(pattern, label_lower, flags=re.IGNORECASE):
+                        suggested_category_id = category_id
+                        suggestion_reason = f"根据名称中的常见词，建议归入“{category_id}”；你仍然可以手动改选。"
+                        break
+                return {
+                    "kind": "new_candidate",
+                    "candidate": {
+                        "label": label,
+                        "aliases": [label],
+                        "value": value,
+                        "data_type": "text",
+                        "content_format": "free_text",
+                        "unit": "",
+                        "date": record_date or date.today().isoformat(),
+                        "raw": raw,
+                        "suggested_category_id": suggested_category_id,
+                        "suggested_display_surface": "category_page" if suggested_category_id != "extension" else "page_widget",
+                        "suggestion_reason": suggestion_reason,
+                        "record_level": "daily_scalar",
+                    },
+                }
         number = re.search(r"(?<![\d.])[-+]?(?:\d+(?:\.\d+)?|\.\d+)(?![\d.])", without_dates)
         if not number:
-            return {"kind": "not_data_module", "message": "这段话里还没有可识别的数值。"}
+            return {"kind": "not_data_module", "message": "请使用“记录项: 内容”或“记录项 数值”的格式。"}
         label = without_dates[: number.start()].strip(" \t,，。:：=是为的")
         label = re.sub(r"^(?:记录|测量|我的|当前|早上|上午|晚上|晚间)+", "", label).strip(" \t,，。:：=是为的")
         label = re.sub(r"\s+", " ", label)
@@ -2771,6 +2822,15 @@ class LedgerCommandService:
         self.validate_review(parsed)
         with self.write_lock():
             database, dictionary = self.load_state()
+            module_preview = parsed.get("_data_module_preview")
+            if module_preview:
+                # The preview must match the state the user reviewed.  Check
+                # before Body/Diet/Training are applied; those edits are part
+                # of the same transaction and would otherwise make a valid
+                # mixed Daily Entry look stale.
+                module_engine = self.data_module_engine()
+                if module_engine._fingerprint(database) != str(module_preview.get("source_fingerprint", "")):
+                    raise LedgerCommandError("Data Module preview is stale; re-run preview.", "MODULE_PREVIEW_STALE")
             duplicates = self.records_on_date(database, parsed["date"])
             if any(duplicates.values()) and save_mode not in {"overwrite", "append_training"}:
                 raise DuplicateDateError({key: len(rows) for key, rows in duplicates.items()})
@@ -2973,6 +3033,10 @@ class LedgerCommandService:
             if skipped:
                 raw_record["skipped_movements"] = skipped
             rebuild_movement_projection(database)
+        data_module_result = {"changed": False, "status": "NO_CHANGES"}
+        module_preview = parsed.get("_data_module_preview")
+        if module_preview:
+            data_module_result = self.data_module_engine().apply_preview_to_database(database, module_preview, raw_entry_id=raw_record["id"])
         self._touch_record_day(database, entry_date)
         return {
             "ok": True,
@@ -2985,4 +3049,5 @@ class LedgerCommandService:
             "personal_records": personal_records,
             "split_label": str(training.get("split") or ""),
             "movement_count": saved_movements,
+            "data_module_result": data_module_result,
         }

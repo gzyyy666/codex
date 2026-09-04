@@ -833,10 +833,63 @@ class LedgerWebService:
 
     def parse_entry(self, raw_text: str) -> dict:
         payload = self.commands.parse(raw_text)
+        self._attach_data_module_preview(payload, raw_text)
         review_id = str(payload["review_id"])
         with self.pending_lock:
             self.pending_reviews[review_id] = copy.deepcopy(payload["review"])
         return payload
+
+    def _attach_data_module_preview(self, payload: dict, raw: str) -> None:
+        """Add recognized registered modules to the normal Daily Entry review."""
+        try:
+            preview = self.commands.data_module_preview(raw, payload.get("review", {}).get("date"))
+        except LedgerCommandError as exc:
+            if exc.code in {"MODULE_NOT_RECOGNIZED", "MODULE_DATE_REQUIRED", "MODULE_REGISTRY_REQUIRED"}:
+                preview = {"schema": "fitness-ledger-data-module-preview-v1", "status": "preview_ready", "write_attempted": False, "raw_text": raw, "candidates": []}
+            else:
+                raise
+        try:
+            catalog = self.commands.data_module_product_catalog()
+        except LedgerCommandError as exc:
+            if exc.code == "MODULE_REGISTRY_REQUIRED":
+                payload.setdefault("review", {})["data_modules"] = preview
+                payload["data_modules"] = preview
+                return
+            raise
+        by_id = {str(item.get("module_id")): item for item in catalog.get("modules", [])}
+        for candidate in preview.get("candidates", []):
+            module = by_id.get(str(candidate.get("module_id")))
+            if module:
+                candidate["module"] = {
+                    "module_id": module.get("module_id", ""),
+                    "label": module.get("label", candidate.get("matched_alias", "")),
+                    "category_id": module.get("category_id", "extension"),
+                    "data_type": module.get("data_type", "text"),
+                    "actual_unit": module.get("actual_unit", ""),
+                    "display_unit": module.get("display_unit", ""),
+                    "display_surface": module.get("display_surface", "record_only"),
+                    "placement": module.get("placement", "record"),
+                }
+        payload.setdefault("review", {})["data_modules"] = preview
+        payload["review"]["data_module_slots"] = [
+            {
+                "module": {
+                    "module_id": item.get("module_id", ""),
+                    "label": item.get("label", ""),
+                    "category_id": item.get("category_id", "extension"),
+                    "data_type": item.get("data_type", "text"),
+                    "actual_unit": item.get("actual_unit", ""),
+                    "display_unit": item.get("display_unit", ""),
+                    "display_surface": item.get("display_surface", "record_only"),
+                    "placement": item.get("placement", "record"),
+                },
+            }
+            for item in catalog.get("modules", [])
+            if item.get("status") == "active" and (item.get("capabilities") or {}).get("recordable")
+        ]
+        if preview.get("candidates"):
+            payload["review"]["data_module_preview"] = copy.deepcopy(preview)
+        payload["data_modules"] = preview
 
     def import_preview(self, request: dict) -> dict:
         """Preview one pasted natural-language daily entry without writing it."""
@@ -871,6 +924,20 @@ class LedgerWebService:
         if str(submitted.get("id", "")) != review_id or submitted.get("raw") != original.get("raw"):
             raise LedgerCommandError("The review identity or preserved raw input was changed.")
         reviewed = self._merge_allowed_review_edits(original, submitted)
+        module_preview = original.get("data_module_preview")
+        if module_preview:
+            submitted_modules = submitted.get("data_modules", {})
+            submitted_candidates = submitted_modules.get("candidates", []) if isinstance(submitted_modules, dict) else []
+            preview = copy.deepcopy(module_preview)
+            for index, candidate in enumerate(preview.get("candidates", [])):
+                if index >= len(submitted_candidates) or not isinstance(submitted_candidates[index], dict):
+                    continue
+                incoming = submitted_candidates[index]
+                if str(incoming.get("module_id", candidate.get("module_id"))) != str(candidate.get("module_id")) or str(incoming.get("date", candidate.get("date"))) != str(candidate.get("date")):
+                    raise LedgerCommandError("Data Module identity cannot be changed during Web review.", "MODULE_REVIEW_IDENTITY_CHANGED")
+                if "value" in incoming:
+                    candidate["value"] = incoming["value"]
+            reviewed["_data_module_preview"] = preview
         result = self.commands.save(reviewed, request.get("save_mode"))
         with self.pending_lock:
             self.pending_reviews.pop(review_id, None)
@@ -903,6 +970,18 @@ class LedgerWebService:
             for field in ("display_name", "notes", "_review_action", "_mapped_movement_id", "_muscle_group", "exclude_from_progress"):
                 if field in source:
                     target[field] = source[field]
+        original_modules = reviewed.get("data_modules", {})
+        submitted_modules = submitted.get("data_modules", {})
+        if isinstance(original_modules, dict) and isinstance(submitted_modules, dict):
+            original_candidates = original_modules.get("candidates", [])
+            submitted_candidates = submitted_modules.get("candidates", [])
+            if len(original_candidates) != len(submitted_candidates):
+                raise LedgerCommandError("Data Module rows cannot be added or removed during Web review.")
+            for target, source in zip(original_candidates, submitted_candidates):
+                if not isinstance(source, dict) or str(source.get("module_id", "")) != str(target.get("module_id", "")):
+                    raise LedgerCommandError("Invalid Data Module review data.", "MODULE_REVIEW_INVALID")
+                if "value" in source:
+                    target["value"] = source["value"]
         return reviewed
 
     def recent(self, limit: int = 3) -> list[dict]:

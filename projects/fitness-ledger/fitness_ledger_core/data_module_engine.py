@@ -106,6 +106,8 @@ def _display_surface(definition: "ModuleDefinition") -> dict[str, str]:
         return {"value": "page_widget", "label": "页面角落小模块"}
     if section in {"body", "diet", "training", "movement"} and section == definition.category_id:
         return {"value": "category_page", "label": f"跟随{_CATEGORY_LABELS.get(section, section)}页面"}
+    if section == "extension" and definition.category_id == "extension" and slot in {"top", "secondary"}:
+        return {"value": "detail_page", "label": "训练详情上方的其他扩展"}
     return {"value": "record_only", "label": "只记录，不自动展示"}
 
 
@@ -361,6 +363,8 @@ class ModuleDefinition:
             raise _error("Cloud-syncable modules must be exportable.", "MODULE_CLOUD_CONTRACT_INVALID", {"module_id": module_id})
         if capabilities["analysis_visible"] and not capabilities["exportable"]:
             raise _error("Analysis-visible modules must be exportable.", "MODULE_ANALYSIS_CONTRACT_INVALID", {"module_id": module_id})
+        if capabilities["statistics_visible"] and data_type not in {"number", "quantity", "rating", "duration"}:
+            raise _error("Statistics currently support numeric modules only.", "MODULE_STATISTICS_TYPE_UNSUPPORTED", {"module_id": module_id, "data_type": data_type})
         if not capabilities["recordable"] and status == "active":
             raise _error("An active module must be recordable or explicitly inactive/retired.", "MODULE_CAPABILITY_INVALID", {"module_id": module_id})
         fallback = str(presentation.get("fallback", "empty_state")).strip().lower()
@@ -1080,7 +1084,11 @@ class RegistryDrivenParser:
             tail = segment[match.end():].strip()
             unit_hint = re.match(r"([A-Za-z%µμ]+)", tail)
             return value, unit_hint.group(1) if unit_hint else ""
-        value = segment.strip().split()[0] if segment.strip() else ""
+        # Text modules intentionally preserve the complete payload after the
+        # alias.  The old first-token behavior silently truncated Chinese,
+        # English, punctuation, spaces, and multi-line notes.
+        value = segment.strip()
+        value = re.sub(r"^[\s:：=]+", "", value)
         return value, ""
 
 
@@ -1242,6 +1250,84 @@ class DataModuleEngine:
                 "undo": {"available": bool(tracker_backup), "checkpoint": str(tracker_backup) if tracker_backup else ""},
                 "sync_state": "LOCAL_NEWER",
             }
+
+    def apply_preview_to_database(self, working: dict[str, Any], preview: dict[str, Any], *, raw_entry_id: str | None = None) -> dict[str, Any]:
+        """Apply a confirmed module preview to an existing in-memory ledger.
+
+        The regular module endpoint uses this same operation before its own
+        atomic write.  Daily Entry uses it while the core Body/Diet/Training
+        changes are still in the same working graph, so a mixed entry has one
+        checkpoint and one commit boundary.
+        """
+        if not isinstance(preview, dict) or preview.get("status") != "preview_ready":
+            raise _error("Only a valid Data Module preview can be saved.", "MODULE_PREVIEW_REQUIRED")
+        candidates = preview.get("candidates", [])
+        if not isinstance(candidates, list) or not candidates:
+            raise _error("Preview contains no candidates.", "MODULE_PREVIEW_EMPTY")
+        records = working.setdefault("data_module_records", [])
+        raw_text = str(preview.get("raw_text", "")).strip()
+        entry_id = raw_entry_id or f"dmraw:{stable_hash({'raw': raw_text, 'candidates': candidates})[:16]}"
+        changed: list[str] = []
+        created_record_ids: list[str] = []
+        unchanged: list[str] = []
+        for raw_candidate in candidates:
+            definition = self.registry.require(str(raw_candidate.get("module_id", "")))
+            if definition.status != "active" or not definition.capabilities["recordable"]:
+                raise _error("Retired/inactive modules cannot accept new records.", "MODULE_NOT_RECORDABLE", {"module_id": definition.module_id})
+            category = self.category_registry.get(definition.category_id)
+            if category is None or category.status != "active":
+                raise _error("Module category is not active for new records.", "CATEGORY_NOT_RECORDABLE", {"category_id": definition.category_id})
+            value = normalize_value(raw_candidate.get("value"), definition)
+            record_date = validate_iso_date(raw_candidate.get("date"))
+            matching = [row for row in records if isinstance(row, dict) and row.get("module_id") == definition.module_id and row.get("date") == record_date]
+            behaviour = definition.recording_behavior
+            if behaviour["kind"] != "scalar" or behaviour["cardinality"] != "one_per_day":
+                raise _error("This candidate supports only scalar one-per-day recording; the generic interface remains open for future kinds.", "MODULE_RECORDING_BEHAVIOR_NOT_IMPLEMENTED", {"module_id": definition.module_id})
+            if matching:
+                current = matching[0]
+                if current.get("value") == value and current.get("definition_version") == definition.definition_version:
+                    unchanged.append(str(current.get("record_id")))
+                    continue
+                current.update(self._record_payload(definition, record_date, value, str(current.get("record_id")), raw_candidate.get("raw_text", "")))
+                current["revision"] = int(current.get("revision", 1) or 1) + 1
+                changed.append(str(current["record_id"]))
+            else:
+                record = self._record_payload(definition, record_date, value, _record_id(definition.module_id, record_date, len(records)), raw_candidate.get("raw_text", ""))
+                records.append(record)
+                changed.append(str(record["record_id"]))
+                created_record_ids.append(str(record["record_id"]))
+        if raw_text and changed:
+            raw_entries = working.setdefault("raw_entries", [])
+            existing_raw = next((item for item in raw_entries if isinstance(item, dict) and str(item.get("id")) == entry_id), None)
+            if existing_raw is None:
+                existing_raw = {"id": entry_id, "date": candidates[0].get("date", ""), "text": raw_text, "source": "text entry", "data_module_record_ids": changed, "record_day_id": record_day_id(candidates[0].get("date", "")), "raw_revision_id": f"rawrev:{entry_id}:1", "revision": 1, "updated_at": now_iso()}
+                raw_entries.append(existing_raw)
+                working.setdefault("raw_entry_revisions", []).append({"raw_revision_id": existing_raw["raw_revision_id"], "raw_entry_id": entry_id, "record_day_id": existing_raw["record_day_id"], "date": existing_raw["date"], "revision": 1, "text": raw_text, "created_at": existing_raw["updated_at"], "updated_at": existing_raw["updated_at"], "source": "text entry"})
+            else:
+                existing_raw["data_module_record_ids"] = list(dict.fromkeys([*(existing_raw.get("data_module_record_ids") or []), *changed]))
+            for record in records:
+                if str(record.get("record_id")) in set(changed):
+                    record["raw_entry_id"] = entry_id
+                    record["raw_revision_id"] = existing_raw.get("raw_revision_id", "")
+        for candidate in candidates:
+            record_date = validate_iso_date(candidate.get("date"))
+            day_id = record_day_id(record_date)
+            if not any(str(day.get("record_day_id")) == day_id for day in working.setdefault("record_days", [])):
+                working["record_days"].append({"record_day_id": day_id, "date": record_date, "revision": 1, "created_at": f"{record_date}T00:00:00", "updated_at": now_iso()})
+        issues = self.data_check(database=working, focus_module_ids={str(item.get("module_id")) for item in candidates})
+        blocking = [item for item in issues if item.get("severity") == "high"]
+        if blocking:
+            raise _error("Data Module in-memory validation failed; no data was written.", "MODULE_SAVE_VALIDATION_FAILED", {"issues": blocking})
+        return {
+            "status": "CREATED" if created_record_ids and len(created_record_ids) == len(changed) else "UPDATED",
+            "changed": bool(changed),
+            "created_count": len(created_record_ids),
+            "updated_count": len(changed) - len(created_record_ids),
+            "changed_record_ids": changed,
+            "unchanged_record_ids": unchanged,
+            "raw_preserved": bool(raw_text),
+            "sync_state": "LOCAL_NEWER" if changed else "NO_CHANGES",
+        }
 
     @staticmethod
     def _record_payload(definition: ModuleDefinition, record_date: str, value: Any, record_id: str, raw_text: str) -> dict[str, Any]:

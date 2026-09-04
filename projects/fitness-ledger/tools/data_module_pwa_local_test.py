@@ -63,7 +63,7 @@ def main() -> None:
 
         page = client.get("/pwa/")
         assert page.status_code == 200
-        assert b"data-modules.js?v=20260815-01" in page.data
+        assert b"data-modules.js?v=20260820-04" in page.data
         local_config = client.get("/pwa/config.js")
         assert local_config.status_code == 200
         assert b"requireWebAuth: false" in local_config.data
