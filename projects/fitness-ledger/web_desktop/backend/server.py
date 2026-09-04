@@ -49,6 +49,7 @@ from fitness_ledger_core.formal_readonly_data_source import FormalReadOnlyDataSo
 from fitness_ledger_core.restricted_export_integration import (  # noqa: E402
     compile_natural_language_export,
 )
+from web_desktop.backend.phone_inbox import PhoneInboxError, PhoneInboxStore  # noqa: E402
 
 
 def load_stable_module():
@@ -106,6 +107,7 @@ class LedgerWebService:
         self.stable = load_stable_module()
         self.commands = LedgerCommandService(data_file, dictionary_file, backup_dir, self._parse_with_stable_app, data_module_registry_file)
         self.data_check_state_file = Path(data_file).parent / "data_check_state.json"
+        self.phone_inbox = PhoneInboxStore(Path(data_file).parent / "phone_inbox.json")
         self.silent_health = SilentHealthCheck(
             Path(data_file), Path(dictionary_file), self.stable, self.data_check_state_file
         )
@@ -168,7 +170,18 @@ class LedgerWebService:
             "data_module_candidate": bool(self.data_module_registry_file and self.data_module_registry_file.is_file()),
             "data_module_registry": str(self.data_module_registry_file) if self.data_module_registry_file else "",
             "phase": "shared-platform-services",
+            "phone_inbox_local_persistence": True,
+            "phone_inbox_keep_count": 7,
         }
+
+    def phone_inbox_local(self) -> dict:
+        return self.phone_inbox.snapshot()
+
+    def phone_inbox_sync(self, request: dict) -> dict:
+        items = request.get("items", [])
+        if not isinstance(items, list):
+            raise ValueError("Phone inbox items must be a list.")
+        return self.phone_inbox.sync(items)
 
     def undo_status(self) -> dict:
         return self.commands.undo_status()
@@ -1079,6 +1092,8 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.archive_health())
             elif parsed.path == "/api/cloud-sync/status":
                 self.send_json(self.service.cloud_sync_status())
+            elif parsed.path == "/api/phone-inbox/local":
+                self.send_json(self.service.phone_inbox_local())
             elif parsed.path == "/api/workout-reference":
                 self.send_json(self.service.workout_reference(query.get("split", [""])[0]))
             elif parsed.path == "/api/movement-insight":
@@ -1142,6 +1157,9 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                     self.send_error(HTTPStatus.FORBIDDEN)
                 else:
                     self.send_file(candidate)
+        except PhoneInboxError as exc:
+            status = HTTPStatus.CONFLICT if exc.code == "PHONE_INBOX_LOCAL_CORRUPT" else HTTPStatus.BAD_REQUEST
+            self.send_json({"error": str(exc), "code": exc.code}, status)
         except (ValueError, TypeError) as exc:
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
         except Exception as exc:
@@ -1189,6 +1207,8 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.run_cloud_sync(request))
             elif parsed.path == "/api/cloud-sync/verify":
                 self.send_json(self.service.verify_cloud_sync(request))
+            elif parsed.path == "/api/phone-inbox/sync":
+                self.send_json(self.service.phone_inbox_sync(request))
             elif parsed.path == "/api/cloud-sync/open":
                 self.send_json(self.service.open_cloud_sync_target(request.get("target", "")))
             elif parsed.path == "/api/analysis-export":
@@ -1261,6 +1281,9 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 {"error": str(exc), "code": exc.code, "details": exc.details},
                 status,
             )
+        except PhoneInboxError as exc:
+            status = HTTPStatus.CONFLICT if exc.code == "PHONE_INBOX_LOCAL_CORRUPT" else HTTPStatus.BAD_REQUEST
+            self.send_json({"error": str(exc), "code": exc.code}, status)
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
         except Exception as exc:

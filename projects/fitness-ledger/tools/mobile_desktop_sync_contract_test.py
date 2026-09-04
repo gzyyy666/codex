@@ -9,6 +9,7 @@ PROJECT = Path(__file__).resolve().parents[1]
 WEB_APP = PROJECT / "web_desktop" / "frontend" / "app.js"
 WEB_SERVER = PROJECT / "web_desktop" / "backend" / "server.py"
 PHONE_CLIENT = PROJECT / "web_desktop" / "frontend" / "phone-inbox-client.js"
+PHONE_STORE = PROJECT / "web_desktop" / "backend" / "phone_inbox.py"
 SHARE = PROJECT / "mobile_viewer" / "pwa" / "share.js"
 PWA_APP = PROJECT / "mobile_viewer" / "pwa" / "app.js"
 
@@ -17,6 +18,7 @@ def main() -> None:
     app = WEB_APP.read_text(encoding="utf-8")
     server = WEB_SERVER.read_text(encoding="utf-8")
     phone_client = PHONE_CLIENT.read_text(encoding="utf-8")
+    phone_store = PHONE_STORE.read_text(encoding="utf-8")
     share = SHARE.read_text(encoding="utf-8")
     pwa = PWA_APP.read_text(encoding="utf-8")
 
@@ -42,6 +44,10 @@ def main() -> None:
     assert '"notes": item.notes' in server
     assert "state.movementHistory?.movement?.notes" in app
     assert "REQUEST_TIMEOUT_MS = 15000" in phone_client and "PHONE_INBOX_READ_TIMEOUT" in phone_client
+    assert "/api/phone-inbox/local" in phone_client and "/api/phone-inbox/sync" in phone_client
+    assert "PhoneInboxStore" in server and '"phone_inbox_local_persistence": True' in server
+    assert "last_message_id" in phone_store and "os.replace" in phone_store
+    assert "localStorage" not in phone_client
     assert 'phone-inbox-client.js?v=' in app
     assert "autoSyncOutcomeMessage" in app and "reconciled:true" in app
     assert "notice" in share and "已复制到剪贴板" in share

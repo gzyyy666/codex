@@ -5,9 +5,8 @@ const COLLECTION = "fl_web_share_inbox";
 const RECENT_DAYS = 7;
 const QUERY_LIMIT = 50;
 const REQUEST_TIMEOUT_MS = 15000;
-// 云端只负责接收；电脑端成功读取后在本地保留最近 7 次完整发送。
+// 云端只负责接收；电脑端成功读取后通过本地服务持久化最近 7 次完整发送。
 const KEEP_COUNT = 7;
-const CACHE_KEY = "fitness-ledger:phone-inbox-recent:v1";
 
 let sdkPromise;
 let appPromise;
@@ -84,36 +83,44 @@ function normalizeItem(item) {
 
 function itemKey(item) {
   const normalized = normalizeItem(item);
-  return String(normalized._id || normalized.client_id || [normalized.title, normalized.text, normalized.received_at].join("\u0001"));
+  return String(normalized._id || "");
 }
 
 function retainLatest(items) {
   const byKey = new Map();
   for (const item of items.map(normalizeItem)) {
     if (!item || item.status === "expired") continue;
+    if (!itemKey(item)) continue;
     byKey.set(itemKey(item), item);
   }
   return [...byKey.values()]
-    .sort((left, right) => Number(right.received_at || 0) - Number(left.received_at || 0))
+    .sort((left, right) => {
+      const time = Number(right.received_at || 0) - Number(left.received_at || 0);
+      return time || String(right._id || "").localeCompare(String(left._id || ""));
+    })
     .slice(0, KEEP_COUNT);
 }
 
-function saveCache(items) {
-  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ saved_at: Date.now(), items: retainLatest(items) })); } catch (_) {}
+async function readLocalSnapshot() {
+  const response = await withTimeout(fetch("/api/phone-inbox/local", { cache: "no-store" }), "PHONE_INBOX_LOCAL_READ_TIMEOUT");
+  let payload = {};
+  try { payload = await response.json(); } catch (_) {}
+  if (!response.ok) {
+    const error = new Error(payload.error || "Local phone inbox is unavailable.");
+    error.code = payload.code || "PHONE_INBOX_LOCAL_READ_FAILED";
+    throw error;
+  }
+  return { ...payload, items: retainLatest(Array.isArray(payload.items) ? payload.items : []) };
 }
 
-function removeCachedItem(id) {
-  const target = String(id || "");
-  saveCache(readCache().filter(item => itemKey(item) !== target));
+export async function localItems() {
+  return (await readLocalSnapshot()).items;
 }
 
-export function readCache() {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed?.items) ? retainLatest(parsed.items) : [];
-  } catch (_) { return []; }
+export async function readCache() {
+  // Compatibility export for older page bundles.  Durable state is now the
+  // backend file; browser storage is intentionally never an inbox authority.
+  return localItems();
 }
 
 export async function signIn(username, password) {
@@ -123,14 +130,37 @@ export async function signIn(username, password) {
 }
 
 export async function listRecent() {
-  const { uid } = await requireLogin();
-  const inbox = await collection();
-  const result = await withTimeout(inbox.where({ owner_uid: uid }).orderBy("received_at", "desc").limit(QUERY_LIMIT).get(), "PHONE_INBOX_READ_TIMEOUT");
-  // A successful cloud read updates the local seven-item working set.  Older
-  // local items remain available when the cloud is temporarily unavailable.
-  const items = retainLatest([...readCache(), ...(Array.isArray(result.data) ? result.data : [])]);
-  saveCache(items);
-  return items;
+  const local = await readLocalSnapshot();
+  try {
+    const { uid } = await requireLogin();
+    const inbox = await collection();
+    // Filter by account in CloudBase, then apply the deterministic ordering
+    // locally.  This avoids making inbox delivery depend on a remote
+    // received_at index while retaining the same latest-first rule.
+    const result = await withTimeout(inbox.where({ owner_uid: uid }).limit(QUERY_LIMIT).get(), "PHONE_INBOX_READ_TIMEOUT");
+    // The backend owns dedupe, ordering, persistence, and the seven-item
+    // retention rule.  Send the complete query result to that one service.
+    const cloudItems = Array.isArray(result.data) ? result.data : [];
+    const response = await withTimeout(fetch("/api/phone-inbox/sync", {
+      method: "POST",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ items: cloudItems })
+    }), "PHONE_INBOX_LOCAL_WRITE_TIMEOUT");
+    let payload = {};
+    try { payload = await response.json(); } catch (_) {}
+    if (!response.ok) {
+      const error = new Error(payload.error || "Local phone inbox could not be saved.");
+      error.code = payload.code || "PHONE_INBOX_LOCAL_WRITE_FAILED";
+      throw error;
+    }
+    return retainLatest(Array.isArray(payload.items) ? payload.items : []);
+  } catch (error) {
+    // At-least-once retry: keep the durable snapshot visible, but preserve the
+    // cloud/network error so the page can report that sync will retry.
+    error.localItems = local.items;
+    throw error;
+  }
 }
 
 export async function updateStatus(id, status) {
@@ -144,7 +174,6 @@ export async function removeItem(id) {
   const { uid } = await requireLogin();
   const inbox = await collection();
   await withTimeout(inbox.where({ _id: id, owner_uid: uid }).remove(), "PHONE_INBOX_WRITE_TIMEOUT");
-  removeCachedItem(id);
   return listRecent();
 }
 

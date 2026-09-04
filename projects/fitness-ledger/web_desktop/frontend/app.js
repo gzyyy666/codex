@@ -65,9 +65,11 @@ function checksPage(){main.innerHTML=`<section class="page page-grid"><div class
 function reviewPage(raw){main.innerHTML=`<section class="page review"><div class="review-top">${pageHeader('Unavailable','Review extracted data before saving to your local journal.')}<button class="btn" data-back>Back to edit</button></div><div class="summary-strip">${[['Date','2026-07-01'],['Weight','67.8 kg'],['Bowel','少量'],['Calories','1570 kcal'],['Training','胸部, 肩部'],['Movements','6 · New 1']].map(x=>`<div class="metric"><label>${x[0]}</label><strong>${x[1]}</strong></div>`).join('')}</div>${['BODY 身体','DIET 饮食','TRAINING 训练','MOVEMENTS 动作识别','WARNINGS 警告'].map((t,i)=>`<section class="review-section"><h3>${t}</h3><p>${i===4?'Duplicate date · New movement · Unrecognized sets':i===3?'1. 卧推 · 4 sets &nbsp; 2. 引体向上 · 3 sets &nbsp; 3. 绳索面拉 · 3 sets':esc(short(raw||'Preview data from the current draft.',180))}</p></section>`).join('')}<div class="bottom-bar"><button class="btn" data-back>Cancel</button><button class="btn" data-back>← Back to edit</button><button class="btn btn-primary" data-duplicate>Confirm & Save</button></div></section>`}
 
  function modal(title,content,options={}){const legacyActions=typeof options==='string'?options:'';const config=options&&typeof options==='object'?options:{};const light=Boolean(config.light);const actions=legacyActions||config.actions||'';root.innerHTML=`<div class="overlay"><section class="modal ${light?'light':''}"><button class="close" data-close>×</button><h2>${esc(title)}</h2>${content}${actions?`<div class="modal-actions">${actions}</div>`:''}</section></div>`}
-async function loadPhoneInboxClient(){if(!phoneInboxClientPromise)phoneInboxClientPromise=import(`./phone-inbox-client.js?v=20260827-02`);return phoneInboxClientPromise}
+async function loadPhoneInboxClient(){if(!phoneInboxClientPromise)phoneInboxClientPromise=import(`./phone-inbox-client.js?v=20260904-02`);return phoneInboxClientPromise}
 function phoneInboxDate(value){const date=new Date(Number(value)||value);return Number.isNaN(date.getTime())?String(value||''):date.toLocaleString('zh-CN',{hour12:false})}
 function phoneInboxError(error){if(error?.code==='PHONE_INBOX_ACCOUNT_REQUIRED')return '当前只是匿名或临时登录，无法归入账号收件箱。请登录与手机端相同的 CloudBase 账号。';if(error?.code==='PHONE_INBOX_AUTH_REQUIRED'||String(error?.message||'').includes('AUTH_REQUIRED'))return '请先登录 CloudBase 账号，才能读取手机发送的内容。';if(String(error?.code||'').includes('PHONE_INBOX_')&&String(error?.code||'').includes('TIMEOUT'))return '读取等待超过 15 秒，未显示为成功。请检查网络后重试。';return error?.message||'手机发送记录暂时无法读取，请稍后重试。'}
+function phoneInboxDiagnostic(error){return String(error?.code||'PHONE_INBOX_SYNC_FAILED').replace(/[^A-Z0-9_.-]/gi,'_').slice(0,80)}
+function phoneInboxNeedsAccount(error){return ['PHONE_INBOX_AUTH_REQUIRED','PHONE_INBOX_ACCOUNT_REQUIRED'].includes(error?.code)}
 function renderPhoneInboxModal(){
   const inbox=state.phoneInbox;
   if(inbox.status==='loading'){modal('当日训练记录','<div class="loading-page" style="height:170px"><i></i><p>正在读取最近发送内容…</p></div>');return}
@@ -78,16 +80,20 @@ function renderPhoneInboxModal(){
   const sourceNote=inbox.cached?'本地最近 7 次 · 云端暂不可用，稍后会自动重试同步':'本地最近 7 次（云端读取后更新）';
   modal('当日训练记录',`<div class="phone-inbox-head"><p>手机发来的内容会先出现在这里。可以复制原文，或选择“放入 Daily Entry”继续识别、预览和确认保存。</p><span>本地保留 ${items.length} 次发送 · ${sourceNote}</span></div><div class="phone-inbox-list">${list}</div>${inbox.notice?`<p class="phone-inbox-notice" role="status">${esc(inbox.notice)}</p>`:''}`,`<button class="btn" data-phone-inbox-refresh>${inbox.busy?'读取中…':'刷新'}</button><button class="btn btn-primary" data-close>关闭</button>`);
 }
-function phoneInboxCachedItems(){return (state.phoneInboxClient?.readCache?state.phoneInboxClient.readCache():[])}
-// 后台静默同步：启动和定时刷新时读取云端并更新本地最近 7 次；云端不可用时回退本地。
+async function phoneInboxCachedItems(error){
+  if(Array.isArray(error?.localItems))return error.localItems;
+  try{return state.phoneInboxClient?.localItems?await state.phoneInboxClient.localItems():[]}catch{return []}
+}
+// 后台静默同步：启动和定时刷新时读取云端并更新本地最近 7 次；云端不可用时保留本地文件快照。
 async function syncPhoneInboxBackground(){
   try{
     const client=await loadPhoneInboxClient();state.phoneInboxClient=client;
     state.phoneInbox.items=await client.listRecent();
     state.phoneInbox.status='ready';state.phoneInbox.cached=false;state.phoneInbox.error='';
   }catch(error){
-    const cached=phoneInboxCachedItems();
-    if(cached.length){state.phoneInbox.items=cached;state.phoneInbox.status='ready';state.phoneInbox.cached=true}
+    const cached=await phoneInboxCachedItems(error);
+    if(phoneInboxNeedsAccount(error)){state.phoneInbox.status='auth';state.phoneInbox.error=phoneInboxError(error)}
+    else if(cached.length){state.phoneInbox.items=cached;state.phoneInbox.status='ready';state.phoneInbox.cached=true;state.phoneInbox.notice=`云端同步失败（${phoneInboxDiagnostic(error)}），将自动重试。`}
     else if(state.phoneInbox.status!=='ready'){state.phoneInbox.status='closed'}
   }
   if(document.querySelector('#overlay-root .phone-inbox-list'))renderPhoneInboxModal();
@@ -96,8 +102,9 @@ async function openPhoneDailyRecords(){
   if(state.phoneInbox.status==='ready'&&(state.phoneInbox.items||[]).length){renderPhoneInboxModal();syncPhoneInboxBackground();return}
   state.phoneInbox={status:'loading',items:[],error:'',notice:'',busy:false,cached:false};renderPhoneInboxModal();
   try{const client=await loadPhoneInboxClient();state.phoneInboxClient=client;state.phoneInbox.items=await client.listRecent();state.phoneInbox.status='ready';state.phoneInbox.cached=false}catch(error){
-    const cached=phoneInboxCachedItems();
-    if(cached.length){state.phoneInbox.items=cached;state.phoneInbox.status='ready';state.phoneInbox.cached=true}
+    const cached=await phoneInboxCachedItems(error);
+    if(phoneInboxNeedsAccount(error)){state.phoneInbox.status='auth';state.phoneInbox.error=phoneInboxError(error)}
+    else if(cached.length){state.phoneInbox.items=cached;state.phoneInbox.status='ready';state.phoneInbox.cached=true;state.phoneInbox.notice=`云端同步失败（${phoneInboxDiagnostic(error)}），将自动重试。`}
     else{state.phoneInbox.status=['PHONE_INBOX_AUTH_REQUIRED','PHONE_INBOX_ACCOUNT_REQUIRED'].includes(error?.code)?'auth':'error';state.phoneInbox.error=phoneInboxError(error)}
   }
   if(state.phoneInbox.status==='error')modal('当日训练记录',`<p class="dm-form-error">${esc(state.phoneInbox.error)}</p>`,`<button class="btn" data-phone-inbox-refresh>重试</button><button class="btn btn-primary" data-close>关闭</button>`);else renderPhoneInboxModal();
@@ -107,11 +114,11 @@ async function signInPhoneInbox(form){
   try{const client=await loadPhoneInboxClient();state.phoneInboxClient=client;state.phoneInbox.items=await client.signIn(form.elements.username.value,form.elements.password.value);state.phoneInbox.status='ready';state.phoneInbox.error=''}catch(error){state.phoneInbox.status='auth';state.phoneInbox.error=phoneInboxError(error)}
   state.phoneInbox.busy=false;renderPhoneInboxModal();
 }
-async function refreshPhoneDailyRecords(){if(!state.phoneInboxClient)return openPhoneDailyRecords();state.phoneInbox.status='loading';state.phoneInbox.busy=true;renderPhoneInboxModal();try{state.phoneInbox.items=await state.phoneInboxClient.listRecent();state.phoneInbox.status='ready';state.phoneInbox.cached=false;state.phoneInbox.error=''}catch(error){const cached=phoneInboxCachedItems();if(cached.length){state.phoneInbox.items=cached;state.phoneInbox.status='ready';state.phoneInbox.cached=true;state.phoneInbox.error=''}else{state.phoneInbox.status=['PHONE_INBOX_AUTH_REQUIRED','PHONE_INBOX_ACCOUNT_REQUIRED'].includes(error?.code)?'auth':'error';state.phoneInbox.error=phoneInboxError(error)}}state.phoneInbox.busy=false;renderPhoneInboxModal()}
+async function refreshPhoneDailyRecords(){if(!state.phoneInboxClient)return openPhoneDailyRecords();state.phoneInbox.status='loading';state.phoneInbox.busy=true;renderPhoneInboxModal();try{state.phoneInbox.items=await state.phoneInboxClient.listRecent();state.phoneInbox.status='ready';state.phoneInbox.cached=false;state.phoneInbox.error='';state.phoneInbox.notice=''}catch(error){const cached=await phoneInboxCachedItems(error);if(phoneInboxNeedsAccount(error)){state.phoneInbox.status='auth';state.phoneInbox.error=phoneInboxError(error)}else if(cached.length){state.phoneInbox.items=cached;state.phoneInbox.status='ready';state.phoneInbox.cached=true;state.phoneInbox.error='';state.phoneInbox.notice=`云端同步失败（${phoneInboxDiagnostic(error)}），将自动重试。`}else{state.phoneInbox.status='error';state.phoneInbox.error=phoneInboxError(error)}}state.phoneInbox.busy=false;renderPhoneInboxModal()}
 function usePhoneInboxItem(id){const item=state.phoneInbox.items.find(row=>row._id===id);if(!item)return;state.phoneInboxDraft=String(item.text||'');root.innerHTML='';navigate('quick');window.setTimeout(()=>{const input=$('#raw-entry');if(input){input.value=state.phoneInboxDraft;input.focus();showToast('已放入 Daily Entry，请先识别和预览。')}state.phoneInboxDraft=''},0)}
 async function copyPhoneInboxItem(id){const item=state.phoneInbox.items.find(row=>row._id===id);const text=String(item?.text||'').trim();if(!text)return;try{if(!navigator.clipboard?.writeText)throw new Error('clipboard unavailable');await navigator.clipboard.writeText(text);state.phoneInbox.notice='已复制这条手机记录，可直接粘贴到任意输入框。';showToast('手机记录已复制。')}catch(error){state.phoneInbox.notice='当前环境无法访问剪贴板，请使用“放入 Daily Entry”。';showToast('当前环境无法访问剪贴板。')}renderPhoneInboxModal()}
 async function markPhoneInboxProcessed(id){if(!state.phoneInboxClient)return;state.phoneInbox.busy=true;renderPhoneInboxModal();try{state.phoneInbox.items=await state.phoneInboxClient.updateStatus(id,'processed');state.phoneInbox.notice='已标记为已处理，原文仍保留在最近记录中。';state.phoneInbox.error=''}catch(error){state.phoneInbox.error=phoneInboxError(error)}state.phoneInbox.busy=false;renderPhoneInboxModal()}
-function confirmPhoneInboxDelete(id){const item=state.phoneInbox.items.find(row=>row._id===id);if(!item)return;modal('删除手机记录',`<p class="phone-inbox-copy">确定删除这条记录吗？删除后云端与本地缓存中的这条内容都会移除，且无法恢复。</p><div class="phone-inbox-item"><pre>${esc(short(String(item.text||''),400))}</pre></div>`,`<button class="btn" data-close>取消</button><button class="btn btn-danger" data-phone-inbox-delete-confirm="${esc(id)}">确认删除</button>`)}
+function confirmPhoneInboxDelete(id){const item=state.phoneInbox.items.find(row=>row._id===id);if(!item)return;modal('删除手机记录',`<p class="phone-inbox-copy">确定删除这条记录吗？这会按当前明确的删除操作移除云端原文及本地快照，且无法恢复；自动保留 7 条不会删除云端内容。</p><div class="phone-inbox-item"><pre>${esc(short(String(item.text||''),400))}</pre></div>`,`<button class="btn" data-close>取消</button><button class="btn btn-danger" data-phone-inbox-delete-confirm="${esc(id)}">确认删除</button>`)}
 async function deletePhoneInboxItem(id){if(!state.phoneInboxClient)return;state.phoneInbox.busy=true;renderPhoneInboxModal();try{state.phoneInbox.items=await state.phoneInboxClient.removeItem(id);state.phoneInbox.notice='已删除该记录。';state.phoneInbox.error=''}catch(error){state.phoneInbox.error=phoneInboxError(error)}state.phoneInbox.busy=false;renderPhoneInboxModal()}
  let dataModuleLlmTemplate=null;
  let dataModuleLlmPrompt="";
