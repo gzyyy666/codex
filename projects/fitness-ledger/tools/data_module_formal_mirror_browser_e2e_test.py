@@ -184,6 +184,18 @@ def main() -> None:
         service = _start_service(port, sandbox.name)
         edge, browser, edge_data = _start_browser(port)
         _command(browser, "Emulation.setDeviceMetricsOverride", {"width": 1280, "height": 900, "deviceScaleFactor": 1, "mobile": False})
+        startup_api_requests = browser.evaluate("performance.getEntriesByType('resource').map(item=>item.name).filter(name=>name.includes('/api/'))")
+        assert startup_api_requests.count(f"http://127.0.0.1:{port}/api/body?limit=100") == 1
+        assert startup_api_requests.count(f"http://127.0.0.1:{port}/api/data-modules/product-catalog") == 1
+        assert startup_api_requests.count(f"http://127.0.0.1:{port}/api/data-modules/export") == 1
+        browser.evaluate("window.__flBodyMutationTimes=[];window.__flBodyObserver=new MutationObserver(ms=>window.__flBodyMutationTimes.push(...ms.map(()=>performance.now())));window.__flBodyObserver.observe(document.querySelector('#main'),{childList:true,subtree:true})")
+        browser.evaluate("window.__flBodyNavigationAt=performance.now()")
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('body')")
+        _wait(browser, "!!document.querySelector('.archive-heading')")
+        time.sleep(0.35)
+        body_route_evidence = browser.evaluate("(()=>{const times=window.__flBodyMutationTimes;return {bodyRequests:performance.getEntriesByType('resource').map(item=>item.name).filter(name=>name.includes('/api/body?limit=100')).length,catalogRequests:performance.getEntriesByType('resource').map(item=>item.name).filter(name=>name.includes('/api/data-modules/product-catalog')).length,exportRequests:performance.getEntriesByType('resource').map(item=>item.name).filter(name=>name.includes('/api/data-modules/export')).length,mainMutations:times.length,lateMainMutations:times.filter(at=>at-window.__flBodyNavigationAt>=100).length}})()")
+        assert body_route_evidence["bodyRequests"] == 1 and body_route_evidence["catalogRequests"] == 1 and body_route_evidence["exportRequests"] == 1 and body_route_evidence["mainMutations"] >= 1 and body_route_evidence["lateMainMutations"] == 0, body_route_evidence
+        browser.evaluate("window.__flBodyObserver.disconnect()")
 
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('quick')")
         _wait(browser, "!!document.querySelector('#raw-entry')")
@@ -253,6 +265,7 @@ def main() -> None:
         temperature_preview = _json_post(browser, "/api/data-modules/preview", {"raw": "2026-08-15 \u65e5\u95f4\u4f53\u6e29 36.7 C"})
         assert temperature_preview["status"] == 200, temperature_preview
         assert _json_post(browser, "/api/data-modules/save", {"preview": temperature_preview["body"], "confirmed": True})["status"] == 200
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.refreshWebState()")
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('body')")
         body_only = _wait(browser, "document.querySelector('.dm-body-module-record')?.innerText||''")
         assert "2026-08-15" in body_only and "\u65e5\u95f4\u4f53\u6e29" in body_only and "36.7 C" in body_only, body_only
@@ -271,6 +284,7 @@ def main() -> None:
         sodium_preview = _json_post(browser, "/api/data-modules/preview", {"raw": "2026-08-15 \u6bcf\u65e5\u94a0\u6444\u5165 1800 mg"})
         assert sodium_preview["status"] == 200, sodium_preview
         assert _json_post(browser, "/api/data-modules/save", {"preview": sodium_preview["body"], "confirmed": True})["status"] == 200
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.refreshWebState()")
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('diet')")
         diet_only = _wait(browser, "document.querySelector('.dm-diet-module-record')?.innerText||''")
         assert "2026-08-15" in diet_only and "\u6bcf\u65e5\u94a0\u6444\u5165" in diet_only and "1800 mg" in diet_only, diet_only
@@ -303,6 +317,7 @@ def main() -> None:
         readiness_preview = _json_post(browser, "/api/data-modules/preview", {"raw": "2026-08-15 \u8bad\u7ec3\u51c6\u5907\u5ea6 8"})
         assert readiness_preview["status"] == 200, readiness_preview
         assert _json_post(browser, "/api/data-modules/save", {"preview": readiness_preview["body"], "confirmed": True})["status"] == 200
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.refreshWebState()")
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('training')")
         training_only = _wait(browser, "document.querySelector('.dm-training-module-session')?.innerText||''")
         assert "2026-08-15" in training_only and "\u8bad\u7ec3\u51c6\u5907\u5ea6" in training_only and "8" in training_only, training_only
@@ -329,6 +344,7 @@ def main() -> None:
         assert creatine["category_id"] == "diet" and creatine["display_surface"] == "category_page" and creatine["placement"] == "detail", creatine
         creatine_record_preview = _json_post(browser, "/api/data-modules/preview", {"raw": "2026-08-12 \u6bcf\u65e5\u808c\u9178 5 g"})
         _json_post(browser, "/api/data-modules/save", {"preview": creatine_record_preview["body"], "confirmed": True})
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.refreshWebState()")
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('body')")
         _wait(browser, "!!document.querySelector('.record-open')")
         _click(browser, ".record-open")
