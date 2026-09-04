@@ -174,7 +174,20 @@ export async function removeItem(id) {
   const { uid } = await requireLogin();
   const inbox = await collection();
   await withTimeout(inbox.where({ _id: id, owner_uid: uid }).remove(), "PHONE_INBOX_WRITE_TIMEOUT");
-  return listRecent();
+  const response = await withTimeout(fetch("/api/phone-inbox/remove", {
+    method: "POST",
+    cache: "no-store",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ id })
+  }), "PHONE_INBOX_LOCAL_WRITE_TIMEOUT");
+  let payload = {};
+  try { payload = await response.json(); } catch (_) {}
+  if (!response.ok) {
+    const error = new Error(payload.error || "Local phone inbox could not remove the item.");
+    error.code = payload.code || "PHONE_INBOX_LOCAL_DELETE_FAILED";
+    throw error;
+  }
+  return retainLatest(Array.isArray(payload.items) ? payload.items : []);
 }
 
 export const recentDays = RECENT_DAYS;

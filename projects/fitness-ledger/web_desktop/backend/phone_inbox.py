@@ -13,6 +13,7 @@ from typing import Any, Callable, Iterable
 
 SCHEMA_VERSION = "phone-inbox-local-v1"
 KEEP_COUNT = 7
+MAX_DELETED_IDS = 256
 
 
 class PhoneInboxError(RuntimeError):
@@ -85,6 +86,7 @@ class PhoneInboxStore:
         return {
             "schema_version": SCHEMA_VERSION,
             "items": [],
+            "deleted_ids": [],
             "sync": {"last_received_at": 0, "last_message_id": "", "last_success_at": ""},
         }
 
@@ -97,8 +99,14 @@ class PhoneInboxStore:
             raise PhoneInboxError("PHONE_INBOX_LOCAL_CORRUPT", f"Local phone inbox is unreadable: {self.path} ({exc})") from exc
         if not isinstance(payload, dict) or payload.get("schema_version") != SCHEMA_VERSION or not isinstance(payload.get("items"), list):
             raise PhoneInboxError("PHONE_INBOX_LOCAL_CORRUPT", f"Local phone inbox has an invalid schema: {self.path}")
+        deleted_ids = payload.get("deleted_ids", [])
+        if not isinstance(deleted_ids, list) or any(not str(value or "").strip() for value in deleted_ids):
+            raise PhoneInboxError("PHONE_INBOX_LOCAL_CORRUPT", f"Local phone inbox has invalid deleted IDs: {self.path}")
+        payload["deleted_ids"] = list(dict.fromkeys(str(value).strip() for value in deleted_ids))[-MAX_DELETED_IDS:]
         try:
-            payload["items"] = retain_latest(payload["items"])
+            blocked = set(payload["deleted_ids"])
+            normalized_items = [_normalize(item) for item in payload["items"]]
+            payload["items"] = retain_latest(item for item in normalized_items if item["_id"] not in blocked)
         except PhoneInboxError as exc:
             raise PhoneInboxError("PHONE_INBOX_LOCAL_CORRUPT", f"Local phone inbox contains invalid data: {exc}") from exc
         if not isinstance(payload.get("sync"), dict):
@@ -133,12 +141,38 @@ class PhoneInboxStore:
         with self._lock:
             current = self._read()
             incoming = [_normalize(item) for item in cloud_items]
-            merged = retain_latest([*current["items"], *incoming])
+            blocked = set(current["deleted_ids"])
+            merged = retain_latest(item for item in [*current["items"], *incoming] if item.get("_id") not in blocked)
             newest = max(incoming, key=_sort_key, default=None)
             sync = dict(current["sync"])
             if newest is not None:
                 sync.update({"last_received_at": newest.get("received_at", 0), "last_message_id": newest["_id"]})
             sync["last_success_at"] = _now()
-            payload = {"schema_version": SCHEMA_VERSION, "items": merged, "sync": sync}
+            payload = {"schema_version": SCHEMA_VERSION, "items": merged, "deleted_ids": current["deleted_ids"], "sync": sync}
             self._atomic_write(payload)
             return {"status": "ready", "schema_version": SCHEMA_VERSION, "path": str(self.path), "items": merged, "sync": sync, "received_count": len(incoming), "newest_message_id": newest["_id"] if newest else ""}
+
+    def remove(self, message_id: str) -> dict[str, Any]:
+        """Remove a deliberately deleted message and block stale cloud reappearance."""
+        normalized_id = str(message_id or "").strip()
+        if not normalized_id:
+            raise PhoneInboxError("PHONE_INBOX_MESSAGE_ID_REQUIRED", "A stable message ID is required for local deletion.")
+        with self._lock:
+            current = self._read()
+            deleted_ids = [value for value in current["deleted_ids"] if value != normalized_id]
+            deleted_ids.append(normalized_id)
+            payload = {
+                "schema_version": SCHEMA_VERSION,
+                "items": [item for item in current["items"] if item.get("_id") != normalized_id],
+                "deleted_ids": deleted_ids[-MAX_DELETED_IDS:],
+                "sync": current["sync"],
+            }
+            self._atomic_write(payload)
+            return {
+                "status": "ready",
+                "schema_version": SCHEMA_VERSION,
+                "path": str(self.path),
+                "items": payload["items"],
+                "sync": payload["sync"],
+                "removed_message_id": normalized_id,
+            }

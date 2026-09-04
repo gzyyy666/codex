@@ -183,6 +183,9 @@ class LedgerWebService:
             raise ValueError("Phone inbox items must be a list.")
         return self.phone_inbox.sync(items)
 
+    def phone_inbox_remove(self, request: dict) -> dict:
+        return self.phone_inbox.remove(request.get("id", ""))
+
     def undo_status(self) -> dict:
         return self.commands.undo_status()
 
@@ -1209,6 +1212,8 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.verify_cloud_sync(request))
             elif parsed.path == "/api/phone-inbox/sync":
                 self.send_json(self.service.phone_inbox_sync(request))
+            elif parsed.path == "/api/phone-inbox/remove":
+                self.send_json(self.service.phone_inbox_remove(request))
             elif parsed.path == "/api/cloud-sync/open":
                 self.send_json(self.service.open_cloud_sync_target(request.get("target", "")))
             elif parsed.path == "/api/analysis-export":

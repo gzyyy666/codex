@@ -81,6 +81,12 @@ def main() -> None:
         recovered = store.sync([row(21)])
         assert recovered["sync"]["last_message_id"] == row(21)["_id"]
 
+        removed = store.remove(row(21)["_id"])
+        assert row(21)["_id"] not in ids(removed)
+        assert row(21)["_id"] in json.loads(path.read_text(encoding="utf-8"))["deleted_ids"]
+        after_delete_resync = store.sync([row(21)])
+        assert row(21)["_id"] not in ids(after_delete_resync)
+
         path.write_text("{not valid json", encoding="utf-8")
         try:
             store.snapshot()
@@ -101,6 +107,7 @@ def main() -> None:
             "stable_tie_order": ids(tied)[:2],
             "write_failure_preserved_file": True,
             "network_recovery_preserved_cursor": True,
+            "explicit_delete_blocks_reappearance": True,
             "corruption_diagnostic": "PHONE_INBOX_LOCAL_CORRUPT",
             "restart_equivalent_snapshot": True,
             "unicode_newline_long_text": True,

@@ -45,8 +45,9 @@ def main() -> None:
     assert "state.movementHistory?.movement?.notes" in app
     assert "REQUEST_TIMEOUT_MS = 15000" in phone_client and "PHONE_INBOX_READ_TIMEOUT" in phone_client
     assert "/api/phone-inbox/local" in phone_client and "/api/phone-inbox/sync" in phone_client
+    assert "/api/phone-inbox/remove" in phone_client and "phone_inbox_remove" in server
     assert "PhoneInboxStore" in server and '"phone_inbox_local_persistence": True' in server
-    assert "last_message_id" in phone_store and "os.replace" in phone_store
+    assert "last_message_id" in phone_store and "deleted_ids" in phone_store and "os.replace" in phone_store
     assert "localStorage" not in phone_client
     assert 'phone-inbox-client.js?v=' in app
     assert "autoSyncOutcomeMessage" in app and "reconciled:true" in app
