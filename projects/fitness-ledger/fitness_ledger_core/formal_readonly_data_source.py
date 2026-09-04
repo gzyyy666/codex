@@ -19,6 +19,7 @@ from .analysis_export_materializer import (
     MATERIALIZER_VERSION,
     MaterializationError,
 )
+from .record_relations import movement_items
 
 
 class FormalReadOnlyDataSourceError(ValueError):
@@ -213,10 +214,7 @@ class FormalReadOnlyDataSource:
 
         movement_rows: list[dict[str, Any]] = []
         for movement_key, movement in movements.items():
-            if (
-                not isinstance(movement, dict)
-                or not isinstance(movement.get("history", []), list)
-            ):
+            if not isinstance(movement, dict):
                 continue
             # Formal tracker keys are storage slugs (for example ``pullup``),
             # while history and the movement dictionary use the authoritative
@@ -225,7 +223,7 @@ class FormalReadOnlyDataSource:
             # ID and only fall back to the storage key for legacy rows.
             movement_id = str(movement.get("movement_id") or movement_key)
             catalog_item = dictionary_by_id.get(movement_id, {})
-            for history in movement.get("history", []):
+            for history in movement_items(tracker, movement_id):
                 if not isinstance(history, dict):
                     continue
                 row: dict[str, Any] = {

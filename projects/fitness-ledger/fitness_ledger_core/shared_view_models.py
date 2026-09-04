@@ -8,7 +8,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from .notes import normalize_note_text
-from .record_relations import migrate_state
+from .record_relations import migrate_state, movement_items
 
 
 def _number(value) -> float | None:
@@ -163,11 +163,7 @@ class LedgerViewModels:
                 "recent_performance": [],
                 "all_recent_performance": [],
             }
-        movement = next(
-            (item for item in tracker.get("movements", {}).values() if str(item.get("movement_id", "")) == movement_id),
-            {"movement_id": movement_id, "history": []},
-        )
-        history = sorted(movement.get("history", []) or [], key=lambda row: _date(row.get("date")), reverse=True)
+        history = sorted(movement_items(tracker, movement_id), key=lambda row: _date(row.get("date")), reverse=True)
         if before_date:
             history = [row for row in history if _date(row.get("date")) < _date(before_date)]
         movement_is_progress = movement_in_progress(definition)
@@ -220,9 +216,9 @@ class LedgerViewModels:
         tracker, dictionary = self.snapshot()
         counts = {
             str(item.get("movement_id", "")): sum(
-                1 for history in (item.get("history", []) or []) if history_in_progress(history)
+                1 for history in movement_items(tracker, str(item.get("movement_id", ""))) if history_in_progress(history)
             )
-            for item in tracker.get("movements", {}).values()
+            for item in dictionary.get("movements", [])
             if isinstance(item, dict)
         }
         rows = []
@@ -248,48 +244,30 @@ class LedgerViewModels:
         """Add only read-only movement_id projections to Training sessions."""
         tracker, dictionary = self.snapshot()
         by_id, by_alias = self.dictionary_indexes(dictionary)
+        legacy_session_by_key = {
+            (str(session.get("No.", "")), _date(session.get("Date"))): str(session.get("id", ""))
+            for session in tracker.get("training_sessions", []) or []
+            if session.get("id")
+        }
         history_by_day: dict[tuple[str, str], list[dict]] = {}
-        for movement in tracker.get("movements", {}).values():
-            fallback_id = str(movement.get("movement_id", ""))
-            fallback_name = str(
-                movement.get("display_name")
-                or movement.get("name")
-                or movement.get("movement_name")
-                or ""
-            )
-            for history in movement.get("history", []) or []:
-                declared_id = str(history.get("movement_id") or fallback_id)
-                declared_name = str(
-                    history.get("display_name")
-                    or history.get("name")
-                    or history.get("movement_name")
-                    or fallback_name
-                    or ""
-                )
-                definition = by_id.get(declared_id)
-                if not definition:
-                    for candidate in (declared_name, fallback_name):
-                        definition = by_alias.get(_normalize(candidate)) if candidate else None
-                        if definition:
-                            break
-                movement_id = str(definition.get("movement_id", "")) if definition else ""
-                key = (
-                    "session:" + str(history.get("training_session_id"))
-                    if history.get("training_session_id")
-                    else _date(history.get("date")),
-                    "" if history.get("training_session_id") else str(history.get("training_day", "")),
-                )
-                row = copy.deepcopy(history)
-                row.update({
-                    "movement_id": movement_id,
-                    "display_name": (definition or {}).get("display_name") or declared_name or declared_id or "Unmapped movement",
-                    "english_name": (definition or {}).get("english_name", ""),
-                    "muscle_group": (definition or {}).get("muscle_group", ""),
-                    "is_linkable": bool(movement_id),
-                    "sets_lines": self.history_set_lines(row),
-                    "has_structured_sets": self.history_metrics(row)["has_structured_sets"],
-                })
-                history_by_day.setdefault(key, []).append(row)
+        for history in movement_items(tracker):
+            declared_id = str(history.get("movement_id") or "")
+            declared_name = str(history.get("display_name") or history.get("name") or "")
+            definition = by_id.get(declared_id) or by_alias.get(_normalize(declared_name))
+            movement_id = str(definition.get("movement_id", "")) if definition else declared_id
+            session_id = str(history.get("training_session_id") or legacy_session_by_key.get((str(history.get("training_day", "")), _date(history.get("date"))), ""))
+            key = ("session:" + session_id if session_id else _date(history.get("date")), "")
+            row = copy.deepcopy(history)
+            row.update({
+                "movement_id": movement_id,
+                "display_name": (definition or {}).get("display_name") or declared_name or movement_id or "Unmapped movement",
+                "english_name": (definition or {}).get("english_name", ""),
+                "muscle_group": (definition or {}).get("muscle_group", ""),
+                "is_linkable": bool(movement_id),
+                "sets_lines": self.history_set_lines(row),
+                "has_structured_sets": self.history_metrics(row)["has_structured_sets"],
+            })
+            history_by_day.setdefault(key, []).append(row)
 
         rows = []
         for session in sorted(tracker.get("training_sessions", []) or [], key=lambda row: _date(row.get("Date")), reverse=True):
@@ -336,18 +314,16 @@ class LedgerViewModels:
         selected_dates = {_date(row.get("Date")) for row in sessions[:8]}
         by_id, _ = self.dictionary_indexes(dictionary)
         candidates = []
-        for movement in tracker.get("movements", {}).values():
-            movement_id = str(movement.get("movement_id", ""))
-            definition = by_id.get(movement_id, {})
+        for movement_id, definition in by_id.items():
             if definition and not definition.get("active", True):
                 continue
-            histories = [row for row in movement.get("history", []) or [] if _date(row.get("date")) in selected_dates]
+            histories = [row for row in movement_items(tracker, movement_id) if _date(row.get("date")) in selected_dates]
             if not histories:
                 continue
             histories.sort(key=lambda row: _date(row.get("date")), reverse=True)
             candidates.append({
                 "movement_id": movement_id,
-                "display_name": definition.get("display_name") or movement.get("name", ""),
+                "display_name": definition.get("display_name") or movement_id,
                 "muscle_group": definition.get("muscle_group", ""),
                 "frequency": len(histories),
                 "recent": [{**copy.deepcopy(row), "metrics": self.history_metrics(row)} for row in histories[:3]],
@@ -371,14 +347,13 @@ class LedgerViewModels:
         training = [{**copy.deepcopy(row), "training_notes": normalize_note_text(row.get("Notes", ""))} for row in tracker.get("training_sessions", []) if in_range(row.get("Date"))]
         movements = []
         by_id, _ = self.dictionary_indexes(dictionary)
-        for row in tracker.get("movements", {}).values():
-            histories = [copy.deepcopy(item) for item in row.get("history", []) or [] if in_range(item.get("date"))]
+        for movement_id, definition in by_id.items():
+            histories = [copy.deepcopy(item) for item in movement_items(tracker, movement_id) if in_range(item.get("date"))]
             if not histories:
                 continue
-            definition = by_id.get(str(row.get("movement_id", "")), {})
             movements.append({
-                "movement_id": row.get("movement_id", ""),
-                "display_name": definition.get("display_name") or row.get("name", ""),
+                "movement_id": movement_id,
+                "display_name": definition.get("display_name") or movement_id,
                 "muscle_group": definition.get("muscle_group", ""),
                 "history": [
                     {

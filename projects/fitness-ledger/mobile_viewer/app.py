@@ -8,6 +8,7 @@ from pathlib import Path
 from flask import Flask, abort, jsonify, render_template, request, send_from_directory, url_for
 
 from fitness_ledger_core.data_module_engine import DataModuleDefinitionStore, DataModuleEngine
+from fitness_ledger_core.record_relations import movement_items
 
 from .data_access import BASE_DIR, LedgerDataAccess, format_set_line
 
@@ -98,7 +99,7 @@ def _pwa_body_area(data_access: LedgerDataAccess, part_id: str) -> dict | None:
         if movement_id not in movement_ids:
             continue
         history_by_id[movement_id] = sorted(
-            [dict(item) for item in movement.get("history", []) or []],
+            [dict(item) for item in movement_items(tracker, movement_id)],
             key=lambda item: str(item.get("date") or ""), reverse=True,
         )
     movement_cards = []

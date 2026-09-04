@@ -14,6 +14,7 @@ if str(PROJECT) not in sys.path:
 
 import ledger_commands as command_module
 from fitness_ledger_core.cloud_payload import build_cloud_payload
+from fitness_ledger_core.record_relations import movement_items, cardio_migration_preview, migrate_state
 from fitness_ledger_core.shared_view_models import LedgerViewModels
 from ledger_commands import LedgerCommandError, LedgerCommandService
 from tools.custom_movement_merge_test import TARGET_ID, fixture_values, make_service, write_json
@@ -123,21 +124,70 @@ def test_general_merge() -> None:
         assert {"坐姿划船", "Seated Row", "器械划船", "Cable Row", "旧式坐姿划船"}.issubset(
             set(target_after["aliases"])
         )
-        target_row = stored_tracker["movements"][TARGET_ID]
-        assert [item["id"] for item in target_row["history"]] == [
+        canonical_target_items = movement_items(stored_tracker, TARGET_ID)
+        assert [item["id"] for item in stored_tracker["movements"][TARGET_ID]["history"]] == [
             *(item["id"] for item in target_history),
             *(item["id"] for item in source_history),
         ]
         for original in source_history:
-            migrated = next(item for item in target_row["history"] if item["id"] == original["id"])
-            assert migrated == {**original, "movement_id": TARGET_ID}
-        assert stored_tracker["raw_entries"] == raw_before
+            migrated = next(item for item in canonical_target_items if item["id"] == original["id"])
+            assert migrated["movement_id"] == TARGET_ID
+            assert migrated["sets"] == original["sets"]
+            assert migrated["notes"] == original["notes"]
+            assert "cardio" not in migrated
+        assert stored_tracker["movements"][TARGET_ID]["projection"] == "fitness-ledger-movement-items-v1"
+        assert [
+            (row.get("id"), row.get("date"), row.get("text"), row.get("skipped_movements"))
+            for row in stored_tracker["raw_entries"]
+        ] == [
+            (row.get("id"), row.get("date"), row.get("text"), row.get("skipped_movements"))
+            for row in raw_before
+        ]
 
         undo = service.undo_last_write()
         assert undo["undone"] is True
         assert json.loads(tracker_file.read_text(encoding="utf-8")) == before_tracker
         assert json.loads(dictionary_file.read_text(encoding="utf-8")) == before_dictionary
         assert list(backups.glob("undone_tracker_*.json"))
+
+
+def test_cardio_migration_preview_and_normalization() -> None:
+    tracker, dictionary = lifecycle_values()
+    tracker["daily_records"] = [
+        {"id": "daily-same", "Date": "2026-06-01", "Cardio": "duration_minutes=3"},
+        {"id": "daily-conflict", "Date": "2026-06-06", "Cardio": "duration_minutes=99"},
+    ]
+    tracker["training_sessions"][0]["Cardio"] = "duration_minutes=3"
+    tracker["training_sessions"].append({"id": "session-cardio", "No.": 10, "Date": "2026-06-04", "Cardio": "duration_minutes=3"})
+    preview = cardio_migration_preview(tracker)
+    decisions = {row["date"]: row["decision"] for row in preview["rows"]}
+    assert decisions["2026-06-01"] == "same_cleanup"
+    assert decisions["2026-06-04"] == "migrate_to_daily_record"
+    assert decisions["2026-06-06"] == "conflict_manual_review"
+    before = copy.deepcopy(tracker)
+    normalized, _dictionary, report = migrate_state(tracker, dictionary)
+    assert tracker == before
+    assert report["cardio_migration"]["source_of_truth"] == "DailyRecord.Cardio"
+    assert all("Cardio" not in session for session in normalized["training_sessions"] if session.get("Date") == "2026-06-01")
+    assert all("cardio" not in item for item in movement_items(normalized))
+    assert next(row for row in normalized["daily_records"] if row["Date"] == "2026-06-04")["Cardio"] == "duration_minutes=3"
+    assert next(row for row in normalized["daily_records"] if row["Date"] == "2026-06-06")["Cardio"] == "duration_minutes=99"
+    normalized_again, dictionary_again, report_again = migrate_state(normalized, _dictionary)
+    assert normalized_again == normalized
+    assert dictionary_again == _dictionary
+    assert report_again["changed"] is False
+
+    service = LedgerCommandService(Path("unused.json"), Path("unused-dictionary.json"), Path("unused-backups"), lambda *_args: {})
+    parsed = {
+        "body": {"cardio_summary": ""},
+        "training": {"movements": [
+            {"name": "Cardio", "raw": "treadmill 30 min", "cardio": {"duration_minutes": 30}, "sets": []},
+            {"name": "Seated Row", "order": 1, "sets": [{"weight": 50, "reps": 10, "sets": 3}]},
+        ]},
+    }
+    service._prepare_generated_training_fields(parsed)
+    assert [row["name"] for row in parsed["training"]["movements"]] == ["Seated Row"]
+    assert parsed["body"]["cardio_summary"] == "treadmill 30 min"
 
 
 def test_general_merge_guards() -> None:
@@ -205,7 +255,8 @@ def test_progress_exclusion() -> None:
         assert excluded["status"] == "UPDATED" and excluded["exclude_from_progress"] is True
         stored_tracker = json.loads(tracker_file.read_text(encoding="utf-8"))
         stored_dictionary = json.loads(dictionary_file.read_text(encoding="utf-8"))
-        assert stored_tracker == tracker_before
+        canonical_before, _unused_dictionary, _migration_report = migrate_state(tracker_before, stored_dictionary)
+        assert stored_tracker == canonical_before
         target = next(item for item in stored_dictionary["movements"] if item["movement_id"] == TARGET_ID)
         assert target["exclude_from_progress"] is True
         assert TARGET_ID not in {item["movement_id"] for item in service.movement_progress_definitions()}
@@ -222,7 +273,13 @@ def test_progress_exclusion() -> None:
         payload = build_cloud_payload(views)
         assert TARGET_ID in {item["movement_id"] for item in payload["fl_movements"]}
         assert TARGET_ID in {item["movement_id"] for item in payload["fl_movement_history"]}
-        assert json.loads(tracker_file.read_text(encoding="utf-8"))["raw_entries"] == raw_before
+        assert [
+            (row.get("id"), row.get("date"), row.get("text"), row.get("skipped_movements"))
+            for row in json.loads(tracker_file.read_text(encoding="utf-8"))["raw_entries"]
+        ] == [
+            (row.get("id"), row.get("date"), row.get("text"), row.get("skipped_movements"))
+            for row in raw_before
+        ]
 
         stable = runpy.run_path(PROJECT / "stable_app.pyw")
         checker = stable["FitnessTrackerApp"].__new__(stable["FitnessTrackerApp"])
@@ -276,6 +333,7 @@ def test_progress_exclusion() -> None:
 
 def main() -> None:
     test_general_merge()
+    test_cardio_migration_preview_and_normalization()
     test_general_merge_guards()
     test_progress_exclusion()
     print("FITNESS_LEDGER_MOVEMENT_LIFECYCLE_CORE_OK")

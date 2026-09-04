@@ -17,6 +17,7 @@ from datetime import date
 from typing import Any
 
 from .analysis_export_request import validate_request
+from .record_relations import movement_items
 
 
 MAX_DATASETS_PER_BATCH = 8
@@ -215,9 +216,7 @@ def _last_data_date(tracker: dict[str, Any]) -> date:
     values: list[str] = []
     for key in ("daily_records", "diet_records", "training_sessions"):
         values.extend(_date_text(item.get("Date")) for item in tracker.get(key, []) if isinstance(item, dict))
-    for movement in tracker.get("movements", {}).values():
-        if isinstance(movement, dict):
-            values.extend(_date_text(item.get("date")) for item in movement.get("history", []) if isinstance(item, dict))
+    values.extend(_date_text(item.get("date")) for item in movement_items(tracker) if isinstance(item, dict))
     parsed = [date.fromisoformat(value) for value in values if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value)]
     return max(parsed) if parsed else date.today()
 
@@ -301,14 +300,12 @@ class PureCoreExportCompiler:
         self.catalog = self._build_catalog()
 
     def _build_catalog(self) -> tuple[CatalogItem, ...]:
-        histories = self.tracker.get("movements", {})
         rows: list[CatalogItem] = []
         for item in self.dictionary.get("movements", []) or []:
             if not isinstance(item, dict) or not item.get("movement_id") or item.get("active", True) is False:
                 continue
             movement_id = str(item["movement_id"])
-            movement = histories.get(movement_id, {}) if isinstance(histories, dict) else {}
-            history = [row for row in movement.get("history", []) if isinstance(row, dict)]
+            history = [row for row in movement_items(self.tracker, movement_id) if isinstance(row, dict)]
             recent = max((_date_text(row.get("date")) for row in history), default="")
             aliases = tuple(str(value) for value in (item.get("aliases") or []) if str(value).strip())
             rows.append(CatalogItem(movement_id, str(item.get("display_name") or item.get("english_name") or movement_id), str(item.get("muscle_group") or ""), aliases, len(history), recent))
@@ -453,7 +450,7 @@ class PureCoreExportCompiler:
             elif domain == "diet": rows = list(self.tracker.get("diet_records", []))
             elif domain == "training": rows = list(self.tracker.get("training_sessions", []))
             else:
-                rows = [row for movement in self.tracker.get("movements", {}).values() for row in movement.get("history", [])]
+                rows = list(movement_items(self.tracker))
             return _range_for_all(rows, self.anchor), "all_available", RULE_ALL_SELECTED
         days = self._scoped_days(text, domain, _recent_days(text))
         if days is not None:

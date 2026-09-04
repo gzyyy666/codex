@@ -22,6 +22,7 @@ from fitness_ledger_core.notes import (
     normalize_action_note_block,
     normalize_note_text,
 )
+from fitness_ledger_core.record_relations import movement_items, rebuild_movement_projection, migrate_state, record_day_id
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -197,7 +198,7 @@ def migrate_movement_references(database: dict, dictionary: dict) -> tuple[int, 
         if movement.get("movement_id") != movement_id:
             movement["movement_id"] = movement_id
             changed = True
-        for history in movement.get("history") or []:
+        for history in movement_items(database, movement_id):
             if history.get("movement_id") != movement_id:
                 history["movement_id"] = movement_id
                 changed = True
@@ -438,6 +439,7 @@ def ensure_database() -> dict:
         write_json(DATA_FILE, database)
     database = read_json(DATA_FILE, blank_database())
     dictionary = load_movement_dictionary()
+    database, dictionary, _migration = migrate_state(database, dictionary)
     _, changed = migrate_movement_references(database, dictionary)
     if changed:
         backup_data()
@@ -1246,19 +1248,7 @@ class FitnessTrackerApp(tk.Tk):
                 lines.append(f"   {item['weight']:g}kg × {item['reps']} × {item['sets']}")
             if movement.get("notes"):
                 lines.append(f"   Notes: {movement['notes']}")
-            if not movement["sets"] and movement.get("cardio"):
-                cardio = movement["cardio"]
-                cardio_parts = []
-                if cardio.get("duration_minutes") is not None:
-                    cardio_parts.append(f"{cardio.get('duration_minutes'):g} min")
-                if cardio.get("incline") is not None:
-                    cardio_parts.append(f"incline {cardio.get('incline'):g}")
-                if cardio.get("speed") is not None:
-                    cardio_parts.append(f"speed {cardio.get('speed'):g}")
-                if cardio.get("heart_rate") is not None:
-                    cardio_parts.append(f"HR {cardio.get('heart_rate'):g}")
-                lines.append(f"   {', '.join(cardio_parts) if cardio_parts else 'No set details found'}")
-            elif not movement["sets"]:
+            if not movement["sets"]:
                 lines.append("   No set details found")
         if not training["movements"]:
             lines.append("No movements found")
@@ -1285,7 +1275,7 @@ class FitnessTrackerApp(tk.Tk):
             if diet.get(field) is None:
                 warnings.append(f"High · 缺少{label}。")
         for movement in training.get("movements", []):
-            if not movement.get("sets") and not movement.get("cardio"):
+            if not movement.get("sets"):
                 warnings.append(f"Medium · 动作“{movement.get('name', '')}”没有识别到组数。")
             if not movement.get("movement_id"):
                 warnings.append(f"Medium · 新动作“{movement.get('name', '')}”需要确认处理方式。")
@@ -1655,12 +1645,12 @@ class FitnessTrackerApp(tk.Tk):
         self.database["training_sessions"] = [
             row for row in self.database["training_sessions"] if str(row.get("Date", ""))[:10] != target
         ]
-        for movement in self.database["movements"].values():
-            movement["history"] = [
-                history
-                for history in movement.get("history", [])
-                if str(history.get("date", ""))[:10] != target
+        for session in self.database.get("training_sessions", []):
+            session["movement_items"] = [
+                item for item in session.get("movement_items", [])
+                if str(item.get("date", ""))[:10] != target
             ]
+        rebuild_movement_projection(self.database)
         for raw_record in self.database["raw_entries"]:
             if str(raw_record.get("date", ""))[:10] == target and not raw_record.get("superseded"):
                 raw_record["superseded"] = True
@@ -1790,6 +1780,7 @@ class FitnessTrackerApp(tk.Tk):
             summary_parts = []
             movement_note_parts = []
             skipped_movements = []
+            training_items = []
             for movement_data in training["movements"]:
                 normalized_name = normalize_name(movement_data["name"])
                 is_known = normalized_name in self.movement_definitions_by_alias
@@ -1809,16 +1800,18 @@ class FitnessTrackerApp(tk.Tk):
                 history = {
                     "id": str(uuid.uuid4()),
                     "movement_id": movement.get("movement_id", ""),
+                    "display_name": movement_data.get("display_name") or movement.get("name", ""),
                     "date": entry_date,
                     "training_day": day_number,
                     "order": movement_data["order"],
                     "sets": movement_data["sets"],
-                    "cardio": movement_data.get("cardio") or {},
                     "raw": movement_data["raw"],
                     "notes": movement_data.get("notes", ""),
                     "source": "text entry",
+                    "record_day_id": record_day_id(entry_date),
                 }
-                movement["history"].append(history)
+                history["movement_instance_id"] = history["id"]
+                training_items.append(history)
                 definition = self.movement_definitions_by_id.get(movement.get("movement_id", ""), {})
                 display_name = movement_data.get("display_name") or definition.get("display_name") or movement["name"]
                 summary_parts.append(f"第{movement_data['order']}个动作：{display_name}")
@@ -1838,12 +1831,14 @@ class FitnessTrackerApp(tk.Tk):
                     "Raw Record": training["raw"],
                     "Standardized Summary": training.get("standardized_summary") or "；".join(summary_parts),
                     "Notes": training_notes or (f"{'；'.join(movement_note_parts)}。" if movement_note_parts else ""),
+                    "movement_items": training_items,
                     "save_mode": save_mode,
                     "source": "text entry",
                 }
             )
             if skipped_movements:
                 raw_record["skipped_movements"] = skipped_movements
+            rebuild_movement_projection(self.database)
 
         write_json(DATA_FILE, self.database)
         self.raw_text.delete("1.0", "end")
@@ -1963,11 +1958,9 @@ class FitnessTrackerApp(tk.Tk):
         else:
             cardio_status = "缺失"
         new_movement_ids = {
-            history.get("movement_id") or movement.get("movement_id")
-            for movement in self.database.get("movements", {}).values()
-            for history in movement.get("history", [])
-            if str(history.get("date", ""))[:10] == entry_date
-            and str(history.get("movement_id") or movement.get("movement_id", "")).startswith("CUSTOM_")
+            item.get("movement_id") for item in movement_items(self.database)
+            if str(item.get("date", ""))[:10] == entry_date
+            and str(item.get("movement_id", "")).startswith("CUSTOM_")
         }
         high_count = sum(
             1
@@ -2156,11 +2149,11 @@ class FitnessTrackerApp(tk.Tk):
                 for keyword in ("引体向上", "pullup")
             )
             by_date = {}
-            for history in movement.get("history", []):
+            for history in movement_items(self.database, str(movement.get("movement_id", ""))):
                 day = str(history.get("date", ""))[:10]
                 by_date[day] = by_date.get(day, 0) + 1
-                if not is_pull_up and not history.get("sets") and not history.get("cardio"):
-                    add("Medium", day, "Movement", f"“{display_name}”这次记录没有可用于成长曲线的组数或有氧数据。", "查看记录；如当天确有训练，请补充组数", "movement", movement_id=movement.get("movement_id", ""))
+                if not is_pull_up and not history.get("sets"):
+                    add("Medium", day, "Movement", f"“{display_name}”这次记录没有可用于成长曲线的组数。", "查看记录；如当天确有训练，请补充组数", "movement", movement_id=movement.get("movement_id", ""))
             for day, count in by_date.items():
                 if day and count > 1:
                     add("Medium", day, "Movement", f"“{display_name}”同一天出现 {count} 条记录。", "打开 Movement 单元格编辑", "movement", movement_id=movement.get("movement_id", ""))
@@ -2183,7 +2176,7 @@ class FitnessTrackerApp(tk.Tk):
                 )
                 restored = movement and any(
                     str(history.get("date", ""))[:10] == day
-                    for history in movement.get("history", [])
+                    for history in movement_items(self.database, movement_id)
                 )
                 if not restored:
                     unresolved.append(name)
@@ -2360,14 +2353,14 @@ class FitnessTrackerApp(tk.Tk):
         except (TypeError, ValueError):
             return ""
         items = []
-        for movement in self.database["movements"].values():
-            for history in movement.get("history") or []:
-                try:
-                    training_day = int(history.get("training_day"))
-                except (TypeError, ValueError):
-                    continue
-                if training_day == day_number:
-                    items.append((int(history.get("order") or 0), movement, history))
+        for history in movement_items(self.database):
+            try:
+                training_day = int(history.get("training_day"))
+            except (TypeError, ValueError):
+                continue
+            if training_day == day_number:
+                movement = self.tracker_movement_by_id(str(history.get("movement_id", ""))) or {}
+                items.append((int(history.get("order") or 0), movement, history))
         if not items:
             return ""
         items.sort(key=lambda item: item[0])
@@ -2399,14 +2392,7 @@ class FitnessTrackerApp(tk.Tk):
             )
 
     def get_movement_matrix_dates(self) -> list[str]:
-        return sorted(
-            {
-                str(record.get("date", ""))[:10]
-                for movement in self.database["movements"].values()
-                for record in movement.get("history") or []
-                if record.get("date")
-            }
-        )
+        return sorted({str(record.get("date", ""))[:10] for record in movement_items(self.database) if record.get("date")})
 
     def refresh_movements(self) -> None:
         self.clear_tree(self.movement_table)
@@ -2445,7 +2431,7 @@ class FitnessTrackerApp(tk.Tk):
             if query and query not in searchable:
                 continue
             records_by_date = {}
-            for record in movement.get("history") or []:
+            for record in movement_items(self.database, str(movement.get("movement_id", ""))):
                 record_date = str(record.get("date", ""))[:10]
                 if record_date:
                     records_by_date.setdefault(record_date, []).append(record)
@@ -2815,7 +2801,7 @@ class FitnessTrackerApp(tk.Tk):
             return
         movement_id = definition.get("movement_id", "")
         movement = self.tracker_movement_by_id(movement_id)
-        history_count = len(movement.get("history", [])) if movement else 0
+        history_count = len(movement_items(self.database, movement_id)) if movement else 0
         if not messagebox.askyesno(
             "删除动作词条",
             f"确定删除“{definition.get('display_name', '')}”吗？\n\n"
@@ -2853,7 +2839,7 @@ class FitnessTrackerApp(tk.Tk):
                 normalize_name(str(history.get("raw", ""))),
             )
 
-        existing_history = {history_key(history) for history in target.get("history", [])}
+        existing_history = {history_key(history) for history in movement_items(self.database, movement_id)}
         custom_ids_to_remove = set()
         for key, source in list(self.database.get("movements", {}).items()):
             source_id = str(source.get("movement_id", ""))
@@ -2862,14 +2848,16 @@ class FitnessTrackerApp(tk.Tk):
             source_names = [source.get("name", ""), *(source.get("aliases") or [])]
             if not any(normalize_name(str(name)) in alias_keys for name in source_names if str(name).strip()):
                 continue
-            for history in source.get("history", []):
-                fingerprint = history_key(history)
-                if fingerprint in existing_history:
-                    continue
-                history["movement_id"] = movement_id
-                target.setdefault("history", []).append(history)
-                existing_history.add(fingerprint)
-                result["merged_history"] += 1
+            for session in self.database.get("training_sessions", []):
+                for history in session.get("movement_items", []):
+                    if str(history.get("movement_id", "")) != source_id:
+                        continue
+                    fingerprint = history_key(history)
+                    if fingerprint in existing_history:
+                        continue
+                    history["movement_id"] = movement_id
+                    existing_history.add(fingerprint)
+                    result["merged_history"] += 1
             target["aliases"] = list(
                 dict.fromkeys([*target.get("aliases", []), *source_names, *(definition.get("aliases") or [])])
             )
@@ -2916,20 +2904,21 @@ class FitnessTrackerApp(tk.Tk):
                 if candidate_key not in matching_names:
                     continue
                 history = {
-                    "id": str(uuid.uuid4()),
+                    "id": str(uuid.uuid4()), "movement_instance_id": str(uuid.uuid4()),
                     "movement_id": movement_id,
+                    "display_name": definition.get("display_name", movement_data.get("name", "")),
                     "date": entry_date,
                     "training_day": training_day,
                     "order": movement_data.get("order"),
                     "sets": movement_data.get("sets") or [],
-                    "cardio": movement_data.get("cardio") or {},
                     "raw": movement_data.get("raw", ""),
                     "notes": movement_data.get("notes", ""),
-                    "source": "alias reconciliation",
+                    "source": "alias reconciliation", "record_day_id": record_day_id(entry_date),
+                    "training_session_id": session.get("id", ""),
                 }
                 fingerprint = history_key(history)
                 if fingerprint not in existing_history:
-                    target.setdefault("history", []).append(history)
+                    session.setdefault("movement_items", []).append(history)
                     existing_history.add(fingerprint)
                     result["restored_skipped"] += 1
                 restored_names.add(candidate_key)
@@ -2943,10 +2932,7 @@ class FitnessTrackerApp(tk.Tk):
         target["aliases"] = list(
             dict.fromkeys([*target.get("aliases", []), *(definition.get("aliases") or [])])
         )
-        target["history"] = sorted(
-            target.get("history", []),
-            key=lambda history: (str(history.get("date", "")), safe_order(history.get("order"))),
-        )
+        rebuild_movement_projection(self.database)
         return result
 
     def save_movement_definition(self, movement: dict | None, definition: dict, values: dict) -> bool:
@@ -3079,6 +3065,9 @@ class FitnessTrackerApp(tk.Tk):
             for key, movement in self.database.get("movements", {}).items()
             if movement.get("movement_id") != movement_id
         }
+        for session in self.database.get("training_sessions", []):
+            session["movement_items"] = [item for item in session.get("movement_items", []) if str(item.get("movement_id", "")) != str(movement_id)]
+        rebuild_movement_projection(self.database)
         self.movement_definitions_by_id, self.movement_definitions_by_alias = movement_definition_index(
             self.movement_dictionary
         )
@@ -3095,7 +3084,7 @@ class FitnessTrackerApp(tk.Tk):
             return
         movement_id = str(movement.get("movement_id", "") or definition.get("movement_id", ""))
         display_name = definition.get("display_name") or movement.get("name", "")
-        history_count = len(movement.get("history", []))
+        history_count = len(movement_items(self.database, movement_id))
         if not messagebox.askyesno(
             "删除整个动作",
             f"确定删除“{display_name}”吗？\n\n"
@@ -3117,22 +3106,15 @@ class FitnessTrackerApp(tk.Tk):
             try:
                 order_text = str(values.get("order", "")).strip()
                 order = int(order_text) if order_text else None
-                cardio = {}
-                for field in ("duration_minutes", "incline", "speed", "heart_rate"):
-                    text = str(values.get(field, "")).strip()
-                    cardio[field] = float(text) if text else None
-                if not any(value is not None for value in cardio.values()):
-                    cardio = {}
             except ValueError:
-                messagebox.showerror("数值无效", "动作顺序和有氧参数必须是数字或留空。")
+                messagebox.showerror("数值无效", "动作顺序必须是数字或留空。")
                 return False
             validated.append(
                 (
                     record,
                     {
                         "order": order,
-                        "sets": sets,
-                        "cardio": cardio,
+                        "sets_text": "\n".join(sets_text.splitlines()),
                         "raw": str(values.get("raw", "")).strip(),
                         "notes": str(values.get("notes", "")).strip(),
                     },
@@ -3142,9 +3124,18 @@ class FitnessTrackerApp(tk.Tk):
         if tracker_checkpoint is None:
             messagebox.showerror("无法保存", "未能创建保存前检查点，动作记录未修改。")
             return False
-        for record, values in validated:
-            record.update(values)
-        write_json(DATA_FILE, self.database)
+        try:
+            for record, values in validated:
+                self.command_service.update_movement_history(
+                    str(record.get("movement_id", "")),
+                    str(record.get("id") or record.get("movement_instance_id", "")),
+                    values,
+                    expected_revision=int(record.get("revision", 1) or 1),
+                )
+        except LedgerCommandError as exc:
+            messagebox.showerror("无法保存", str(exc))
+            return False
+        self.database = read_json(DATA_FILE, blank_database())
         self.refresh_all()
         return True
 
@@ -3162,7 +3153,7 @@ class FitnessTrackerApp(tk.Tk):
         card = tk.Frame(window, bg=COLORS["paper"], highlightbackground=COLORS["stone"], highlightthickness=1)
         card.pack(fill="both", expand=True, padx=24, pady=24)
         tk.Label(card, text=f"{movement_name} · {cell['date']}", bg=COLORS["paper"], fg=COLORS["navy"], font=("Georgia", 20, "bold")).pack(anchor="w", padx=20, pady=(18, 4))
-        tk.Label(card, text="日期和训练日编号保持不变；可以修改动作顺序、组数、备注、原始细节和有氧参数。", bg=COLORS["paper"], fg=COLORS["muted"], font=("Microsoft YaHei UI", 9)).pack(anchor="w", padx=20)
+        tk.Label(card, text="日期和训练日编号保持不变；可以修改动作顺序、组数、备注和原始细节。", bg=COLORS["paper"], fg=COLORS["muted"], font=("Microsoft YaHei UI", 9)).pack(anchor="w", padx=20)
         canvas_frame = tk.Frame(card, bg=COLORS["paper"])
         canvas_frame.pack(fill="both", expand=True, padx=20, pady=12)
         canvas_frame.rowconfigure(0, weight=1)
@@ -3188,10 +3179,6 @@ class FitnessTrackerApp(tk.Tk):
                 ("sets_text", "组数", "\n".join(f"{format_number(item.get('weight'))} × {format_number(item.get('reps'))} × {format_number(item.get('sets'))}" for item in record.get("sets", [])), 4),
                 ("notes", "动作备注", record.get("notes", ""), 3),
                 ("raw", "原始细节", record.get("raw", ""), 4),
-                ("duration_minutes", "有氧分钟", (record.get("cardio") or {}).get("duration_minutes", ""), 1),
-                ("incline", "坡度", (record.get("cardio") or {}).get("incline", ""), 1),
-                ("speed", "速度", (record.get("cardio") or {}).get("speed", ""), 1),
-                ("heart_rate", "心率", (record.get("cardio") or {}).get("heart_rate", ""), 1),
             )
             for row, (field, label, value, height) in enumerate(fields, start=1):
                 tk.Label(box, text=label, bg=COLORS["cream"], fg=COLORS["muted"]).grid(row=row, column=0, sticky="nw", padx=12, pady=3)
@@ -3667,7 +3654,7 @@ def _patched_latest_day_status(self, entry_date: str) -> tuple[str, str]:
     new_movement_ids = {
         history.get("movement_id") or movement.get("movement_id")
         for movement in self.database.get("movements", {}).values()
-        for history in movement.get("history", [])
+        for history in movement_items(self.database, str(movement.get("movement_id", "")))
         if str(history.get("date", ""))[:10] == entry_date
         and str(history.get("movement_id") or movement.get("movement_id", "")).startswith("CUSTOM_")
     }
@@ -4429,7 +4416,7 @@ def _editorial_refresh_movements(self) -> None:
         right = tk.Frame(row, bg=COLORS["frost"])
         right.grid(row=0, column=1, sticky="nsew", padx=(0, 16), pady=16)
         records_by_date = {}
-        for record in movement.get("history") or []:
+        for record in movement_items(self.database, str(movement.get("movement_id", ""))):
             record_date = str(record.get("date", ""))[:10]
             if record_date:
                 records_by_date.setdefault(record_date, []).append(record)
@@ -5340,17 +5327,7 @@ def format_set_summary(record: dict) -> str:
             for item in sets
         )
 
-    cardio = record.get("cardio") or {}
-    cardio_parts = []
-    if cardio.get("duration_minutes") is not None:
-        cardio_parts.append(f"{format_number(cardio['duration_minutes'])}min")
-    if cardio.get("heart_rate") is not None:
-        cardio_parts.append(f"HR{format_number(cardio['heart_rate'])}")
-    if cardio.get("incline") is not None:
-        cardio_parts.append(f"incline {format_number(cardio['incline'])}")
-    if cardio.get("speed") is not None:
-        cardio_parts.append(f"speed {format_number(cardio['speed'])}")
-    return " ".join(cardio_parts) or str(record.get("raw", "")).strip()
+    return str(record.get("raw", "")).strip()
 
 
 def main() -> None:

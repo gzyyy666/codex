@@ -222,7 +222,7 @@ def test_save_result_is_authoritative() -> None:
         },
     }
     result = service._apply_save(database, dictionary, parsed, "normal")
-    assert result["record_id"] == database["training_sessions"][0]["id"]
+    assert result["record_id"] == database["training_sessions"][-1]["id"]
     assert result["movement_count"] == 1 and result["split_label"] == "Chest"
     assert len(result["personal_records"]) == 1
     assert result["personal_records"][0]["recordId"] == database["movements"]["bench"]["history"][-1]["id"]

@@ -25,6 +25,7 @@ from .intelligent_export_models import (
 )
 from .shared_view_models import history_in_progress, movement_in_progress
 from .movement_target_scope import body_part_id_for_muscle_group
+from .record_relations import movement_items
 
 
 MODULE_FIELDS = {
@@ -324,9 +325,9 @@ class DataCatalogBuilder:
 
         tracker_by_id = {str(item.get("movement_id", "")): item for item in tracker.get("movements", {}).values() if item.get("movement_id")}
         for movement_id in sorted(set(tracker_by_id) | set(definitions)):
-            tracker_movement = tracker_by_id.get(movement_id, {"movement_id": movement_id, "history": []})
+            tracker_movement = tracker_by_id.get(movement_id, {"movement_id": movement_id})
             definition = definitions.get(movement_id, {})
-            histories = [dict(item) for item in tracker_movement.get("history", []) or [] if isinstance(item, dict)]
+            histories = [dict(item) for item in movement_items(tracker, movement_id) if isinstance(item, dict)]
             movement_rows.extend(histories)
             progress = [item for item in histories if history_in_progress(item) and movement_in_progress(definition)]
             dates = _date_list(histories, "date")

@@ -19,6 +19,10 @@ from fitness_ledger_core.record_relations import (
     canonical_date,
     migrate_state,
     now_iso,
+    movement_items,
+    movement_items_by_date,
+    movement_items_by_session,
+    rebuild_movement_projection,
     record_day_id,
     validate_relations,
 )
@@ -864,8 +868,9 @@ class LedgerCommandService:
         """Return dictionary terms with tracker history counts, without exposing mutable state."""
         database, dictionary = self.load_state()
         counts = {
-            str(movement.get("movement_id", "")): len(movement.get("history", []) or [])
-            for movement in database.get("movements", {}).values()
+            str(definition.get("movement_id", "")): len(movement_items(database, str(definition.get("movement_id", ""))))
+            for definition in dictionary.get("movements", []) or []
+            if isinstance(definition, dict)
         }
         result = []
         for definition in dictionary.get("movements", []) or []:
@@ -974,11 +979,10 @@ class LedgerCommandService:
                 "mtime_ns": after.st_mtime_ns,
             }
         fingerprint["identity"] = _stable_json_hash(fingerprint)
-        # Merge/visibility commands use this strict byte snapshot to preserve
-        # their established no-op compatibility on legacy archive fixtures.
-        # Commands that edit business facts use load_state(), which performs
-        # the relation migration before writing.
-        return decoded["tracker"], decoded["dictionary"], fingerprint
+        # Read-only previews use the same in-memory canonicalization as normal
+        # commands, while the byte fingerprint still detects stale files.
+        tracker, dictionary, _report = migrate_state(decoded["tracker"], decoded["dictionary"])
+        return tracker, dictionary, fingerprint
 
     @staticmethod
     def _history_business_fingerprint(history: dict) -> str:
@@ -1008,14 +1012,16 @@ class LedgerCommandService:
                     "kind": "tracker_movement_identity",
                     "path": f"tracker.movements.{key}.movement_id",
                 })
-            for index, history in enumerate(movement.get("history", []) or []):
-                if isinstance(history, dict) and str(history.get("movement_id", "")) == source_id:
+
+        for session_index, session in enumerate(database.get("training_sessions", []) or []):
+            for item_index, item in enumerate(session.get("movement_items", []) or []):
+                if isinstance(item, dict) and str(item.get("movement_id", "")) == source_id:
                     migratable.append({
-                        "kind": "movement_history",
-                        "path": f"tracker.movements.{key}.history[{index}].movement_id",
-                        "history_id": str(history.get("id", "")),
-                        "date": str(history.get("date", ""))[:10],
-                        "training_day": history.get("training_day"),
+                        "kind": "training_session_movement_item",
+                        "path": f"tracker.training_sessions[{session_index}].movement_items[{item_index}].movement_id",
+                        "history_id": str(item.get("id") or item.get("movement_instance_id") or ""),
+                        "date": str(item.get("date", ""))[:10],
+                        "training_day": item.get("training_day"),
                     })
 
         for index, definition in enumerate(dictionary.get("movements", []) or []):
@@ -1037,18 +1043,12 @@ class LedgerCommandService:
                 if not path or path[-1] != "movement_id":
                     raw_occurrences.append({"path": rendered, "value": source_id})
                     return
-                known_tracker_path = (
-                    root == "tracker"
-                    and path[0:1] == ("movements",)
-                    and (
+                known_tracker_path = root == "tracker" and (
+                    (path[0:1] == ("movements",) and (
                         (len(path) == 3 and path[-1] == "movement_id")
-                        or (
-                            len(path) == 5
-                            and path[2] == "history"
-                            and isinstance(path[3], int)
-                            and path[4] == "movement_id"
-                        )
-                    )
+                        or (len(path) == 5 and path[2] == "history" and isinstance(path[3], int) and path[4] == "movement_id")
+                    ))
+                    or (len(path) == 5 and path[0] == "training_sessions" and path[2] == "movement_items" and isinstance(path[1], int) and isinstance(path[3], int) and path[4] == "movement_id")
                 )
                 known = known_tracker_path or (
                     root == "dictionary"
@@ -1059,7 +1059,11 @@ class LedgerCommandService:
                 if not known:
                     unknown.append({"path": rendered, "value": source_id})
 
-        walk(database, (), "tracker")
+        # The old tracker movement history is a derived compatibility
+        # projection.  Never inspect it as a business-reference source.
+        for key, value in database.items():
+            if key != "movements":
+                walk(value, (key,), "tracker")
         walk(dictionary, (), "dictionary")
         return {"migratable": migratable, "unknown": unknown, "raw_occurrences": raw_occurrences}
 
@@ -1147,60 +1151,18 @@ class LedgerCommandService:
         if len(target_rows) > 1:
             block("TARGET_TRACKER_NOT_UNIQUE", "Target has multiple tracker movement rows.", count=len(target_rows))
         for key, row in source_rows:
-            unknown_fields = sorted(set(row) - {"id", "movement_id", "name", "aliases", "history", "created_at", "updated_at", "revision", "record_day_id"})
-            if unknown_fields:
-                block(
-                    "SOURCE_ROW_UNKNOWN_FIELDS",
-                    "The source tracker identity contains fields with no approved migration policy.",
-                    path=f"tracker.movements.{key}",
-                    fields=unknown_fields,
-                )
-            if not isinstance(row.get("history", []), list):
-                block(
-                    "SOURCE_HISTORY_INVALID_SHAPE",
-                    "The source tracker history must be a list.",
-                    path=f"tracker.movements.{key}.history",
-                )
             if not isinstance(row.get("aliases", []), list):
                 block(
                     "SOURCE_ALIAS_INVALID_SHAPE",
                     "The source tracker aliases field must be a list.",
                     path=f"tracker.movements.{key}.aliases",
                 )
-            incompatible = [
-                index for index, history in enumerate(row.get("history", []) or [])
-                if not isinstance(history, dict) or str(history.get("movement_id", "")) != source_id
-            ]
-            if incompatible:
-                block(
-                    "SOURCE_ROW_HAS_FOREIGN_HISTORY",
-                    "A source tracker row contains history that does not belong to the source identity.",
-                    path=f"tracker.movements.{key}.history",
-                    indexes=incompatible,
-                )
         for key, row in target_rows:
-            if not isinstance(row.get("history", []), list):
-                block(
-                    "TARGET_HISTORY_INVALID_SHAPE",
-                    "The target tracker history must be a list.",
-                    path=f"tracker.movements.{key}.history",
-                )
             if not isinstance(row.get("aliases", []), list):
                 block(
                     "TARGET_ALIAS_INVALID_SHAPE",
                     "The target tracker aliases field must be a list.",
                     path=f"tracker.movements.{key}.aliases",
-                )
-            incompatible = [
-                index for index, history in enumerate(row.get("history", []) or [])
-                if not isinstance(history, dict) or str(history.get("movement_id", "")) != target_id
-            ]
-            if incompatible:
-                block(
-                    "TARGET_ROW_HAS_FOREIGN_HISTORY",
-                    "The canonical target row contains history owned by another movement identity.",
-                    path=f"tracker.movements.{key}.history",
-                    indexes=incompatible,
                 )
 
         references = self._source_reference_paths(database, dictionary, source_id) if source_id else {
@@ -1209,27 +1171,20 @@ class LedgerCommandService:
         for item in references["unknown"]:
             block("UNKNOWN_SOURCE_REFERENCE", "An unsupported source_id reference path was found.", **item)
 
-        source_history_records: list[dict] = []
-        all_histories: list[tuple[str, int, dict]] = []
-        for key, row in movements.items():
-            if not isinstance(row, dict):
-                continue
-            for index, history in enumerate(row.get("history", []) or []):
-                if not isinstance(history, dict):
-                    continue
-                all_histories.append((str(key), index, history))
-                if str(history.get("movement_id", "")) == source_id:
-                    source_history_records.append(history)
-        target_history_records = [
-            history for history in (target_rows[0][1].get("history", []) or [])
-            if isinstance(history, dict) and str(history.get("movement_id", "")) == target_id
-        ] if len(target_rows) == 1 else []
+        source_history_records = [copy.deepcopy(item) for item in movement_items(database, source_id)]
+        target_history_records = [copy.deepcopy(item) for item in movement_items(database, target_id)]
+        all_histories = [
+            (str(session.get("id", "")), index, item)
+            for session in database.get("training_sessions", []) or []
+            for index, item in enumerate(session.get("movement_items", []) or [])
+            if isinstance(item, dict)
+        ]
 
         id_locations: dict[str, list[str]] = {}
         for key, index, history in all_histories:
             history_id = str(history.get("id", "")).strip()
             if history_id:
-                id_locations.setdefault(history_id, []).append(f"tracker.movements.{key}.history[{index}]")
+                id_locations.setdefault(history_id, []).append(f"tracker.training_sessions[{key}].movement_items[{index}]")
         history_id_conflicts = []
         for history in source_history_records:
             history_id = str(history.get("id", "")).strip()
@@ -1380,7 +1335,7 @@ class LedgerCommandService:
         })
         expected_target_history = [copy.deepcopy(row) for row in target_history_records]
         expected_target_history.extend(
-            [{**copy.deepcopy(row), "movement_id": target_id} for row in source_history_records]
+            [{**copy.deepcopy(row), "movement_id": target_id, "display_name": target.get("display_name", row.get("display_name", ""))} for row in source_history_records]
         )
         plan = {
             "operation": (
@@ -1499,22 +1454,15 @@ class LedgerCommandService:
             if str(row.get("movement_id", "")) == source_id:
                 source_keys.append(key)
                 tracker_aliases.extend([row.get("name", ""), *(row.get("aliases") or [])])
-            retained = []
-            history_changed = False
-            for history in row.get("history", []) or []:
-                if isinstance(history, dict) and str(history.get("movement_id", "")) == source_id:
-                    migrated = copy.deepcopy(history)
-                    migrated["movement_id"] = target_id
-                    migrated_histories.append(migrated)
-                    history_changed = True
-                else:
-                    retained.append(history)
-            if history_changed:
-                row["history"] = retained
         for key in source_keys:
             movements.pop(key, None)
-        target_row.setdefault("history", []).extend(migrated_histories)
         target_row["aliases"] = self._append_normalized_aliases(target_row.get("aliases", []), tracker_aliases)
+        for session in database.get("training_sessions", []) or []:
+            for item in session.get("movement_items", []) or []:
+                if isinstance(item, dict) and str(item.get("movement_id", "")) == source_id:
+                    item["movement_id"] = target_id
+                    item["display_name"] = target_definition.get("display_name", item.get("display_name", ""))
+        rebuild_movement_projection(database)
         dictionary["movements"] = [
             item for item in dictionary["movements"] if str(item.get("movement_id", "")) != source_id
         ]
@@ -1531,8 +1479,8 @@ class LedgerCommandService:
             row for row in database.get("movements", {}).values()
             if isinstance(row, dict) and str(row.get("movement_id", "")) == target_id
         ]
-        target_history_count = sum(len(row.get("history", []) or []) for row in target_rows)
-        target_history = target_rows[0].get("history", []) if len(target_rows) == 1 else []
+        target_history = movement_items(database, target_id)
+        target_history_count = len(target_history)
         raw_entries = database.get("raw_entries", []) or []
         raw_texts = [str(item.get("text", "")) for item in raw_entries if isinstance(item, dict)]
         if source_definitions:
@@ -1788,13 +1736,7 @@ class LedgerCommandService:
                 target_id = f"{prefix}_{int(number) + 1:03d}"
                 number = target_id.rsplit("_", 1)[1]
             before_raw = _stable_json_hash(database.get("raw_entries", []) or [])
-            before_history = [
-                copy.deepcopy(history)
-                for movement in database.get("movements", {}).values()
-                if isinstance(movement, dict)
-                for history in (movement.get("history", []) or [])
-                if isinstance(history, dict) and str(history.get("movement_id", "")) == source_id
-            ]
+            before_history = [copy.deepcopy(item) for item in movement_items(database, source_id)]
             tracker_backup, dictionary_backup = self._checkpoint()
             checkpoint = self._checkpoint_identity(tracker_backup)
             checkpoint_hashes = {
@@ -1836,21 +1778,18 @@ class LedgerCommandService:
                     if str(row.get("movement_id", "")) == source_id:
                         row["movement_id"] = target_id
                         row["name"] = display_name
-                    for history in row.get("history", []) or []:
-                        if isinstance(history, dict) and str(history.get("movement_id", "")) == source_id:
-                            history["movement_id"] = target_id
                 if source_rows:
                     source_key = source_rows[0][0]
                     movements[target_id] = movements.pop(source_key)
 
+                for session in working_database.get("training_sessions", []) or []:
+                    for item in session.get("movement_items", []) or []:
+                        if isinstance(item, dict) and str(item.get("movement_id", "")) == source_id:
+                            item["movement_id"] = target_id
+                            item["display_name"] = display_name
+                rebuild_movement_projection(working_database)
                 remaining = self._source_reference_paths(working_database, working_dictionary, source_id)
-                promoted_history = [
-                    history
-                    for movement in working_database.get("movements", {}).values()
-                    if isinstance(movement, dict)
-                    for history in (movement.get("history", []) or [])
-                    if isinstance(history, dict) and str(history.get("movement_id", "")) == target_id
-                ]
+                promoted_history = [copy.deepcopy(item) for item in movement_items(working_database, target_id)]
                 if remaining["migratable"] or remaining["unknown"]:
                     raise LedgerCommandError("CUSTOM 引用迁移不完整。", "PROMOTION_VALIDATION_FAILED")
                 if [self._history_business_fingerprint(item) for item in promoted_history] != [
@@ -1867,13 +1806,7 @@ class LedgerCommandService:
                     raise LedgerCommandError("写入后的 CUSTOM 引用验证失败。", "PROMOTION_VALIDATION_FAILED")
                 if _stable_json_hash(after_database.get("raw_entries", []) or []) != before_raw:
                     raise LedgerCommandError("写入后的原始录入验证失败。", "PROMOTION_VALIDATION_FAILED")
-                after_history = [
-                    history
-                    for movement in after_database.get("movements", {}).values()
-                    if isinstance(movement, dict)
-                    for history in (movement.get("history", []) or [])
-                    if isinstance(history, dict) and str(history.get("movement_id", "")) == target_id
-                ]
+                after_history = [copy.deepcopy(item) for item in movement_items(after_database, target_id)]
                 if [self._history_business_fingerprint(item) for item in after_history] != [
                     self._history_business_fingerprint(item) for item in before_history
                 ]:
@@ -1937,7 +1870,7 @@ class LedgerCommandService:
         if not movement_id or not alias_keys:
             return result
         target = self._tracker_movement(database, definition, "")
-        existing = {self._history_fingerprint(row) for row in target.get("history", [])}
+        existing = {self._history_fingerprint(row) for row in movement_items(database, movement_id)}
         custom_ids = set()
         for key, source in list(database.get("movements", {}).items()):
             source_id = str(source.get("movement_id", ""))
@@ -1946,14 +1879,16 @@ class LedgerCommandService:
             names = [source.get("name", ""), *(source.get("aliases") or [])]
             if not any(_normalize_name(name) in alias_keys for name in names if str(name).strip()):
                 continue
-            for history in source.get("history", []) or []:
-                fingerprint = self._history_fingerprint(history)
-                if fingerprint in existing:
-                    continue
-                history["movement_id"] = movement_id
-                target.setdefault("history", []).append(history)
-                existing.add(fingerprint)
-                result["merged_history"] += 1
+            for session in database.get("training_sessions", []) or []:
+                for item in session.get("movement_items", []) or []:
+                    if not isinstance(item, dict) or str(item.get("movement_id", "")) != source_id:
+                        continue
+                    fingerprint = self._history_fingerprint(item)
+                    if fingerprint in existing:
+                        continue
+                    item["movement_id"] = movement_id
+                    existing.add(fingerprint)
+                    result["merged_history"] += 1
             target["aliases"] = list(dict.fromkeys([*target.get("aliases", []), *names, *(definition.get("aliases") or [])]))
             database["movements"].pop(key, None)
             if source_id.startswith("CUSTOM_"):
@@ -1986,15 +1921,17 @@ class LedgerCommandService:
                 if candidate_key not in matching:
                     continue
                 history = {
-                    "id": str(uuid.uuid4()), "movement_id": movement_id, "date": entry_date,
+                    "id": str(uuid.uuid4()), "movement_id": movement_id, "display_name": definition.get("display_name", candidate_key), "date": entry_date,
                     "training_day": int(session.get("No.") or 0), "order": movement_data.get("order"),
-                    "sets": movement_data.get("sets") or [], "cardio": movement_data.get("cardio") or {},
+                    "sets": movement_data.get("sets") or [],
                     "raw": movement_data.get("raw", ""), "notes": movement_data.get("notes", ""),
                     "source": "alias reconciliation",
+                    "record_day_id": record_day_id(entry_date), "training_session_id": session.get("id", ""),
                 }
+                history["movement_instance_id"] = history["id"]
                 fingerprint = self._history_fingerprint(history)
                 if fingerprint not in existing:
-                    target.setdefault("history", []).append(history)
+                    session.setdefault("movement_items", []).append(history)
                     existing.add(fingerprint)
                     result["restored_skipped"] += 1
                 restored.add(candidate_key)
@@ -2005,9 +1942,7 @@ class LedgerCommandService:
                 raw_record.pop("skipped_movements", None)
         target["name"] = definition.get("display_name") or target.get("name", "")
         target["aliases"] = list(dict.fromkeys([*target.get("aliases", []), *(definition.get("aliases") or [])]))
-        target["history"] = sorted(
-            target.get("history", []), key=lambda row: (str(row.get("date", "")), self._history_fingerprint(row)[1])
-        )
+        rebuild_movement_projection(database)
         return result
 
     def _write_pair(self, database: dict, dictionary: dict, tracker_backup: Path, dictionary_backup: Path) -> None:
@@ -2189,11 +2124,7 @@ class LedgerCommandService:
             display_name = str(definition.get("display_name", ""))
             if confirmation.strip() != display_name:
                 raise LedgerCommandError("Delete confirmation does not match the movement name.")
-            history_count = sum(
-                len(movement.get("history", []) or [])
-                for movement in database.get("movements", {}).values()
-                if str(movement.get("movement_id", "")) == str(movement_id)
-            )
+            history_count = len(movement_items(database, str(movement_id)))
             tracker_backup, dictionary_backup = self._checkpoint()
             dictionary["movements"] = [
                 item for item in dictionary.get("movements", []) if str(item.get("movement_id", "")) != str(movement_id)
@@ -2202,6 +2133,9 @@ class LedgerCommandService:
                 key: movement for key, movement in database.get("movements", {}).items()
                 if str(movement.get("movement_id", "")) != str(movement_id)
             }
+            for session in database.get("training_sessions", []):
+                session["movement_items"] = [item for item in session.get("movement_items", []) if str(item.get("movement_id", "")) != str(movement_id)]
+            rebuild_movement_projection(database)
             self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
             return {"movement_id": movement_id, "display_name": display_name, "deleted_history": history_count}
 
@@ -2297,12 +2231,11 @@ class LedgerCommandService:
                 else:
                     record["record_day_id"] = record_day_id(new_date)
                     if record_type == "training":
-                        for movement in database.get("movements", {}).values():
-                            for history in movement.get("history", []) or []:
-                                if str(history.get("training_session_id", "")) == str(record_id):
-                                    history["date"] = new_date
-                                    history["record_day_id"] = record_day_id(new_date)
-                                    history["updated_at"] = now_iso()
+                        for item in movement_items_by_session(database, record_id):
+                            item["date"] = new_date
+                            item["record_day_id"] = record_day_id(new_date)
+                            item["updated_at"] = now_iso()
+                        rebuild_movement_projection(database)
                 self._touch_record_day(database, old_date)
                 self._touch_record_day(database, new_date)
             else:
@@ -2328,13 +2261,12 @@ class LedgerCommandService:
                 revision["record_day_id"] = record_day_id(target_date)
                 revision["revision"] = int(revision.get("revision", 1) or 1) + 1
                 revision["updated_at"] = now_iso()
-        for movement in database.get("movements", {}).values():
-            for history in movement.get("history", []) or []:
-                if canonical_date(history.get("date")) == source_date:
-                    history["date"] = target_date
-                    history["record_day_id"] = record_day_id(target_date)
-                    history["revision"] = int(history.get("revision", 1) or 1) + 1
-                    history["updated_at"] = now_iso()
+        for item in movement_items_by_date(database, source_date):
+            item["date"] = target_date
+            item["record_day_id"] = record_day_id(target_date)
+            item["revision"] = int(item.get("revision", 1) or 1) + 1
+            item["updated_at"] = now_iso()
+        rebuild_movement_projection(database)
 
     @staticmethod
     def _parse_sets_text(text: str) -> list[dict]:
@@ -2367,19 +2299,11 @@ class LedgerCommandService:
             raise LedgerCommandError("Movement history values must be an object.")
         with self.write_lock():
             database, dictionary = self.load_state()
-            movement = next(
-                (row for row in database.get("movements", {}).values() if str(row.get("movement_id", "")) == str(movement_id)),
-                None,
-            )
-            if not movement:
+            item = next((row for row in movement_items(database, str(movement_id)) if str(row.get("id") or row.get("movement_instance_id")) == str(history_id)), None)
+            if not item:
                 raise LedgerCommandError("Movement was not found.")
-            history = next(
-                (row for row in movement.get("history", []) if str(row.get("id", "")) == str(history_id)),
-                None,
-            )
-            if not history:
-                raise LedgerCommandError("Movement history record was not found.")
-            current_revision = int(history.get("revision", 1) or 1)
+            history = item
+            current_revision = int(item.get("revision", 1) or 1)
             if expected_revision is not None and int(expected_revision) != current_revision:
                 raise LedgerCommandError(
                     "This movement instance changed after the page was opened. Reload it before saving.",
@@ -2389,24 +2313,14 @@ class LedgerCommandService:
             try:
                 order_text = str(values.get("order", history.get("order", ""))).strip()
                 order = int(order_text) if order_text else None
-                cardio_fields = ("duration_minutes", "incline", "speed", "heart_rate")
-                if any(field in values for field in cardio_fields):
-                    cardio = {}
-                    for field in cardio_fields:
-                        text = str(values.get(field, "")).strip()
-                        cardio[field] = float(text) if text else None
-                    cardio = {key: value for key, value in cardio.items() if value is not None}
-                else:
-                    cardio = copy.deepcopy(history.get("cardio") or {})
             except (TypeError, ValueError) as exc:
-                raise LedgerCommandError("Order and cardio values must be numeric or blank.") from exc
+                raise LedgerCommandError("Order must be numeric or blank.") from exc
             updates = {
                 "order": order,
                 "sets": (
                     self._parse_sets_text(str(values.get("sets_text", "")))
                     if "sets_text" in values else copy.deepcopy(history.get("sets") or [])
                 ),
-                "cardio": cardio,
                 "raw": str(values.get("raw", history.get("raw", ""))).strip(),
                 "notes": normalize_note_text(values.get("notes", history.get("notes", ""))),
                 "updated_at": now_iso(),
@@ -2434,16 +2348,13 @@ class LedgerCommandService:
             if session:
                 session["revision"] = int(session.get("revision", 1) or 1) + 1
                 session["updated_at"] = now_iso()
-                refs = []
-                for item in database.get("movements", {}).values():
-                    for candidate in item.get("history", []) or []:
-                        if str(candidate.get("training_session_id", "")) == session_id:
-                            refs.append(candidate)
+                refs = movement_items_by_session(database, session_id)
                 refs.sort(key=lambda item: (int(item.get("order", 9999) or 9999), str(item.get("movement_id", ""))))
                 session["Standardized Summary"] = "；".join(
                     f"第{item.get('order')}个动作：{next((definition.get('display_name', item.get('movement_id', '')) for definition in dictionary.get('movements', []) if str(definition.get('movement_id')) == str(item.get('movement_id'))), item.get('movement_id', ''))}"
                     for item in refs
                 )
+                rebuild_movement_projection(database)
             history.setdefault("record_day_id", record_day_id(history.get("date")))
             self._touch_record_day(database, history.get("date", ""))
             tracker_backup, dictionary_backup = self._checkpoint()
@@ -2526,12 +2437,8 @@ class LedgerCommandService:
 
     @staticmethod
     def _session_histories(database: dict, session_id: str) -> list[tuple[dict, dict]]:
-        rows = []
-        for movement in database.get("movements", {}).values():
-            for history in movement.get("history", []) or []:
-                if str(history.get("training_session_id", "")) == str(session_id):
-                    rows.append((movement, history))
-        return rows
+        definitions = {str(item.get("movement_id")): item for item in database.get("movements", {}).values() if isinstance(item, dict)}
+        return [(definitions.get(str(item.get("movement_id")), {"movement_id": item.get("movement_id", "")}), item) for item in movement_items_by_session(database, session_id)]
 
     def preview_training_raw_edit(self, session_id: str, raw_text: str, expected_revision: int | None = None) -> dict:
         raw = str(raw_text or "").strip()
@@ -2559,7 +2466,7 @@ class LedgerCommandService:
             new_items.append({
                 "movement_id": definition["movement_id"], "display_name": definition.get("display_name", candidate),
                 "order": item.get("order"), "sets": copy.deepcopy(item.get("sets", []) or []),
-                "cardio": copy.deepcopy(item.get("cardio", {}) or {}), "raw": item.get("raw", ""),
+                "raw": item.get("raw", ""),
                 "notes": normalize_note_text(item.get("notes", "")), "exclude_from_progress": bool(item.get("exclude_from_progress", False)),
             })
         old_items = []
@@ -2605,20 +2512,20 @@ class LedgerCommandService:
                 definition = by_id.get(str(item.get("movement_id", ""))) or by_alias.get(_normalize_name(candidate))
                 if definition:
                     desired.append((definition, item))
-            existing = {(str(history.get("movement_id")), str(history.get("order"))): (movement, history) for movement, history in self._session_histories(database, session_id)}
+            existing = {(str(history.get("movement_id")), str(history.get("order"))): history for _movement, history in self._session_histories(database, session_id)}
             desired_keys = set()
             for definition, item in desired:
                 key = (str(definition["movement_id"]), str(item.get("order")))
                 desired_keys.add(key)
                 if key in existing:
-                    _movement, history = existing[key]
-                    history.update({"sets": copy.deepcopy(item.get("sets", []) or []), "cardio": copy.deepcopy(item.get("cardio", {}) or {}), "raw": item.get("raw", ""), "notes": normalize_note_text(item.get("notes", "")), "exclude_from_progress": bool(item.get("exclude_from_progress", False)), "revision": int(history.get("revision", 1) or 1) + 1, "updated_at": now_iso()})
+                    history = existing[key]
+                    history.update({"sets": copy.deepcopy(item.get("sets", []) or []), "raw": item.get("raw", ""), "notes": normalize_note_text(item.get("notes", "")), "exclude_from_progress": bool(item.get("exclude_from_progress", False)), "revision": int(history.get("revision", 1) or 1) + 1, "updated_at": now_iso()})
                 else:
-                    movement = self._tracker_movement(database, definition, str(item.get("name", "")).strip())
-                    movement.setdefault("history", []).append({"id": str(uuid.uuid4()), "movement_id": definition["movement_id"], "date": canonical_date(session.get("Date")), "training_day": session.get("No.", ""), "order": item.get("order"), "sets": copy.deepcopy(item.get("sets", []) or []), "cardio": copy.deepcopy(item.get("cardio", {}) or {}), "raw": item.get("raw", ""), "notes": normalize_note_text(item.get("notes", "")), "exclude_from_progress": bool(item.get("exclude_from_progress", False)), "source": "raw edit", "record_day_id": record_day_id(session.get("Date")), "training_session_id": session_id, "raw_entry_id": session.get("raw_entry_id", ""), "raw_revision_id": session.get("raw_revision_id", ""), "revision": 1, "updated_at": now_iso()})
-            for key, (movement, history) in existing.items():
+                    item_id = str(uuid.uuid4())
+                    session.setdefault("movement_items", []).append({"id": item_id, "movement_instance_id": item_id, "movement_id": definition["movement_id"], "display_name": definition.get("display_name", item.get("name", "")), "date": canonical_date(session.get("Date")), "training_day": session.get("No.", ""), "order": item.get("order"), "sets": copy.deepcopy(item.get("sets", []) or []), "raw": item.get("raw", ""), "notes": normalize_note_text(item.get("notes", "")), "exclude_from_progress": bool(item.get("exclude_from_progress", False)), "source": "raw edit", "record_day_id": record_day_id(session.get("Date")), "training_session_id": session_id, "raw_entry_id": session.get("raw_entry_id", ""), "raw_revision_id": session.get("raw_revision_id", ""), "revision": 1, "updated_at": now_iso()})
+            for key, history in existing.items():
                 if key not in desired_keys:
-                    movement["history"] = [item for item in movement.get("history", []) if item is not history]
+                    session["movement_items"] = [item for item in session.get("movement_items", []) if item is not history]
             raw_entry = next((item for item in database.get("raw_entries", []) if str(item.get("id")) == str(session.get("raw_entry_id", ""))), None)
             if raw_entry is None:
                 raw_entry = {"id": _stable_json_hash({"session_id": session_id, "raw": raw_text})[:24], "date": canonical_date(session.get("Date")), "source": "raw edit", "record_day_id": record_day_id(session.get("Date")), "revision": 0}
@@ -2630,6 +2537,7 @@ class LedgerCommandService:
             for _movement, history in self._session_histories(database, session_id):
                 history["raw_entry_id"] = raw_entry["id"]
                 history["raw_revision_id"] = raw_entry["raw_revision_id"]
+            rebuild_movement_projection(database)
             session.update({"Raw Record": raw_text, "raw_entry_id": raw_entry["id"], "raw_revision_id": raw_entry["raw_revision_id"], "Standardized Summary": "；".join(f"第{item.get('order')}个动作：{definition.get('display_name', '')}" for definition, item in desired), "revision": current_revision + 1, "updated_at": now_iso()})
             if parsed.get("training", {}).get("split"):
                 session["Split"] = str(parsed["training"]["split"]).strip()
@@ -2641,7 +2549,23 @@ class LedgerCommandService:
 
     def _prepare_generated_training_fields(self, parsed: dict) -> None:
         training = parsed.setdefault("training", {})
-        movements = training.setdefault("movements", [])
+        body = parsed.setdefault("body", {})
+        source_movements = training.setdefault("movements", [])
+        movements = []
+        cardio_lines = []
+        cardio_names = {"cardio", "有氧", "treadmill", "跑步机", "walk", "步行"}
+        for movement in source_movements:
+            name = str(movement.get("name", "")).strip().casefold()
+            is_cardio = name in cardio_names or (bool(movement.get("cardio")) and not (movement.get("sets") or []))
+            if is_cardio:
+                raw = str(movement.get("raw", "")).strip()
+                if raw:
+                    cardio_lines.append(raw)
+                continue
+            movements.append(movement)
+        training["movements"] = movements
+        if cardio_lines and not str(body.get("cardio_summary", "") or "").strip():
+            body["cardio_summary"] = "; ".join(cardio_lines)
         summary = "；".join(
             f"第{movement.get('order')}个动作：{movement.get('display_name') or movement.get('name', '')}"
             for movement in movements
@@ -2740,7 +2664,7 @@ class LedgerCommandService:
             if diet.get(field) is None:
                 add("high", f"missing_{field}", f"缺少{label}。")
         for movement in training.get("movements", []):
-            if not movement.get("sets") and not movement.get("cardio"):
+            if not movement.get("sets"):
                 add("medium", "missing_sets", f"动作“{movement.get('name', '')}”没有识别到组数。")
             if not movement.get("movement_id"):
                 add("medium", "new_movement", f"新动作“{movement.get('name', '')}”需要确认处理方式。")
@@ -2816,8 +2740,9 @@ class LedgerCommandService:
         database["daily_records"] = [row for row in database.get("daily_records", []) if str(row.get("Date", ""))[:10] != target]
         database["diet_records"] = [row for row in database.get("diet_records", []) if str(row.get("Date", ""))[:10] != target]
         database["training_sessions"] = [row for row in database.get("training_sessions", []) if str(row.get("Date", ""))[:10] != target]
-        for movement in database.get("movements", {}).values():
-            movement["history"] = [row for row in movement.get("history", []) if str(row.get("date", ""))[:10] != target]
+        for session in database.get("training_sessions", []):
+            session["movement_items"] = [row for row in session.get("movement_items", []) if str(row.get("date", ""))[:10] != target]
+        rebuild_movement_projection(database)
         for raw_record in database.get("raw_entries", []):
             if str(raw_record.get("date", ""))[:10] == target and not raw_record.get("superseded"):
                 raw_record.update({"superseded": True, "superseded_at": datetime.now().replace(microsecond=0).isoformat(), "superseded_by": replacement_id})
@@ -2905,6 +2830,14 @@ class LedgerCommandService:
             return result
 
     def _apply_save(self, database: dict, dictionary: dict, parsed: dict, save_mode: str) -> dict:
+        # Keep this lower-level boundary safe for direct callers and tests as
+        # well as the public save() path: all writes start from one canonical
+        # in-memory graph, while migrate_state itself remains file-free.
+        normalized_database, normalized_dictionary, _migration_report = migrate_state(database, dictionary)
+        database.clear()
+        database.update(normalized_database)
+        dictionary.clear()
+        dictionary.update(normalized_dictionary)
         by_id, by_alias = _dictionary_indexes(dictionary)
         entry_date = parsed["date"]
         replacement_day = None
@@ -2967,6 +2900,7 @@ class LedgerCommandService:
             day_number = replacement_day or (max(existing_days, default=0) + 1)
             summary_parts = []
             note_parts = []
+            training_items = []
             for movement_data in training.get("movements", []):
                 action = movement_data.get("_review_action", "use")
                 candidate = str(movement_data.get("name", "")).strip()
@@ -2993,12 +2927,12 @@ class LedgerCommandService:
                     skipped.append(candidate)
                     continue
                 by_id, by_alias = _dictionary_indexes(dictionary)
-                movement = self._tracker_movement(database, definition, candidate)
-                previous_history = list(movement.setdefault("history", []))
+                self._tracker_movement(database, definition, candidate)
+                previous_history = list(movement_items(database, definition["movement_id"]))
                 history_record = {
-                    "id": str(uuid.uuid4()), "movement_id": definition["movement_id"], "date": entry_date,
+                    "id": str(uuid.uuid4()), "movement_id": definition["movement_id"], "display_name": definition.get("display_name") or candidate, "date": entry_date,
                     "training_day": day_number, "order": movement_data.get("order"), "sets": movement_data.get("sets", []),
-                    "cardio": movement_data.get("cardio") or {}, "raw": movement_data.get("raw", ""),
+                    "raw": movement_data.get("raw", ""),
                     "notes": normalize_note_text(movement_data.get("notes", "")),
                     "exclude_from_progress": bool(movement_data.get("exclude_from_progress", False)),
                     "source": "text entry",
@@ -3006,10 +2940,11 @@ class LedgerCommandService:
                     "raw_entry_id": raw_record["id"], "raw_revision_id": raw_record["raw_revision_id"],
                     "revision": 1, "updated_at": now_iso(),
                 }
+                history_record["movement_instance_id"] = history_record["id"]
                 variant = str(movement_data.get("variant") or "").strip()
                 if variant:
                     history_record["variant"] = variant
-                movement["history"].append(history_record)
+                training_items.append(history_record)
                 personal_record = LedgerViewModels.personal_record_summary(definition, history_record, previous_history)
                 if personal_record:
                     personal_records.append(personal_record)
@@ -3029,6 +2964,7 @@ class LedgerCommandService:
                     "Split": training.get("split", ""), "Raw Record": training.get("raw", ""),
                     "Standardized Summary": training.get("standardized_summary") or "；".join(summary_parts),
                     "Notes": training_notes,
+                    "movement_items": training_items,
                     "save_mode": save_mode, "source": "text entry",
                     "record_day_id": record_day_id(entry_date), "raw_entry_id": raw_record["id"],
                     "raw_revision_id": raw_record["raw_revision_id"], "revision": 1, "updated_at": now_iso(),
@@ -3036,6 +2972,7 @@ class LedgerCommandService:
             )
             if skipped:
                 raw_record["skipped_movements"] = skipped
+            rebuild_movement_projection(database)
         self._touch_record_day(database, entry_date)
         return {
             "ok": True,

@@ -12,6 +12,8 @@ const CACHE_KEY = "fitness-ledger:phone-inbox-recent:v1";
 let sdkPromise;
 let appPromise;
 let authPromise;
+let appSource;
+let authSource;
 
 function withTimeout(promise, code) {
   let timer;
@@ -37,12 +39,22 @@ function loadSdk() {
 }
 
 async function cloudBaseApp() {
-  if (!appPromise) appPromise = loadSdk().then(cloudbase => cloudbase.init({ env: ENV_ID, region: REGION }));
+  if (window.cloudbase && appSource !== window.cloudbase) {
+    appSource = window.cloudbase;
+    appPromise = Promise.resolve(appSource.init({ env: ENV_ID, region: REGION }));
+    authPromise = null;
+    authSource = null;
+  }
+  if (!appPromise) appPromise = loadSdk().then(cloudbase => { appSource = cloudbase; return cloudbase.init({ env: ENV_ID, region: REGION }); });
   return appPromise;
 }
 
 async function auth() {
-  if (!authPromise) authPromise = cloudBaseApp().then(app => app.auth());
+  const app = await cloudBaseApp();
+  if (!authPromise || authSource !== appSource) {
+    authSource = appSource;
+    authPromise = Promise.resolve(app.auth());
+  }
   return authPromise;
 }
 

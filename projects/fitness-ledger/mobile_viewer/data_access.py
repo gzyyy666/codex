@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
 
-from fitness_ledger_core.record_relations import migrate_state, record_day_id
+from fitness_ledger_core.record_relations import migrate_state, record_day_id, movement_items
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -230,7 +230,7 @@ class LedgerDataAccess:
         tracker = self._tracker()
         rows = []
         for movement in tracker.get("movements", {}).values():
-            for history in movement.get("history", []) or []:
+            for history in movement_items(tracker, str(movement.get("movement_id", ""))):
                 if (session_id and str(history.get("training_session_id", "")) == str(session_id)) or (
                     not session_id and str(history.get("training_day", "")) == str(day_number)
                 ):
@@ -336,6 +336,7 @@ class LedgerDataAccess:
         if not candidates:
             return {"query": movement_name, "movement": None, "history": []}
         movement = candidates[0]
+        tracker = self._tracker()
         tracker_movement = next(
             (
                 item
@@ -345,7 +346,7 @@ class LedgerDataAccess:
             None,
         )
         history = []
-        for record in (tracker_movement or {}).get("history", []) or []:
+        for record in movement_items(tracker, movement.movement_id):
             structured_sets = record.get("sets", []) or []
             sets_lines = [format_set_line(item) for item in structured_sets]
             if not sets_lines:
@@ -358,7 +359,6 @@ class LedgerDataAccess:
                     "training_day": record.get("training_day", ""),
                     "sets": structured_sets,
                     "sets_lines": sets_lines,
-                    "cardio": record.get("cardio", {}) or {},
                     "notes": str(record.get("notes", "") or "").strip(),
                     "raw": str(record.get("raw", "") or "").strip(),
                 }
