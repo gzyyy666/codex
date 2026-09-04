@@ -258,6 +258,8 @@ def main() -> None:
         form_shape = browser.evaluate("({suggestion:getComputedStyle(document.querySelector('.dm-suggestion')).display,petVisible:[...document.querySelectorAll('.tools-pet-floating,.tools-pet-cursor-trail')].some(item=>getComputedStyle(item).opacity!=='0'),modalCursor:getComputedStyle(document.querySelector('.dm-modal')).cursor,buttonCursor:getComputedStyle(document.querySelector('[data-dm-submit-definition]')).cursor})")
         assert form_shape["suggestion"] == "none" and not form_shape["petVisible"], form_shape
         assert form_shape["modalCursor"] == "auto" and form_shape["buttonCursor"] == "pointer", form_shape
+        format_shape = browser.evaluate("({values:[...document.querySelectorAll('[name=data_type] option')].map(item=>item.value),selected:document.querySelector('[name=data_type]')?.value,statsDisabled:document.querySelector('[name=statistics_visible]')?.disabled})")
+        assert format_shape == {"values": ["text", "number"], "selected": "text", "statsDisabled": True}, format_shape
         _set_css(browser, "[name=label]", "\u65e5\u95f4\u4f53\u6e29")
         _set_css(browser, "[name=actual_unit]", "C")
         _set_css(browser, "[name=aliases]", "\u65e5\u95f4\u4f53\u6e29")
