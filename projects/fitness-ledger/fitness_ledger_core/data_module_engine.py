@@ -29,6 +29,26 @@ MODULE_ID_RE = re.compile(r"^[a-z][a-z0-9_]{1,63}$")
 DATE_RE = re.compile(r"(?<!\d)(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?!\d)")
 NUMBER_RE = re.compile(r"(?<![\d.])[-+]?\d+(?:\.\d+)?(?![\d.])")
 
+# Native Daily Entry labels delimit a free-form Data Module value.  Keep this
+# list narrow so ordinary punctuation such as "第二行：" remains in the text.
+NATIVE_FIELD_ALIASES = (
+    "diet notes", "training notes", "body notes", "diet", "food", "training",
+    "cardio", "notes", "date", "weight", "bowel movement", "bowel",
+    "calories", "calorie", "kcal", "protein", "carbs", "carb", "fat",
+    "body fat", "waist", "sleep", "steps", "context", "training summary",
+    "standardized summary", "food summary",
+    "日期", "体重", "排便", "热量", "蛋白质", "碳水", "脂肪", "饮食",
+    "饮食记录", "饮食备注", "训练", "训练备注", "训练部位", "训练摘要",
+    "标准摘要", "有氧", "备注", "身体备注", "体脂", "体脂率", "腰围",
+    "睡眠", "步数", "测量背景",
+)
+NATIVE_FIELD_RE = re.compile(
+    r"(?<![A-Za-z0-9_])(?:"
+    + "|".join(sorted((re.escape(alias) for alias in NATIVE_FIELD_ALIASES), key=len, reverse=True))
+    + r")\s*[:：=]",
+    flags=re.IGNORECASE,
+)
+
 SUPPORTED_DATA_TYPES = {"number", "quantity", "text", "boolean", "enum", "rating", "duration", "structured"}
 SUPPORTED_STATUSES = {"active", "inactive", "retired"}
 SUPPORTED_RECORDING_KINDS = {"scalar", "event", "session", "meal", "structured"}
@@ -1084,9 +1104,11 @@ class RegistryDrivenParser:
             tail = segment[match.end():].strip()
             unit_hint = re.match(r"([A-Za-z%µμ]+)", tail)
             return value, unit_hint.group(1) if unit_hint else ""
-        # Text modules intentionally preserve the complete payload after the
-        # alias.  The old first-token behavior silently truncated Chinese,
-        # English, punctuation, spaces, and multi-line notes.
+        # Preserve the complete payload, but stop before the next explicit
+        # native field (for example, "精神状态: 好 体重: 65").
+        boundary = NATIVE_FIELD_RE.search(segment)
+        if boundary:
+            segment = segment[:boundary.start()]
         value = segment.strip()
         value = re.sub(r"^[\s:：=]+", "", value)
         return value, ""

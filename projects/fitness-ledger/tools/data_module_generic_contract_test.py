@@ -80,6 +80,21 @@ class GenericDataModuleContractTests(unittest.TestCase):
         self.assertEqual(preview["candidates"][0]["value"], "积极度和情绪高但是大脑性能中下，English punctuation!\n第二行：保留 100%")
         self.assertEqual(preview["candidates"][0]["module_id"], "mood_state")
 
+    def test_text_parser_stops_before_following_native_field(self) -> None:
+        raw = "2026-09-04 精神状态: 积极度和情绪高但是大脑性能中下\n体重: 65.25 kg\n备注: 保留"
+        preview = self.service.data_module_preview(raw)
+        self.assertEqual(preview["candidates"][0]["value"], "积极度和情绪高但是大脑性能中下")
+
+        same_line = "2026-09-04 精神状态: 积极度和情绪高但是大脑性能中下 体重: 65.25 kg"
+        same_line_preview = self.service.data_module_preview(same_line)
+        self.assertEqual(same_line_preview["candidates"][0]["value"], "积极度和情绪高但是大脑性能中下")
+
+    def test_new_text_candidate_stops_before_following_native_field(self) -> None:
+        raw = "2026-09-04 今日状态: 积极度和情绪高但是大脑性能中下\n体重: 65.25 kg"
+        discovered = self.service.data_module_discover(raw)
+        self.assertEqual(discovered["kind"], "new_candidate")
+        self.assertEqual(discovered["candidate"]["value"], "积极度和情绪高但是大脑性能中下")
+
     def test_unknown_explicit_text_field_is_a_generic_candidate(self) -> None:
         discovered = self.service.data_module_discover("今日状态: 积极度和情绪高但是大脑性能中下")
         self.assertEqual(discovered["kind"], "new_candidate")

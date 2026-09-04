@@ -572,6 +572,12 @@ class LedgerCommandService:
             label = text_match.group(1).strip(" \t,，。")
             label = re.sub(r"^(?:记录|测量|我的|当前|早上|上午|晚上|晚间)+", "", label).strip(" \t,，。")
             value = text_match.group(2).strip()
+            # Keep new-field discovery consistent with the registered-module
+            # parser when another native field follows the candidate value.
+            from fitness_ledger_core.data_module_engine import NATIVE_FIELD_RE
+            boundary = NATIVE_FIELD_RE.search(value)
+            if boundary:
+                value = value[:boundary.start()].strip()
             if label and value:
                 label_lower = label.casefold()
                 category_hints = [
