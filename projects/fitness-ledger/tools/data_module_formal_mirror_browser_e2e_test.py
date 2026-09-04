@@ -260,6 +260,12 @@ def main() -> None:
         assert form_shape["modalCursor"] == "auto" and form_shape["buttonCursor"] == "pointer", form_shape
         format_shape = browser.evaluate("({values:[...document.querySelectorAll('[name=data_type] option')].map(item=>item.value),selected:document.querySelector('[name=data_type]')?.value,statsDisabled:document.querySelector('[name=statistics_visible]')?.disabled})")
         assert format_shape == {"values": ["text", "number"], "selected": "text", "statsDisabled": True}, format_shape
+        disabled_stats_style = browser.evaluate("(() => { const input=document.querySelector('[name=statistics_visible]'); const label=input?.closest('label'); return {appearance:input?getComputedStyle(input).appearance:'',hint:label?getComputedStyle(label,'::after').content:''}; })()")
+        assert disabled_stats_style["appearance"] == "none" and disabled_stats_style["hint"] == '"仅数字"', disabled_stats_style
+        _select(browser, "[name=data_type]", "number")
+        assert browser.evaluate("document.querySelector('[name=statistics_visible]')?.disabled") is False
+        _select(browser, "[name=data_type]", "text")
+        assert browser.evaluate("document.querySelector('[name=statistics_visible]')?.disabled") is True
         _set_css(browser, "[name=label]", "\u65e5\u95f4\u4f53\u6e29")
         _set_css(browser, "[name=actual_unit]", "C")
         _set_css(browser, "[name=aliases]", "\u65e5\u95f4\u4f53\u6e29")

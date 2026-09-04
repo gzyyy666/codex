@@ -170,9 +170,17 @@ function enhanceToolsSidebar(){const reference=$$('.admin-workspace-group').find
  function statNumber(value){return value===null||value===undefined?'—':String(value)}
  function statChart(points){
    if(!points.length)return '<div class="dm-stat-empty">还没有足够的记录；保存至少一条数值后会显示趋势。</div>';
-   const width=640,height=110,pad=10,values=points.map(item=>Number(item.display_value)),min=Math.min(...values),max=Math.max(...values),span=max-min||1;
-   const coords=values.map((value,index)=>{const x=points.length===1?width/2:pad+(width-pad*2)*(index/(points.length-1));const y=height-pad-(height-pad*2)*((value-min)/span);return `${x.toFixed(1)},${y.toFixed(1)}`});
-   return `<svg class="dm-stat-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="数值趋势"><polyline points="${coords.join(' ')}"></polyline>${coords.map(point=>{const [x,y]=point.split(',');return `<circle cx="${x}" cy="${y}" r="3"></circle>`}).join('')}</svg><div class="dm-stat-summary"><span>${esc(points[0].date)} → ${esc(points.at(-1).date)}</span><span>${points.length} 条记录</span></div>`;
+   const valid=points.filter(item=>Number.isFinite(Number(item.display_value)));
+   if(!valid.length)return '<div class="dm-stat-empty">暂无可绘制的数值记录。</div>';
+   const maxPoints=30,visible=valid.length>maxPoints?Array.from({length:maxPoints},(_,index)=>valid[Math.round(index*(valid.length-1)/(maxPoints-1))]):valid;
+   const width=640,height=138,left=38,right=14,top=14,bottom=28,values=visible.map(item=>Number(item.display_value)),min=Math.min(...values),max=Math.max(...values),span=max-min,padding=span?span*.12:Math.max(Math.abs(max)*.1,1),axisMin=min-padding,axisMax=max+padding,axisSpan=axisMax-axisMin,plotWidth=width-left-right,plotHeight=height-top-bottom;
+   const xAt=index=>visible.length===1?left+plotWidth/2:left+plotWidth*(index/(visible.length-1));
+   const yAt=value=>top+plotHeight*(1-(value-axisMin)/axisSpan);
+   const coords=values.map((value,index)=>`${xAt(index).toFixed(1)},${yAt(value).toFixed(1)}`);
+   const axisValue=value=>String(Number(value.toFixed(2)));
+   const grid=[top,top+plotHeight/2,top+plotHeight];
+   const xLabels=`<text x="${left}" y="${height-7}" text-anchor="start">${esc(visible[0].date)}</text><text x="${left+plotWidth}" y="${height-7}" text-anchor="end">${esc(visible.at(-1).date)}</text>`;
+   return `<svg class="dm-stat-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="数值趋势"><g class="dm-stat-grid">${grid.map(y=>`<line x1="${left}" y1="${y}" x2="${left+plotWidth}" y2="${y}"></line>`).join('')}</g><g class="dm-stat-axis"><text x="2" y="${top+4}">${esc(axisValue(axisMax))}</text><text x="2" y="${top+plotHeight+4}">${esc(axisValue(axisMin))}</text>${xLabels}</g><polyline points="${coords.join(' ')}"></polyline>${coords.map(point=>{const [x,y]=point.split(',');return `<circle cx="${x}" cy="${y}" r="3"></circle>`}).join('')}</svg><div class="dm-stat-summary"><span>${esc(visible[0].date)} → ${esc(visible.at(-1).date)}</span><span>${points.length} 条记录${points.length>maxPoints?' · 图中均匀取样30点':''}</span></div>`;
  }
  async function showStatistics(moduleId){
    const module=moduleById(moduleId)||{};bridge.modal(`${module.label||moduleId} · 趋势`,`<div class="loading-page" style="height:180px"><i></i><p>正在读取本地历史…</p></div>`,{light:true});
