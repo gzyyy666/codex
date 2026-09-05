@@ -3339,6 +3339,27 @@ def extract_load_blocks(text: str) -> list[dict]:
     return blocks
 
 
+def extract_bodyweight_blocks(text: str) -> list[dict]:
+    """Parse explicit reps × sets when the movement definition supplies the load semantics."""
+    normalized = (
+        str(text or "")
+        .replace("\u00d7", "x")
+        .replace("X", "x")
+        .replace("*", "x")
+    )
+    blocks = []
+    pattern = re.compile(
+        r"(?<![\d.])(?P<reps>\d+)\s*(?:reps?|次)?\s*x\s*"
+        r"(?P<sets>\d+)\s*(?:sets?|组)?",
+        re.I,
+    )
+    for match in pattern.finditer(normalized):
+        item = _safe_build_set_item("自重", match.group("reps"), match.group("sets"))
+        if item not in blocks:
+            blocks.append(item)
+    return blocks
+
+
 def extract_training_section(text: str) -> tuple[str, str]:
     lines = str(text or "").splitlines()
     split = ""
@@ -3391,13 +3412,16 @@ def _patched_parse_training_movements(self, training_text: str) -> list[dict]:
         if name:
             raw_detail = "\n".join(current["raw_lines"])
             definition = self.movement_definitions_by_alias.get(normalize_name(name), {})
+            sets = extract_load_blocks(raw_detail)
+            if not sets and str(definition.get("equipment", "")).strip().casefold() in {"pull-up bar", "bodyweight"}:
+                sets = extract_bodyweight_blocks(raw_detail)
             movements.append(
                 {
                     "order": current["order"],
                     "name": name,
                     "movement_id": definition.get("movement_id", ""),
                     "display_name": definition.get("display_name", name),
-                    "sets": extract_load_blocks(raw_detail),
+                    "sets": sets,
                     "cardio": {},
                     "raw": raw_detail,
                     "notes": normalize_action_note_block("\n".join(current["notes"])),

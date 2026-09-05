@@ -328,6 +328,21 @@ notes:
     assert legacy["training"]["movements"][0]["notes"] == "旧格式动作备注。"
     assert legacy["body"]["notes"] == "全日备注。"
 
+    app.movement_definitions_by_alias["引体向上"]["equipment"] = "Pull-up Bar"
+    bodyweight = app.parse_entry(
+        """date: 2026-08-21
+training: 背
+
+1. 引体向上
+12 x 2
+10 reps x 1
+"""
+    )
+    assert bodyweight["training"]["movements"][0]["sets"] == [
+        {"weight": 0.0, "weight_text": "自重", "reps": 12, "sets": 2},
+        {"weight": 0.0, "weight_text": "自重", "reps": 10, "sets": 1},
+    ]
+
 
 if __name__ == "__main__":
     test_prompt_contract_and_dynamic_registry()
