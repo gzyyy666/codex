@@ -2354,6 +2354,7 @@ table{border-collapse:collapse}thead{background:rgba(18,17,15,.035)}th{font-size
 .movement-group.group-core .movement-tile{background:rgba(255,255,255,.14)}
 .movement-group.group-core .movement-tile.tile-lead{background:rgba(255,215,67,.86);color:var(--ink)}
 .movement-definition-note{display:block;margin:9px 0 0;color:rgba(255,250,242,.78);font-size:11px;line-height:1.45;text-align:left}.movement-tile.tile-lead .movement-definition-note{color:rgba(38,28,10,.72)}.movement-definition-note-detail{margin-top:10px;color:var(--muted,#6b7169);font-size:13px}.movement-definition-note-detail b{display:block;margin-bottom:3px;color:var(--ink,#252923);font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+.movement-definition-edit{display:inline-flex;align-items:center;gap:5px;margin-top:12px;padding:5px 9px;border:1px solid rgba(24,21,16,.2);border-radius:999px;background:rgba(255,253,247,.72);color:var(--ink);font-size:10px;line-height:1;transition:transform .16s ease,box-shadow .16s ease,background .16s ease}.movement-definition-edit:hover{transform:translateY(-2px);background:#fffdf7;box-shadow:0 7px 16px rgba(35,29,18,.1)}.movement-definition-edit:active{transform:translateY(0);box-shadow:inset 0 2px 4px rgba(35,29,18,.12)}
 
 .movement-detail-compact{
   grid-template-columns:minmax(250px,.85fr) minmax(420px,1.25fr);

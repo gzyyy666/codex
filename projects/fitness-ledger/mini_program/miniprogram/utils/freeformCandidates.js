@@ -23,6 +23,16 @@ function hasUnmatchedQualifier(source, position, term) {
   const prefix = source.slice(Math.max(0, position - 4), position);
   return MOVEMENT_QUALIFIER_PREFIXES.some(value => prefix.endsWith(value) && !term.startsWith(value));
 }
+function hasCandidateBoundaries(source, position, term) {
+  const before = source[position - 1] || "";
+  const after = source[position + term.length] || "";
+  if (/[\u3400-\u9fff]/.test(term)) {
+    // Only a complete Chinese dictionary term is eligible; do not match a
+    // shorter action embedded in a longer Chinese movement name.
+    return !/[\u3400-\u9fff]/.test(before) && !/[\u3400-\u9fff]/.test(after);
+  }
+  return !/[a-z0-9]/i.test(before) && !/[a-z0-9]/i.test(after);
+}
 function termMatches(source, term) {
   const matches = [];
   let position = source.indexOf(term);
@@ -30,7 +40,7 @@ function termMatches(source, term) {
     // Candidates are intentionally a conservative lookup, not a parser. A
     // reference card may appear only for a full dictionary name/alias, never
     // for a shortened action hidden behind an unmatched qualifier.
-    if (!hasUnmatchedQualifier(source, position, term)) matches.push({ term, position });
+    if (hasCandidateBoundaries(source, position, term) && !hasUnmatchedQualifier(source, position, term)) matches.push({ term, position });
     position = source.indexOf(term, position + Math.max(1, term.length));
   }
   return matches;

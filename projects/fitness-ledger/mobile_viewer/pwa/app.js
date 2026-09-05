@@ -9,7 +9,7 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.7 · build 2026.08.27.01";
+const BUILD_VERSION = "PWA v1.1.8 · build 2026.09.05.01";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -393,11 +393,22 @@ function hasUnmatchedQualifier(source, position, term) {
   const prefix = source.slice(Math.max(0, position - 4), position);
   return MOVEMENT_QUALIFIER_PREFIXES.some(value => prefix.endsWith(value) && !term.startsWith(value));
 }
+function hasCandidateBoundaries(source, position, term) {
+  const before = source[position - 1] || "";
+  const after = source[position + term.length] || "";
+  if (/[\u3400-\u9fff]/.test(term)) {
+    // Chinese dictionary terms must not be accepted as a substring of a
+    // longer Chinese movement name. Punctuation, numbers and whitespace are
+    // valid boundaries, so notes like “哑铃卧推 40kg” still match exactly.
+    return !/[\u3400-\u9fff]/.test(before) && !/[\u3400-\u9fff]/.test(after);
+  }
+  return !/[a-z0-9]/i.test(before) && !/[a-z0-9]/i.test(after);
+}
 function candidateTermMatches(source, term) {
   const matches = [];
   let position = source.indexOf(term);
   while (position >= 0) {
-    if (!hasUnmatchedQualifier(source, position, term)) matches.push({ term, position });
+    if (hasCandidateBoundaries(source, position, term) && !hasUnmatchedQualifier(source, position, term)) matches.push({ term, position });
     position = source.indexOf(term, position + Math.max(1, term.length));
   }
   return matches;
@@ -771,7 +782,7 @@ document.addEventListener("click", event => {
 });
 window.addEventListener("scroll", scheduleDockCheck, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260826-05", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260905-01", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();
