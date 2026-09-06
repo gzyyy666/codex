@@ -148,7 +148,7 @@ class FormalReadOnlyDataSource:
     def _read_consistent_files(
         self,
     ) -> tuple[dict[str, dict[str, Any]], dict[str, Any], dict[str, Any]]:
-        """Read the paired formal files only when both fingerprints agree."""
+        """Read a stable pair; this does not establish a cross-file transaction."""
         for _attempt in range(3):
             before = self.file_fingerprints()
             tracker = _read_json(self.tracker_path, "tracker.json")
@@ -236,20 +236,15 @@ class FormalReadOnlyDataSource:
             )
 
         movement_rows: list[dict[str, Any]] = []
-        for movement_key, movement in movements.items():
-            if not isinstance(movement, dict):
-                continue
-            # Formal tracker keys are storage slugs (for example ``pullup``),
-            # while history and the movement dictionary use the authoritative
-            # movement_id (for example ``BACK_001``).  The export materializer
-            # resolves selectors by the latter, so prefer the explicit record
-            # ID and only fall back to the storage key for legacy rows.
-            movement_id = str(movement.get("movement_id") or movement_key)
+        canonical_history_ids: set[str] = set()
+
+        def append_history(history: dict[str, Any], movement: dict[str, Any] | None = None) -> None:
+            movement_id = str(history.get("movement_id") or "")
+            if not movement_id:
+                return
             catalog_item = dictionary_by_id.get(movement_id, {})
-            for history in movement_items(tracker, movement_id):
-                if not isinstance(history, dict):
-                    continue
-                row: dict[str, Any] = {
+            movement = movement or {}
+            row: dict[str, Any] = {
                     "movement_id": movement_id,
                     "movement_name": deepcopy(
                         catalog_item.get("display_name")
@@ -260,18 +255,37 @@ class FormalReadOnlyDataSource:
                     "body_part": deepcopy(
                         catalog_item.get("muscle_group") or ""
                     ),
-                }
-                for field in ("date", "order", "variant"):
-                    if field in history:
-                        row[field] = deepcopy(history[field])
-                if "sets" in history:
-                    row["sets"] = _structured_sets(history["sets"])
-                if "notes" in history:
-                    row["movement_notes"] = deepcopy(history["notes"])
-                row["exclude_from_progress"] = bool(
-                    history.get("exclude_from_progress", False)
-                )
-                movement_rows.append(row)
+            }
+            for field in ("date", "order", "variant"):
+                if field in history:
+                    row[field] = deepcopy(history[field])
+            if "sets" in history:
+                row["sets"] = _structured_sets(history["sets"])
+            if "notes" in history:
+                row["movement_notes"] = deepcopy(history["notes"])
+            row["exclude_from_progress"] = bool(
+                history.get("exclude_from_progress", False)
+            )
+            movement_rows.append(row)
+            if history.get("id"):
+                canonical_history_ids.add(str(history["id"]))
+
+        # training_sessions[].movement_items is the canonical training source.
+        # The legacy tracker.movements projection is only a fallback for older
+        # files whose canonical sessions do not carry the history yet.
+        for history in movement_items(tracker):
+            if isinstance(history, dict):
+                append_history(history)
+
+        legacy_movements = {
+            str(key): value
+            for key, value in movements.items()
+            if isinstance(value, dict)
+        }
+        for _movement_key, movement in legacy_movements.items():
+            for history in movement.get("history", []) or []:
+                if isinstance(history, dict) and str(history.get("id", "")) not in canonical_history_ids:
+                    append_history(history, movement)
 
         dates = [
             str(item["date"])[:10]

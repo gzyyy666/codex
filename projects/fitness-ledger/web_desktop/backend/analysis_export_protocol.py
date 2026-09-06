@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 import secrets
+import time
 from pathlib import Path
 from typing import Any, Mapping, Protocol
 
@@ -126,15 +127,50 @@ class StoredPreview:
     context_id: str
     bundle: dict[str, Any]
     exports: dict[str, str]
+    created_at: float
 
 
 class AnalysisExportProtocolService:
     """HTTP-facing protocol service with no executor/model/write capability."""
 
+    PREVIEW_TTL_SECONDS = 15 * 60
+    MAX_PREVIEWS = 32
+    MAX_ARTIFACTS = 32
+
     def __init__(self, provider: AnalysisExportProvider | None = None) -> None:
         self.provider = provider or FormalReadOnlyProvider()
         self._previews: dict[str, StoredPreview] = {}
         self._artifacts: dict[str, dict[str, Any]] = {}
+
+    def _prune_memory(self) -> None:
+        now = time.monotonic()
+        expired = [
+            token
+            for token, stored in self._previews.items()
+            if now - stored.created_at >= self.PREVIEW_TTL_SECONDS
+        ]
+        for token in expired:
+            self._previews.pop(token, None)
+        if len(self._previews) > self.MAX_PREVIEWS:
+            oldest = sorted(
+                self._previews.items(), key=lambda item: item[1].created_at
+            )[: len(self._previews) - self.MAX_PREVIEWS]
+            for token, _stored in oldest:
+                self._previews.pop(token, None)
+        if len(self._artifacts) > self.MAX_ARTIFACTS:
+            oldest = sorted(
+                self._artifacts.items(),
+                key=lambda item: float(item[1].get("created_at", 0.0)),
+            )[: len(self._artifacts) - self.MAX_ARTIFACTS]
+            for artifact_id, _stored in oldest:
+                self._artifacts.pop(artifact_id, None)
+
+    def _fresh_provider(self) -> AnalysisExportProvider:
+        provider = self.provider
+        refresh = getattr(provider, "refresh", None)
+        if callable(refresh):
+            return refresh()
+        return provider
 
     @classmethod
     def from_environment(
@@ -295,6 +331,7 @@ class AnalysisExportProtocolService:
         }
 
     def preview(self, payload: dict[str, Any]) -> dict[str, Any]:
+        self._prune_memory()
         request = self._request(payload)
         result = validate_request(request)
         if not result.valid or result.normalized_request is None:
@@ -308,10 +345,8 @@ class AnalysisExportProtocolService:
             }
         normalized = result.normalized_request
         try:
-            refresh = getattr(self.provider, "refresh", None)
-            if callable(refresh):
-                self.provider = refresh()
-            selector_error = self._selector_resolution_error(normalized, self.provider)
+            provider = self._fresh_provider()
+            selector_error = self._selector_resolution_error(normalized, provider)
             if selector_error:
                 return {
                     "status": "movement_resolution_required",
@@ -326,8 +361,8 @@ class AnalysisExportProtocolService:
                     },
                     "execution": self._execution(),
                 }
-            bundle, exports = self.provider.materialize_with_exports(normalized)
-            preview = self._bundle_preview(bundle, self.provider)
+            bundle, exports = provider.materialize_with_exports(normalized)
+            preview = self._bundle_preview(bundle, provider)
         except MaterializationError as exc:
             status = "movement_resolution_required" if exc.code == "MOVEMENT_RESOLUTION_REQUIRED" else "safety_blocked"
             return {
@@ -364,6 +399,24 @@ class AnalysisExportProtocolService:
                 },
                 "execution": self._execution(),
             }
+        except (FormalReadOnlyDataSourceError, OSError) as exc:
+            return {
+                "status": "formal_data_unavailable",
+                "schema_version": REQUEST_SCHEMA_VERSION,
+                "normalized_request": normalized,
+                "errors": [{
+                    "code": "FORMAL_SNAPSHOT_UNAVAILABLE",
+                    "path": "$",
+                    "message": "Formal data is not currently readable; retry the Preview.",
+                    "detail": str(exc),
+                }],
+                "preview": {
+                    **self._structural_preview(result),
+                    "status": "formal_data_unavailable",
+                    "warnings": ["Formal data snapshot is temporarily unavailable."],
+                },
+                "execution": self._execution(),
+            }
         fingerprint = hashlib.sha256(_canonical(normalized).encode("utf-8")).hexdigest()
         context_id = str(payload.get("preview_context_id", "") or "").strip()
         token = secrets.token_urlsafe(18)
@@ -373,7 +426,9 @@ class AnalysisExportProtocolService:
             context_id,
             bundle,
             exports,
+            time.monotonic(),
         )
+        self._prune_memory()
         return {
             "status": "preview_ready",
             "schema_version": REQUEST_SCHEMA_VERSION,
@@ -387,16 +442,30 @@ class AnalysisExportProtocolService:
         }
 
     def resolve(self, payload: dict[str, Any]) -> dict[str, Any]:
+        self._prune_memory()
         selector = payload.get("selector")
         if not isinstance(selector, dict) or selector.get("kind") not in {"movement_id", "movement_name", "body_part"}:
             return {"status": "invalid_request", "matches": [], "errors": [{"code": "INVALID_SELECTOR", "path": "$.selector", "message": "selector.kind must be movement_id, movement_name, or body_part"}]}
         try:
-            matches = self.provider.resolve({"kind": str(selector["kind"]), "value": str(selector.get("value", ""))})
+            provider = self._fresh_provider()
+            matches = provider.resolve({"kind": str(selector["kind"]), "value": str(selector.get("value", ""))})
         except AnalysisExportProviderUnavailable:
             return {"status": "formal_data_unavailable", "matches": [], "errors": []}
+        except (FormalReadOnlyDataSourceError, OSError) as exc:
+            return {
+                "status": "formal_data_unavailable",
+                "matches": [],
+                "errors": [{
+                    "code": "FORMAL_SNAPSHOT_UNAVAILABLE",
+                    "path": "$.selector",
+                    "message": "Formal data is not currently readable; retry the resolver.",
+                    "detail": str(exc),
+                }],
+            }
         return {"status": "resolved" if len(matches) == 1 else "movement_resolution_required" if len(matches) > 1 else "unresolved", "matches": matches, "errors": []}
 
     def invalidate_preview_context(self, context_id: str) -> int:
+        self._prune_memory()
         target = str(context_id or "").strip()
         if not target:
             return 0
@@ -406,6 +475,7 @@ class AnalysisExportProtocolService:
         return len(tokens)
 
     def export(self, payload: dict[str, Any]) -> dict[str, Any]:
+        self._prune_memory()
         token = str(payload.get("confirmation_token", ""))
         stored = self._previews.get(token)
         if payload.get("confirmed") is not True or stored is None:
@@ -426,8 +496,13 @@ class AnalysisExportProtocolService:
         bundle, exports = stored.bundle, stored.exports
         bundle_json = exports.get("json", json.dumps(bundle, ensure_ascii=False, sort_keys=True))
         artifact_id = "artifact-" + hashlib.sha256(bundle_json.encode("utf-8")).hexdigest()[:24]
-        self._artifacts[artifact_id] = {"bundle": bundle, "exports": exports}
+        self._artifacts[artifact_id] = {
+            "bundle": bundle,
+            "exports": exports,
+            "created_at": time.monotonic(),
+        }
         self._previews.pop(token, None)
+        self._prune_memory()
         safety = bundle.get("safety_flags", {})
         quality = bundle.get("quality_profile", {})
         manifest = bundle.get("manifest", {})
@@ -456,6 +531,7 @@ class AnalysisExportProtocolService:
         }
 
     def artifact(self, artifact_id: str, format_name: str) -> tuple[str, bytes] | None:
+        self._prune_memory()
         item = self._artifacts.get(artifact_id)
         if not item or format_name not in {"json", "markdown"}:
             return None

@@ -193,7 +193,17 @@ class AnonymousFixtureMaterializer:
             start, end = _parse_date(time_range["start"]), _parse_date(time_range["end"])
             return [row for row in rows if start <= _parse_date(_iso(row.get("date"))) <= end]
         if mode == "latest_matching_sessions":
-            dates = sorted({_iso(row.get("date")) for row in rows}, reverse=True)[: time_range["sessions"]]
+            candidates = rows
+            if dataset["type"] == "movement_progress":
+                # ``latest_matching_sessions`` counts usable progress
+                # sessions; excluded rows must not consume a slot.
+                candidates = [
+                    row for row in rows if not self._progress_excluded(row)[0]
+                ]
+            dates = sorted(
+                {_iso(row.get("date")) for row in candidates},
+                reverse=True,
+            )[: time_range["sessions"]]
             return [row for row in rows if _iso(row.get("date")) in dates]
         raise MaterializationError("Relation time ranges are resolved separately")
 

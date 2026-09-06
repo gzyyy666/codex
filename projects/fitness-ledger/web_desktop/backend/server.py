@@ -41,11 +41,15 @@ from cloud_sync.upload_to_cloudbase import config_status, is_upload_configured, 
 from web_desktop.backend.build_identity import collect_build_info  # noqa: E402
 from web_desktop.backend.analysis_export_protocol import (  # noqa: E402
     AnalysisExportProtocolService,
+    FormalReadOnlyProvider,
 )
 from fitness_ledger_core.formal_analysis_request_preview_service import (  # noqa: E402
     FormalAnalysisRequestPreviewService,
 )
-from fitness_ledger_core.formal_readonly_data_source import FormalReadOnlyDataSource  # noqa: E402
+from fitness_ledger_core.formal_readonly_data_source import (  # noqa: E402
+    FormalReadOnlyDataSource,
+    FormalReadOnlyDataSourceError,
+)
 from fitness_ledger_core.restricted_export_integration import (  # noqa: E402
     compile_natural_language_export,
 )
@@ -124,9 +128,13 @@ class LedgerWebService:
         if analysis_export_protocol is not None:
             self.analysis_export_protocol = analysis_export_protocol
         elif Path(data_file).is_file() and Path(dictionary_file).is_file():
-            self.analysis_export_protocol = AnalysisExportProtocolService(
-                FormalReadOnlyDataSource(Path(data_file), Path(dictionary_file))
-            )
+            try:
+                provider = FormalReadOnlyDataSource(
+                    Path(data_file), Path(dictionary_file)
+                )
+            except (FormalReadOnlyDataSourceError, OSError):
+                provider = FormalReadOnlyProvider("snapshot_unavailable")
+            self.analysis_export_protocol = AnalysisExportProtocolService(provider)
         else:
             self.analysis_export_protocol = AnalysisExportProtocolService.from_environment()
         semantic_config = os.environ.get("FITNESS_LEDGER_SEMANTIC_HINT_CONFIG", "").strip()
