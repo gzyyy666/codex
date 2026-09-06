@@ -204,7 +204,17 @@ class AnonymousFixtureMaterializer:
                 {_iso(row.get("date")) for row in candidates},
                 reverse=True,
             )[: time_range["sessions"]]
-            return [row for row in rows if _iso(row.get("date")) in dates]
+            selected = [row for row in rows if _iso(row.get("date")) in dates]
+            if dataset["type"] == "movement_progress":
+                # Keep excluded source rows in the projection input so the
+                # progress quality summary reports them, without allowing
+                # them to contribute a selected session date.
+                selected_ids = {id(row) for row in selected}
+                selected.extend(
+                    row for row in rows
+                    if id(row) not in selected_ids and self._progress_excluded(row)[0]
+                )
+            return selected
         raise MaterializationError("Relation time ranges are resolved separately")
 
     def _progress_excluded(self, row: dict[str, Any]) -> tuple[bool, str | None]:

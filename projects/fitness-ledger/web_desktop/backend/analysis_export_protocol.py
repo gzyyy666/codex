@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 import secrets
+import threading
 import time
 from pathlib import Path
 from typing import Any, Mapping, Protocol
@@ -141,8 +142,14 @@ class AnalysisExportProtocolService:
         self.provider = provider or FormalReadOnlyProvider()
         self._previews: dict[str, StoredPreview] = {}
         self._artifacts: dict[str, dict[str, Any]] = {}
+        self._store_lock = threading.RLock()
 
     def _prune_memory(self) -> None:
+        with self._store_lock:
+            self._prune_memory_locked()
+
+    def _prune_memory_locked(self) -> None:
+        """Prune shared in-memory state; caller must hold ``_store_lock``."""
         now = time.monotonic()
         expired = [
             token
@@ -420,15 +427,16 @@ class AnalysisExportProtocolService:
         fingerprint = hashlib.sha256(_canonical(normalized).encode("utf-8")).hexdigest()
         context_id = str(payload.get("preview_context_id", "") or "").strip()
         token = secrets.token_urlsafe(18)
-        self._previews[token] = StoredPreview(
-            normalized,
-            fingerprint,
-            context_id,
-            bundle,
-            exports,
-            time.monotonic(),
-        )
-        self._prune_memory()
+        with self._store_lock:
+            self._previews[token] = StoredPreview(
+                normalized,
+                fingerprint,
+                context_id,
+                bundle,
+                exports,
+                time.monotonic(),
+            )
+            self._prune_memory_locked()
         return {
             "status": "preview_ready",
             "schema_version": REQUEST_SCHEMA_VERSION,
@@ -465,44 +473,52 @@ class AnalysisExportProtocolService:
         return {"status": "resolved" if len(matches) == 1 else "movement_resolution_required" if len(matches) > 1 else "unresolved", "matches": matches, "errors": []}
 
     def invalidate_preview_context(self, context_id: str) -> int:
-        self._prune_memory()
         target = str(context_id or "").strip()
         if not target:
             return 0
-        tokens = [token for token, stored in self._previews.items() if stored.context_id == target]
-        for token in tokens:
-            self._previews.pop(token, None)
-        return len(tokens)
+        with self._store_lock:
+            self._prune_memory_locked()
+            tokens = [token for token, stored in self._previews.items() if stored.context_id == target]
+            for token in tokens:
+                self._previews.pop(token, None)
+            return len(tokens)
 
     def export(self, payload: dict[str, Any]) -> dict[str, Any]:
         self._prune_memory()
         token = str(payload.get("confirmation_token", ""))
-        stored = self._previews.get(token)
-        if payload.get("confirmed") is not True or stored is None:
+        if payload.get("confirmed") is not True:
             return {"status": "confirmation_mismatch", "errors": [{"code": "CONFIRMATION_MISMATCH", "path": "$.confirmation_token", "message": "A matching preview confirmation is required."}], "execution": self._execution()}
-        context_id = str(payload.get("preview_context_id", "") or "").strip()
-        if context_id != stored.context_id:
-            return {"status": "confirmation_mismatch", "errors": [{"code": "CONFIRMATION_MISMATCH", "path": "$.preview_context_id", "message": "The Preview is no longer the active confirmation context."}], "execution": self._execution()}
         result = validate_request(self._request(payload))
         if not result.valid or result.normalized_request is None:
             return {"status": "invalid_request", "errors": self._errors(result), "execution": self._execution()}
         normalized = result.normalized_request
         fingerprint = hashlib.sha256(_canonical(normalized).encode("utf-8")).hexdigest()
-        if fingerprint != stored.fingerprint:
-            return {"status": "confirmation_mismatch", "errors": [{"code": "CONFIRMATION_MISMATCH", "path": "$.request", "message": "The request changed after Preview."}], "execution": self._execution()}
-        # Confirmation is bound to the bundle materialized during Preview.
-        # Do not re-resolve selectors or read the provider again here: those
-        # operations could silently change the confirmed data set.
-        bundle, exports = stored.bundle, stored.exports
-        bundle_json = exports.get("json", json.dumps(bundle, ensure_ascii=False, sort_keys=True))
-        artifact_id = "artifact-" + hashlib.sha256(bundle_json.encode("utf-8")).hexdigest()[:24]
-        self._artifacts[artifact_id] = {
-            "bundle": bundle,
-            "exports": exports,
-            "created_at": time.monotonic(),
-        }
-        self._previews.pop(token, None)
-        self._prune_memory()
+        context_id = str(payload.get("preview_context_id", "") or "").strip()
+        with self._store_lock:
+            # Re-read and consume under one lock. This makes same-token Confirm
+            # a single-use operation while keeping validation/materialization
+            # outside the shared-store critical section.
+            self._prune_memory_locked()
+            stored = self._previews.get(token)
+            if stored is None:
+                return {"status": "confirmation_mismatch", "errors": [{"code": "CONFIRMATION_MISMATCH", "path": "$.confirmation_token", "message": "A matching preview confirmation is required."}], "execution": self._execution()}
+            if context_id != stored.context_id:
+                return {"status": "confirmation_mismatch", "errors": [{"code": "CONFIRMATION_MISMATCH", "path": "$.preview_context_id", "message": "The Preview is no longer the active confirmation context."}], "execution": self._execution()}
+            if fingerprint != stored.fingerprint:
+                return {"status": "confirmation_mismatch", "errors": [{"code": "CONFIRMATION_MISMATCH", "path": "$.request", "message": "The request changed after Preview."}], "execution": self._execution()}
+            # Confirmation is bound to the bundle materialized during Preview.
+            # Do not re-resolve selectors or read the provider again here: those
+            # operations could silently change the confirmed data set.
+            bundle, exports = stored.bundle, stored.exports
+            bundle_json = exports.get("json", json.dumps(bundle, ensure_ascii=False, sort_keys=True))
+            artifact_id = "artifact-" + hashlib.sha256(bundle_json.encode("utf-8")).hexdigest()[:24]
+            self._artifacts[artifact_id] = {
+                "bundle": bundle,
+                "exports": exports,
+                "created_at": time.monotonic(),
+            }
+            self._previews.pop(token, None)
+            self._prune_memory_locked()
         safety = bundle.get("safety_flags", {})
         quality = bundle.get("quality_profile", {})
         manifest = bundle.get("manifest", {})
@@ -531,12 +547,13 @@ class AnalysisExportProtocolService:
         }
 
     def artifact(self, artifact_id: str, format_name: str) -> tuple[str, bytes] | None:
-        self._prune_memory()
-        item = self._artifacts.get(artifact_id)
-        if not item or format_name not in {"json", "markdown"}:
-            return None
-        content = item["exports"].get(format_name)
-        if content is None:
-            return None
-        content_type = "application/json; charset=utf-8" if format_name == "json" else "text/markdown; charset=utf-8"
-        return content_type, content.encode("utf-8")
+        with self._store_lock:
+            self._prune_memory_locked()
+            item = self._artifacts.get(artifact_id)
+            if not item or format_name not in {"json", "markdown"}:
+                return None
+            content = item["exports"].get(format_name)
+            if content is None:
+                return None
+            content_type = "application/json; charset=utf-8" if format_name == "json" else "text/markdown; charset=utf-8"
+            return content_type, content.encode("utf-8")

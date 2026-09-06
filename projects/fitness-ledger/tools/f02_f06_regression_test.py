@@ -317,6 +317,90 @@ class F02F06RegressionTest(unittest.TestCase):
                   for item in results}
         self.assertEqual(values, {1, 2})
 
+    def test_concurrent_confirm_consumes_same_token_once(self):
+        temp, root, tracker_path, dictionary_path = self._files()
+        self.addCleanup(temp.cleanup)
+        protocol = AnalysisExportProtocolService(FormalReadOnlyDataSource(tracker_path, dictionary_path))
+        preview = protocol.preview({"request": _request()})
+        token = preview["confirmation_token"]
+        start = threading.Barrier(2)
+        results = []
+        errors = []
+
+        def confirm():
+            try:
+                start.wait()
+                results.append(protocol.export({
+                    "request": _request(),
+                    "confirmed": True,
+                    "confirmation_token": token,
+                }))
+            except BaseException as exc:  # report worker failures in the test thread
+                errors.append(repr(exc))
+
+        threads = [threading.Thread(target=confirm) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        self.assertEqual(errors, [])
+        self.assertEqual(len(results), 2)
+        self.assertEqual(sum(item["status"] == "bundle_ready" for item in results), 1)
+        self.assertEqual(sum(item["status"] == "confirmation_mismatch" for item in results), 1)
+        self.assertEqual(len(protocol._previews), 0)
+        self.assertEqual(len(protocol._artifacts), 1)
+
+    def test_concurrent_preview_confirm_and_artifact_access_is_bounded(self):
+        temp, root, tracker_path, dictionary_path = self._files()
+        self.addCleanup(temp.cleanup)
+        protocol = AnalysisExportProtocolService(FormalReadOnlyDataSource(tracker_path, dictionary_path))
+        protocol.MAX_PREVIEWS = 8
+        protocol.MAX_ARTIFACTS = 4
+        start = threading.Barrier(4)
+        errors = []
+        statuses = []
+        result_lock = threading.Lock()
+
+        def run(worker):
+            try:
+                start.wait()
+                for index in range(10):
+                    request = _request()
+                    request["datasets"][0]["dataset_id"] = f"body_check_{worker}_{index}"
+                    preview = protocol.preview({"request": request, "preview_context_id": f"{worker}-{index}"})
+                    if preview["status"] != "preview_ready":
+                        with result_lock:
+                            statuses.append(preview["status"])
+                        continue
+                    result = protocol.export({
+                        "request": request,
+                        "confirmed": True,
+                        "confirmation_token": preview["confirmation_token"],
+                        "preview_context_id": f"{worker}-{index}",
+                    })
+                    with result_lock:
+                        statuses.append(result["status"])
+                    if result["status"] == "bundle_ready":
+                        protocol.artifact(result["artifact_id"], "json")
+            except BaseException as exc:  # report worker failures in the test thread
+                with result_lock:
+                    errors.append(repr(exc))
+
+        threads = [threading.Thread(target=run, args=(worker,)) for worker in range(4)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        self.assertEqual(errors, [])
+        self.assertEqual(len(statuses), 40)
+        self.assertTrue(all(status in {"bundle_ready", "confirmation_mismatch"} for status in statuses))
+        with protocol._store_lock:
+            protocol._prune_memory_locked()
+            self.assertLessEqual(len(protocol._previews), protocol.MAX_PREVIEWS)
+            self.assertLessEqual(len(protocol._artifacts), protocol.MAX_ARTIFACTS)
+
 
 if __name__ == "__main__":
     unittest.main()
