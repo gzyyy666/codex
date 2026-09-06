@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
+import time
 from typing import Any
 
 from .analysis_export_materializer import (
@@ -123,12 +124,7 @@ class FormalReadOnlyDataSource:
             movement_dictionary_path,
             "movement_dictionary.json",
         )
-        self._before = self.file_fingerprints()
-        tracker = _read_json(self.tracker_path, "tracker.json")
-        dictionary = _read_json(
-            self.movement_dictionary_path,
-            "movement_dictionary.json",
-        )
+        self._before, tracker, dictionary = self._read_consistent_files()
         fixture = self._to_materializer_fixture(tracker, dictionary)
         self.snapshot_id = "formal-readonly-" + hashlib.sha256(
             _canonical(
@@ -148,6 +144,30 @@ class FormalReadOnlyDataSource:
         self.anchor_date = fixture["anchor_date"]
         self.generated_at = fixture["generated_at"]
         self._materializer = AnonymousFixtureMaterializer(fixture)
+
+    def _read_consistent_files(
+        self,
+    ) -> tuple[dict[str, dict[str, Any]], dict[str, Any], dict[str, Any]]:
+        """Read the paired formal files only when both fingerprints agree."""
+        for _attempt in range(3):
+            before = self.file_fingerprints()
+            tracker = _read_json(self.tracker_path, "tracker.json")
+            dictionary = _read_json(
+                self.movement_dictionary_path,
+                "movement_dictionary.json",
+            )
+            if before == self.file_fingerprints():
+                return before, tracker, dictionary
+            time.sleep(0.01)
+        raise FormalReadOnlyDataSourceError(
+            "Formal tracker and movement dictionary changed while being read"
+        )
+
+    def refresh(self) -> "FormalReadOnlyDataSource":
+        """Return a provider for the latest stable paired-file snapshot."""
+        if self.file_fingerprints() == self._before:
+            return self
+        return type(self)(self.tracker_path, self.movement_dictionary_path)
 
     def file_fingerprints(self) -> dict[str, dict[str, Any]]:
         return {
@@ -209,6 +229,9 @@ class FormalReadOnlyDataSource:
                     ),
                     "body_part": deepcopy(item.get("muscle_group") or ""),
                     "aliases": deepcopy(item.get("aliases") or []),
+                    "exclude_from_progress": bool(
+                        item.get("exclude_from_progress", False)
+                    ),
                 }
             )
 
@@ -245,6 +268,9 @@ class FormalReadOnlyDataSource:
                     row["sets"] = _structured_sets(history["sets"])
                 if "notes" in history:
                     row["movement_notes"] = deepcopy(history["notes"])
+                row["exclude_from_progress"] = bool(
+                    history.get("exclude_from_progress", False)
+                )
                 movement_rows.append(row)
 
         dates = [

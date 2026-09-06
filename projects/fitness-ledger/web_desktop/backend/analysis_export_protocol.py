@@ -124,6 +124,8 @@ class StoredPreview:
     request: dict[str, Any]
     fingerprint: str
     context_id: str
+    bundle: dict[str, Any]
+    exports: dict[str, str]
 
 
 class AnalysisExportProtocolService:
@@ -306,6 +308,9 @@ class AnalysisExportProtocolService:
             }
         normalized = result.normalized_request
         try:
+            refresh = getattr(self.provider, "refresh", None)
+            if callable(refresh):
+                self.provider = refresh()
             selector_error = self._selector_resolution_error(normalized, self.provider)
             if selector_error:
                 return {
@@ -321,7 +326,7 @@ class AnalysisExportProtocolService:
                     },
                     "execution": self._execution(),
                 }
-            bundle = self.provider.materialize(normalized)
+            bundle, exports = self.provider.materialize_with_exports(normalized)
             preview = self._bundle_preview(bundle, self.provider)
         except MaterializationError as exc:
             status = "movement_resolution_required" if exc.code == "MOVEMENT_RESOLUTION_REQUIRED" else "safety_blocked"
@@ -362,7 +367,13 @@ class AnalysisExportProtocolService:
         fingerprint = hashlib.sha256(_canonical(normalized).encode("utf-8")).hexdigest()
         context_id = str(payload.get("preview_context_id", "") or "").strip()
         token = secrets.token_urlsafe(18)
-        self._previews[token] = StoredPreview(normalized, fingerprint, context_id)
+        self._previews[token] = StoredPreview(
+            normalized,
+            fingerprint,
+            context_id,
+            bundle,
+            exports,
+        )
         return {
             "status": "preview_ready",
             "schema_version": REQUEST_SCHEMA_VERSION,
@@ -409,16 +420,10 @@ class AnalysisExportProtocolService:
         fingerprint = hashlib.sha256(_canonical(normalized).encode("utf-8")).hexdigest()
         if fingerprint != stored.fingerprint:
             return {"status": "confirmation_mismatch", "errors": [{"code": "CONFIRMATION_MISMATCH", "path": "$.request", "message": "The request changed after Preview."}], "execution": self._execution()}
-        try:
-            selector_error = self._selector_resolution_error(normalized, self.provider)
-            if selector_error:
-                return {"status": "movement_resolution_required", "errors": [selector_error], "execution": self._execution()}
-            bundle, exports = self.provider.materialize_with_exports(normalized)
-        except MaterializationError as exc:
-            status = "movement_resolution_required" if exc.code == "MOVEMENT_RESOLUTION_REQUIRED" else "safety_blocked"
-            return {"status": status, "errors": [{"code": exc.code, "path": "$.request", "message": str(exc), "candidates": exc.candidates}], "execution": self._execution()}
-        except AnalysisExportProviderUnavailable:
-            return {"status": "formal_data_unavailable", "errors": [], "execution": self._execution()}
+        # Confirmation is bound to the bundle materialized during Preview.
+        # Do not re-resolve selectors or read the provider again here: those
+        # operations could silently change the confirmed data set.
+        bundle, exports = stored.bundle, stored.exports
         bundle_json = exports.get("json", json.dumps(bundle, ensure_ascii=False, sort_keys=True))
         artifact_id = "artifact-" + hashlib.sha256(bundle_json.encode("utf-8")).hexdigest()[:24]
         self._artifacts[artifact_id] = {"bundle": bundle, "exports": exports}
