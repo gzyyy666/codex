@@ -349,7 +349,9 @@ def create_app(
 
 def main() -> None:
     app = create_app()
-    app.run(host="0.0.0.0", port=5055, debug=False)
+    # The local viewer reads private archive data and is intentionally
+    # localhost-only.  LAN access must not be enabled by the default entrypoint.
+    app.run(host="127.0.0.1", port=5055, debug=False)
 
 
 if __name__ == "__main__":
