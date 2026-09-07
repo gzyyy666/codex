@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from fitness_ledger_core.data_module_engine import DataModuleEngine, ModuleDefinition, ModuleRegistry
+from fitness_ledger_core.data_module_engine import DataModuleEngine, ModuleDefinition, ModuleRegistry, NATIVE_ENTRY_FIELDS
 
 
 ALLOWED_TOP_LEVEL_LABELS = {
@@ -110,20 +110,55 @@ def test_prompt_contract_and_dynamic_registry() -> None:
             }
         )
     )
+    registry.register(
+        ModuleDefinition.from_dict(
+            {
+                "module_id": "mental_state",
+                "label": "今日精神状态",
+                "aliases": ["今日精神状态", "精神状态"],
+                "category_id": "body",
+                "data_type": "text",
+                "actual_unit": "",
+                "display_unit": "",
+                "definition_version": 8,
+                "status": "active",
+                "capabilities": {"recordable": True, "analysis_visible": True, "statistics_visible": False},
+                "validation_contract": {},
+                "recording_behavior": {"kind": "scalar", "cardinality": "one_per_day"},
+                "presentation": {"section": "body", "slot": "top", "order": 0, "visible_by_default": True, "renderer": "single_metric"},
+            }
+        )
+    )
     engine = DataModuleEngine(registry, Path(tempfile.gettempdir()) / "fitness-ledger-prompt-test-tracker.json")
     template = engine.llm_entry_template()
-    assert template["schema"] == "fitness-ledger-llm-entry-template-v5"
-    assert template["template_version"] == 5
-    assert "饮水量 | module_id=hydration_ml" in template["prompt_template"]
-    assert "用户明确写出的动作、组数、饮食条目" in template["prompt_template"]
-    assert "禁止生成这些句子" in template["prompt_template"]
-    assert "完全没有排便信息时省略排便字段" in template["prompt_template"]
-    assert "60-12-1" in template["prompt_template"]
-    assert "俯身哑铃飞鸟" in template["prompt_template"]
+    assert template["schema"] == "fitness-ledger-llm-entry-template-v8"
+    assert template["template_version"] == 8
+    assert "饮水量 | 可识别词=饮水量、water | 类型=quantity" in template["prompt_template"]
+    assert "保留用户原始动作、组数、饮食、机器数据、主观感受和 Notes" in template["prompt_template"]
+    assert "未明确记录的有氧不猜测" in template["prompt_template"]
+    assert "重量不带 kg、公斤、lb 等单位" in template["prompt_template"]
+    assert "重量-次数-组数" in template["prompt_template"]
+    assert "悍马推肩" not in template["prompt_template"]
     assert "【执行原始记录】" in template["prompt_template"]
+    assert "体脂率、体脂、body fat" in template["prompt_template"]
+    assert "精神状态: <文本>" in template["prompt_template"]
+    assert template["prompt_template"].index("今日精神状态: <文本>") < template["prompt_template"].index("排便: 是/否")
+    assert "module_id" not in template["prompt_template"]
+    mental = next(item for item in template["modules"] if item["module_id"] == "mental_state")
+    assert mental["data_type"] == "text"
+    assert mental["placement"] == "main"
+    assert mental["display_surface"] == "category_page"
+    assert mental["capabilities"]["analysis_visible"] is True
+    assert mental["capabilities"]["statistics_visible"] is False
     assert template["prompt_template"].count("{{daily_text}}") == 1
     assert "__DAILY_TEXT_PLACEHOLDER__" not in template["prompt_template"]
     assert template["canonical_entry_format"]["field_order"] == CORE_ORDER
+    assert template["canonical_entry_format"]["recognized_native_field_order"] == [field["key"] for field in NATIVE_ENTRY_FIELDS]
+    assert "body_fat" in template["canonical_entry_format"]["optional_recognized_fields"]
+    assert "hydration_ml" in [item["module_id"] for item in template["modules"]]
+    preview = engine.preview("date: 2026-09-07\n精神状态: 上午注意力集中，下午一般。\nweight: 64 kg")
+    assert preview["candidates"][0]["module_id"] == "mental_state"
+    assert preview["candidates"][0]["value"] == "上午注意力集中，下午一般。"
 
 
 def test_historical_daily_entry_outputs_parse_without_scope_loss() -> None:

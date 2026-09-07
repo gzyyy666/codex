@@ -29,19 +29,42 @@ MODULE_ID_RE = re.compile(r"^[a-z][a-z0-9_]{1,63}$")
 DATE_RE = re.compile(r"(?<!\d)(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?!\d)")
 NUMBER_RE = re.compile(r"(?<![\d.])[-+]?\d+(?:\.\d+)?(?![\d.])")
 
+# This is the source of truth for the native Daily Entry input contract.  The
+# LLM template, its machine-readable response, and the Data Module boundary
+# all derive from this definition instead of maintaining separate field lists.
+# Keep parser-derived display values (context/training_summary/cardio_summary)
+# out of this list: they are not input labels.
+NATIVE_ENTRY_FIELDS = (
+    {"key": "date", "section": "body", "field": "Date", "aliases": ["日期", "date"], "line_example": "date: 2026-08-16", "value_type": "YYYY-MM-DD", "required_for_complete": True},
+    {"key": "weight", "section": "body", "field": "Weight (kg)", "aliases": ["体重", "weight"], "line_example": "weight: <数值> kg", "value_type": "number", "required_for_complete": True},
+    {"key": "body_fat", "section": "body", "field": "Body Fat (%)", "aliases": ["体脂率", "体脂", "body fat"], "line_example": "body fat: <数值> %", "value_type": "number", "required_for_complete": False},
+    {"key": "waist", "section": "body", "field": "Waist (cm)", "aliases": ["腰围", "waist"], "line_example": "waist: <数值> cm", "value_type": "number", "required_for_complete": False},
+    {"key": "sleep", "section": "body", "field": "Sleep (hours)", "aliases": ["睡眠", "sleep"], "line_example": "sleep: <数值> h", "value_type": "number", "required_for_complete": False},
+    {"key": "steps", "section": "body", "field": "Steps", "aliases": ["步数", "steps"], "line_example": "steps: <数值>", "value_type": "number", "required_for_complete": False},
+    {"key": "bowel", "section": "body", "field": "Bowel Movement", "aliases": ["排便", "bowel movement", "bowel"], "line_example": "排便: 是", "value_type": "text", "required_for_complete": True},
+    {"key": "notes", "section": "body", "field": "Notes", "aliases": ["备注", "notes"], "line_example": "notes:\n<整日说明>", "value_type": "text", "required_for_complete": False},
+    {"key": "calories", "section": "diet", "field": "Calories (kcal)", "aliases": ["热量", "calories", "calorie", "kcal"], "line_example": "calories: <数值>", "value_type": "number", "required_for_complete": True},
+    {"key": "protein", "section": "diet", "field": "Protein (g)", "aliases": ["蛋白质", "protein"], "line_example": "protein: <数值>", "value_type": "number", "required_for_complete": True},
+    {"key": "carbs", "section": "diet", "field": "Carbs (g)", "aliases": ["碳水", "碳水化合物", "carbs", "carb"], "line_example": "carbs: <数值>", "value_type": "number", "required_for_complete": True},
+    {"key": "fat", "section": "diet", "field": "Fat (g)", "aliases": ["脂肪", "fat"], "line_example": "fat: <数值>", "value_type": "number", "required_for_complete": True},
+    {"key": "diet", "section": "diet", "field": "Food Summary", "aliases": ["饮食", "饮食记录", "diet", "food"], "line_example": "diet:\n<食物及分量>", "value_type": "text", "required_for_complete": True},
+    {"key": "diet notes", "section": "diet", "field": "Diet Notes", "aliases": ["饮食备注", "diet notes"], "line_example": "diet notes:\n<估算依据或饮食说明>", "value_type": "text", "required_for_complete": False},
+    {"key": "training", "section": "training", "field": "Training", "aliases": ["训练部位", "训练", "training"], "line_example": "training: <训练部位>", "value_type": "text", "required_for_complete": True},
+    {"key": "training notes", "section": "training", "field": "Training Notes", "aliases": ["训练备注", "training notes"], "line_example": "training notes:\n<整次训练说明>", "value_type": "text", "required_for_complete": False},
+    {"key": "cardio", "section": "body", "field": "Cardio", "aliases": ["有氧", "cardio"], "line_example": "cardio:\n<有氧内容或无>", "value_type": "text", "required_for_complete": True},
+)
+
 # Native Daily Entry labels delimit a free-form Data Module value.  Keep this
 # list narrow so ordinary punctuation such as "第二行：" remains in the text.
-NATIVE_FIELD_ALIASES = (
-    "diet notes", "training notes", "body notes", "diet", "food", "training",
-    "cardio", "notes", "date", "weight", "bowel movement", "bowel",
-    "calories", "calorie", "kcal", "protein", "carbs", "carb", "fat",
-    "body fat", "waist", "sleep", "steps", "context", "training summary",
-    "standardized summary", "food summary",
-    "日期", "体重", "排便", "热量", "蛋白质", "碳水", "脂肪", "饮食",
-    "饮食记录", "饮食备注", "训练", "训练备注", "训练部位", "训练摘要",
-    "标准摘要", "有氧", "备注", "身体备注", "体脂", "体脂率", "腰围",
-    "睡眠", "步数", "测量背景",
+# The extra aliases are parser/read-model terms, not additional Daily Entry
+# fields, and are retained for compatibility with existing Data Modules.
+NATIVE_FIELD_BOUNDARY_ALIASES = (
+    "body notes", "context", "training summary", "standardized summary", "food summary", "测量背景", "身体备注", "训练摘要", "标准摘要",
 )
+NATIVE_FIELD_ALIASES = tuple(dict.fromkeys(
+    [alias for field in NATIVE_ENTRY_FIELDS for alias in field["aliases"]]
+    + list(NATIVE_FIELD_BOUNDARY_ALIASES)
+))
 NATIVE_FIELD_RE = re.compile(
     r"(?<![A-Za-z0-9_])(?:"
     + "|".join(sorted((re.escape(alias) for alias in NATIVE_FIELD_ALIASES), key=len, reverse=True))
@@ -1419,6 +1442,14 @@ class DataModuleEngine:
                 for key in ("minimum", "maximum", "decimal_places", "integer", "unit_aliases")
                 if key in item.validation_contract
             }
+            surface = _display_surface(item)
+            display_page = _display_page(item)
+            placement = "main" if item.presentation.get("slot") == "top" else str(item.presentation.get("slot", "record"))
+            value_rule = (
+                "保留别名后的完整原文，不要改写成数字"
+                if item.data_type == "text"
+                else "只在原文明确给出数值时记录，并遵守 validation"
+            )
             modules.append({
                 "module_id": item.module_id,
                 "label": item.label,
@@ -1431,124 +1462,139 @@ class DataModuleEngine:
                 "record_level": _record_level(item),
                 "recording_behavior": copy.deepcopy(item.recording_behavior),
                 "validation": validation,
+                "presentation": copy.deepcopy(item.presentation),
+                "placement": placement,
+                "display_surface": surface["value"],
+                "display_surface_label": surface["label"],
+                "display_page": display_page["value"] if display_page else "",
+                "renderer": item.renderer,
+                "capabilities": copy.deepcopy(item.capabilities),
+                "value_rule": value_rule,
             })
         modules.sort(key=lambda item: item["module_id"])
         registry_fingerprint = stable_hash({
             "categories": self.category_registry.to_dict(),
             "modules": modules,
         })
-        native_fields = [
-            {"section": "body", "field": "Date", "aliases": ["日期", "date"], "line_example": "date: 2026-08-16", "value_type": "YYYY-MM-DD"},
-            {"section": "body", "field": "Weight (kg)", "aliases": ["体重", "weight"], "line_example": "weight: 70 kg", "value_type": "number"},
-            {"section": "body", "field": "Bowel Movement", "aliases": ["排便", "bowel"], "line_example": "排便: 是", "value_type": "text"},
-            {"section": "body", "field": "Notes", "aliases": ["备注", "notes"], "line_example": "notes:\n今日左肩稳定性一般。", "value_type": "text"},
-            {"section": "diet", "field": "Calories (kcal)", "aliases": ["热量", "calories"], "line_example": "calories: 1590", "value_type": "number"},
-            {"section": "diet", "field": "Protein (g)", "aliases": ["蛋白质", "protein"], "line_example": "protein: 120", "value_type": "number"},
-            {"section": "diet", "field": "Carbs (g)", "aliases": ["碳水", "carbs"], "line_example": "carbs: 168", "value_type": "number"},
-            {"section": "diet", "field": "Fat (g)", "aliases": ["脂肪", "fat"], "line_example": "fat: 54", "value_type": "number"},
-            {"section": "diet", "field": "Food Summary", "aliases": ["饮食", "diet"], "line_example": "diet:\n麦片50g\n牛奶70g", "value_type": "text"},
-            {"section": "diet", "field": "Diet Notes", "aliases": ["饮食备注", "diet notes"], "line_example": "diet notes:\n营养值沿用当前对话已确认参数。", "value_type": "text"},
-            {"section": "training", "field": "Training", "aliases": ["训练", "training"], "line_example": "training: 肩部", "value_type": "text"},
-            {"section": "training", "field": "Training Notes", "aliases": ["训练备注", "training notes"], "line_example": "training notes:\n左肩稳定性一般。", "value_type": "text"},
-            {"section": "body", "field": "Cardio", "aliases": ["有氧", "cardio"], "line_example": "cardio:\n30分钟 跑步机爬坡", "value_type": "text"},
+        native_fields = copy.deepcopy(NATIVE_ENTRY_FIELDS)
+        native_field_order = [field["key"] for field in native_fields]
+        native_catalog_text = "\n".join(
+            f"- {field['field']} | 可识别词={('、'.join(field['aliases']))} | 示例={field['line_example']}"
+            for field in native_fields
+        )
+        required_native_fields = [
+            field["key"] for field in native_fields if field.get("required_for_complete")
         ]
+        optional_native_fields = [
+            field["key"] for field in native_fields if not field.get("required_for_complete")
+        ]
+        category_order = {item.category_id: item.order for item in self.category_registry.all()}
+        dynamic_example_by_category: dict[str, list[str]] = {}
+        for item in sorted(
+            modules,
+            key=lambda value: (
+                category_order.get(value["category_id"], 999),
+                str(value["presentation"].get("section", "extension")),
+                int(value["presentation"].get("order", 999)),
+                value["module_id"],
+            ),
+        ):
+            input_alias = str(item["aliases"][0] if item["aliases"] else item["label"])
+            unit = item["actual_unit"] or ""
+            example = f"{input_alias}: <文本>" if item["data_type"] == "text" else f"{input_alias}: <数值> {unit}".rstrip()
+            dynamic_example_by_category.setdefault(item["category_id"], []).append(example)
+
+        def dynamic_example_block(category_id: str) -> str:
+            lines = dynamic_example_by_category.get(category_id, [])
+            return "\n".join(lines) + "\n" if lines else ""
+
+        body_dynamic_example = dynamic_example_block("body")
+        diet_dynamic_example = dynamic_example_block("diet")
+        training_dynamic_example = dynamic_example_block("training")
+        movement_dynamic_example = dynamic_example_block("movement")
+        extension_dynamic_example = "\n".join(
+            line
+            for category_id, lines in dynamic_example_by_category.items()
+            if category_id not in {"body", "diet", "training", "movement"}
+            for line in lines
+        )
+        if extension_dynamic_example:
+            extension_dynamic_example += "\n"
         module_lines = []
         for item in modules:
             aliases = "、".join(str(alias) for alias in item["aliases"] if str(alias).strip()) or item["label"]
             unit = item["actual_unit"] or "无单位"
-            module_lines.append(f"- {item['label']} | module_id={item['module_id']} | 可识别词={aliases} | 单位={unit}")
+            input_alias = str(item["aliases"][0] if item["aliases"] else item["label"])
+            input_example = f"{input_alias}: <文本>" if item["data_type"] == "text" else f"{input_alias}: <数值> {unit if unit != '无单位' else ''}".rstrip()
+            capabilities = item["capabilities"]
+            module_lines.append(
+                f"- {item['label']} | 可识别词={aliases} | "
+                f"类型={item['data_type']} | 输入示例={input_example} | "
+                f"归属={item['category_label']} / {item['placement']} / {item['display_surface_label']} | "
+                f"分析={'开启' if capabilities['analysis_visible'] else '关闭'} | "
+                f"统计={'开启' if capabilities['statistics_visible'] else '关闭'} | "
+                f"规则={item['value_rule']}"
+        )
         module_catalog_text = "\n".join(module_lines) or "- 当前没有已启用的自定义记录项；如需识别新词，请先在数据模块中建立定义。"
-        prompt_template = f"""你是 Fitness Ledger Daily Entry 的录入词生成器。
-你的任务是把用户关于某一天的自然语言原始记录，整理成可以直接粘贴到 Fitness Ledger Daily Entry 输入框的纯文本。Daily Entry 是“原始记录 + 用户原文 Notes + 整日营养汇总”，不是报告、分析摘要或营养分析表。
+        prompt_template = f"""你是 Fitness Ledger Daily Entry 的录入词整理器。
+把用户关于一天的自然语言记录整理为可直接粘贴到 Daily Entry 的纯文本。只排版、归类和按允许规则估算，不写报告、分析或解释。
 
-【最高优先级：历史实际成品格式】
-必须优先保持下面的字段名称、顺序、空行、缩进和训练编号格式。不要为了让格式看起来更完整而改写、总结或补充用户没有说过的事实。
+【标准结构示例】
+date: YYYY-MM-DD
+weight: <数值> kg
+{body_dynamic_example}排便: 是/否
 
-date: 2026-08-16
-weight: 70 kg
-排便: 是
-
-calories: 1590
-protein: 120
-carbs: 168
-fat: 54
+calories: <数值>
+protein: <数值>
+carbs: <数值>
+fat: <数值>
+{diet_dynamic_example}
 
 diet:
-麦片50g
-牛奶70g
+<食物及分量>
 
 diet notes:
-营养值沿用当前对话中已经确认的参数。
+<估算依据或饮食说明>
 
-training: 肩部
+training: <训练部位>
+{training_dynamic_example}
 
- 1. 悍马推肩
- 20-10-3
- notes: 动作稳定，最后一组接近力竭
+ 1. <动作名称>
+ <重量>-<次数>-<组数>
+ notes: <动作说明>
 
-training notes: 用户明确写出的训练总体说明；有氧为默认安排
+training notes: <整次训练说明>
+{movement_dynamic_example}
 
 cardio:
-30分钟 跑步机爬坡
+<用户明确记录的有氧内容或无>
+{extension_dynamic_example}
 
 notes:
-用户明确写出的整日说明。
+<整日说明>
 
-【输出硬约束】
-1. 正常情况下只输出 Daily Entry 本身：纯文本、无 Markdown、无代码围栏、无 JSON、无表格、无解释、无前言或结语。不要写“以下是录入词”“我已经整理好了”“估算如下”。
-2. 顶层字段只能使用已有字段：date、weight、排便/bowel、calories、protein、carbs、fat、diet、diet notes、training、training notes、cardio、notes。不得创造 sleep、pain、fatigue、status、training summary、动作记录或其他新的 Daily Entry 字段。
-3. 有内容的字段按 date、weight、排便、calories、protein、carbs、fat、diet、training、cardio 的顺序输出；diet notes 放在 diet 内容之后，training notes 放在最后一个动作之后，daily notes 放在 cardio 之后。没有事实的普通字段省略，不输出“未知”“正常”或占位文字。
-4. 顶层标签必须顶格。training 区块内每一行都使用一个 ASCII 半角空格缩进；动作标题格式必须是“ 1. 动作名称”“ 2. 动作名称”，编号按用户原始顺序连续稳定。动作之间保留一个空行，训练标题和第一个动作之间保留一个空行。
-5. 每个动作下面保留用户原始的组记录、顺序和表示方式。历史常用格式是“ 60-12-1”“ 40-6-2”“ 自重-20-1”；如果原文是“10kg x 10 x 2”，只修正明显的空格/大小写问题，不改变重量、次数、组数或顺序。动作 Notes 使用“ notes: …”，必须留在对应动作下面。
-6. 整次训练的说明使用顶格“training notes: …”，只能放在 training 区块最后。整日说明使用顶格“notes: …”，饮食估算依据使用顶格“diet notes: …”。不得把这三个作用域改成“训练备注”“备注”等中文标签；不得把动作 Notes 移到其他作用域。
+【输出规则】
+1. 只输出纯文本 Daily Entry；无 Markdown、代码围栏、JSON、表格、前言或结语。
+2. 顶层标签顶格；有内容的标准字段按 date、weight、可选身体指标、已登记的 Body 字段、排便、营养、已登记的 Diet 字段、diet、training、已登记的 Training 字段、cardio 的顺序输出；其他已登记字段按其定义归属插入。diet notes 紧跟 diet，training notes 放在最后一个动作后，notes 放在最后。
+3. training 内每一行首行使用一个 ASCII 半角空格；动作编号连续；动作之间留一个空行。重量不带 kg、公斤、lb 等单位，组记录统一为“重量-次数-组数”，自重写“自重-次数-组数”。
+4. 保留用户原始动作、组数、饮食、机器数据、主观感受和 Notes；不得删减、合并、改写或推断睡眠、疲劳、疼痛、状态、训练质量。未明确记录的有氧不猜测；明确无有氧时写“无”。
+5. notes、diet notes、training notes 和动作 notes 必须保持各自作用域；未知事实放入合适的既有 Notes，不创建未登记字段。
+6. 日期使用实际发生日期；无法可靠确定时先要求 YYYY-MM-DD。营养只在有足够饮食与分量时估算整日 calories/protein/carbs/fat，不在 diet 中拆项分析。
 
-【原始记录保真】
-1. 用户明确写出的动作、组数、饮食条目、机器数据、疼痛、异常、中断、强度、主观感受和 Notes 必须保留原意、范围和作用域。动作名称也不得自行缩短或换成相近词，例如“俯身哑铃飞鸟”不能改成“哑铃飞鸟”。可以修正标签、编号、缩进和明显排版错误，但不能删除、缩写、合并、润色成模型自己的总结，不能因为“不重要”而省略。
-2. 用户没有写“训练完成度良好”“今日状态正常”等内容时，禁止生成这些句子。禁止根据训练内容推导睡眠、疲劳、状态、疼痛、完成度或训练质量。唯一允许的非用户事实是本提示明确规定的默认有氧，以及营养字段的估算。
-3. diet 只保留自然食物记录和用户提供的分量/烹饪信息，逐条写成原始文本，保留有意义的空行。不要把食物变成表格、列表编号、逐项营养拆分或长篇解释。diet 中禁止出现“约 xxx kcal”“蛋白质 xxx g”“按照 xxx 估算”“实际可食部分 xxx”“因为 xxx 所以……”等模型分析。
-4. 模型对食物的计算只能汇总到 calories、protein、carbs、fat。需要说明估算依据时，最多在 diet notes 中用一句简短说明；不要解释每道食物贡献了多少营养，不要把机器读数改写成模型推断。
-
-【日期与排便】
-1. 日期按实际发生的日历日期归属。优先使用明确日期和明确时间；例如用户在 2026-08-19 00:30 吃东西，即使称为“昨天半夜”，也归入 2026-08-19。不能只按“昨天/今天”机械改日期。
-2. 若日期没有明确写出，只有在当前对话上下文能可靠确定实际日期时才填写；无法可靠确定时，先只向用户询问 YYYY-MM-DD，不生成猜测的 Daily Entry。
-3. 用户明确有排便时写“排便: 是”；明确未排便时写“排便: 否”。若用户给出其他明确描述，保留该描述。完全没有排便信息时省略排便字段，不要擅自写“待补充”“正常”或提醒句；Daily Entry 现有 Review/数据检查会处理缺失排便。
-
-【训练、有氧与 Notes】
-1. 有力量训练、力量训练分部或力量动作时，如果用户没有明确记录有氧，输出：
-cardio:
-30分钟 跑步机爬坡
-并在 training notes 最后追加“有氧为默认安排”。用户已有 training notes 必须原文保留，默认句只能追加，不能覆盖或改写。纯有氧日不添加这个默认。
-2. 用户明确说“未有氧”“无有氧”“不做有氧”或“取消有氧”时，输出：
-cardio:
-无
-不得再添加默认 30 分钟有氧。用户对未有氧的原因、强度或异常说明仍按原作用域保留。
-3. 用户明确提供有氧器械、时长、Level、速度、步频、心率或机器 kcal 时，在 cardio 中保留用户记录本身。例如“楼梯机61分钟，Level 6，约每秒一步，机器显示600 kcal”只能整理为同等事实；不能加入“实际可能 450–550 kcal”等模型解释。用户明确说强度很大，可原文保留在 training notes 或 notes，不能模型自行添加。
-4. 用户动作内部写的 notes 必须紧跟对应动作；训练整体说明必须在 training notes；整日说明必须在 notes；饮食说明必须在 diet notes。每个作用域内保留用户原句和顺序，只有排版调整。
-
-【营养估算连续性】
-1. 有饮食和足够分量时，允许估算整日 calories、protein、carbs、fat，输出纯数字汇总，不在 diet 中拆解。没有饮食内容时不要猜四项营养值。
-2. 当前对话已经确认或用户纠正过的食品参数具有最高优先级，必须连续沿用。例如金芒果20.0高蛋白酸奶昔为 290 kcal、蛋白质20g；吐司每100g碳水50g、蛋白质11g、脂肪4g；整段水果玉米按约65%可食率。不得重新用常见数据库覆盖这些参数。其他食物才按当前上下文和合理常见参数估算，并在 diet notes 简短标出必要假设。
-3. 营养值是估算值时可以合理取整，不能制造虚假的精确度；但 calories/protein/carbs/fat 四个字段仍必须保持数字格式。
-
-【当前已登记的自定义记录项】
+【当前已登记且可直接录入的新增字段】
 {module_catalog_text}
+这些字段来自当前注册表，会随定义变化自动更新。原文明确出现别名时，必须按对应 data_type 保留：text 保留完整原文，数字类型保留明确数值。不要输出内部字段标识，不要把已登记字段移入 notes。category、placement、display_surface、renderer、analysis、statistics 等下游行为以定义为准，不自行改变。
 
-这些条目由 Fitness Ledger 当前注册表动态生成，注册表变化后本提示会自动更新。它们不是 Daily Entry 的新顶层字段，也不是让模型发明字段的许可。只有原文明确出现某个已登记名称/别名和明确数值时，才保留该事实供现有 Data Module 识别；不要输出 module_id，不要自行创造名称、单位或新的字段。标准字段、动作名称、食物名称、单位、Notes 和有氧词不得触发新字段。
+【当前标准字段目录】
+{native_catalog_text}
 
-【原始记录】
-__DAILY_TEXT_PLACEHOLDER__"""
-        prompt_template = prompt_template.replace(
-            "__DAILY_TEXT_PLACEHOLDER__",
-            """【执行原始记录】
-只执行上面的契约。先按实际发生日期归属，再按固定字段顺序输出；保留用户原始食物、训练、机器数据和所有 Notes；只在允许的营养估算和力量训练默认有氧处进行必要计算。最终不要输出任何解释或包裹文字。
-
-【原始记录】
-{{daily_text}}""",
-        )
+【执行原始记录】
+先按上述规则整理以下原始记录，最终只输出整理后的 Daily Entry：
+{{{{daily_text}}}}"""
         return {
-            "schema": "fitness-ledger-llm-entry-template-v5",
-            "template_version": 5,
-            "purpose": "按历史实际 Daily Entry 成品格式，把自然语言整理为可直接粘贴的原始饮食/训练记录、原文 Notes 和整日营养汇总；同时动态提供已登记 Data Module 目录。",
+            "schema": "fitness-ledger-llm-entry-template-v8",
+            "template_version": 8,
+            "purpose": "按当前 Daily Entry 契约，把自然语言整理为可直接粘贴的原始饮食/训练记录、Notes、整日营养汇总和当前注册表中的新增字段。",
             "workflow": {
                 "step_1": "复制 prompt_template 给 LLM，并把原始记录放入 {{daily_text}}。",
                 "step_2": "只把 LLM 返回的纯文本粘贴回 Daily Entry 输入板。",
@@ -1564,16 +1610,26 @@ __DAILY_TEXT_PLACEHOLDER__"""
             "canonical_entry_format": {
                 "accepted_input": "plain_text",
                 "field_order": ["date", "weight", "排便", "calories", "protein", "carbs", "fat", "diet", "training", "cardio"],
-                "native_labels": ["date", "weight", "排便", "calories", "protein", "carbs", "fat", "diet", "diet notes", "training", "training notes", "cardio", "notes"],
+                "native_labels": list(dict.fromkeys(alias for field in native_fields for alias in field["aliases"])),
+                "recognized_native_field_order": native_field_order,
+                "required_for_complete_entry": required_native_fields,
+                "optional_recognized_fields": optional_native_fields,
+                "native_field_catalog": copy.deepcopy(native_fields),
+                "dynamic_registered_fields": "modules",
+                "registered_field_contract": {
+                    "source": "active recordable modules in the current registry",
+                    "input": "use an explicitly present alias and preserve its declared data_type",
+                    "downstream": ["category_id", "placement", "display_surface", "renderer", "capabilities"],
+                },
                 "training_block": "one_ascii_space_before_action_and_all_action_lines",
-                "action_set_line": "60-12-1 or 自重-20-1, preserving the user's notation when already readable",
+                "action_set_line": "20-10-3 or 自重-20-1; output weight without kg/公斤/lb units",
                 "unknown_line": "无法归类的原文不要猜测；保留到已有 Notes 或先建立记录项定义。",
             },
             "instructions": [
-                "历史 Daily Entry 格式优先于分析式或报告式输出；不要删除或改写用户原始 Notes。",
+                "当前 Daily Entry 纯文本格式优先于分析式或报告式输出；不要删除或改写用户原始 Notes。",
                 "日期使用 YYYY-MM-DD；如果无法由实际发生时间可靠确定，先要求补充日期，不猜测。",
-                "默认有氧只适用于有力量训练且未明确记录有氧的日期；明确无有氧时输出无。",
-                "自定义记录项只从动态 modules 目录识别，不要输出 module_id，不要创造 Daily Entry 顶层字段。",
+                "只保留用户明确记录的有氧；明确无有氧时输出无，不添加默认有氧。",
+                "当前 modules 目录中的 active recordable 字段可以直接录入；不要输出内部字段标识，不要创造未登记字段。",
                 "LLM 输出只用于粘贴到输入板，仍必须经过 Fitness Ledger 的 Preview → Confirm 流程，不能直接写入。",
             ],
             "output_shape": {
@@ -1581,21 +1637,23 @@ __DAILY_TEXT_PLACEHOLDER__"""
                 "date": "YYYY-MM-DD",
                 "field_order": ["date", "weight", "排便", "calories", "protein", "carbs", "fat", "diet", "training", "cardio"],
                 "notes": ["notes", "diet notes", "training notes", "indented action notes"],
-                "registered_modules": "dynamic registry context only; preserve explicit facts without inventing a new Daily Entry field",
+                "registered_modules": "dynamic registry fields; use the declared alias and data_type, while downstream placement/capabilities remain definition-owned",
             },
             "behavior_contract": {
                 "training_record_prefix": "exactly_one_ascii_space_before_numbered_movement",
-                "historical_format_priority": "date/weight/排便/macros/diet/training/cardio with raw food lines, stable blank lines and one-space training blocks",
-                "strength_training_default_cardio": "30分钟 跑步机爬坡; add training notes: 有氧为默认安排; suppress only for explicit no-cardio wording",
+                "canonical_format_priority": "date/weight/排便/macros/diet/training/cardio with raw food lines, stable blank lines and one-space training blocks",
+                "training_weight_format": "weight-reps-sets with no weight unit; use 自重-reps-sets for bodyweight",
+                "cardio_behavior": "preserve explicit cardio only; explicit no-cardio becomes 无; never invent a default cardio",
                 "bowel_missing_behavior": "omit the bowel field when absent; preserve the existing Daily Entry missing-bowel review behavior",
                 "user_notes_preservation": "copy explicit daily, diet, training and action notes without deletion, paraphrase or scope migration",
                 "nutrition_estimation": "estimate only the daily calories/protein/carbs/fat summary using confirmed conversation parameters first",
-                "custom_field_boundary": "only an explicitly named registered module with an explicit numeric value is eligible; never create a new Daily Entry field",
+                "custom_field_boundary": "an explicitly named active registered module is eligible according to its declared data_type; text modules preserve text, numeric modules require explicit numeric values; never create an unregistered field",
+                "registered_field_downstream": "category, placement, display_surface, renderer, analysis_visible, statistics_visible, cloud_syncable, and mini_program_visible are definition-owned and must be respected by downstream consumers",
             },
             "notes_contract": {
                 "daily": "top-level notes:; preserve explicit whole-day wording and never infer a state",
                 "diet": "top-level diet notes:; only concise estimate assumptions or explicit diet notes",
-                "training": "top-level training notes:; preserve explicit whole-training wording and append the required default-cardio sentence only when applicable",
+                "training": "top-level training notes:; preserve explicit whole-training wording without adding inferred content",
                 "movement": "one-space-indented notes: under the matching action; preserve explicit action wording and scope",
             },
             "modules": modules,
