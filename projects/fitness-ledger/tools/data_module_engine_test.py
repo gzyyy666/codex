@@ -15,17 +15,15 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from fitness_ledger_core.data_module_engine import (
+    DataModuleDefinitionStore,
     DataModuleEngine,
     DataModuleError,
-    DataModuleDefinitionStore,
     DataModuleMigrationService,
     ModuleDefinition,
     ModuleRegistry,
-    RegistryDrivenParser,
     stable_hash,
 )
 from ledger_commands import LedgerCommandService
-
 
 ROOT = PROJECT_ROOT
 REGISTRY_FILE = ROOT / "tools" / "fixtures" / "data_modules" / "registry.json"

@@ -6,16 +6,15 @@ import json
 import sys
 import tempfile
 import threading
-import urllib.request
 import unittest
+import urllib.request
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from web_desktop.backend.server import LedgerWebService, create_server  # noqa: E402
 from fitness_ledger_core.data_module_engine import DataModuleDefinitionStore  # noqa: E402
-
+from web_desktop.backend.server import LedgerWebService, create_server  # noqa: E402
 
 REGISTRY_FILE = PROJECT_ROOT / "tools" / "fixtures" / "data_modules" / "registry.json"
 

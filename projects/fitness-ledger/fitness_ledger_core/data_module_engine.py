@@ -24,7 +24,6 @@ from typing import Any, Iterable
 
 from .record_relations import now_iso, record_day_id
 
-
 MODULE_ID_RE = re.compile(r"^[a-z][a-z0-9_]{1,63}$")
 DATE_RE = re.compile(r"(?<!\d)(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?!\d)")
 NUMBER_RE = re.compile(r"(?<![\d.])[-+]?\d+(?:\.\d+)?(?![\d.])")
@@ -1934,7 +1933,7 @@ class DataModuleMigrationService:
                     offset = float(conversion.get("offset", 0))
                     if not math.isfinite(factor) or not math.isfinite(offset) or factor == 0:
                         raise ValueError
-                except (KeyError, TypeError, ValueError) as exc:
+                except (KeyError, TypeError, ValueError):
                     blockers.append({"code": "MIGRATION_CONVERSION_INVALID", "message": "factor/offset must be finite and factor must be non-zero."})
                 else:
                     for record in after_records:

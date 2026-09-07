@@ -11,8 +11,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from fitness_ledger_core.data_module_engine import DataModuleEngine, ModuleDefinition, ModuleRegistry, NATIVE_ENTRY_FIELDS
-
+from fitness_ledger_core.data_module_engine import (
+    NATIVE_ENTRY_FIELDS,
+    DataModuleEngine,
+    ModuleDefinition,
+    ModuleRegistry,
+)
 
 ALLOWED_TOP_LEVEL_LABELS = {
     "date",

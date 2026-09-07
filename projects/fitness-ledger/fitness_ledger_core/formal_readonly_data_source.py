@@ -7,19 +7,20 @@ projection, and export rendering to the accepted deterministic materializer.
 """
 from __future__ import annotations
 
-from copy import deepcopy
-from datetime import datetime, timezone
 import hashlib
 import json
-from pathlib import Path
 import time
+from copy import deepcopy
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from .analysis_export_materializer import (
-    AnonymousFixtureMaterializer,
     MATERIALIZER_VERSION,
+    AnonymousFixtureMaterializer,
     MaterializationError,
 )
+from .pair_transaction import journal_path, recover
 from .record_relations import movement_items
 
 
@@ -149,6 +150,14 @@ class FormalReadOnlyDataSource:
         self,
     ) -> tuple[dict[str, dict[str, Any]], dict[str, Any], dict[str, Any]]:
         """Read a stable pair; this does not establish a cross-file transaction."""
+        pending = journal_path(self.tracker_path)
+        if pending.exists():
+            try:
+                recover(pending, self.tracker_path, self.movement_dictionary_path)
+            except Exception as error:
+                raise FormalReadOnlyDataSourceError(
+                    "Unable to recover the protected data pair before read."
+                ) from error
         for _attempt in range(3):
             before = self.file_fingerprints()
             tracker = _read_json(self.tracker_path, "tracker.json")
