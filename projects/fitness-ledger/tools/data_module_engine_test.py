@@ -15,17 +15,15 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from fitness_ledger_core.data_module_engine import (
+    DataModuleDefinitionStore,
     DataModuleEngine,
     DataModuleError,
-    DataModuleDefinitionStore,
     DataModuleMigrationService,
     ModuleDefinition,
     ModuleRegistry,
-    RegistryDrivenParser,
     stable_hash,
 )
 from ledger_commands import LedgerCommandService
-
 
 ROOT = PROJECT_ROOT
 REGISTRY_FILE = ROOT / "tools" / "fixtures" / "data_modules" / "registry.json"
@@ -189,6 +187,47 @@ class DataModuleCandidateTests(unittest.TestCase):
         self.assertEqual(engine.query("body_fat_pct", latest=True)[0]["value"], 18.5)
         self.assertEqual({row["module_id"] for row in engine.normal_export()["records"]}, {"body_fat_pct"})
 
+    def test_text_module_uses_declared_input_and_downstream_contract(self) -> None:
+        registry = ModuleRegistry.from_file(REGISTRY_FILE)
+        registry.register(
+            ModuleDefinition.from_dict(
+                {
+                    "module_id": "mental_state",
+                    "label": "今日精神状态",
+                    "aliases": ["今日精神状态", "精神状态"],
+                    "category_id": "body",
+                    "data_type": "text",
+                    "actual_unit": "",
+                    "display_unit": "",
+                    "definition_version": 8,
+                    "status": "active",
+                    "capabilities": {"recordable": True, "analysis_visible": True, "statistics_visible": False},
+                    "validation_contract": {},
+                    "recording_behavior": {"kind": "scalar", "cardinality": "one_per_day"},
+                    "presentation": {"section": "body", "slot": "top", "order": 0, "visible_by_default": True, "renderer": "single_metric"},
+                }
+            )
+        )
+        engine = DataModuleEngine(registry, self.tracker, self.dictionary, self.backups, self.service)
+        template = engine.llm_entry_template()
+        mental = next(item for item in template["modules"] if item["module_id"] == "mental_state")
+        self.assertEqual(mental["data_type"], "text")
+        self.assertEqual(mental["placement"], "main")
+        self.assertEqual(mental["display_surface"], "category_page")
+        self.assertTrue(mental["capabilities"]["analysis_visible"])
+        self.assertFalse(mental["capabilities"]["statistics_visible"])
+        self.assertIn("精神状态: <文本>", template["prompt_template"])
+
+        preview = engine.preview("2026-09-07\n精神状态: 上午注意力集中，下午执行力一般。")
+        self.assertEqual(preview["candidates"][0]["value"], "上午注意力集中，下午执行力一般。")
+        engine.save_preview(preview, confirmed=True)
+        self.assertEqual(engine.query("mental_state", latest=True)[0]["value"], "上午注意力集中，下午执行力一般。")
+        self.assertIn("mental_state", {row["module_id"] for row in engine.normal_export()["records"]})
+        self.assertIn("mental_state", {row["module_id"] for row in engine.analysis_catalog()["modules"]})
+        self.assertIn("mental_state", {row["module_id"] for row in engine.presentation_contract()["modules"]})
+        with self.assertRaisesRegex(DataModuleError, "disabled"):
+            engine.statistics("mental_state")
+
     def test_unitless_module_and_definition_delete_remove_candidate_records(self) -> None:
         category_preview = self.service.data_module_definition_preview({
             "kind": "category",
@@ -226,18 +265,19 @@ class DataModuleCandidateTests(unittest.TestCase):
         before_tracker = self.tracker.read_bytes()
         template = self.service.data_module_llm_template()
         self.assertEqual(template, self.service.data_module_llm_template())
-        self.assertEqual(template["schema"], "fitness-ledger-llm-entry-template-v5")
-        self.assertEqual(template["template_version"], 5)
-        self.assertIn("training: 肩部", template["prompt_template"])
-        self.assertIn(" 1. 悍马推肩", template["prompt_template"])
-        self.assertIn("没有明确记录有氧", template["prompt_template"])
-        self.assertIn("完全没有排便信息时省略排便字段", template["prompt_template"])
+        self.assertEqual(template["schema"], "fitness-ledger-llm-entry-template-v8")
+        self.assertEqual(template["template_version"], 8)
+        self.assertIn("training: <训练部位>", template["prompt_template"])
+        self.assertIn(" 1. <动作名称>", template["prompt_template"])
+        self.assertIn("未明确记录的有氧不猜测", template["prompt_template"])
+        self.assertIn("重量不带 kg、公斤、lb 等单位", template["prompt_template"])
         self.assertIn("diet notes:", template["prompt_template"])
-        self.assertIn("标准字段、动作名称、食物名称、单位、Notes 和有氧词", template["prompt_template"])
-        self.assertIn("60-12-1", template["prompt_template"])
-        self.assertIn("用户明确写出的动作、组数、饮食条目", template["prompt_template"])
+        self.assertIn("当前已登记且可直接录入的新增字段", template["prompt_template"])
+        self.assertIn("重量-次数-组数", template["prompt_template"])
+        self.assertNotIn("悍马推肩", template["prompt_template"])
+        self.assertNotIn("30分钟 跑步机爬坡", template["prompt_template"])
         self.assertEqual(template["behavior_contract"]["training_record_prefix"], "exactly_one_ascii_space_before_numbered_movement")
-        self.assertEqual(template["behavior_contract"]["bowel_missing_behavior"], "omit the bowel field when absent; preserve the existing Daily Entry missing-bowel review behavior")
+        self.assertEqual(template["behavior_contract"]["training_weight_format"], "weight-reps-sets with no weight unit; use 自重-reps-sets for bodyweight")
         self.assertEqual(template["source"]["contains_personal_records"], False)
         self.assertEqual({item["module_id"] for item in template["modules"]}, {"waist_cm", "resting_hr"})
         self.assertNotIn("data_module_records", json.dumps(template, ensure_ascii=False))

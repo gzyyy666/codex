@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -139,17 +138,15 @@ def config_status(config: dict | None = None) -> dict:
             else "Tencent CloudBase SDK sync requires env_id and Tencent Cloud SecretId/SecretKey environment variables."
         )
     elif provider == "command":
-        for key in ("environment_id", "import_command", "meta_command"):
-            if not str(config.get(key, "")).strip():
-                missing.append(key)
-        ready = not missing
-        can_verify = not missing
-        real_network_provider = True
-        reason = (
-            "CloudBase command sync is ready."
-            if ready
-            else "CloudBase command sync requires environment_id, import_command, and meta_command."
-        )
+        # The old command provider executed configuration strings through a
+        # shell.  It has no current formal caller and is intentionally fail
+        # closed rather than accepting a command-injection-prone compatibility
+        # path.
+        ready = False
+        can_verify = False
+        real_network_provider = False
+        missing = ["legacy_command_provider_disabled"]
+        reason = "CloudBase command sync is disabled; use the reviewed SDK provider."
     elif provider == "disabled":
         ready = False
         can_verify = False
@@ -459,59 +456,6 @@ def _upload_mock(manifest: dict, config: dict) -> dict:
     return result
 
 
-def _upload_command(manifest: dict, config: dict) -> dict:
-    result = _base_result(SYNCED, config, manifest)
-    template = config.get("import_command", "")
-    env_id = config.get("environment_id", "")
-    for filename in manifest.get("import_files", []):
-        collection = filename.removesuffix(".json")
-        file_path = IMPORT_DIR / filename
-        command = template.format(
-            env_id=env_id,
-            collection=collection,
-            file=str(file_path),
-            project_dir=str(PROJECT_DIR),
-        )
-        try:
-            completed = subprocess.run(command, shell=True, cwd=str(PROJECT_DIR), text=True, capture_output=True, timeout=180)
-            ok = completed.returncode == 0
-            result["collection_results"][collection] = {
-                "status": SYNCED if ok else UPLOAD_FAILED,
-                "file": str(file_path),
-                "count": int((manifest.get("collections") or {}).get(collection, 0)),
-                "error": "" if ok else (completed.stderr or completed.stdout or f"exit {completed.returncode}")[:500],
-            }
-            if not ok:
-                result["status"] = UPLOAD_FAILED
-        except Exception as exc:  # noqa: BLE001
-            result["collection_results"][collection] = {
-                "status": UPLOAD_FAILED,
-                "file": str(file_path),
-                "count": int((manifest.get("collections") or {}).get(collection, 0)),
-                "error": _safe_error(exc),
-            }
-            result["status"] = UPLOAD_FAILED
-    meta_command = config.get("meta_command", "")
-    if result["status"] != UPLOAD_FAILED and meta_command:
-        try:
-            command = meta_command.format(env_id=env_id, project_dir=str(PROJECT_DIR))
-            completed = subprocess.run(command, shell=True, cwd=str(PROJECT_DIR), text=True, capture_output=True, timeout=60)
-            cloud_meta = json.loads(completed.stdout)
-            if isinstance(cloud_meta, list):
-                cloud_meta = cloud_meta[0] if cloud_meta else {}
-            result["cloud_verification"] = _verify_meta(manifest, cloud_meta)
-            if not result["cloud_verification"].get("verified"):
-                result["status"] = CLOUD_MISMATCH
-        except Exception as exc:  # noqa: BLE001
-            result["status"] = CLOUD_MISMATCH
-            result["cloud_verification"] = {"verified": False, "error": _safe_error(exc)}
-    elif result["status"] != UPLOAD_FAILED:
-        result["cloud_verification"] = {"verified": False, "error": "meta_command is not configured."}
-        result["status"] = CLOUD_MISMATCH
-    result["finished_at"] = _now()
-    return result
-
-
 def upload_payload(config_path: str | Path | None = None) -> dict:
     config = load_sync_config(config_path)
     manifest = load_manifest()
@@ -529,8 +473,6 @@ def upload_payload(config_path: str | Path | None = None) -> dict:
         return result
     if config["provider"] == "mock":
         return _upload_mock(manifest, config)
-    if config["provider"] == "command":
-        return _upload_command(manifest, config)
     if config["provider"] in {"tencentcloud", "tcb", "sdk"}:
         return _upload_tencentcloud(manifest, config)
     result = _base_result(NOT_CONFIGURED, config, manifest)

@@ -27,7 +27,6 @@ from data_module_browser_e2e_test import (
     _wait_target,
 )
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LAUNCHER = PROJECT_ROOT / "tools" / "run_data_module_formal_mirror.py"
 
@@ -201,7 +200,7 @@ def main() -> None:
         _wait(browser, "!!document.querySelector('#raw-entry')")
         _click(browser, "[data-dm-llm-template]")
         _wait(browser, "!!document.querySelector('.entry-template-json')")
-        assert "fitness-ledger-llm-entry-template-v5" in browser.evaluate("document.querySelector('.entry-template-json').textContent")
+        assert "fitness-ledger-llm-entry-template-v8" in browser.evaluate("document.querySelector('.entry-template-json').textContent")
         _click(browser, "[data-close]")
         _set_css(browser, "#raw-entry", "2026-08-12 \u6668\u95f4\u8109\u640f 58")
         _click(browser, "#parse")
@@ -502,7 +501,7 @@ def main() -> None:
         _wait(browser, "window.__fitnessLedgerFormalMirrorReady===true && !!document.querySelector('.dm-management-page')")
         browser.evaluate("window.confirm=()=>true")
         _click_dataset(browser, "[data-dm-category-delete]", "dmCategoryDelete", "delete_review_category")
-        _wait(browser, f"(async()=>!((await (await fetch('/api/data-modules/product-catalog')).json()).categories.some(item=>item.category_id==='delete_review_category')))()")
+        _wait(browser, "(async()=>!((await (await fetch('/api/data-modules/product-catalog')).json()).categories.some(item=>item.category_id==='delete_review_category')))()")
 
         # Retire the recorded pulse, retain history, and block new writes.
         _click_dataset(browser, "[data-dm-toggle]", "dmToggle", pulse_id)
@@ -571,10 +570,15 @@ def main() -> None:
         assert mobile_metrics["width"] <= mobile_metrics["viewport"] + 2 and 76 <= mobile_metrics["backTop"] <= 100, mobile_metrics
 
         # Restart the mirror against the same sandbox and verify definitions + history.
-        browser.close();browser=None
-        _close_process(edge);edge=None
-        if edge_data:edge_data.cleanup();edge_data=None
-        _close_process(service);service=None
+        browser.close()
+        browser = None
+        _close_process(edge)
+        edge = None
+        if edge_data:
+            edge_data.cleanup()
+            edge_data = None
+        _close_process(service)
+        service = None
         service=_start_service(port,sandbox.name)
         edge,browser,edge_data=_start_browser(port)
         restarted_catalog=_json_get(browser,"/api/data-modules/product-catalog")

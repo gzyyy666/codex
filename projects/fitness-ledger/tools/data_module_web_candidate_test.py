@@ -6,16 +6,15 @@ import json
 import sys
 import tempfile
 import threading
-import urllib.request
 import unittest
+import urllib.request
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from web_desktop.backend.server import LedgerWebService, create_server  # noqa: E402
 from fitness_ledger_core.data_module_engine import DataModuleDefinitionStore  # noqa: E402
-
+from web_desktop.backend.server import LedgerWebService, create_server  # noqa: E402
 
 REGISTRY_FILE = PROJECT_ROOT / "tools" / "fixtures" / "data_modules" / "registry.json"
 
@@ -107,7 +106,7 @@ class DataModuleWebCandidateTests(unittest.TestCase):
                 _status, mini = get("/api/data-modules/mini-contract")
                 self.assertEqual(mini["modules"][0]["module_id"], "waist_cm")
                 _status, template = get("/api/data-modules/llm-template")
-                self.assertEqual(template["schema"], "fitness-ledger-llm-entry-template-v5")
+                self.assertEqual(template["schema"], "fitness-ledger-llm-entry-template-v8")
                 self.assertFalse(template["source"]["contains_personal_records"])
                 _status, statistics = get("/api/data-modules/statistics?module_id=waist_cm")
                 self.assertEqual(statistics["summary"]["count"], 1)

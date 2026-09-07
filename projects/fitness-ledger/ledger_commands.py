@@ -13,20 +13,34 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Callable
 
-from fitness_ledger_core.shared_view_models import LedgerViewModels, movement_in_progress
 from fitness_ledger_core.notes import normalize_note_text
+from fitness_ledger_core.pair_transaction import (
+    PairTransactionError,
+)
+from fitness_ledger_core.pair_transaction import (
+    begin as begin_pair_transaction,
+)
+from fitness_ledger_core.pair_transaction import (
+    commit as commit_pair_transaction,
+)
+from fitness_ledger_core.pair_transaction import (
+    journal_path as pair_transaction_journal_path,
+)
+from fitness_ledger_core.pair_transaction import (
+    recover as recover_pair_transaction,
+)
 from fitness_ledger_core.record_relations import (
     canonical_date,
     migrate_state,
-    now_iso,
     movement_items,
     movement_items_by_date,
     movement_items_by_session,
+    now_iso,
     rebuild_movement_projection,
     record_day_id,
     validate_relations,
 )
-
+from fitness_ledger_core.shared_view_models import LedgerViewModels, movement_in_progress
 
 ParserCallback = Callable[[str, dict, dict], dict]
 
@@ -68,7 +82,7 @@ def _write_json_atomic(path: Path, value) -> None:
 
 _NON_SEMANTIC_FIELDS = {
     "id", "created_at", "updated_at", "superseded_at", "superseded_by", "save_mode", "source",
-    "record_day_id", "training_session_id", "raw_entry_id", "raw_revision_id", "revision",
+    "record_day_id", "training_session_id", "movement_instance_id", "raw_entry_id", "raw_revision_id", "revision",
 }
 
 _PRODUCT_PLACEMENTS = {
@@ -170,6 +184,11 @@ def _normalise_business_value(value, field_name: str = ""):
             compact.append(line)
         return "\n".join(compact).strip() if len(compact) == 1 else "\n".join(compact)
     if isinstance(value, list):
+        # Revision rows are an audit projection of the active raw entry.  A
+        # semantically identical overwrite must not be treated as a business
+        # change merely because it would append another audit row.
+        if field_name == "raw_entry_revisions":
+            return []
         return [_normalise_business_value(item, field_name) for item in value if not (isinstance(item, dict) and item.get("superseded"))]
     if isinstance(value, dict):
         return {
@@ -320,8 +339,23 @@ class LedgerCommandService:
         self.parser = parser
         self.module_registry_file = Path(module_registry_file) if module_registry_file else None
         self.lock_file = self.data_file.parent / ".fitness-ledger-write.lock"
+        self.pair_transaction_file = pair_transaction_journal_path(self.data_file)
+        self._recover_pending_pair_transaction()
+
+    def _recover_pending_pair_transaction(self) -> dict:
+        try:
+            return recover_pair_transaction(
+                self.pair_transaction_file, self.data_file, self.dictionary_file
+            )
+        except PairTransactionError as exc:
+            raise LedgerCommandError(
+                "Paired data recovery is incomplete; no data operation was started.",
+                "PAIR_RECOVERY_REQUIRED",
+                {"journal": str(self.pair_transaction_file), "cause": str(exc)},
+            ) from exc
 
     def load_state(self) -> tuple[dict, dict]:
+        self._recover_pending_pair_transaction()
         database = _read_json(
             self.data_file,
             {"daily_records": [], "diet_records": [], "training_sessions": [], "movements": {}, "raw_entries": []},
@@ -895,16 +929,26 @@ class LedgerCommandService:
             pre_dictionary = self.backup_dir / f"pre_undo_dictionary_{stamp}.json"
             shutil.copy2(self.data_file, pre_tracker)
             shutil.copy2(self.dictionary_file, pre_dictionary)
+            begin_pair_transaction(
+                self.pair_transaction_file,
+                self.data_file,
+                self.dictionary_file,
+                pre_tracker,
+                pre_dictionary,
+            )
             try:
                 _write_json_atomic(self.dictionary_file, restored_dictionary)
-                try:
-                    _write_json_atomic(self.data_file, restored_database)
-                except Exception:
-                    shutil.copy2(pre_dictionary, self.dictionary_file)
-                    raise
+                _write_json_atomic(self.data_file, restored_database)
+                commit_pair_transaction(self.pair_transaction_file)
             except Exception as exc:
-                if not self.data_file.exists():
-                    shutil.copy2(pre_tracker, self.data_file)
+                rollback_errors = []
+                for backup, destination in ((pre_tracker, self.data_file), (pre_dictionary, self.dictionary_file)):
+                    try:
+                        shutil.copy2(backup, destination)
+                    except Exception as rollback_exc:
+                        rollback_errors.append(str(rollback_exc))
+                if not rollback_errors:
+                    self.pair_transaction_file.unlink(missing_ok=True)
                 raise LedgerCommandError("撤销失败，原数据已保留。") from exc
 
             tracker_checkpoint.rename(
@@ -1043,7 +1087,11 @@ class LedgerCommandService:
 
     @staticmethod
     def _history_business_fingerprint(history: dict) -> str:
-        value = {key: item for key, item in history.items() if key not in {"id", "movement_id"}}
+        # These fields are rebuilt compatibility/provenance fields.  They do
+        # not change the recorded date, order, sets, notes, raw text, or
+        # extension values that define the history event itself.
+        derived = _NON_SEMANTIC_FIELDS | {"display_name"}
+        value = {key: item for key, item in history.items() if key not in derived and key != "movement_id"}
         return _stable_json_hash(value)
 
     @staticmethod
@@ -1280,7 +1328,6 @@ class LedgerCommandService:
                     "date": str(left_row.get("date", ""))[:10],
                 })
         source_dates = {str(row.get("date", ""))[:10] for row in source_history_records if str(row.get("date", ""))[:10]}
-        target_dates = {str(row.get("date", ""))[:10] for row in target_history_records if isinstance(row, dict) and str(row.get("date", ""))[:10]}
         combined_date_counts: dict[str, int] = {}
         for _origin, row in combined_histories:
             day = str(row.get("date", ""))[:10]
@@ -1502,7 +1549,6 @@ class LedgerCommandService:
             }
             movements[target_id] = target_row
 
-        migrated_histories = []
         source_keys = []
         tracker_aliases = list(plan["aliases"]["source_name_candidates"])
         for key, row in list(movements.items()):
@@ -1645,6 +1691,13 @@ class LedgerCommandService:
                 )
             stage = "checkpoint_created"
             rolled_back = False
+            begin_pair_transaction(
+                self.pair_transaction_file,
+                self.data_file,
+                self.dictionary_file,
+                tracker_backup,
+                dictionary_backup,
+            )
             try:
                 working_database = copy.deepcopy(database)
                 working_dictionary = copy.deepcopy(dictionary)
@@ -1671,6 +1724,7 @@ class LedgerCommandService:
                         "MIGRATION_VALIDATION_FAILED",
                         validation,
                     )
+                commit_pair_transaction(self.pair_transaction_file)
             except Exception as exc:
                 rollback_errors = []
                 for backup, destination, label in (
@@ -1684,6 +1738,7 @@ class LedgerCommandService:
                 rolled_back = not rollback_errors
                 if rolled_back:
                     self._discard_checkpoint(tracker_backup, dictionary_backup)
+                    self.pair_transaction_file.unlink(missing_ok=True)
                 details = {
                     "failed_stage": stage,
                     "rolled_back": rolled_back,
@@ -1855,6 +1910,13 @@ class LedgerCommandService:
                     raise LedgerCommandError("动作历史在转正时发生了非身份变化。", "PROMOTION_VALIDATION_FAILED")
                 if _stable_json_hash(working_database.get("raw_entries", []) or []) != before_raw:
                     raise LedgerCommandError("原始录入在转正时发生变化。", "PROMOTION_VALIDATION_FAILED")
+                begin_pair_transaction(
+                    self.pair_transaction_file,
+                    self.data_file,
+                    self.dictionary_file,
+                    tracker_backup,
+                    dictionary_backup,
+                )
                 _write_json_atomic(self.dictionary_file, working_dictionary)
                 _write_json_atomic(self.data_file, working_database)
                 after_database, after_dictionary, after_fingerprint = self._strict_state_snapshot()
@@ -1868,6 +1930,7 @@ class LedgerCommandService:
                     self._history_business_fingerprint(item) for item in before_history
                 ]:
                     raise LedgerCommandError("写入后的成长记录验证失败。", "PROMOTION_VALIDATION_FAILED")
+                commit_pair_transaction(self.pair_transaction_file)
             except Exception as exc:
                 rollback_errors = []
                 for backup, destination, label in (
@@ -1880,6 +1943,7 @@ class LedgerCommandService:
                         rollback_errors.append(f"{label}: {rollback_exc}")
                 if not rollback_errors:
                     self._discard_checkpoint(tracker_backup, dictionary_backup)
+                    self.pair_transaction_file.unlink(missing_ok=True)
                 raise LedgerCommandError(
                     "动作转正失败，数据已恢复。" if not rollback_errors else "动作转正失败，回滚需要人工检查。",
                     "PROMOTION_FAILED",
@@ -2003,10 +2067,18 @@ class LedgerCommandService:
         return result
 
     def _write_pair(self, database: dict, dictionary: dict, tracker_backup: Path, dictionary_backup: Path) -> None:
+        begin_pair_transaction(
+            self.pair_transaction_file,
+            self.data_file,
+            self.dictionary_file,
+            tracker_backup,
+            dictionary_backup,
+        )
         try:
             self._validate_relations_or_raise(database, dictionary)
             _write_json_atomic(self.dictionary_file, dictionary)
             _write_json_atomic(self.data_file, database)
+            commit_pair_transaction(self.pair_transaction_file)
         except Exception as exc:
             rollback_errors = []
             for backup, destination in ((dictionary_backup, self.dictionary_file), (tracker_backup, self.data_file)):
@@ -2016,6 +2088,7 @@ class LedgerCommandService:
                     rollback_errors.append(str(rollback_exc))
             if not rollback_errors:
                 self._discard_checkpoint(tracker_backup, dictionary_backup)
+                self.pair_transaction_file.unlink(missing_ok=True)
             raise LedgerCommandError(
                 "Paired write failed; both formal files were restored."
                 if not rollback_errors
@@ -2857,10 +2930,7 @@ class LedgerCommandService:
                         "movements_added": 0, "movements_removed": 0,
                     }
                 tracker_backup, dictionary_backup = self._checkpoint()
-                self._validate_relations_or_raise(database, dictionary)
-                if not _same_business_content(before_dictionary, dictionary):
-                    _write_json_atomic(self.dictionary_file, dictionary)
-                _write_json_atomic(self.data_file, database)
+                self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
             except Exception as exc:
                 rollback_errors = []
                 if tracker_backup and dictionary_backup:
