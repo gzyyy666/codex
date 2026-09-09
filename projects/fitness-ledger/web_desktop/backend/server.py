@@ -400,7 +400,12 @@ class LedgerWebService:
         report = read_json(report_path)
         sync_state = read_json(state_path)
         try:
-            tracker, dictionary = self.views.snapshot()
+            # Compare the exact files used by build_cloud_payload. The view
+            # layer may add in-memory compatibility projections/migrations;
+            # using it here made an already-uploaded payload look stale even
+            # though the formal source files had not changed.
+            tracker = json.loads(self.data.tracker_file.read_text(encoding="utf-8"))
+            dictionary = json.loads(self.data.dictionary_file.read_text(encoding="utf-8"))
             current_source = source_metadata(tracker, dictionary)
         except (OSError, json.JSONDecodeError):
             current_source = {"source_fingerprint": "", "latest_record_date": ""}
@@ -469,6 +474,11 @@ class LedgerWebService:
             "environment_id": env_id,
             "ledger_read_status": "unknown",
             "allowlist_status": "unknown",
+            "sync_state_contract": {
+                "status_source": "manifest + latest verified sync result + cloud verification",
+                "status_semantics": "sync_status is the authoritative local/cloud payload outcome; ledger_read_status and allowlist_status are separate deployment checks",
+                "pwa_visibility_requires": "the same payload hash and sync_version in the CloudBase read replica",
+            },
             "raw_text_policy": (manifest or {}).get("raw_text_policy", "preview-disabled / excluded"),
             "local_latest_record_date": current_source["latest_record_date"],
             "cloud_latest_record_date": (
