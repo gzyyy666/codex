@@ -13,11 +13,18 @@ def _date(row: dict) -> str:
 
 
 def _without_full_raw(row: dict) -> dict:
-    return {
-        key: value
-        for key, value in row.items()
-        if str(key).lower().replace("_", " ") not in {"raw", "raw record", "text"}
-    }
+    def scrub(value):
+        if isinstance(value, dict):
+            return {
+                key: scrub(item)
+                for key, item in value.items()
+                if str(key).lower().replace("_", " ") not in {"raw", "raw record", "text"}
+            }
+        if isinstance(value, list):
+            return [scrub(item) for item in value]
+        return value
+
+    return scrub(row)
 
 
 def stable_json_hash(value) -> str:
@@ -109,7 +116,8 @@ def build_cloud_payload(
         "fl_latest_summary": _latest_summary(safe_data),
         "fl_daily_records": safe_data["body"], "fl_diet_records": safe_data["diet"],
         "fl_training_sessions": safe_data["training"], "fl_movements": movements,
-        "fl_movement_history": movement_history, "fl_raw_entries": data["raw_entries"],
+        "fl_movement_history": movement_history,
+        "fl_raw_entries": [_without_full_raw(row) for row in data["raw_entries"]],
         "fl_search_index": search_index,
         "fl_data_quality_issues": list((data_quality or {}).get("issues", [])),
     }
