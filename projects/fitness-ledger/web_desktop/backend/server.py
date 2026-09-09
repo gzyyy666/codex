@@ -284,6 +284,15 @@ class LedgerWebService:
     def workout_reference(self, split: str) -> dict:
         return self.views.workout_reference(split)
 
+    def training_organization(self) -> dict:
+        return self.commands.training_organization()
+
+    def update_session_theme(self, request: dict) -> dict:
+        return self.commands.update_session_theme(request)
+
+    def set_session_theme_active(self, request: dict) -> dict:
+        return self.commands.set_session_theme_active(request.get("theme_id", ""), bool(request.get("active", True)))
+
     def movement_insight(self, name: str = "", movement_id: str = "", limit: int = 8) -> dict:
         return self.views.movement_history_by_id(movement_id, limit) if movement_id else self.views.movement_history(name, limit)
 
@@ -947,6 +956,12 @@ class LedgerWebService:
             submitted_modules = submitted.get("data_modules", {})
             submitted_candidates = submitted_modules.get("candidates", []) if isinstance(submitted_modules, dict) else []
             preview = copy.deepcopy(module_preview)
+            existing_module_ids = {str(item.get("module_id", "")) for item in preview.get("candidates", [])}
+            allowed_slot_ids = {
+                str(item.get("module", {}).get("module_id", ""))
+                for item in (original.get("data_module_slots", []) or [])
+                if isinstance(item, dict) and isinstance(item.get("module"), dict)
+            }
             for index, candidate in enumerate(preview.get("candidates", [])):
                 if index >= len(submitted_candidates) or not isinstance(submitted_candidates[index], dict):
                     continue
@@ -955,6 +970,28 @@ class LedgerWebService:
                     raise LedgerCommandError("Data Module identity cannot be changed during Web review.", "MODULE_REVIEW_IDENTITY_CHANGED")
                 if "value" in incoming:
                     candidate["value"] = incoming["value"]
+            for incoming in submitted_candidates:
+                if not isinstance(incoming, dict):
+                    continue
+                module_id = str(incoming.get("module_id", ""))
+                if module_id in existing_module_ids:
+                    continue
+                if module_id not in allowed_slot_ids or str(incoming.get("date", "")) != str(preview.get("date", original.get("date", ""))):
+                    raise LedgerCommandError("Data Module identity cannot be changed during Web review.", "MODULE_REVIEW_IDENTITY_CHANGED")
+                if "value" in incoming and str(incoming.get("value", "")).strip():
+                    preview.setdefault("candidates", []).append({"module_id": module_id, "date": incoming.get("date"), "value": incoming.get("value"), "matched_alias": ""})
+                    existing_module_ids.add(module_id)
+            # Keep the existing Body archive projection byte-compatible while
+            # Bowel/Cardio are recorded through the generic module registry.
+            # The dynamic module record is canonical for new writes; these
+            # two legacy fields remain a read-only-compatible projection.
+            for candidate in preview.get("candidates", []):
+                module_id = str(candidate.get("module_id", ""))
+                value = candidate.get("value", "")
+                if module_id == "body_bowel_movement":
+                    reviewed.setdefault("body", {})["bowel_movement"] = value
+                elif module_id == "body_cardio":
+                    reviewed.setdefault("body", {})["cardio_summary"] = value
             reviewed["_data_module_preview"] = preview
         result = self.commands.save(reviewed, request.get("save_mode"))
         with self.pending_lock:
@@ -993,11 +1030,25 @@ class LedgerWebService:
         if isinstance(original_modules, dict) and isinstance(submitted_modules, dict):
             original_candidates = original_modules.get("candidates", [])
             submitted_candidates = submitted_modules.get("candidates", [])
-            if len(original_candidates) != len(submitted_candidates):
-                raise LedgerCommandError("Data Module rows cannot be added or removed during Web review.")
-            for target, source in zip(original_candidates, submitted_candidates):
-                if not isinstance(source, dict) or str(source.get("module_id", "")) != str(target.get("module_id", "")):
+            allowed_slot_ids = {
+                str(item.get("module", {}).get("module_id", ""))
+                for item in (original.get("data_module_slots", []) or [])
+                if isinstance(item, dict) and isinstance(item.get("module"), dict)
+            }
+            targets = {str(item.get("module_id", "")): item for item in original_candidates if isinstance(item, dict)}
+            for source in submitted_candidates:
+                if not isinstance(source, dict):
                     raise LedgerCommandError("Invalid Data Module review data.", "MODULE_REVIEW_INVALID")
+                module_id = str(source.get("module_id", ""))
+                target = targets.get(module_id)
+                if target is None:
+                    if module_id not in allowed_slot_ids or not str(source.get("value", "")).strip():
+                        raise LedgerCommandError("Invalid Data Module review data.", "MODULE_REVIEW_INVALID")
+                    target = {"module_id": module_id, "date": source.get("date", reviewed.get("date")), "value": source.get("value")}
+                    original_candidates.append(target)
+                    targets[module_id] = target
+                elif str(source.get("date", target.get("date", reviewed.get("date")))) != str(target.get("date", reviewed.get("date"))):
+                    raise LedgerCommandError("Data Module identity cannot be changed during Web review.", "MODULE_REVIEW_IDENTITY_CHANGED")
                 if "value" in source:
                     target["value"] = source["value"]
         return reviewed
@@ -1208,6 +1259,8 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.collection("diet", int(query.get("limit", ["50"])[0])))
             elif parsed.path == "/api/training":
                 self.send_json(self.service.collection("training", int(query.get("limit", ["50"])[0])))
+            elif parsed.path == "/api/training-organization":
+                self.send_json(self.service.training_organization())
             elif parsed.path == "/api/movements":
                 self.send_json(self.service.movement_index(query.get("q", [""])[0], int(query.get("limit", ["80"])[0])))
             elif parsed.path == "/api/dictionary":
@@ -1297,6 +1350,10 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.import_preview(request))
             elif parsed.path == "/api/import/confirm":
                 self.send_json(self.service.import_confirm(request))
+            elif parsed.path == "/api/training-organization/theme":
+                self.send_json(self.service.update_session_theme(request))
+            elif parsed.path == "/api/training-organization/theme-active":
+                self.send_json(self.service.set_session_theme_active(request))
             elif parsed.path == "/api/undo":
                 self.send_json(self.service.undo_last_write())
             elif parsed.path == "/api/data-check/acknowledge":

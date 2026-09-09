@@ -17,6 +17,8 @@ import os
 from datetime import datetime
 from typing import Any
 
+from .training_organization import normalize_training_organization
+
 
 RELATION_SCHEMA_VERSION = "fitness-ledger-relations-v1"
 MOVEMENT_ITEMS_SCHEMA_VERSION = "fitness-ledger-movement-items-v1"
@@ -465,6 +467,10 @@ def migrate_state(database: dict, dictionary: dict) -> tuple[dict, dict, dict]:
                 item.setdefault("raw_entry_id", linked.get("raw_entry_id", ""))
                 item.setdefault("raw_revision_id", linked.get("raw_revision_id", ""))
 
+    db, organization_changed = normalize_training_organization(db, lexicon)
+    if organization_changed:
+        report["training_organization"] = True
+
     _apply_unambiguous_cardio_migration(db, report)
     _rebuild_movement_projection(db)
     db["record_schema_version"] = RELATION_SCHEMA_VERSION
@@ -522,7 +528,10 @@ def validate_relations(database: dict, dictionary: dict) -> list[dict]:
             if str(item.get("training_session_id")) not in sessions:
                 issues.append({"code": "ORPHAN_TRAINING_SESSION", "movement_instance_id": item_id})
             if not str(item.get("movement_id") or ""):
-                issues.append({"code": "MOVEMENT_ID_MISSING", "movement_instance_id": item_id})
+                # A named untracked/custom movement is a valid session fact;
+                # it simply does not become a Movement Progress identity.
+                if not str(item.get("display_name") or item.get("name") or item.get("raw") or "").strip():
+                    issues.append({"code": "MOVEMENT_ID_MISSING", "movement_instance_id": item_id})
             elif definitions and str(item.get("movement_id")) not in definitions:
                 issues.append({"code": "MISSING_MOVEMENT_DEFINITION", "movement_id": item.get("movement_id")})
             if "cardio" in item:

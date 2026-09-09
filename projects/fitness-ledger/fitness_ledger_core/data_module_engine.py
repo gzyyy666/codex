@@ -40,7 +40,6 @@ NATIVE_ENTRY_FIELDS = (
     {"key": "waist", "section": "body", "field": "Waist (cm)", "aliases": ["腰围", "waist"], "line_example": "waist: <数值> cm", "value_type": "number", "required_for_complete": False},
     {"key": "sleep", "section": "body", "field": "Sleep (hours)", "aliases": ["睡眠", "sleep"], "line_example": "sleep: <数值> h", "value_type": "number", "required_for_complete": False},
     {"key": "steps", "section": "body", "field": "Steps", "aliases": ["步数", "steps"], "line_example": "steps: <数值>", "value_type": "number", "required_for_complete": False},
-    {"key": "bowel", "section": "body", "field": "Bowel Movement", "aliases": ["排便", "bowel movement", "bowel"], "line_example": "排便: 是", "value_type": "text", "required_for_complete": True},
     {"key": "notes", "section": "body", "field": "Notes", "aliases": ["备注", "notes"], "line_example": "notes:\n<整日说明>", "value_type": "text", "required_for_complete": False},
     {"key": "calories", "section": "diet", "field": "Calories (kcal)", "aliases": ["热量", "calories", "calorie", "kcal"], "line_example": "calories: <数值>", "value_type": "number", "required_for_complete": True},
     {"key": "protein", "section": "diet", "field": "Protein (g)", "aliases": ["蛋白质", "protein"], "line_example": "protein: <数值>", "value_type": "number", "required_for_complete": True},
@@ -50,7 +49,6 @@ NATIVE_ENTRY_FIELDS = (
     {"key": "diet notes", "section": "diet", "field": "Diet Notes", "aliases": ["饮食备注", "diet notes"], "line_example": "diet notes:\n<估算依据或饮食说明>", "value_type": "text", "required_for_complete": False},
     {"key": "training", "section": "training", "field": "Training", "aliases": ["训练部位", "训练", "training"], "line_example": "training: <训练部位>", "value_type": "text", "required_for_complete": True},
     {"key": "training notes", "section": "training", "field": "Training Notes", "aliases": ["训练备注", "training notes"], "line_example": "training notes:\n<整次训练说明>", "value_type": "text", "required_for_complete": False},
-    {"key": "cardio", "section": "body", "field": "Cardio", "aliases": ["有氧", "cardio"], "line_example": "cardio:\n<有氧内容或无>", "value_type": "text", "required_for_complete": True},
 )
 
 # Native Daily Entry labels delimit a free-form Data Module value.  Keep this
@@ -58,7 +56,7 @@ NATIVE_ENTRY_FIELDS = (
 # The extra aliases are parser/read-model terms, not additional Daily Entry
 # fields, and are retained for compatibility with existing Data Modules.
 NATIVE_FIELD_BOUNDARY_ALIASES = (
-    "body notes", "context", "training summary", "standardized summary", "food summary", "测量背景", "身体备注", "训练摘要", "标准摘要",
+    "body notes", "context", "training summary", "standardized summary", "food summary", "测量背景", "身体备注", "训练摘要", "标准摘要", "排便", "bowel movement", "bowel", "有氧", "cardio",
 )
 NATIVE_FIELD_ALIASES = tuple(dict.fromkeys(
     [alias for field in NATIVE_ENTRY_FIELDS for alias in field["aliases"]]
@@ -301,6 +299,7 @@ class ModuleDefinition:
     validation_contract: dict[str, Any]
     recording_behavior: dict[str, str]
     presentation: dict[str, Any]
+    legacy_source: dict[str, str] | None = None
     renderer: str | None = None
     definition_history: list[dict[str, Any]] = field(default_factory=list)
 
@@ -422,6 +421,21 @@ class ModuleDefinition:
             "fallback": fallback,
             "unsupported_behavior": unsupported_behavior,
         }
+        legacy_source = raw.get("legacy_source")
+        if legacy_source is not None:
+            if not isinstance(legacy_source, dict):
+                raise _error("legacy_source must be an object.", "MODULE_LEGACY_SOURCE_INVALID", {"module_id": module_id})
+            allowed_legacy_keys = {"collection", "date_field", "value_field", "review_field"}
+            if set(legacy_source) - allowed_legacy_keys:
+                raise _error("legacy_source contains unsupported fields.", "MODULE_LEGACY_SOURCE_INVALID", {"module_id": module_id})
+            legacy_source = {
+                "collection": str(legacy_source.get("collection", "")).strip(),
+                "date_field": str(legacy_source.get("date_field", "Date")).strip(),
+                "value_field": str(legacy_source.get("value_field", "")).strip(),
+                "review_field": str(legacy_source.get("review_field", "")).strip(),
+            }
+            if legacy_source["collection"] != "daily_records" or not legacy_source["value_field"]:
+                raise _error("legacy_source must identify a daily_records value field.", "MODULE_LEGACY_SOURCE_INVALID", {"module_id": module_id})
         history = raw.get("definition_history", [])
         if not isinstance(history, list) or not all(isinstance(item, dict) for item in history):
             raise _error("definition_history must be a list of snapshots.", "MODULE_VERSION_HISTORY_INVALID", {"module_id": module_id})
@@ -439,12 +453,13 @@ class ModuleDefinition:
             validation_contract=validation,
             recording_behavior=behaviour,
             presentation=presentation,
+            legacy_source=copy.deepcopy(legacy_source),
             renderer=renderer,
             definition_history=copy.deepcopy(history),
         )
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        value = {
             "module_id": self.module_id,
             "label": self.label,
             "aliases": list(self.aliases),
@@ -460,6 +475,9 @@ class ModuleDefinition:
             "presentation": copy.deepcopy(self.presentation),
             "definition_history": copy.deepcopy(self.definition_history),
         }
+        if self.legacy_source:
+            value["legacy_source"] = copy.deepcopy(self.legacy_source)
+        return value
 
     def snapshot(self) -> dict[str, Any]:
         value = self.to_dict()
@@ -1400,7 +1418,8 @@ class DataModuleEngine:
         if start and end and start > end:
             raise _error("Query start must not be after end.", "MODULE_QUERY_RANGE_INVALID")
         rows = []
-        for record in self._database().get("data_module_records", []) or []:
+        database = self._database()
+        for record in database.get("data_module_records", []) or []:
             if not isinstance(record, dict) or str(record.get("module_id")) != definition.module_id:
                 continue
             record_date = str(record.get("date", ""))[:10]
@@ -1413,6 +1432,22 @@ class DataModuleEngine:
             item["display_value"] = definition.display_value(item.get("value"))
             item["display_unit"] = definition.display_unit
             rows.append(item)
+        legacy_source = definition.legacy_source or {}
+        legacy_field = legacy_source.get("value_field")
+        recorded_dates = {str(item.get("date", ""))[:10] for item in rows}
+        if legacy_field:
+            for record in database.get(legacy_source.get("collection", "daily_records"), []) or []:
+                if not isinstance(record, dict):
+                    continue
+                record_date = str(record.get(legacy_source.get("date_field", "Date"), ""))[:10]
+                value = str(record.get(legacy_field, "") or "").strip()
+                if not value or record_date in recorded_dates:
+                    continue
+                if (start and record_date < start) or (end and record_date > end):
+                    continue
+                item = self._record_payload(definition, record_date, value, f"legacy:{definition.module_id}:{record_date}", "")
+                item.update({"module": definition.to_dict(), "display_value": definition.display_value(value), "display_unit": definition.display_unit, "legacy_projection": True})
+                rows.append(item)
         rows.sort(key=lambda item: (str(item.get("date", "")), str(item.get("record_id", ""))), reverse=True)
         return rows[:1] if latest else rows
 
@@ -1708,8 +1743,9 @@ notes:
 
     def normal_export(self) -> dict[str, Any]:
         modules = [item for item in self.registry.all() if item.capabilities["exportable"]]
-        module_ids = {item.module_id for item in modules}
-        records = [copy.deepcopy(record) for record in self._database().get("data_module_records", []) or [] if isinstance(record, dict) and record.get("module_id") in module_ids]
+        records = []
+        for definition in modules:
+            records.extend({key: copy.deepcopy(value) for key, value in record.items() if key not in {"module", "display_value", "display_unit"}} for record in self.query(definition.module_id))
         records.sort(key=lambda item: (str(item.get("date", "")), str(item.get("record_id", ""))))
         module_payload = []
         for item in modules:
@@ -1741,10 +1777,8 @@ notes:
         if not set(requested) <= allowed:
             raise _error("Module is missing an Analysis provider contract.", "MODULE_ANALYSIS_PROVIDER_MISSING")
         rows = []
-        for record in self._database().get("data_module_records", []) or []:
-            if record.get("module_id") not in requested:
-                continue
-            rows.append({"date": record.get("date"), f"extension.{record['module_id']}": record.get("value")})
+        for module_id in requested:
+            rows.extend({"date": record.get("date"), f"extension.{module_id}": record.get("value")} for record in self.query(module_id))
         return {"status": "contract_preview_ready", "protocol": "AnalysisExportRequest-v1.1-boundary", "public_protocol_changed": False, "catalog": catalog, "module_ids": requested, "rows": rows}
 
     def data_check(self, database: dict[str, Any] | None = None, focus_module_ids: set[str] | None = None) -> list[dict[str, Any]]:
