@@ -15,6 +15,8 @@ MUSCLE_GROUP_TO_BODY_PART_ID = {
     "Arms": "ARMS",
     "Core": "CORE",
     "Legs": "LEGS",
+    "Glutes": "GLUTES",
+    "Cardio": "CARDIO",
 }
 
 

@@ -55,6 +55,8 @@
 .movement-group.group-back{--movement-accent:#4d8e84;--movement-soft:#85c5b9;--movement-panel-start:#4d8e84;--movement-panel-mid:#3c746d;--movement-panel-end:#2d5a54;--movement-edge:#86c7ba}
 .movement-group.group-legs{--movement-accent:#8d7ab8;--movement-soft:#c4b1e2;--movement-panel-start:#8d7ab8;--movement-panel-mid:#74639b;--movement-panel-end:#5d4f80;--movement-edge:#c5b2e2}
 .movement-group.group-arms{--movement-accent:#6fa7bf;--movement-soft:#a7d3e5;--movement-panel-start:#6fa7bf;--movement-panel-mid:#598ca4;--movement-panel-end:#477385;--movement-edge:#a8d5e7}
+.movement-group.group-glutes{--movement-accent:#c58b91;--movement-soft:#e7b4b3;--movement-panel-start:#c58b91;--movement-panel-mid:#a96f78;--movement-panel-end:#875761;--movement-edge:#edc2c0}
+.movement-group.group-cardio{--movement-accent:#6f9fc2;--movement-soft:#afd5e8;--movement-panel-start:#6f9fc2;--movement-panel-mid:#5681a6;--movement-panel-end:#3f6282;--movement-edge:#b7dff0}
 .movement-group[class*="group-"]{
   color:#fffaf0;
   border:1px solid color-mix(in srgb,var(--movement-edge) 46%,rgba(255,255,255,.14));
@@ -99,7 +101,9 @@
 .movement-group.group-back .movement-group-art,
 .movement-group.group-legs .movement-group-art,
 .movement-group.group-arms .movement-group-art,
-.movement-group.group-core .movement-group-art{
+.movement-group.group-core .movement-group-art,
+.movement-group.group-glutes .movement-group-art,
+.movement-group.group-cardio .movement-group-art{
   z-index:2;
   top:-2.5%;
   right:auto;
@@ -120,7 +124,10 @@
 .movement-group.group-chest .movement-tile,
 .movement-group.group-back .movement-tile,
 .movement-group.group-legs .movement-tile,
-.movement-group.group-arms .movement-tile{
+.movement-group.group-arms .movement-tile,
+.movement-group.group-core .movement-tile,
+.movement-group.group-glutes .movement-tile,
+.movement-group.group-cardio .movement-tile{
   border-color:rgba(255,255,255,.18);
   background:rgba(0,0,0,.18);
   color:#fffaf2;
@@ -144,7 +151,10 @@
 .movement-group.group-chest .movement-tile.tile-lead,
 .movement-group.group-back .movement-tile.tile-lead,
 .movement-group.group-legs .movement-tile.tile-lead,
-.movement-group.group-arms .movement-tile.tile-lead{
+.movement-group.group-arms .movement-tile.tile-lead,
+.movement-group.group-core .movement-tile.tile-lead,
+.movement-group.group-glutes .movement-tile.tile-lead,
+.movement-group.group-cardio .movement-tile.tile-lead{
   border-color:rgba(255,255,255,.5);
   background:linear-gradient(135deg,rgba(244,214,92,.82),rgba(214,171,55,.74));
   color:#171511;
@@ -183,10 +193,12 @@
 /* Movement Progress art framing follows each panel's aspect ratio rather than
    forcing every source image through the same oversized crop. */
 .movement-group.group-back .movement-group-art{
-  top:0;
-  width:100%;
-  height:100%;
-  transform:translateX(-50%) scale(.94);
+  top:-4%;
+  width:108%;
+  height:108%;
+  object-fit:cover;
+  object-position:center 52%;
+  transform:translateX(-50%) scale(1.02);
 }
 .movement-group.group-shoulders .movement-group-art{
   top:-9%;
@@ -209,10 +221,28 @@
   object-position:center 46%;
   transform:translateX(-50%) scale(1);
 }
-.movement-group.group-back:hover .movement-group-art{transform:translateX(-50%) scale(.96)}
+.movement-group.group-glutes .movement-group-art,.movement-group.group-cardio .movement-group-art{object-position:center center}
+.movement-group.group-back:hover .movement-group-art{transform:translateX(-50%) scale(1.06)}
 .movement-group.group-shoulders:hover .movement-group-art{transform:translateX(-50%) scale(1.3)}
 .movement-group.group-legs:hover .movement-group-art{transform:translateX(-50%) scale(1.04)}
 .movement-group.group-arms:hover .movement-group-art{transform:translateX(-50%) scale(1.02)}
+.movement-group.group-glutes:hover .movement-group-art,.movement-group.group-cardio:hover .movement-group-art{transform:translateX(-50%) scale(1.2)}
+
+/* Empty modules remain intentionally shallow, but keep enough of the source
+   motif visible to identify the body area.  Once tiles exist, the normal art
+   framing above takes over without stretching the image. */
+.movement-group.is-empty .movement-group-art{
+  width:100%;
+  height:100%;
+  top:0;
+  object-fit:cover;
+  opacity:.38;
+  filter:saturate(.92) contrast(1.04);
+  transform:translateX(-50%) scale(1.03);
+}
+.movement-group.is-empty.group-glutes .movement-group-art{object-position:center 58%}
+.movement-group.is-empty.group-cardio .movement-group-art{object-position:center 50%}
+.movement-group.is-empty:hover .movement-group-art{transform:translateX(-50%) scale(1.08)}
 
 .movement-group.group-arms .movement-tile.tile-slip{
   min-height:108px;

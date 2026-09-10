@@ -1,5 +1,22 @@
 # Fitness Ledger Changelog
 
+## 2026-09-10 - Movement modules, session-based training, and PWA parity
+
+- Added independent Glutes and Cardio body-part mappings across analysis export,
+  restricted export, query scope, movement targeting, and review surfaces.
+- Added Movement Progress module management with active/inactive and pinned
+  ordering controls, while preserving disabled-module history and actions.
+- Generalized training display and PWA reads around persisted Session Themes,
+  including multiple sessions on one date, session detail, movement summaries,
+  theme ordering, dictionary grouping, and read-only history lookup.
+- Added the Glutes/Cardio visual assets and aligned empty enabled modules with
+  the existing movement mosaic language.
+- Reworked the PWA homepage into the Training Note-first neutral/selected/
+  expanded states, fixed candidate detail anchoring, restored body-record
+  movement summaries, and removed the obsolete `FLIP` control.
+- Added focused PWA/session regression coverage and cache marker
+  `fitness-ledger-pwa-v40` / `20260910-04`.
+
 ## 2026-09-10 - Session Theme batch management and stable color slots
 
 - Made Session Theme creation, rename, activation, and pinning a single atomic

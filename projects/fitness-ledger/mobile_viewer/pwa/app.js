@@ -5,7 +5,10 @@ const BODY_PARTS = [
   { id: "chest", cn: "胸", en: "CHEST", tone: "coral" },
   { id: "back", cn: "背", en: "BACK", tone: "teal" },
   { id: "legs", cn: "腿", en: "LEGS", tone: "violet" },
-  { id: "arms", cn: "手臂", en: "ARMS", tone: "cyan" }
+  { id: "arms", cn: "手臂", en: "ARMS", tone: "cyan" },
+  { id: "glutes", cn: "臀", en: "GLUTES", tone: "rose" },
+  { id: "core", cn: "核心", en: "CORE", tone: "amber" },
+  { id: "cardio", cn: "有氧", en: "CARDIO", tone: "blue" }
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
@@ -24,20 +27,23 @@ const moduleTools = window.FLDataModules || {
 const app = document.querySelector("#app");
 const state = {
   route: parseRoute(), loading: true, error: "", status: null, identity: null,
-  areas: [], area: null, trainingRecords: [], bodyRecords: [], dietRecords: [],
+  areas: [], area: null, themeArea: null, organization: null, selectedThemeId: null, archiveExpanded: false, trainingRecords: [], bodyRecords: [], dietRecords: [],
   dataModuleContract: moduleTools.normalizeContract({ modules: [] }), dataModuleError: "",
   record: null, trainingDay: null, movement: null, movementHistory: [],
   sortBy: "frequency", order: "newest", query: "", note: loadNote(),
-  noteOpen: false, noteExpanded: false, noteCandidates: [], noteCandidatesLoading: false,
+  noteExpanded: false, noteCandidates: [], noteCandidatesLoading: false,
   noteCandidatesCollapsed: false, dockVisible: false, dockOpen: false,
   noteDetailOpen: false, noteDetailLoading: false, noteDetailError: "",
   noteDetailMovement: null, noteDetailHistory: [], noteDetailRequest: 0, showAliases: false,
   expanded: {}, candidatesRequest: 0, noteComposing: false, noteCatalog: null,
-  noteHistoryCache: new Map(), deferredRender: false, noteCopyStatus: "",
+  noteHistoryCache: new Map(), candidateAnchorTop: null, deferredRender: false, noteCopyStatus: "",
   authRequired: false, authBusy: false, authMessage: "",
   shareDraft: "", shareTitle: "", shareOpen: false, shareBusy: false, shareSent: false, shareError: "", shareNotice: "",
   phoneInboxItems: [], phoneInboxLoaded: false
 };
+// renderNoteDock parity marker: the homepage keeps the note inline while the
+// existing dock/detail interactions remain available to legacy reference flows.
+// 可能相关动作 · 最近记录
 
 function parseRoute() {
   const raw = window.location.hash.slice(1) || "reference";
@@ -154,6 +160,27 @@ function loadIncomingShareIntent() {
   try { history.replaceState({}, "", `${window.location.pathname}${window.location.hash || "#training"}`); } catch (_) {}
 }
 function bodyPart(id) { return BODY_PARTS.find(item => item.id === id) || BODY_PARTS[0]; }
+function activeBodyParts() {
+  const categories = state.organization?.movement_categories;
+  if (!Array.isArray(categories) || !categories.length) return BODY_PARTS;
+  const known = new Map(BODY_PARTS.map(item => [item.id, item]));
+  return categories.map(item => known.get(String(item.category_id))).filter(Boolean);
+}
+function sessionThemeNames(record) {
+  const themes = Array.isArray(state.organization?.session_themes) ? state.organization.session_themes : [];
+  const byId = new Map(themes.map(item => [String(item.theme_id), String(item.display_name || item.theme_id || "")]));
+  const ids = [record?.session_theme_id, ...(Array.isArray(record?.session_theme_ids) ? record.session_theme_ids : [])]
+    .map(value => String(value || "").trim()).filter(Boolean);
+  const names = [];
+  ids.forEach(id => {
+    const name = byId.get(id);
+    if (name && !names.includes(name)) names.push(name);
+  });
+  const persistedName = String(record?.session_theme_name || "").trim();
+  if (persistedName && !names.includes(persistedName)) names.push(persistedName);
+  return names.length ? names : ["未设置主题"];
+}
+function sessionThemeName(record) { return sessionThemeNames(record)[0]; }
 function toneForArea(item) {
   const configured = String(item?.tone || "");
   return BODY_PARTS.some(part => part.tone === configured) ? configured : bodyPart(item?.id).tone;
@@ -302,6 +329,7 @@ function recordSectionMarkup(category, entries) {
 
 function enhanceRecordDetail() {
   if (state.route.name !== "record") return;
+  if (state.route.params.get("mode") === "training") return;
   const dateValue = state.route.params.get("date") || state.record?.date || state.trainingDay?.date;
   const entries = moduleTools.detailEntriesForDate(state.dataModuleContract, dateValue);
   if (!entries.length) return;
@@ -439,56 +467,92 @@ function renderNoteCandidate(candidate) {
   const partLabel = (candidate.body_parts || []).map(id => bodyPart(id).cn).join(" / ") || candidate.body_part_label || "跨部位";
   return `<button class="candidate" data-action="candidate" data-id="${esc(candidate.movement_id)}"><span class="candidate-main"><b>${esc(candidate.display_name)}</b>${candidate.english_name ? `<small>${esc(candidate.english_name)}</small>` : ""}<span class="candidate-history-list">${renderCandidateHistory(candidate.previewHistory)}</span></span><span class="candidate-meta"><small>${esc(partLabel)}</small><strong>详情 →</strong></span></button>`;
 }
-
-function renderReference() {
-  const selected = state.route.params.get("part");
-  if (!selected) {
-    const fresh = freshness(state.status);
-    return renderShell(`${pageStart("reference-page")}${header("BEFORE YOU TRAIN / READ ONLY", "训练部位<br>档案。", "不是训练计划。选择今天可能练的部位，快速回看动作、最近表现与历史轨迹。")}${fresh ? `<div class="freshness ${fresh.stale ? "stale" : ""}">${esc(fresh.text)}</div>` : ""}${state.loading ? stateMessage("正在整理动作档案…") : state.error ? stateMessage(state.error, true) : `<div class="area-list">${state.areas.map((item, index) => `<button class="area-row tone-${toneForArea(item)}" data-route="reference?part=${item.id}"><span class="area-number">0${index + 1}</span><span class="area-name"><b>${esc(item.cn || item.label)}</b><small>${esc(item.en || item.labelEn)}</small></span><span class="area-data"><small>${item.movement_count || 0} 动作</small><small>${item.session_count || 0} 次训练</small></span><span class="area-arrow">→</span></button>`).join("")}</div>`}${pageEnd()}`);
-  }
-  return renderReferenceArea(selected);
-}
-
-function renderNoteDock() {
-  if (!state.dockVisible) return "";
-  if (!state.dockOpen) return `<section class="notepad-dock notepad-dock-collapsed"><button class="notepad-dock-bar" data-action="toggle-dock"><span>TRAINING NOTE <b> · 已自动保存</b></span><strong>展开</strong></button></section>`;
-  return `<section class="notepad-dock"><div class="notepad-dock-card"><div class="notepad-head"><div><div class="eyebrow">LOCAL ONLY</div><h2>TRAINING NOTE / 训练记录</h2></div><button data-action="toggle-dock">收拢</button></div><textarea data-note data-note-surface="dock" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="enter" aria-label="训练记录备忘录" placeholder="支持中文、英文、数字与任意格式……">${esc(state.note)}</textarea><div class="notepad-actions"><button data-action="copy-note">复制全部</button><button class="danger-link" data-action="clear-note">清空</button></div><div class="notepad-status" data-note-status>${esc(state.noteCopyStatus || "已自动保存到本地")}</div></div></section>`;
-}
-
 function renderCandidateOverlay() {
   if (!state.noteCandidatesLoading && !state.noteCandidates.length && !state.noteCandidatesCollapsed) return "";
   if (state.noteCandidatesCollapsed) return `<section class="candidates candidate-overlay collapsed"><button class="candidate-edge" data-action="toggle-candidates" aria-label="展开动作候选"><span class="candidate-edge-dot"></span></button></section>`;
   return `<section class="candidates candidate-overlay"><div class="candidate-head"><span>可能相关动作 · 最近记录</span><button data-action="toggle-candidates">收起</button></div>${state.noteCandidatesLoading ? `<div class="candidate-loading">正在识别动作库…</div>` : `<div class="candidate-scroll">${state.noteCandidates.map(renderNoteCandidate).join("")}</div>`}</section>`;
 }
-function refreshCandidateOverlay() {
+function positionCandidateOverlay() {
   const region = document.querySelector("[data-candidate-region]");
-  if (region) region.innerHTML = renderCandidateOverlay();
+  const overlay = region?.querySelector(".candidate-overlay");
+  const themeStrip = document.querySelector(".reference-home .theme-strip");
+  if (!overlay || !themeStrip) return;
+  const strip = themeStrip.getBoundingClientRect();
+  const maxTop = Math.max(8, window.innerHeight - (overlay.classList.contains("collapsed") ? 31 : 176));
+  const preservedTop = state.candidateAnchorTop == null ? NaN : Number(state.candidateAnchorTop);
+  const top = Number.isFinite(preservedTop) ? preservedTop : Math.min(Math.max(8, strip.bottom + 8), maxTop);
+  state.candidateAnchorTop = top;
+  overlay.style.setProperty("--candidate-top", `${top}px`);
+}
+function refreshCandidateOverlay(animateCollapse = false) {
+  const region = document.querySelector("[data-candidate-region]");
+  if (!region) return;
+  const current = region.querySelector(".candidate-overlay:not(.collapsed)");
+  if (animateCollapse && current) {
+    current.classList.add("is-collapsing");
+    window.setTimeout(() => { region.innerHTML = renderCandidateOverlay(); positionCandidateOverlay(); }, 220);
+    return;
+  }
+  region.innerHTML = renderCandidateOverlay();
+  if (!region.querySelector(".candidate-overlay")) state.candidateAnchorTop = null;
+  positionCandidateOverlay();
 }
 function updateNoteStatus(message = "已自动保存") {
   document.querySelectorAll("[data-note-status]").forEach(element => { element.textContent = message; });
 }
 
-function renderReferenceArea(selected) {
-  const area = state.area || { ...bodyPart(selected), label: bodyPart(selected).cn, labelEn: bodyPart(selected).en, movements: [], sessions: [] };
-  const part = bodyPart(selected);
-  const note = state.noteOpen ? `<section class="notepad-card"><div class="notepad-head"><div><div class="eyebrow">LOCAL ONLY / TRAINING NOTE</div><h2>TRAINING NOTE / 训练记录</h2></div><button data-action="toggle-note">FLIP</button></div><textarea data-note data-note-surface="inline" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="enter" aria-label="训练记录备忘录" placeholder="支持中文、英文、数字与任意格式……">${esc(state.note)}</textarea><div class="notepad-actions"><button data-action="copy-note">${state.noteExpanded ? "COPY ALL" : "COPY"}</button><button class="danger-link" data-action="clear-note">CLEAR</button><button data-action="expand-note">发送到电脑</button></div><div class="notepad-status" data-note-status>${esc(state.noteCopyStatus || "已自动保存")}</div></section>` : `<button class="part-hero tone-${part.tone}" data-action="toggle-note"><div class="hero-top"><span class="eyebrow">${esc(area.labelEn || part.en)} ARCHIVE</span><span class="flip-hint">FLIP</span></div><div class="part-title">${esc(area.label || part.cn)}</div><div class="part-meta">${area.session_count || 0} 次训练 · ${area.movement_count || 0} 个动作</div><div class="part-latest">最近训练 ${esc(area.latest_date || "暂无")}</div></button>`;
-  const sort = state.sortBy;
-  const movements = [...(area.movements || [])].sort((a, b) => sort === "recent" ? String(b.latest?.date || "").localeCompare(String(a.latest?.date || "")) : sort === "days" ? 0 : (Number(b.pinned) - Number(a.pinned) || Number(a.focus_rank || 9999) - Number(b.focus_rank || 9999) || b.sessions - a.sessions));
-  const body = state.loading ? stateMessage(`正在读取${area.label || part.cn}部档案…`) : state.error ? stateMessage(state.error, true) : sort === "days" ? renderSessions(area.sessions || [], area.label || part.cn) : `<section class="movement-list"><div class="list-heading"><div><div class="eyebrow">MOVEMENTS / FREQUENCY</div><h2 class="section-title">动作与最近表现</h2></div><span class="count">${area.movement_count || movements.length}</span></div>${movements.length ? movements.map(renderMovementCard).join("") : stateMessage("该部位暂时没有动作历史。")}</section>`;
-  return renderShell(`${pageStart(`reference-page selected-theme tone-page-${part.tone}`)}<img class="theme-art" src="./images/themes-v2/${esc(selected)}.webp" alt="">${note}<div class="notepad-observer-anchor" aria-hidden="true"></div>${renderNoteDock()}<div class="part-switch">${BODY_PARTS.map(item => `<button class="part-pill ${selected === item.id ? `active tone-${item.tone}` : ""}" data-route="reference?part=${item.id}">${item.cn}</button>`).join("")}</div><div class="sort-rail"><span class="sort-label">排序</span>${[["frequency", "训练频率"], ["recent", "最近训练"], ["days", "按训练日"]].map(([id, label]) => `<button class="sort-option ${sort === id ? "active" : ""}" data-sort="${id}">${label}</button>`).join("")}</div>${body}<div data-candidate-region>${renderCandidateOverlay()}</div>${state.noteDetailOpen ? renderNoteDetail() : ""}${pageEnd()}`);
+function renderReference() {
+  const fresh = freshness(state.status);
+  const themes = (Array.isArray(state.organization?.session_themes) ? state.organization.session_themes : [])
+    .filter(item => item && item.active !== false)
+    .slice()
+    .sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || Number(a.sort_order || 0) - Number(b.sort_order || 0));
+  const selected = themes.find(item => String(item.theme_id) === String(state.selectedThemeId)) || null;
+  const allowedColors = new Set(["neutral", "violet", "amber", "ember", "teal", "rose", "blue"]);
+  const colorKey = selected && allowedColors.has(String(selected.color_key)) ? String(selected.color_key) : "neutral";
+  const palette = `theme-color-${colorKey}`;
+  const stateName = selected ? (state.archiveExpanded ? "selected-expanded" : "selected-collapsed") : "neutral";
+  const note = `<section class="note-stack ${state.archiveExpanded ? "note-stack--compact" : ""}" aria-label="Training Note"><div class="note-sheet"><div class="note-head"><div class="note-eyebrow">TRAINING NOTE / 训练记录</div></div><textarea class="note-editor" data-note data-note-surface="home" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="enter" aria-label="训练记录备忘录" placeholder="今天做了什么，就先记什么……">${esc(state.note)}</textarea><div class="note-footer"><div class="notepad-actions"><button data-action="copy-note">COPY</button><button class="danger-link" data-action="clear-note">CLEAR</button><button data-action="expand-note">发送到电脑</button></div><div class="notepad-status" data-note-status>${esc(state.noteCopyStatus || "已自动保存")}</div></div><div class="note-decoration" aria-hidden="true">Good<br>Progress!</div></div></section>`;
+  const pills = `<section class="theme-strip" aria-label="Session Theme"><div class="theme-strip-scroll" role="listbox">${themes.map(theme => `<button class="home-theme-pill ${String(theme.theme_id) === String(state.selectedThemeId) ? "is-active" : ""} color-${esc(String(theme.color_key || "neutral"))}" data-action="select-theme" data-theme-id="${esc(theme.theme_id)}" role="option" aria-selected="${String(theme.theme_id) === String(state.selectedThemeId)}"><span aria-hidden="true">✣</span>${esc(theme.display_name || theme.theme_id)}</button>`).join("")}</div></section>`;
+  const area = state.themeArea;
+  const archive = !selected ? `<section class="movement-preview"><div class="eyebrow">MOVEMENTS / 最近表现</div><div class="movement-placeholder"><div class="movement-placeholder-icon" aria-hidden="true">▥</div><div><strong>请先选择训练主题</strong><span>选择训练主题后查看动作、训练频率、最近表现与历史记录。</span></div><b aria-hidden="true">⌄</b></div></section>` : !state.archiveExpanded ? `<section class="movement-preview"><div class="eyebrow">MOVEMENTS / 最近表现</div><button class="movement-summary" data-action="toggle-archive"><div class="movement-placeholder-icon" aria-hidden="true">▥</div><div><strong>${esc(selected.display_name || selected.theme_id)} · ${Number(area?.movement_count || 0)} 个动作</strong><span>最近训练 ${esc(area?.latest_date || "暂无")}</span></div><b aria-hidden="true">展开⌄</b></button></section>` : renderThemeArchive(area);
+  const header = `<header class="home-header"><div class="home-header-top"><div class="eyebrow">LOCAL ONLY / TRAINING NOTE</div><div class="home-motif" aria-hidden="true">A<br>STRONGER<br>YOU<br>EVERYDAY<br><i></i></div></div><h1 class="home-title">训练首页。</h1><p class="home-intro">不是训练计划。选择今天的训练主题，<br>快速回看动作、最近表现与历史轨迹。</p>${fresh ? `<div class="home-meta freshness ${fresh.stale ? "stale" : ""}">${esc(fresh.text)}</div>` : ""}</header>`;
+  const candidateStable = state.noteDetailOpen || state.noteCandidatesLoading || state.noteCandidates.length || state.noteCandidatesCollapsed ? " reference-home--stable" : "";
+  return renderShell(`${pageStart(`reference-page reference-home ${palette}${candidateStable}`)}<div class="home-shell" data-home-state="${stateName}" data-theme-color="${colorKey}">${header}${note}<div data-candidate-region>${renderCandidateOverlay()}</div>${pills}${state.loading ? stateMessage("正在整理训练档案…") : state.error ? stateMessage(state.error, true) : archive}</div>${state.noteDetailOpen ? renderNoteDetail() : ""}${pageEnd()}`);
+}
+
+function renderThemeArchive(area) {
+  if (!area) return stateMessage("该训练主题暂时没有可显示的动作记录。");
+  const movements = [...(area.movements || [])].sort((a, b) => state.sortBy === "recent" ? String(b.latest?.date || "").localeCompare(String(a.latest?.date || "")) : Number(b.sessions || 0) - Number(a.sessions || 0));
+  const sessions = Array.isArray(area.sessions) ? area.sessions : [];
+  const sessionHistory = sessions.length ? `<div class="theme-session-list"><div class="eyebrow">SESSION HISTORY / ${sessions.length}</div>${sessions.map(item => `<div class="theme-session-row"><b>${esc(item.date)}</b><span>${esc(item.title || item.split || "训练主题")}</span><small>${item.related_count || 0} 个动作</small></div>`).join("")}</div>` : "";
+  return `<section class="theme-archive"><div class="archive-heading"><div><div class="eyebrow">MOVEMENTS / FREQUENCY</div><h2>动作与最近表现</h2></div><div class="archive-heading-actions"><strong>${movements.length}</strong><button class="archive-collapse" data-action="toggle-archive">收起</button></div></div><div class="sort-rail"><span>排序</span><button class="${state.sortBy === "frequency" ? "is-active" : ""}" data-sort="frequency">训练频率</button><button class="${state.sortBy === "recent" ? "is-active" : ""}" data-sort="recent">最近训练</button><button class="${state.sortBy === "session" ? "is-active" : ""}" data-sort="session">按训练日</button></div>${movements.length ? movements.map(renderMovementCard).join("") : stateMessage("该主题暂时没有动作历史。")}<details class="theme-session-secondary"><summary>相关训练 session（${sessions.length}）</summary>${sessionHistory}</details></section>`;
 }
 
 function renderMovementCard(item) {
   return `<button class="movement-card" data-action="movement" data-id="${esc(item.movement_id)}" data-part="${esc(state.route.params.get("part") || "")}"><div class="movement-head"><div>${item.pinned ? `<span class="focus-mark">★ FOCUS</span>` : ""}<div class="movement-name">${esc(item.display_name)}</div><div class="movement-en">${esc(item.english_name || "")}</div></div><span class="session-badge">${item.sessions || 0} 次</span></div>${item.latest ? `<div class="latest-set"><span>最近</span><span>${esc(item.latest.date)}${item.latest.order ? ` · 第 ${item.latest.order} 动作` : ""}</span></div><div class="set-summary">${esc(setSummary(item.latest))}</div>` : ""}<div class="compare-grid"><div class="compare-cell"><span>上一次</span><b>${esc(item.previous ? setSummary(item.previous) : "首次记录")}</b></div><div class="compare-cell"><span>历史最好</span><b>${item.best && metric(item.best, "max_weight") ? `${metric(item.best, "max_weight")} kg` : item.best && metric(item.best, "total_reps") ? `${metric(item.best, "total_reps")} reps` : "-"}</b></div></div>${item.latest?.notes ? `<div class="movement-note">${esc(item.latest.notes)}</div>` : ""}<div class="movement-action">查看完整轨迹 →</div></button>`;
 }
 function renderSessions(sessions, label) {
-  return `<section class="session-list"><div class="list-heading"><div><div class="eyebrow">TRAINING DAYS / RECENT</div><h2 class="section-title">相关训练日</h2></div><span class="count">${sessions.length}</span></div>${sessions.length ? sessions.map(item => `<button class="session-card" data-action="session" data-date="${esc(item.date)}" data-part="${esc(state.route.params.get("part") || "")}"><div class="session-card-head"><b>${esc(item.date)}</b><span>${esc(item.title || item.split || `${label}训练`)}</span></div><div class="session-meta"><span>${item.related_count || 0} 个相关动作</span><span>完整训练上下文</span></div><div class="chips">${(item.related_movements || []).slice(0, 4).map(name => `<span>${esc(name)}</span>`).join("")}</div><p>${esc(item.full_summary || item.movement_summary || "暂无完整动作摘要")}</p>${item.notes ? `<div class="session-note">${esc(item.notes)}</div>` : ""}<div class="movement-action">查看当日训练 →</div></button>`).join("") : stateMessage("该部位暂时没有相关训练日。")}</section>`;
+  return `<section class="session-list"><div class="list-heading"><div><div class="eyebrow">TRAINING SESSIONS / RECENT</div><h2 class="section-title">相关训练 session</h2></div><span class="count">${sessions.length}</span></div>${sessions.length ? sessions.map(item => `<button class="session-card" data-action="session" data-session-id="${esc(item.id || "")}" data-date="${esc(item.date)}" data-part="${esc(state.route.params.get("part") || "")}"><div class="session-card-head"><b>${esc(item.date)}</b><span>${esc((item.theme_names || [item.title || item.split || `${label}训练`]).join(" · "))}</span></div><div class="session-meta"><span>${item.related_count || 0} 个相关动作</span><span>独立 session</span></div><div class="chips">${(item.related_movements || []).slice(0, 4).map(name => `<span>${esc(name)}</span>`).join("")}</div><p>${esc(item.full_summary || item.movement_summary || "暂无完整动作摘要")}</p>${item.notes ? `<div class="session-note">${esc(item.notes)}</div>` : ""}<div class="movement-action">查看 session 详情 →</div></button>`).join("") : stateMessage("该部位暂时没有相关训练 session。")}</section>`;
 }
 
 function renderTraining() {
   const records = filterRecords(state.trainingRecords, state.query, state.order);
   const fresh = freshness(state.status);
-  return renderShell(`${pageStart("training-page")}<img class="archive-art" src="./images/training-archive.webp" alt="">${header("TRAINING ARCHIVE / DAILY", "训练记录。", "按日期回看当天训练主题与记录，需要细节时再展开。")}${fresh ? `<div class="freshness ${fresh.stale ? "stale" : ""}">${esc(fresh.text)}</div>` : ""}<div class="archive-tools"><input data-search placeholder="搜索日期，如 6-30 / 06.30" value="${esc(state.query)}"><button data-action="toggle-order">${state.order === "newest" ? "最新优先 ↓" : "最早优先 ↑"}</button></div>${state.loading ? stateMessage("正在读取训练档案…") : state.error ? stateMessage(state.error, true) : records.length ? `<section class="training-list">${records.map((item, index) => `<button class="training-slip slip-tone-${index % 3}" data-action="training-record" data-date="${esc(item.Date)}"><span class="training-index">${String(index + 1).padStart(2, "0")}</span><span class="slip-label">TRAINING NOTE</span><b class="training-date">${esc(item.Date)}</b><strong>${esc(item.Split || "未标注训练主题")}</strong><p>${esc(item["Standardized Summary"] || item.Summary || "暂无训练摘要")}</p>${item.Notes ? `<div class="training-note">${esc(item.Notes)}</div>` : ""}<span class="training-action">查看当日训练 →</span></button>`).join("")}</section>` : stateMessage("没有匹配的训练记录。")}${pageEnd()}`);
+  const groups = [];
+  records.forEach(item => {
+    const dateValue = date(item.Date || item.date);
+    let group = groups.find(candidate => candidate.date === dateValue);
+    if (!group) { group = { date: dateValue, items: [] }; groups.push(group); }
+    group.items.push(item);
+  });
+  const cards = groups.map((group, groupIndex) => `<section class="training-date-group"><div class="training-date-heading"><span class="eyebrow">DATE GROUP</span><b>${esc(group.date)}</b>${group.items.length > 1 ? `<span>${group.items.length} sessions</span>` : ""}</div>${group.items.map((item, index) => {
+    const themes = sessionThemeNames(item);
+    const movementCount = Array.isArray(item.movement_items) ? item.movement_items.length : Number(item.movement_count || 0);
+    const sessionLabel = group.items.length > 1 ? `第 ${index + 1} 次训练` : "独立 session";
+    return `<button class="training-slip session-record-card slip-tone-${(groupIndex + index) % 3}" data-action="training-session" data-session-id="${esc(item.id || "")}" data-date="${esc(item.Date || item.date || "")}"><span class="training-index">${String(groupIndex + index + 1).padStart(2, "0")}</span><span class="slip-label">${esc(sessionLabel)}</span><b class="training-date">${esc(item.Date || item.date || "")}</b><div class="training-theme-chips">${themes.map(theme => `<span>${esc(theme)}</span>`).join("")}</div><strong>${esc(themes.join(" · "))}</strong><div class="session-card-facts"><span>${movementCount} 个动作</span><span>${esc(sessionLabel)}</span></div><p>${esc(item["Standardized Summary"] || item.Summary || "暂无训练摘要")}</p>${item.Notes ? `<div class="training-note">${esc(item.Notes)}</div>` : ""}<span class="training-action">查看 session 详情 →</span></button>`;
+  }).join("")}</section>`).join("");
+  return renderShell(`${pageStart("training-page")}<img class="archive-art" src="./images/training-archive.webp" alt="">${header("TRAINING ARCHIVE / SESSIONS", "训练记录。", "日期只用于分组；每张卡片对应一个独立 training session。")}${fresh ? `<div class="freshness ${fresh.stale ? "stale" : ""}">${esc(fresh.text)}</div>` : ""}<div class="archive-tools"><input data-search placeholder="搜索日期，如 6-30 / 06.30" value="${esc(state.query)}"><button data-action="toggle-order">${state.order === "newest" ? "最新优先 ↓" : "最早优先 ↑"}</button></div>${state.loading ? stateMessage("正在读取训练档案…") : state.error ? stateMessage(state.error, true) : records.length ? `<section class="training-list">${cards}</section>` : stateMessage("没有匹配的训练记录。")}${pageEnd()}`);
 }
 function filterRecords(records, query, order) { const needle = String(query || "").trim().replace(/[./]/g, "-"); return [...records].filter(item => !needle || String(item.Date || "").includes(needle)).sort((a, b) => (order === "oldest" ? 1 : -1) * String(a.Date || "").localeCompare(String(b.Date || ""))); }
 
@@ -503,13 +567,20 @@ function renderArchive(kind) {
 }
 
 function renderRecord() {
-  const mode = state.route.params.get("mode") === "training"; const dateValue = state.route.params.get("date") || state.record?.date || "";
+  const mode = state.route.params.get("mode") === "training"; const dateValue = state.route.params.get("date") || state.record?.date || state.trainingDay?.date || "";
   if (mode) {
     const session = state.trainingDay?.session; const movements = state.trainingDay?.movements || [];
-    return `${pageStart("record-page")}${header("TRAINING DAY / READ ONLY", dateValue || "训练日详情")}${state.loading ? stateMessage("读取中…") : state.error ? stateMessage(state.error, true) : !session ? stateMessage("该日期暂无训练明细。") : `<section class="record-section training-session-only"><div class="eyebrow">TRAINING SESSION</div><h2>${esc(session.split || "训练记录")}</h2>${session.summary ? `<p>${esc(session.summary)}</p>` : ""}${movements.length ? movements.map((item, index) => `<button class="training-action-card" data-action="movement" data-id="${esc(item.movement_id)}"><span>第 ${item.order || index + 1} 个动作</span><strong>${esc(item.movement_name || item.display_name || item.movement_id)}</strong><b>轨迹 →</b><small>${esc((item.sets || []).map(setLine).join(" · ") || "没有组数记录")}</small>${item.notes ? `<em>${esc(item.notes)}</em>` : ""}</button>`).join("") : stateMessage("该训练日暂无动作明细。")} ${session.notes ? `<div class="session-notes"><span>训练总备注</span>${esc(session.notes)}</div>` : ""}</section>`}${pageEnd()}`;
+    const themeNames = Array.isArray(session?.theme_names) && session.theme_names.length ? session.theme_names : ["未设置主题"];
+    const movementMarkup = movements.length ? movements.map((item, index) => {
+      const order = item.order_in_session || item.order || index + 1;
+      const name = item.movement_name || item.display_name || item.movement_id || "未命名动作";
+      const content = `<span class="movement-order">第 ${esc(order)} 个动作</span><strong>${esc(name)}</strong>${item.english_name ? `<small class="movement-english">${esc(item.english_name)}</small>` : ""}<div class="movement-summary-block"><span class="eyebrow">MOVEMENT SUMMARY / 本次摘要</span><p>${esc(item.summary || setSummary(item))}</p></div>${item.notes ? `<div class="movement-notes-block"><span class="eyebrow">NOTES / 动作备注</span><p>${esc(item.notes)}</p></div>` : ""}${item.movement_id ? `<span class="training-action">查看动作轨迹 →</span>` : `<span class="training-action muted">自定义动作记录</span>`}`;
+      return item.movement_id ? `<button class="training-action-card session-movement-card" data-action="movement" data-id="${esc(item.movement_id)}">${content}</button>` : `<article class="training-action-card session-movement-card">${content}</article>`;
+    }).join("") : stateMessage("该 session 暂无动作明细。");
+    return `${pageStart("record-page")}${header("SESSION / READ ONLY", dateValue || "训练 session 详情")}${state.loading ? stateMessage("读取中…") : state.error ? stateMessage(state.error, true) : !session ? stateMessage("没有找到这个 training session。") : `<section class="record-section training-session-only"><div class="session-context-head"><div><div class="eyebrow">TRAINING SESSION</div><h2>${esc(dateValue)} · 第 ${esc(session.session_sequence || 1)} 次</h2></div><span class="session-count">${movements.length} 个动作</span></div><div class="session-theme-summary"><span class="eyebrow">SESSION THEME / 训练主题</span><div class="chips">${themeNames.map(theme => `<span>${esc(theme)}</span>`).join("")}</div></div>${session.summary ? `<div class="session-summary"><span class="eyebrow">SESSION SUMMARY / 训练摘要</span><p>${esc(session.summary)}</p></div>` : ""}${movementMarkup}${session.notes ? `<div class="session-notes"><span class="eyebrow">SESSION NOTES / 训练备注</span><p>${esc(session.notes)}</p></div>` : ""}</section>`}${pageEnd()}`;
   }
   const detail = state.record;
-  return `${pageStart("record-page")}${header("DAILY ARCHIVE / READ ONLY", dateValue || "记录详情")}${state.loading ? stateMessage("读取中…") : state.error ? stateMessage(state.error, true) : !detail ? stateMessage("该日期没有记录。") : `${(detail.body || []).map(item => `<section class="record-section body-section"><div class="record-head"><div><div class="eyebrow">BODY</div><h2>身体与当天状态</h2></div><button data-action="toggle" data-key="body">${state.expanded.body ? "收起" : "展开"}</button></div><div class="signal-grid"><span>WEIGHT<strong>${esc(item["Weight (kg)"] || "-")}kg</strong></span><span>BOWEL<strong>${esc(item["Bowel Movement"] || "-")}</strong></span></div><div class="row"><span>训练</span><b>${esc(item.Training || "未记录")}</b></div><div class="row"><span>有氧</span><b>${esc(item.Cardio || "未记录")}</b></div>${state.expanded.body ? `<p class="detail-text">${esc(item.Notes || "没有身体备注")}</p>` : ""}</section>`).join("")}${(detail.diet || []).map(item => `<section class="record-section diet-section"><div class="record-head"><div><div class="eyebrow">NUTRITION</div><h2>饮食</h2></div><button data-action="toggle" data-key="diet">${state.expanded.diet ? "收起" : "展开"}</button></div><div class="macro-line"><strong>${esc(item["Calories (kcal)"] || "-")} kcal</strong><span>P ${esc(item["Protein (g)"] || "-")} · C ${esc(item["Carbs (g)"] || "-")} · F ${esc(item["Fat (g)"] || "-")}</span></div><p class="detail-text ${state.expanded.diet ? "" : "clamp-3"}">${esc(item["Food Summary"] || "没有饮食摘要")}</p></section>`).join("")}${(detail.training || []).map(item => `<section class="record-section training-section"><div class="record-head"><div><div class="eyebrow">TRAINING</div><h2>${esc(item.Split || "训练记录")}</h2></div><button data-action="toggle" data-key="training">${state.expanded.training ? "收起" : "展开"}</button></div><p class="detail-text ${state.expanded.training ? "" : "clamp-3"}">${esc(item["Standardized Summary"] || "没有动作摘要")}</p>${state.expanded.training && item.Notes ? `<div class="training-note">${esc(item.Notes)}</div>` : ""}</section>`).join("")}`}${pageEnd()}`;
+  return `${pageStart("record-page")}${header("DAILY ARCHIVE / READ ONLY", dateValue || "记录详情")}${state.loading ? stateMessage("读取中…") : state.error ? stateMessage(state.error, true) : !detail ? stateMessage("该日期没有记录。") : `${(detail.body || []).map(item => `<section class="record-section body-section"><div class="record-head"><div><div class="eyebrow">BODY</div><h2>身体与当天状态</h2></div><button data-action="toggle" data-key="body">${state.expanded.body ? "收起" : "展开"}</button></div><div class="signal-grid"><span>WEIGHT<strong>${esc(item["Weight (kg)"] || "-")}kg</strong></span><span>BOWEL<strong>${esc(item["Bowel Movement"] || "-")}</strong></span></div><div class="row"><span>训练</span><b>${esc(item.Training || "未记录")}</b></div><div class="row"><span>有氧</span><b>${esc(item.Cardio || "未记录")}</b></div>${state.expanded.body ? `<p class="detail-text">${esc(item.Notes || "没有身体备注")}</p>` : ""}</section>`).join("")}${(detail.diet || []).map(item => `<section class="record-section diet-section"><div class="record-head"><div><div class="eyebrow">NUTRITION</div><h2>饮食</h2></div><button data-action="toggle" data-key="diet">${state.expanded.diet ? "收起" : "展开"}</button></div><div class="macro-line"><strong>${esc(item["Calories (kcal)"] || "-")} kcal</strong><span>P ${esc(item["Protein (g)"] || "-")} · C ${esc(item["Carbs (g)"] || "-")} · F ${esc(item["Fat (g)"] || "-")}</span></div><p class="detail-text ${state.expanded.diet ? "" : "clamp-3"}">${esc(item["Food Summary"] || "没有饮食摘要")}</p></section>`).join("")}${(detail.training || []).map(item => { const summary = item.standardized_summary || item["Standardized Summary"] || (Array.isArray(item.movements) ? item.movements.map(movement => movement.display_name || movement.movement_id).filter(Boolean).join("；") : "") || "没有动作摘要"; const split = item.split || item.Split || "训练记录"; const notes = item.notes || item.Notes || ""; return `<section class="record-section training-section"><div class="record-head"><div><div class="eyebrow">TRAINING</div><h2>${esc(split)}</h2></div><button data-action="toggle" data-key="training">${state.expanded.training ? "收起" : "展开"}</button></div><p class="detail-text ${state.expanded.training ? "" : "clamp-3"}">${esc(summary)}</p>${state.expanded.training && notes ? `<div class="training-note">${esc(notes)}</div>` : ""}</section>`; }).join("")}`}${pageEnd()}`;
 }
 
 function renderMovement() {
@@ -584,6 +655,10 @@ function render() {
   const content = name === "reference" ? renderReference() : name === "training" ? renderTraining() : name === "status" ? renderStatus() : name === "body" ? renderArchive("body") : name === "diet" ? renderArchive("diet") : name === "record" ? renderRecord() : name === "movement" ? renderMovement() : renderReference();
   const copyFeedback = state.noteCopyStatus ? `<div class="copy-feedback-toast" role="status" aria-live="polite">✓ ${esc(state.noteCopyStatus)}</div>` : "";
   app.innerHTML = `${content}${renderBackControl()}${copyFeedback}${renderSharePanel()}`;
+  // A full render is triggered when the formal movement-history detail opens.
+  // Re-apply the anchored candidate position after that DOM replacement so it
+  // cannot fall back to the legacy top position.
+  positionCandidateOverlay();
   const shareDialog = document.querySelector("#share-confirm-dialog");
   if (shareDialog && !shareDialog.open) shareDialog.showModal();
   enhanceDataModuleSurface();
@@ -599,6 +674,34 @@ function render() {
   scheduleDockCheck();
 }
 
+async function selectSessionTheme(themeId) {
+  const id = String(themeId || "").trim();
+  if (!id) return;
+  if (String(state.selectedThemeId || "") === id) {
+    state.selectedThemeId = null;
+    state.archiveExpanded = false;
+    state.themeArea = null;
+    state.loading = false;
+    state.error = "";
+    resetViewport();
+    render();
+    return;
+  }
+  state.selectedThemeId = id;
+  state.archiveExpanded = false;
+  state.themeArea = null;
+  state.loading = true;
+  state.error = "";
+  render();
+  try {
+    state.themeArea = await call("sessionThemeArea", { themeId: id });
+  } catch (error) {
+    setError(error);
+  }
+  state.loading = false;
+  render();
+}
+
 async function loadRoute() {
   const requestId = ++routeRequest;
   resetViewport();
@@ -607,22 +710,19 @@ async function loadRoute() {
   try {
     const name = state.route.name; const part = state.route.params.get("part");
     if (name === "reference") {
-      if (part) {
-        const [areaResult, recordsResult] = await Promise.allSettled([call("bodyArea", { part }), call("trainingRecords")]);
-        if (areaResult.status === "rejected") throw areaResult.reason;
-        const records = recordsResult.status === "fulfilled" && Array.isArray(recordsResult.value) ? recordsResult.value : [];
-        state.area = { ...areaResult.value, sessions: (areaResult.value.sessions || []).map(item => ({ ...item, full_summary: records.find(record => date(record.Date) === date(item.date))?.["Standardized Summary"] || item.full_summary })) };
-      } else {
-        const [areasResult, statusResult] = await Promise.allSettled([call("bodyAreas"), call("status")]);
-        if (areasResult.status === "rejected") throw areasResult.reason;
-        state.areas = areasResult.value;
-        state.status = statusResult.status === "fulfilled" ? statusResult.value : null;
-      }
+      const [organizationResult, statusResult] = await Promise.allSettled([call("trainingOrganization"), call("status")]);
+      if (organizationResult.status === "rejected") throw organizationResult.reason;
+      state.organization = organizationResult.value || null;
+      state.selectedThemeId = null;
+      state.archiveExpanded = false;
+      state.themeArea = null;
+      state.status = statusResult.status === "fulfilled" ? statusResult.value : null;
     } else if (name === "training") {
-      const [trainingResult, statusResult] = await Promise.allSettled([call("trainingRecords"), call("status")]);
+      const [trainingResult, statusResult, organizationResult] = await Promise.allSettled([call("trainingRecords"), call("status"), call("trainingOrganization")]);
       if (trainingResult.status === "rejected") throw trainingResult.reason;
       state.trainingRecords = Array.isArray(trainingResult.value) ? trainingResult.value : [];
       state.status = statusResult.status === "fulfilled" ? statusResult.value : null;
+      state.organization = organizationResult.status === "fulfilled" ? organizationResult.value : state.organization;
     }
     else if (name === "status") {
       const [statusResult, identityResult] = await Promise.allSettled([call("status"), call("whoami")]);
@@ -632,7 +732,7 @@ async function loadRoute() {
     }
     else if (name === "body") state.bodyRecords = await call("bodyRecords", { limit: 30 });
     else if (name === "diet") state.dietRecords = await call("dietRecords", { limit: 30 });
-    else if (name === "record") { const params = Object.fromEntries(state.route.params.entries()); if (params.mode === "training") state.trainingDay = await call("trainingDayDetail", { date: params.date }); else state.record = await call("recordDetail", { date: params.date }); }
+    else if (name === "record") { const params = Object.fromEntries(state.route.params.entries()); if (params.mode === "training") state.trainingDay = await call("trainingDayDetail", { sessionId: params.sessionId || "", date: params.date || "" }); else state.record = await call("recordDetail", { date: params.date }); }
     else if (name === "movement") {
       const [movementResult, historyResult] = await Promise.allSettled([call("movement", { movementId: state.route.params.get("id") }), call("movementHistory", { movementId: state.route.params.get("id"), limit: 20 })]);
       if (movementResult.status === "rejected") throw movementResult.reason;
@@ -760,11 +860,12 @@ document.addEventListener("click", event => {
   if (route) { state.query = ""; state.order = "newest"; navigate(route); return; }
   const sort = event.target.closest("[data-sort]")?.dataset.sort; if (sort) { state.sortBy = sort; render(); return; }
   const action = event.target.closest("[data-action]")?.dataset.action; if (!action) return;
+  if (action === "select-theme") { void selectSessionTheme(event.target.closest("[data-theme-id]")?.dataset.themeId); return; }
+  if (action === "toggle-archive") { if (state.selectedThemeId) { state.archiveExpanded = !state.archiveExpanded; resetViewport(); render(); } return; }
   if (action === "toggle-order") { state.order = state.order === "newest" ? "oldest" : "newest"; render(); }
-  if (action === "toggle-note") { state.noteOpen = !state.noteOpen; render(); }
   if (action === "expand-note") { state.noteExpanded = true; state.shareDraft = state.note; state.shareTitle = "手机训练记录"; state.shareSent = false; state.shareError = ""; state.shareNotice = ""; state.shareOpen = true; render(); }
   if (action === "toggle-dock") { state.dockOpen = !state.dockOpen; render(); }
-  if (action === "toggle-candidates") { state.noteCandidatesCollapsed = !state.noteCandidatesCollapsed; refreshCandidateOverlay(); }
+  if (action === "toggle-candidates") { if (state.noteCandidatesCollapsed) { state.noteCandidatesCollapsed = false; refreshCandidateOverlay(); } else { state.noteCandidatesCollapsed = true; refreshCandidateOverlay(true); } }
   if (action === "copy-note") { void copyNoteToClipboard(); }
   if (action === "send-training-note") { void sendTrainingNote(); }
   if (action === "close-share-panel") { state.shareOpen = false; state.shareBusy = false; state.shareSent = false; state.noteExpanded = false; state.shareError = ""; state.shareNotice = ""; render(); }
@@ -772,7 +873,7 @@ document.addEventListener("click", event => {
   if (action === "aliases") { state.showAliases = !state.showAliases; render(); }
   if (action === "candidate") { const candidate = event.target.closest("[data-id]"); if (candidate) openNoteCandidate(candidate.dataset.id); }
   if (action === "movement") { navigate(`movement?id=${encodeURIComponent(event.target.closest("[data-id]").dataset.id)}&part=${encodeURIComponent(event.target.closest("[data-part]")?.dataset.part || state.route.params.get("part") || "")}`); }
-  if (action === "session") { navigate(`record?mode=training&date=${encodeURIComponent(event.target.closest("[data-date]").dataset.date)}&part=${encodeURIComponent(event.target.closest("[data-part]")?.dataset.part || "")}`); }
+  if (action === "session" || action === "training-session") { const target = event.target.closest("[data-date]"); const sessionId = target?.dataset.sessionId || ""; const dateValue = target?.dataset.date || ""; navigate(`record?mode=training&sessionId=${encodeURIComponent(sessionId)}&date=${encodeURIComponent(dateValue)}&from=${encodeURIComponent(state.route.name)}&part=${encodeURIComponent(event.target.closest("[data-part]")?.dataset.part || "")}`); }
   if (action === "training-record" || action === "archive-record") { navigate(`record?date=${encodeURIComponent(event.target.closest("[data-date]").dataset.date)}&from=${encodeURIComponent(state.route.name)}`); }
   if (action === "module-record") { navigate(`record?date=${encodeURIComponent(event.target.closest("[data-date]").dataset.date)}&from=${encodeURIComponent(state.route.name === "reference" ? "reference" : state.route.name)}`); }
   if (action === "route-back") { navigate(backRoute()); }
@@ -782,7 +883,7 @@ document.addEventListener("click", event => {
 });
 window.addEventListener("scroll", scheduleDockCheck, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260905-01", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260910-04", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

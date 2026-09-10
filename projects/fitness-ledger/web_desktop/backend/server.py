@@ -1508,6 +1508,8 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.update_session_theme(request))
             elif parsed.path == "/api/training-organization/themes":
                 self.send_json(self.service.update_session_themes(request))
+            elif parsed.path == "/api/training-organization/movement-categories":
+                self.send_json(self.service.commands.update_movement_categories(request.get("categories", [])))
             elif parsed.path == "/api/training-organization/theme-active":
                 self.send_json(self.service.set_session_theme_active(request))
             elif parsed.path == "/api/undo":

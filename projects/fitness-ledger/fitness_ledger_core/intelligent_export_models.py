@@ -20,8 +20,8 @@ INTENT_SCHEMA_VERSION = "fitness-ledger-intelligent-export-intent-v2"
 SEMANTIC_HINTS_SCHEMA_VERSION = "fitness-ledger-semantic-hints-v1"
 SELECTION_SCHEMA_VERSION = "fitness-ledger-intelligent-export-v1.1"
 PLANNER_CONFIDENCE_THRESHOLD = 0.5
-BODY_PART_IDS = ("CHEST", "BACK", "SHOULDER", "ARMS", "CORE", "LEGS")
-BodyPartId = Literal["CHEST", "BACK", "SHOULDER", "ARMS", "CORE", "LEGS"]
+BODY_PART_IDS = ("CHEST", "BACK", "SHOULDER", "ARMS", "CORE", "LEGS", "GLUTES", "CARDIO")
+BodyPartId = Literal["CHEST", "BACK", "SHOULDER", "ARMS", "CORE", "LEGS", "GLUTES", "CARDIO"]
 INTENT_DIMENSIONS = (
     "body_state",
     "diet_macros",

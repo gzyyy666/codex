@@ -70,20 +70,17 @@ def fake_views() -> FakeViews:
         ]
     }
     tracker = {
-        "movements": {
-            "back": {
-                "movement_id": "BACK_009",
-                "history": [{"id": "h1", "date": "2026-07-31", "sets": []}],
-            },
-            "shoulder": {
-                "movement_id": "SHOULDER_003",
-                "history": [{"id": "h2", "date": "2026-07-31", "sets": []}],
-            },
-            "chest": {
-                "movement_id": "CHEST_010",
-                "history": [{"id": "h3", "date": "2026-07-31", "sets": []}],
-            },
-        }
+        "training_sessions": [
+            {
+                "id": "session-2026-07-31",
+                "Date": "2026-07-31",
+                "movement_items": [
+                    {"movement_id": "BACK_009", "date": "2026-07-31", "order": 1, "sets": []},
+                    {"movement_id": "SHOULDER_003", "date": "2026-07-31", "order": 2, "sets": []},
+                    {"movement_id": "CHEST_010", "date": "2026-07-31", "order": 3, "sets": []},
+                ],
+            }
+        ]
     }
     return FakeViews(tracker, dictionary, ["背部", "胸部", "肩部"])
 

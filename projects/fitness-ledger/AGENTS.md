@@ -63,6 +63,10 @@ Return the handoff path and full Commit SHA. In Development / review mode, do no
 
 ## Closure levels
 
+For the complete, executable sealing checklist—including formal fingerprints,
+PWA/parallel-Worktree comparison, rollback, tagging, and final reporting—read
+`docs/maintenance/CODEX_RELEASE_CLOSEOUT.md` before any Seal / finalise action.
+
 Every task conversation must identify its closure level from the user's wording:
 
 - **Development / review**: work only in the task Worktree; run the relevant tests and leave a clean, reviewable task commit or an explicit uncommitted diff. Do not merge, Push, create Tags, or write to the formal directory.

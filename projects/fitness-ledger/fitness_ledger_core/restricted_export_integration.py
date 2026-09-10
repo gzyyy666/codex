@@ -41,6 +41,12 @@ _BODY_PART_USER_ALIASES = {
     "腿": "LEGS",
     "腿部": "LEGS",
     "腿部训练": "LEGS",
+    "臀": "GLUTES",
+    "臀部": "GLUTES",
+    "臀部训练": "GLUTES",
+    "有氧": "CARDIO",
+    "有氧训练": "CARDIO",
+    "心肺": "CARDIO",
 }
 
 

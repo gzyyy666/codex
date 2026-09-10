@@ -2353,6 +2353,19 @@ table{border-collapse:collapse}thead{background:rgba(18,17,15,.035)}th{font-size
 .movement-group .movement-tile{backdrop-filter:blur(1.5px)}
 .movement-group.group-core .movement-tile{background:rgba(255,255,255,.14)}
 .movement-group.group-core .movement-tile.tile-lead{background:rgba(255,215,67,.86);color:var(--ink)}
+.dictionary-hero-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+.movement-group .movement-tile{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(255,253,247,.78)}
+.movement-group .movement-tile.tile-slip{flex:1 1 170px;min-height:108px}
+.movement-group .movement-tile.tile-wide{flex-basis:210px;min-height:122px}
+.movement-group .movement-tile.tile-lead{flex-basis:300px;min-height:190px}
+.movement-group.group-cardio .movement-tile.tile-lead,.movement-group.group-glutes .movement-tile.tile-lead{background:rgba(255,225,105,.92);color:var(--ink)}
+.movement-group.group-cardio .movement-group-art,.movement-group.group-glutes .movement-group-art{opacity:.25}
+.movement-group.is-empty{min-height:74px;padding-top:22px;padding-bottom:18px;opacity:.82}
+.movement-group.is-empty .movement-group-art{height:100%;opacity:.12}
+.movement-group.is-empty>header{margin-bottom:7px!important}
+.movement-group.is-empty .movement-mosaic{min-height:24px}
+.movement-empty-signal{display:flex;align-items:center;gap:10px;min-height:24px;padding:5px 9px;border:1px dashed currentColor;border-radius:999px;opacity:.62;font-size:10px;letter-spacing:.04em}
+.movement-empty-signal strong{font-size:10px;white-space:nowrap}.movement-empty-signal span{opacity:.72}
 .movement-definition-note{display:block;margin:9px 0 0;color:rgba(255,250,242,.78);font-size:11px;line-height:1.45;text-align:left}.movement-tile.tile-lead .movement-definition-note{color:rgba(38,28,10,.72)}.movement-definition-note-detail{margin-top:10px;color:var(--muted,#6b7169);font-size:13px}.movement-definition-note-detail b{display:block;margin-bottom:3px;color:var(--ink,#252923);font-size:10px;letter-spacing:.08em;text-transform:uppercase}
 .movement-definition-edit{display:inline-flex;align-items:center;gap:5px;margin-top:12px;padding:5px 9px;border:1px solid rgba(24,21,16,.2);border-radius:999px;background:rgba(255,253,247,.72);color:var(--ink);font-size:10px;line-height:1;transition:transform .16s ease,box-shadow .16s ease,background .16s ease}.movement-definition-edit:hover{transform:translateY(-2px);background:#fffdf7;box-shadow:0 7px 16px rgba(35,29,18,.1)}.movement-definition-edit:active{transform:translateY(0);box-shadow:inset 0 2px 4px rgba(35,29,18,.12)}
 

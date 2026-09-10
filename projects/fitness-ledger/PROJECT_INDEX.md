@@ -65,6 +65,10 @@
 
 - `web_desktop/frontend/assets/session-theme-card-marker-v1.png`: Retained first-generation Session Theme card marker for review history.
 - `web_desktop/frontend/assets/session-theme-card-marker-v2.png`: Current neutral Session Theme card marker used by the Web review surface.
+- `web_desktop/frontend/assets/body-themes-v2/glutes.png`: Glutes Movement Progress background.
+- `web_desktop/frontend/assets/body-themes-v2/cardio.png`: Cardio Movement Progress background.
+- `mobile_viewer/pwa/images/themes-v2/glutes.webp`: Glutes PWA theme asset.
+- `mobile_viewer/pwa/images/themes-v2/cardio.webp`: Cardio PWA theme asset.
 
 - `FITNESS_LEDGER_MAINTENANCE.md`: safety rules and validation commands.
 - `docs/design/STYLE_BIBLE.md`: current Web visual and interaction authority.

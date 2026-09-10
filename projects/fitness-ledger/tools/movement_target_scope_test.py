@@ -22,7 +22,7 @@ from intelligent_export_core_test import fixture, intent
 
 
 def main() -> None:
-    assert [body_part_id_for_muscle_group(value) for value in ("Chest", "Back", "Shoulder", "Arms", "Core", "Legs")] == ["CHEST", "BACK", "SHOULDER", "ARMS", "CORE", "LEGS"]
+    assert [body_part_id_for_muscle_group(value) for value in ("Chest", "Back", "Shoulder", "Arms", "Core", "Legs", "Glutes", "Cardio")] == ["CHEST", "BACK", "SHOULDER", "ARMS", "CORE", "LEGS", "GLUTES", "CARDIO"]
     assert body_part_id_for_muscle_group("unknown") is None
 
     valid = IntentSpec.from_dict(intent())

@@ -11,6 +11,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from fitness_ledger_core.record_relations import migrate_state
 from fitness_ledger_core.training_organization import organization_catalog
+from fitness_ledger_core.movement_target_scope import body_part_id_for_muscle_group
 
 
 def run() -> None:
@@ -73,6 +74,10 @@ def run() -> None:
     assert all(not item["artwork_key"] and item["color_key"] for item in catalog["session_themes"])
     categories = {item["category_id"]: item for item in catalog["movement_categories"]}
     assert set(categories) >= {"chest", "shoulders", "back", "legs", "glutes", "arms", "core", "cardio"}
+    assert categories["glutes"]["active"] is False
+    assert categories["cardio"]["active"] is False
+    assert body_part_id_for_muscle_group("Glutes") == "GLUTES"
+    assert body_part_id_for_muscle_group("Cardio") == "CARDIO"
 
     # A session without a theme remains valid and does not invent a generic
     # catalog entry that the user did not configure.

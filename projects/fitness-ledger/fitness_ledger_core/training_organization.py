@@ -279,6 +279,7 @@ def normalize_training_organization(database: dict, dictionary: dict) -> tuple[d
         "session_themes": themes,
         "session_theme_catalog_locked": catalog_locked,
         "movement_categories": categories,
+        "movement_category_preferences_initialized": True,
     }
     if database.get("training_organization") != normalized:
         database["training_organization"] = normalized

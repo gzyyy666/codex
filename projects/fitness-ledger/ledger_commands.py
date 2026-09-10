@@ -1842,6 +1842,34 @@ class LedgerCommandService:
         database, dictionary = self.load_state()
         return organization_catalog(database, dictionary)
 
+    def update_movement_categories(self, values: list[dict]) -> dict:
+        """Atomically update Movement Progress category visibility and order."""
+        if not isinstance(values, list):
+            raise LedgerCommandError("Movement category updates must be a list.", "CATEGORY_BATCH_INVALID")
+        with self.write_lock():
+            database, dictionary = self.load_state()
+            current = {str(item.get("category_id")): item for item in database["training_organization"]["movement_categories"]}
+            changed = False
+            for item in values:
+                category_id = str(item.get("category_id", "")).strip()
+                if category_id not in current:
+                    raise LedgerCommandError("Movement category was not found.", "CATEGORY_NOT_FOUND")
+                category = current[category_id]
+                for key in ("active", "pinned"):
+                    if key in item and bool(category.get(key, False if key == "pinned" else True)) != bool(item[key]):
+                        category[key] = bool(item[key])
+                        changed = True
+                if item.get("sort_order") is not None:
+                    order = int(item["sort_order"])
+                    if int(category.get("sort_order", 0) or 0) != order:
+                        category["sort_order"] = order
+                        changed = True
+            if not changed:
+                return {"status": "NO_CHANGES", "organization": organization_catalog(database, dictionary)}
+            tracker_backup, dictionary_backup = self._checkpoint()
+            self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
+            return {"status": "UPDATED", "organization": organization_catalog(database, dictionary)}
+
     def _apply_session_theme_update(self, database: dict, values: dict) -> tuple[dict, bool]:
         """Apply one Theme edit to an in-memory database without writing it."""
         if not isinstance(values, dict):
@@ -2852,20 +2880,9 @@ class LedgerCommandService:
         body = parsed.setdefault("body", {})
         source_movements = training.setdefault("movements", [])
         movements = []
-        cardio_lines = []
-        cardio_names = {"cardio", "有氧", "treadmill", "跑步机", "walk", "步行"}
         for movement in source_movements:
-            name = str(movement.get("name", "")).strip().casefold()
-            is_cardio = name in cardio_names or (bool(movement.get("cardio")) and not (movement.get("sets") or []))
-            if is_cardio:
-                raw = str(movement.get("raw", "")).strip()
-                if raw:
-                    cardio_lines.append(raw)
-                continue
             movements.append(movement)
         training["movements"] = movements
-        if cardio_lines and not str(body.get("cardio_summary", "") or "").strip():
-            body["cardio_summary"] = "; ".join(cardio_lines)
         summary = "；".join(
             f"第{movement.get('order')}个动作：{movement.get('display_name') or movement.get('name', '')}"
             for movement in movements

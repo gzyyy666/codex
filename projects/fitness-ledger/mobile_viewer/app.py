@@ -9,6 +9,7 @@ from flask import Flask, abort, jsonify, render_template, request, send_from_dir
 
 from fitness_ledger_core.data_module_engine import DataModuleDefinitionStore, DataModuleEngine
 from fitness_ledger_core.record_relations import movement_items
+from fitness_ledger_core.training_organization import normalize_training_organization
 
 from .data_access import BASE_DIR, LedgerDataAccess, format_set_line
 
@@ -21,7 +22,16 @@ PWA_BODY_PARTS = {
     "back": {"label": "背", "labelEn": "BACK", "tone": "teal", "groups": ("back", "背")},
     "legs": {"label": "腿", "labelEn": "LEGS", "tone": "violet", "groups": ("leg", "lower", "hip", "腿", "臀")},
     "arms": {"label": "手臂", "labelEn": "ARMS", "tone": "cyan", "groups": ("arm", "biceps", "triceps", "手臂")},
+    "glutes": {"label": "臀", "labelEn": "GLUTES", "tone": "rose", "groups": ("glute", "臀")},
+    "core": {"label": "核心", "labelEn": "CORE", "tone": "amber", "groups": ("core", "腹", "核心")},
+    "cardio": {"label": "有氧", "labelEn": "CARDIO", "tone": "blue", "groups": ("cardio", "aerobic", "有氧")},
 }
+
+
+def _pwa_training_organization(data_access: LedgerDataAccess) -> dict:
+    normalized, _ = normalize_training_organization(data_access._tracker(), data_access._cache.get("dictionary", {}) if data_access._cache else {})
+    organization = normalized.get("training_organization", {})
+    return {"session_themes": [item for item in organization.get("session_themes", []) if item.get("active", True)], "movement_categories": [item for item in organization.get("movement_categories", []) if item.get("active", True)]}
 
 
 def _empty_data_module_contract() -> dict:
@@ -69,6 +79,77 @@ def _pwa_data_module_contract(data_access: LedgerDataAccess, configured: Path | 
 
 def _pwa_set_summary(sets: list[dict]) -> str:
     return " · ".join(format_set_line(item) for item in sets or [])
+
+
+def _pwa_session_theme_names(record: dict, organization: dict) -> list[str]:
+    """Resolve only persisted session-theme ids/names; never infer from Split."""
+    themes = organization.get("session_themes", []) if organization else []
+    by_id = {str(item.get("theme_id")): str(item.get("display_name") or item.get("theme_id") or "") for item in themes}
+    ids = [str(record.get("session_theme_id") or "").strip()]
+    ids.extend(str(value).strip() for value in (record.get("session_theme_ids") or []))
+    names: list[str] = []
+    for theme_id in ids:
+        if theme_id and theme_id in by_id and by_id[theme_id] not in names:
+            names.append(by_id[theme_id])
+    persisted_name = str(record.get("session_theme_name") or "").strip()
+    if persisted_name and persisted_name not in names:
+        names.append(persisted_name)
+    return names
+
+
+def _pwa_training_session_detail(data_access: LedgerDataAccess, session_id: str, entry_date: str = "") -> dict:
+    """Return one persisted training session, preserving same-day siblings."""
+    tracker = data_access._tracker()
+    sessions = tracker.get("training_sessions", []) or []
+    requested_id = str(session_id or "").strip()
+    session = next((item for item in sessions if str(item.get("id") or "") == requested_id), None)
+    if session is None and not requested_id:
+        # Compatibility for old shared links only. The PWA list never uses this path.
+        session = next((item for item in sessions if str(item.get("Date") or "")[:10] == str(entry_date or "")[:10]), None)
+    if session is None:
+        return {"date": str(entry_date or "")[:10], "session": None, "movements": []}
+
+    organization = _pwa_training_organization(data_access)
+    catalog = {item["movement_id"]: item for item in _pwa_movement_catalog(data_access)}
+    raw_items = list(session.get("movement_items", []) or [])
+    raw_items.sort(key=lambda item: (int(item.get("order_in_session") or item.get("order") or 9999), str(item.get("movement_item_id") or item.get("movement_id") or "")))
+    movements = []
+    for index, item in enumerate(raw_items):
+        movement_id = str(item.get("movement_id") or "")
+        definition = catalog.get(movement_id, {})
+        sets = item.get("sets") if isinstance(item.get("sets"), list) else []
+        summary = str(item.get("summary") or item.get("summary_text") or "").strip() or _pwa_set_summary(sets) or "暂无组数记录"
+        movements.append({
+            "movement_id": movement_id,
+            "movement_name": str(item.get("display_name") or definition.get("display_name") or movement_id or "未命名动作"),
+            "english_name": definition.get("english_name", ""),
+            "muscle_group": definition.get("muscle_group", ""),
+            "order_in_session": item.get("order_in_session") or item.get("order") or index + 1,
+            "sets": sets,
+            "summary": summary,
+            "notes": str(item.get("notes") or ""),
+            "training_session_id": str(session.get("id") or ""),
+        })
+    theme_ids = [str(value) for value in (session.get("session_theme_ids") or []) if str(value).strip()]
+    primary_theme_id = str(session.get("session_theme_id") or "").strip()
+    if primary_theme_id and primary_theme_id not in theme_ids:
+        theme_ids.insert(0, primary_theme_id)
+    return {
+        "date": str(session.get("Date") or "")[:10],
+        "session": {
+            "id": str(session.get("id") or ""),
+            "date": str(session.get("Date") or "")[:10],
+            "session_sequence": session.get("session_sequence") or 1,
+            "session_theme_id": primary_theme_id,
+            "session_theme_ids": theme_ids,
+            "theme_names": _pwa_session_theme_names(session, organization),
+            "split": str(session.get("Split") or ""),
+            "summary": str(session.get("Standardized Summary") or session.get("Summary") or ""),
+            "notes": str(session.get("Notes") or ""),
+            "movement_count": len(movements),
+        },
+        "movements": movements,
+    }
 
 
 def _pwa_movement_catalog(data_access: LedgerDataAccess) -> list[dict]:
@@ -177,6 +258,52 @@ def _pwa_body_area(data_access: LedgerDataAccess, part_id: str) -> dict | None:
     }
 
 
+def _pwa_session_theme_area(data_access: LedgerDataAccess, theme_id: str) -> dict | None:
+    organization = _pwa_training_organization(data_access)
+    theme = next((item for item in organization["session_themes"] if str(item.get("theme_id")) == str(theme_id)), None)
+    if not theme:
+        return None
+    tracker = data_access._tracker()
+    session_rows = []
+    session_ids = set()
+    for session in tracker.get("training_sessions", []) or []:
+        ids = {str(session.get("session_theme_id") or ""), *(str(value) for value in session.get("session_theme_ids", []) or [])}
+        if str(theme_id) not in ids:
+            continue
+        session_id = str(session.get("id") or "")
+        session_ids.add(session_id)
+        items = [dict(item) for item in session.get("movement_items", []) or []]
+        names = [str(item.get("display_name") or item.get("movement_id") or "") for item in items if item.get("movement_id")]
+        session_rows.append({
+            "id": session_id,
+            "date": str(session.get("Date") or "")[:10],
+            "theme_names": _pwa_session_theme_names(session, organization),
+            "title": str(session.get("session_theme_name") or theme.get("display_name") or "训练"),
+            "split": str(session.get("Split") or ""),
+            "related_count": len(names),
+            "related_movements": names,
+            "movement_summary": str(session.get("Standardized Summary") or "暂无完整动作摘要"),
+            "full_summary": str(session.get("Standardized Summary") or "暂无完整动作摘要"),
+            "notes": str(session.get("Notes") or ""),
+        })
+    session_rows.sort(key=lambda item: (item["date"], item["id"]), reverse=True)
+    catalog = {item["movement_id"]: item for item in _pwa_movement_catalog(data_access)}
+    movement_ids = {str(item.get("movement_id")) for session in tracker.get("training_sessions", []) or [] if str(session.get("id") or "") in session_ids for item in session.get("movement_items", []) or [] if item.get("movement_id")}
+    movement_cards = []
+    for movement_id in movement_ids:
+        definition = catalog.get(movement_id)
+        if not definition:
+            continue
+        history = [dict(item) for item in movement_items(tracker, movement_id) if str(item.get("training_session_id") or "") in session_ids]
+        history.sort(key=lambda item: (str(item.get("date") or ""), int(item.get("order") or 9999)), reverse=True)
+        compact = [{"date": str(item.get("date") or "")[:10], "training_session_id": str(item.get("training_session_id") or ""), "order": item.get("order") or 0, "sets": item.get("sets") or [], "summary": _pwa_set_summary(item.get("sets") or []), "notes": str(item.get("notes") or "")} for item in history]
+        if not compact:
+            continue
+        movement_cards.append({"movement_id": movement_id, "display_name": definition.get("display_name") or movement_id, "english_name": definition.get("english_name") or "", "muscle_group": definition.get("muscle_group") or "", "pinned": bool(definition.get("pinned")), "focus_rank": int(definition.get("focus_rank") or 0), "sessions": len({row["training_session_id"] or row["date"] for row in compact}), "latest": compact[0], "previous": compact[1] if len(compact) > 1 else None, "best": compact[0], "recent": compact[:3]})
+    movement_cards.sort(key=lambda item: (not item["pinned"], item["focus_rank"] or 9999, -item["sessions"], item["display_name"]))
+    return {"id": str(theme_id), "label": str(theme.get("display_name") or theme_id), "labelEn": str(theme.get("display_name") or theme_id).upper(), "theme": theme, "session_count": len(session_rows), "movement_count": len(movement_cards), "latest_date": session_rows[0]["date"] if session_rows else "", "movements": movement_cards, "sessions": session_rows[:12]}
+
+
 def create_app(
     data_access: LedgerDataAccess | None = None,
     data_module_registry: Path | None = None,
@@ -265,6 +392,8 @@ def create_app(
                 "latest_record_date": data_access.latest_date(),
                 "schema": "local-readonly-viewer",
             }})
+        if action == "trainingOrganization":
+            return jsonify({"ok": True, "data": _pwa_training_organization(data_access)})
         if action in {"whoami", "getOpenId"}:
             return jsonify({"ok": True, "data": {"openid": "", "appid": "", "env": "local"}})
         if action == "bodyAreas":
@@ -276,6 +405,9 @@ def create_app(
         if action == "bodyArea":
             area = _pwa_body_area(data_access, request.args.get("part", ""))
             return jsonify({"ok": bool(area), "data": area} if area else {"ok": False, "code": "INVALID_BODY_PART", "message": "未识别训练部位。"})
+        if action == "sessionThemeArea":
+            area = _pwa_session_theme_area(data_access, request.args.get("themeId", ""))
+            return jsonify({"ok": bool(area), "data": area} if area else {"ok": False, "code": "INVALID_SESSION_THEME", "message": "未识别训练主题。"})
         if action == "movementCatalog":
             return jsonify({"ok": True, "data": _pwa_movement_catalog(data_access)})
         if action == "bodyRecords":
@@ -287,7 +419,7 @@ def create_app(
         if action == "dataModules":
             return jsonify({"ok": True, "data": _pwa_data_module_contract(data_access, data_module_registry)})
         if action == "trainingRecords":
-            rows = sorted(data_access._tracker().get("training_sessions", []), key=lambda item: str(item.get("Date") or ""), reverse=True)
+            rows = sorted(data_access._tracker().get("training_sessions", []), key=lambda item: (str(item.get("Date") or ""), int(item.get("session_sequence") or 0), str(item.get("id") or "")), reverse=True)
             return jsonify({"ok": True, "data": rows[:200]})
         if action == "recordDetail":
             detail = data_access.get_record_detail(request.args.get("date", ""))
@@ -298,26 +430,7 @@ def create_app(
                 "training": detail["training"],
             }})
         if action == "trainingDayDetail":
-            detail = data_access.get_training_by_date(request.args.get("date", ""))
-            session = detail["sessions"][0] if detail["sessions"] else None
-            catalog = {item["movement_id"]: item for item in _pwa_movement_catalog(data_access)}
-            movements = []
-            for index, item in enumerate(session.get("movements", []) if session else []):
-                definition = catalog.get(item.get("movement_id", ""), {})
-                movements.append({
-                    "movement_id": item.get("movement_id", ""),
-                    "movement_name": item.get("display_name", ""),
-                    "english_name": definition.get("english_name", ""),
-                    "muscle_group": definition.get("muscle_group", ""),
-                    "order": item.get("order") or index + 1,
-                    "sets": item.get("sets", []),
-                    "notes": item.get("notes", ""),
-                })
-            return jsonify({"ok": True, "data": {
-                "date": detail["date"],
-                "session": ({"id": detail["date"], "date": detail["date"], "split": session["split"], "summary": session["standardized_summary"], "notes": session["notes"]} if session else None),
-                "movements": movements,
-            }})
+            return jsonify({"ok": True, "data": _pwa_training_session_detail(data_access, request.args.get("sessionId", ""), request.args.get("date", ""))})
         if action == "movement":
             movement_id = request.args.get("movementId", "")
             row = next((item for item in _pwa_movement_catalog(data_access) if item.get("movement_id") == movement_id), None)

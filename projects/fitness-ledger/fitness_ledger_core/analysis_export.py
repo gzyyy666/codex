@@ -15,6 +15,8 @@ TREND_AREA_BY_MUSCLE_GROUP = {
     "Shoulder": "肩部",
     "Arms": "手臂",
     "Legs": "腿部",
+    "Glutes": "臀部",
+    "Cardio": "有氧",
     "Core": "核心 / 腹部",
 }
 
