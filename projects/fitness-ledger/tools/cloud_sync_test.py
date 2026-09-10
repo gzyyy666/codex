@@ -91,7 +91,9 @@ def main() -> None:
         incomplete_command = sync_payload(force=True)
         assert incomplete_command["status"] == "NOT_CONFIGURED"
         assert incomplete_command["network_request_made"] is False
-        assert "meta_command" in incomplete_command.get("config_status", {}).get("missing", [])
+        assert incomplete_command.get("config_status", {}).get("missing", []) == [
+            "legacy_command_provider_disabled"
+        ]
 
         os.environ["FITNESS_LEDGER_CLOUD_SYNC_PROVIDER"] = "mock"
         synced = sync_payload(force=True)

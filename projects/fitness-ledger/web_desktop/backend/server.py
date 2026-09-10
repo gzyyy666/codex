@@ -262,6 +262,155 @@ class LedgerWebService:
     def data_module_llm_template(self) -> dict:
         return self.commands.data_module_llm_template()
 
+    def analysis_llm_initialization_prompt(self) -> dict:
+        """Build a definition-only handoff prompt for an external analysis LLM.
+
+        This is intentionally separate from the Daily Entry input template and
+        does not alter the frozen Analysis Export v1.1 request/preview/export
+        protocol.  It contains catalog definitions only, never ledger rows.
+        """
+        template = self.commands.data_module_llm_template()
+        organization = self.commands.training_organization()
+        modules = [
+            {
+                "label": item.get("label", ""),
+                "aliases": item.get("aliases", []),
+                "data_type": item.get("data_type", ""),
+                "unit": item.get("display_unit") or item.get("actual_unit") or "",
+                "category": item.get("category_label") or item.get("category_id", ""),
+                "analysis_visible": bool((item.get("capabilities") or {}).get("analysis_visible")),
+                "exportable": bool((item.get("capabilities") or {}).get("exportable")),
+            }
+            for item in template.get("modules", [])
+            if isinstance(item, dict)
+        ]
+        module_lines = "\n".join(
+            f"- {item['label']} | 别名={('、'.join(map(str, item['aliases'])) or item['label'])} | "
+            f"类型={item['data_type']} | 单位={item['unit'] or '无'} | 归属={item['category']} | "
+            f"可分析={'是' if item['analysis_visible'] else '否'} | 可导出={'是' if item['exportable'] else '否'}"
+            for item in modules
+        ) or "- 当前没有已登记的新增记录项。"
+        themes = [
+            item for item in organization.get("session_themes", [])
+            if isinstance(item, dict) and item.get("active", True)
+        ]
+        theme_lines = "\n".join(
+            f"- {item.get('display_name', '')} | theme_id={item.get('theme_id', '')} | "
+            f"置顶={'是' if item.get('pinned') else '否'}"
+            for item in themes
+        ) or "- 当前没有启用的 Session Theme；未选择主题的训练也必须保留。"
+        categories = [
+            item for item in organization.get("movement_categories", [])
+            if isinstance(item, dict) and item.get("active", True)
+        ]
+        category_lines = "\n".join(
+            f"- {item.get('display_name', '')} | category_id={item.get('category_id', '')}"
+            for item in categories
+        ) or "- 当前没有启用的 Movement Category。"
+        analysis = self.views.analysis(days=36500, include_raw_preview=False)
+
+        def shape(rows: list[dict], date_keys: tuple[str, ...] = ("date", "Date")) -> dict:
+            values = [str(row.get(key, ""))[:10] for row in rows for key in date_keys if row.get(key)]
+            return {
+                "record_count": len(rows),
+                "date_range": {"start": min(values) if values else None, "end": max(values) if values else None},
+                "fields": sorted({str(key) for row in rows for key in row if str(key) not in {"raw", "raw_record", "text", "preview"}}),
+            }
+
+        movement_rows = [
+            {"movement_id": item.get("movement_id", ""), "history": item.get("history", [])}
+            for item in analysis.get("movements", []) if isinstance(item, dict)
+        ]
+        library_shape = {
+            "body": shape(analysis.get("body", [])),
+            "diet": shape(analysis.get("diet", [])),
+            "training": shape(analysis.get("training", [])),
+            "movement_progress": {
+                "movement_definition_count": len(movement_rows),
+                "history_record_count": sum(len(item.get("history", [])) for item in movement_rows),
+                "fields": sorted({str(key) for item in movement_rows for row in item.get("history", []) for key in row if str(key) not in {"raw", "raw_record", "text", "preview"}}),
+            },
+            "data_modules": shape(analysis.get("data_modules", [])),
+            "raw_entries": {
+                "record_count": len(analysis.get("raw_entries", [])),
+                "date_range": shape(analysis.get("raw_entries", [])).get("date_range"),
+                "available_to_analysis_export_v1_1": False,
+            },
+        }
+        request_example = {
+            "request_version": "1.1",
+            "purpose": "按 Session Theme 查看最近 28 天训练与动作进展",
+            "datasets": [
+                {
+                    "dataset_id": "training_recent",
+                    "type": "training",
+                    "time_range": {"mode": "recent_days", "days": 28},
+                    "filters": {"split": "某个已存在的 Session Theme"},
+                    "fields": ["date", "split", "standardized_summary"],
+                    "notes_scope": "training",
+                },
+                {
+                    "dataset_id": "movement_recent",
+                    "type": "movement_progress",
+                    "time_range": {"mode": "recent_days", "days": 28},
+                    "filters": {"movement_selector": {"kind": "movement_name", "value": "动作名称"}},
+                    "fields": ["date", "movement_id", "movement_name", "body_part", "variant", "order", "sets"],
+                    "notes_scope": "movement",
+                },
+            ],
+            "raw": False,
+            "output": {"formats": ["json", "markdown"]},
+        }
+        prompt = f"""你是 Fitness Ledger 的外部只读分析助手。
+
+【工作边界】
+1. 只分析用户通过 Analysis Export v1.1 明确确认并下载给你的快照；不要要求访问本地文件、云端、数据库或网页，也不要写回 Fitness Ledger。
+2. 不把 Session Theme 当作 Movement Category：Session Theme 描述一次训练如何组织，Movement Category 描述动作的长期 Progress 分类。
+3. 训练可以没有 Session Theme，也可以属于多个已保存主题；不要为未命名、休息或无法确认的训练强行创造主题。
+4. 保留 session/theme/category/order 上下文；训练动作的 order_in_session 与 order_in_category 是不同字段。custom/untracked 动作只能按快照事实分析，不得擅自变成正式动作。
+5. 新增记录项的可见性、类型、单位和分析权限以以下注册表为准；不要把字段名、单位或缺失值猜成个人事实。
+6. 输出中区分事实、计算结果、合理推断和无法判断的部分；如证据不足，明确说证据不足。
+
+【当前启用的 Session Theme】
+{theme_lines}
+
+【当前启用的 Movement Category】
+{category_lines}
+
+【当前可分析的新增记录项定义】
+{module_lines}
+
+【当前库的范围与结构（仅元数据，不是个人记录内容）】
+{json.dumps(library_shape, ensure_ascii=False, indent=2)}
+
+【如何请求数据：Analysis Export Request v1.1 JSON 示例】
+外部 LLM 只能生成下面这种请求 JSON，交给 Fitness Ledger 的 Preview → Confirm 流程；不能自行读取库，也不能把 JSON 当作已返回的数据。
+{json.dumps(request_example, ensure_ascii=False, indent=2)}
+允许的 dataset type：body、diet、training、movement_progress。
+允许的 time_range mode：recent_days、explicit_range、latest_matching_sessions、all_available、target_session_day、days_before_target_session、days_after_target_session。
+允许的 notes_scope：daily、diet、training、movement；raw 必须为 false。fields、filters 必须遵守对应 dataset type 的正式契约；训练主题筛选使用保存的 Session Theme 语义，不用动作部位反推。
+
+【建议分析流程】
+先复述快照范围与字段，再按日期和 Session Theme 描述训练结构，按 Movement Category 观察动作长期变化，最后结合明确可分析的新增字段。不要把本提示词当作数据快照；真实结果只能来自用户随后提供的冻结导出内容。
+
+【输出约定】
+使用清晰的小标题：范围与数据质量、训练结构、动作/分类趋势、新增字段、结论与不确定性。不得生成写回指令，不得虚构缺失记录。
+"""
+        return {
+            "schema": "fitness-ledger-analysis-llm-initialization-v1",
+            "prompt_template": prompt,
+            "source": {
+                "data_module_registry_fingerprint": template.get("source", {}).get("registry_fingerprint", ""),
+                "training_organization_schema": organization.get("schema", ""),
+                "contains_personal_records": False,
+            },
+            "session_themes": themes,
+            "movement_categories": categories,
+            "modules": modules,
+            "library_shape": library_shape,
+            "request_example": request_example,
+        }
+
     def data_module_statistics(self, request: dict) -> dict:
         return self.commands.data_module_statistics(
             str(request.get("module_id", "")),
@@ -289,6 +438,9 @@ class LedgerWebService:
 
     def update_session_theme(self, request: dict) -> dict:
         return self.commands.update_session_theme(request)
+
+    def update_session_themes(self, request: dict) -> dict:
+        return self.commands.update_session_themes(request.get("themes", []))
 
     def set_session_theme_active(self, request: dict) -> dict:
         return self.commands.set_session_theme_active(request.get("theme_id", ""), bool(request.get("active", True)))
@@ -1231,6 +1383,8 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 }))
             elif parsed.path == "/api/data-modules/llm-template":
                 self.send_json(self.service.data_module_llm_template())
+            elif parsed.path == "/api/analysis-export/initialization-prompt":
+                self.send_json(self.service.analysis_llm_initialization_prompt())
             elif parsed.path == "/api/data-modules/statistics":
                 self.send_json(self.service.data_module_statistics({
                     "module_id": query.get("module_id", [""])[0],
@@ -1352,6 +1506,8 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(self.service.import_confirm(request))
             elif parsed.path == "/api/training-organization/theme":
                 self.send_json(self.service.update_session_theme(request))
+            elif parsed.path == "/api/training-organization/themes":
+                self.send_json(self.service.update_session_themes(request))
             elif parsed.path == "/api/training-organization/theme-active":
                 self.send_json(self.service.set_session_theme_active(request))
             elif parsed.path == "/api/undo":

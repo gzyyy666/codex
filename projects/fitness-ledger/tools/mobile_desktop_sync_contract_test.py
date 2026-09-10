@@ -42,7 +42,7 @@ def main() -> None:
     assert "云端只负责接收" in phone_client
     assert "Number(item.received_at || 0) >= cutoff" not in phone_client
     assert '"notes": item.notes' in server
-    assert "state.movementHistory?.movement?.notes" in app
+    assert "const movement=state.movementHistory?.movement" in app
     assert "REQUEST_TIMEOUT_MS = 15000" in phone_client and "PHONE_INBOX_READ_TIMEOUT" in phone_client
     assert "/api/phone-inbox/local" in phone_client and "/api/phone-inbox/sync" in phone_client
     assert "/api/phone-inbox/remove" in phone_client and "phone_inbox_remove" in server

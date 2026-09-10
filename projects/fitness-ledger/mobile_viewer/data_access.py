@@ -264,6 +264,9 @@ class LedgerDataAccess:
                     "date": str(session.get("Date", ""))[:10],
                     "day_number": day_number,
                     "split": str(session.get("Split", "") or "").strip(),
+                    "session_theme_id": str(session.get("session_theme_id", "") or "").strip(),
+                    "session_theme_ids": [str(item) for item in session.get("session_theme_ids", []) or []],
+                    "session_theme_name": str(session.get("session_theme_name", "") or "").strip(),
                     "notes": str(session.get("Notes", "") or "").strip(),
                     "raw_record": str(session.get("Raw Record", "") or "").strip(),
                     "standardized_summary": str(session.get("Standardized Summary", "") or "").strip(),
@@ -403,8 +406,9 @@ class LedgerDataAccess:
                 str(body.get("Notes", "") or ""),
                 str(diet.get("Food Summary", "") or ""),
                 str(diet.get("Notes", "") or ""),
-                " ".join(str(session.get("Split", "") or "") for session in training),
-                " ".join(str(session.get("Standardized Summary", "") or "") for session in training),
+                " ".join(str(session.get("Split", session.get("split", "")) or "") for session in training),
+                " ".join(str(session.get("session_theme_name", "") or "") for session in training),
+                " ".join(str(session.get("Standardized Summary", session.get("standardized_summary", "")) or "") for session in training),
             ]
             movement_rows = [row for session in training for row in session.get("movements", [])]
             movement_match = False
@@ -436,7 +440,11 @@ class LedgerDataAccess:
                             for label, condition in (
                                 ("Body", query_text.lower() in str(body.get("Notes", "")).lower()),
                                 ("Diet", query_text.lower() in str(diet.get("Food Summary", "")).lower()),
-                                ("Training", any(query_text.lower() in str(session.get("Split", "")).lower() for session in training)),
+                                ("Training", any(
+                                    query_text.lower() in str(session.get("Split", session.get("split", ""))).lower()
+                                    or query_text.lower() in str(session.get("session_theme_name", "")).lower()
+                                    for session in training
+                                )),
                                 ("Movement", movement_match),
                             )
                             if query_text and condition

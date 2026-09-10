@@ -266,10 +266,12 @@ def extract_bowel_movement(text: str) -> str:
         if value in {"无", "没有", "无排便"}:
             return "无"
         return value
+    if re.search(r"(今日|今天).{0,6}(没有排便|无排便|没排便|未排便)", text):
+        return "无"
+    if re.search(r"(没有排便|无排便|没排便|未排便)", text):
+        return "无"
     if re.search(r"(今日|今天).{0,6}(排便正常|正常排便)", text):
         return "正常"
-    if re.search(r"(今日|今天).{0,6}(没有排便|无排便|没排便)", text):
-        return "无"
     if re.search(r"(今日|今天).{0,6}(有排便|排便)", text):
         return "有"
     return ""

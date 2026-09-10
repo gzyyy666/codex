@@ -6,6 +6,7 @@ import io
 import json
 import os
 import subprocess
+import sys
 import tarfile
 import urllib.error
 import urllib.request
@@ -13,7 +14,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-PROJECT = Path(__file__).resolve().parents[1]
+if str(PROJECT := Path(__file__).resolve().parents[1]) not in sys.path:
+    sys.path.insert(0, str(PROJECT))
+
+from cloud_sync.build_cloud_payload import source_metadata  # noqa: E402
+from fitness_ledger_core.shared_view_models import LedgerViewModels  # noqa: E402
+
+
 CONFIG_FILE = PROJECT / "PROJECT_STATUS_CONFIG.json"
 TEXT_SUFFIXES = {
     ".css", ".html", ".js", ".json", ".md", ".mjs", ".py", ".pyw", ".txt", ".webmanifest",
@@ -118,6 +125,20 @@ def service_state(url: str) -> dict:
         return {"available": False, "status": None, "url": url}
 
 
+def formal_source_state(formal: Path) -> dict:
+    """Read the same canonical source fingerprint used by Web Cloud Sync."""
+    data_root = formal / "data" if (formal / "data").is_dir() else formal
+    tracker = data_root / "tracker.json"
+    dictionary = data_root / "movement_dictionary.json"
+    if not tracker.is_file() or not dictionary.is_file():
+        return {"source_fingerprint": "", "latest_record_date": ""}
+    try:
+        tracker_value, dictionary_value = LedgerViewModels(tracker, dictionary).snapshot()
+        return source_metadata(tracker_value, dictionary_value)
+    except (OSError, json.JSONDecodeError, ValueError):
+        return {"source_fingerprint": "", "latest_record_date": ""}
+
+
 def build_state() -> dict:
     config = read_json(CONFIG_FILE)
     git_root = Path(
@@ -147,11 +168,20 @@ def build_state() -> dict:
     manifest = read_json(out / "cloudbase_import" / "manifest.json")
     report = read_json(out / "fitness_ledger_cloud_sync_report.json")
     sync = read_json(out / "sync_state.json")
+    current_source = formal_source_state(formal)
     payload_hash = manifest.get("payload_hash", "")
     sync_hash = sync.get("payload_hash", "")
+    manifest_source = manifest.get("source_fingerprint", "")
+    source_stale = bool(
+        manifest
+        and (
+            not manifest_source
+            or manifest_source != current_source.get("source_fingerprint", "")
+        )
+    )
     cloud_status = (
         "LOCAL_NEWER"
-        if payload_hash and payload_hash != sync_hash
+        if source_stale or (payload_hash and payload_hash != sync_hash)
         else sync.get("status") or report.get("status") or "UNKNOWN"
     )
 
@@ -186,6 +216,8 @@ def build_state() -> dict:
         },
         "cloud_sync": {
             "status": cloud_status,
+            "source_fingerprint": current_source.get("source_fingerprint", ""),
+            "source_stale": source_stale,
             "manifest_payload_hash": payload_hash,
             "synced_payload_hash": sync_hash,
             "manifest_latest_record_date": manifest.get("latest_record_date", ""),

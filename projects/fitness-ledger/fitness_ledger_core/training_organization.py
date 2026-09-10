@@ -106,10 +106,18 @@ def _merge_catalog(defaults: tuple[dict, ...], existing: Any, id_key: str) -> li
         row.setdefault("system", False)
         merged.append(row)
     if id_key == "theme_id":
+        used_colors: set[str] = set()
         for row in merged:
             row["focus_rank"] = max(0, _safe_order(row.get("focus_rank"), 0))
             row["pinned"] = bool(row.get("pinned", False) or row["focus_rank"] > 0)
-            row["color_key"] = str(row.get("color_key") or theme_color_key(row.get(id_key))).strip()
+            color_key = str(row.get("color_key") or "").strip()
+            if color_key not in THEME_COLOR_KEYS or color_key in used_colors:
+                color_key = next(
+                    (candidate for candidate in THEME_COLOR_KEYS if candidate not in used_colors),
+                    THEME_COLOR_KEYS[len(used_colors) % len(THEME_COLOR_KEYS)],
+                )
+            row["color_key"] = color_key
+            used_colors.add(color_key)
             # The old artwork encoded one person's five-day split. Keep the
             # compatibility key, but make the catalog itself image-free.
             row["artwork_key"] = ""
@@ -167,6 +175,21 @@ def _ensure_theme_for_legacy_label(themes: list[dict], label: str, preferred_id:
     return theme_id
 
 
+def _session_theme_ids(session: dict, themes: list[dict], label: str) -> list[str]:
+    """Return explicit membership without inferring a new theme when locked."""
+    valid = {str(item.get("theme_id")) for item in themes if str(item.get("theme_id", "")).strip()}
+    stored = session.get("session_theme_ids")
+    if isinstance(stored, list):
+        ids = [str(item).strip() for item in stored if str(item).strip() in valid]
+    else:
+        single = str(session.get("session_theme_id") or "").strip()
+        ids = [single] if single in valid else []
+    if ids:
+        return list(dict.fromkeys(ids))
+    matched = _theme_id_for_label(label, themes)
+    return [matched] if matched else []
+
+
 def normalize_training_organization(database: dict, dictionary: dict) -> tuple[dict, bool]:
     """Normalize organization metadata and derived order fields in memory.
 
@@ -178,6 +201,7 @@ def normalize_training_organization(database: dict, dictionary: dict) -> tuple[d
     config = database.get("training_organization")
     config = copy.deepcopy(config) if isinstance(config, dict) else {}
     themes = _merge_catalog(DEFAULT_SESSION_THEMES, config.get("session_themes"), "theme_id")
+    catalog_locked = bool(config.get("session_theme_catalog_locked", False))
     categories = _merge_catalog(DEFAULT_MOVEMENT_CATEGORIES, config.get("movement_categories"), "category_id")
     definitions = {
         str(item.get("movement_id")): item
@@ -195,16 +219,20 @@ def normalize_training_organization(database: dict, dictionary: dict) -> tuple[d
             or session.get("training_title")
             or ""
         ).strip()
-        stored_theme_id = str(session.get("session_theme_id") or "").strip()
-        theme_id = stored_theme_id or _theme_id_for_label(label, themes) or ""
+        theme_ids = _session_theme_ids(session, themes, label)
+        theme_id = theme_ids[0] if theme_ids else ""
         theme = next((item for item in themes if item.get("theme_id") == theme_id), None)
-        if theme is None and label:
-            theme_id = _ensure_theme_for_legacy_label(themes, label, stored_theme_id)
+        if theme is None and label and not catalog_locked:
+            theme_id = _ensure_theme_for_legacy_label(themes, label, theme_id)
+            theme_ids = [theme_id]
             theme = next(item for item in themes if item.get("theme_id") == theme_id)
+        if session.get("session_theme_ids") != theme_ids:
+            session["session_theme_ids"] = theme_ids
+            changed = True
         if session.get("session_theme_id") != theme_id:
             session["session_theme_id"] = theme_id
             changed = True
-        theme_name = str(theme.get("display_name") if theme else "")
+        theme_name = str(session.get("session_theme_name") or (theme.get("display_name") if theme else ""))
         if session.get("session_theme_name") != theme_name:
             session["session_theme_name"] = theme_name
             changed = True
@@ -249,6 +277,7 @@ def normalize_training_organization(database: dict, dictionary: dict) -> tuple[d
     normalized = {
         "schema": SCHEMA_VERSION,
         "session_themes": themes,
+        "session_theme_catalog_locked": catalog_locked,
         "movement_categories": categories,
     }
     if database.get("training_organization") != normalized:
@@ -266,6 +295,7 @@ def organization_catalog(database: dict, dictionary: dict) -> dict:
     return {
         "schema": SCHEMA_VERSION,
         "session_themes": copy.deepcopy(config["session_themes"]),
+        "session_theme_catalog_locked": bool(config.get("session_theme_catalog_locked", False)),
         "movement_categories": copy.deepcopy(config["movement_categories"]),
     }
 

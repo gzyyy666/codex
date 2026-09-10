@@ -1,5 +1,15 @@
 # Fitness Ledger Changelog
 
+## 2026-09-10 - Session Theme batch management and stable color slots
+
+- Made Session Theme creation, rename, activation, and pinning a single atomic
+  manager submission; multiple themes can now be disabled together and the
+  disabled state explicitly retains historical records.
+- Assigned distinct stable catalog color slots so newly added themes do not
+  collapse onto the same accent color.
+- Refreshed the Web review cache version and recorded the new acceptance test
+  and Session Theme card assets in the project index.
+
 ## 2026-08-26 - Weight comparison, dialog polish, and PWA v35 deployment
 
 - Added the Body Records 7-day average comparison and restyled it to the design

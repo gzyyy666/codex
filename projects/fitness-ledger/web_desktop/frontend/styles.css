@@ -3672,3 +3672,241 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
   .entry-workbench-page .capture .actions{margin-top:4px}
   .entry-workbench-page .entry-support-actions .entry-template-trigger{min-height:30px}
 }
+
+/* Final Session Theme overview repair: cards are a real grid, never a
+   compressed horizontal rail. This keeps the four-card review surface and
+   remains readable when an existing ledger contains many custom themes. */
+.training-theme-page[data-training-theme="overview"] .body-theme-controls{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));
+  grid-auto-rows:minmax(214px,auto);
+  align-items:stretch;
+  gap:14px;
+  padding:8px 6px 4px;
+}
+.training-theme-page[data-training-theme="overview"] .body-theme-controls:before{display:none}
+.training-theme-page[data-training-theme="overview"] .body-theme-control,
+.training-theme-page[data-training-theme="overview"] .body-theme-control:nth-child(even),
+.training-theme-page[data-training-theme="overview"] .body-theme-control:nth-child(3){
+  flex:none;
+  min-width:0;
+  min-height:214px;
+  transform:none;
+  border-radius:30px 14px 30px 14px;
+}
+.training-theme-page[data-training-theme="overview"] .body-theme-control.is-active{
+  flex:none;
+  transform:none;
+}
+.training-theme-page[data-training-theme="overview"] .body-theme-control:hover,
+.training-theme-page[data-training-theme="overview"] .body-theme-control.is-active{
+  transform:translateY(-4px);
+}
+@media(max-width:1080px){
+  .training-theme-page[data-training-theme="overview"] .body-theme-controls{grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr))}
+}
+@media(max-width:720px){
+  .training-theme-page[data-training-theme="overview"] .body-theme-controls{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .training-theme-page[data-training-theme="overview"] .body-theme-control{min-height:142px}
+}
+@media(max-width:480px){
+  .training-theme-page[data-training-theme="overview"] .body-theme-controls{grid-template-columns:1fr}
+}
+
+/* Session Theme archive: preserve the formal left-deck composition while
+   using a generic training collage instead of a body-part identity image. */
+.training-theme-page:not([data-training-theme="overview"]){
+  background:
+    var(--training-bg-gradient),
+    linear-gradient(112deg,rgba(248,245,237,.92),rgba(243,238,229,.76)),
+    url("assets/training-archive-collage-v2.png") center/cover no-repeat;
+}
+.training-theme-page:not([data-training-theme="overview"]) .training-atmosphere{
+  opacity:.2;
+  background-image:
+    linear-gradient(90deg,rgba(248,245,237,.88),rgba(248,245,237,.4)),
+    url("assets/training-archive-collage-v2.png");
+  background-position:center,right top;
+  background-size:cover,cover;
+  background-repeat:no-repeat;
+}
+
+@media(min-width:1121px){
+  .training-theme-page:not([data-training-theme="overview"]){
+    grid-template-columns:minmax(420px,474px) minmax(0,1fr);
+    column-gap:28px;
+  }
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-deck{
+    width:min(474px,100%);
+    min-height:0;
+    margin:0;
+    padding:18px;
+    align-self:start;
+  }
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-deck-head{
+    min-height:76px;
+    margin:0 4px 14px;
+    align-items:start;
+    gap:12px;
+  }
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-deck-head > div{min-width:0}
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-deck-head h2{
+    max-width:250px;
+    margin-top:6px;
+    font-size:28px;
+    line-height:1.02;
+    overflow-wrap:anywhere;
+  }
+  .training-theme-page:not([data-training-theme="overview"]) .theme-deck-actions{
+    display:flex;
+    flex:0 0 auto;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:8px;
+  }
+  .training-theme-page:not([data-training-theme="overview"]) .theme-overview{
+    min-height:32px;
+    padding:0 10px;
+    font-size:7px;
+  }
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-controls{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(84px,88px);
+    grid-template-rows:repeat(4,minmax(80px,1fr));
+    height:420px;
+    gap:10px;
+    padding:0;
+  }
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-controls:before{display:none}
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-control,
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-control:nth-child(even),
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-control:nth-child(3){
+    grid-column:2;
+    grid-row:auto;
+    min-height:0;
+    padding:10px 8px;
+    transform:none;
+    opacity:.72;
+    border-radius:9px 16px 9px 16px;
+    background:rgba(255,253,247,.64);
+    box-shadow:inset 0 1px rgba(255,255,255,.9),0 2px 4px rgba(45,35,20,.045);
+  }
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-control:not(.is-active) img,
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-control:not(.is-active) .theme-meta,
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-control:not(.is-active) .theme-last{display:none}
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-control:not(.is-active) .theme-cn{font-size:20px}
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-control:not(.is-active) .theme-en{margin-top:3px;font-size:6px}
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-control.is-active{
+    grid-column:1;
+    grid-row:1/-1;
+    min-height:420px;
+    padding:24px;
+    transform:none;
+    border-radius:12px 32px 12px 32px;
+    background-image:
+      linear-gradient(145deg,rgba(255,253,247,.62),rgba(255,252,245,.72)),
+      url("assets/training-archive-collage.png"),
+      url("assets/training-archive-collage-v2.png");
+    background-position:center,38% center,center;
+    background-size:cover,145% auto,cover;
+    background-blend-mode:normal,multiply,soft-light;
+    box-shadow:inset 2px 2px 5px rgba(45,35,20,.08),inset -1px -1px rgba(255,255,255,.82),0 18px 38px var(--training-glow);
+  }
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-control.is-active .theme-cn{font-size:58px}
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-control.is-active .theme-meta{
+    position:absolute;
+    left:24px;
+    bottom:48px;
+    margin:0;
+  }
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-control.is-active .theme-last{
+    position:absolute;
+    left:24px;
+    bottom:24px;
+    margin:0;
+  }
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-control.is-active img{display:none}
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-control.is-active:before{
+    opacity:.16;
+    background:
+      repeating-linear-gradient(90deg,transparent 0 28px,rgba(24,21,16,.2) 29px,transparent 30px 74px),
+      repeating-linear-gradient(0deg,transparent 0 34px,rgba(24,21,16,.16) 35px,transparent 36px 88px);
+    mix-blend-mode:multiply;
+  }
+}
+
+@media(max-width:1120px) and (min-width:721px){
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-deck{width:min(100%,560px)}
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-controls{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-rows:auto;
+    height:auto;
+  }
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-control.is-active{grid-column:1/-1;min-height:300px}
+}
+
+@media(max-width:720px){
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-controls{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-rows:auto;
+    height:auto;
+  }
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-control.is-active{grid-column:1/-1;min-height:250px}
+}
+
+/* The manager is a responsive form; its contents must never widen the modal. */
+.training-org-manager{width:100%;min-width:0;max-width:100%}
+.overlay:has(.training-org-manager) .modal{
+  width:min(760px,calc(100vw - 40px));
+  max-height:min(780px,calc(100vh - 40px));
+  overflow:auto;
+}
+.training-org-row{grid-template-columns:14px minmax(0,1fr) auto auto auto;min-width:0}
+.training-org-row label>input:not([type="checkbox"]){width:100%;box-sizing:border-box}
+@media(max-width:700px){
+  .overlay:has(.training-org-manager){padding:12px}
+  .overlay:has(.training-org-manager) .modal{width:calc(100vw - 24px);max-height:calc(100vh - 24px);padding:24px 18px}
+  .training-org-row{grid-template-columns:14px minmax(0,1fr);align-items:center}
+  .training-org-row label{grid-column:2}
+  .training-org-row .training-org-active{grid-column:2;grid-row:auto;justify-self:start}
+  .training-org-row .btn{grid-column:2;grid-row:auto;justify-self:start;margin-top:2px}
+}
+
+/* Keep the editable Session Theme rail coherent as the catalog grows. At
+   desktop widths it stays one row; only compact phones use a deliberate grid. */
+.training-theme-page[data-training-theme="overview"] .body-theme-controls{
+  display:flex;
+  flex-wrap:nowrap;
+  overflow-x:auto;
+  scrollbar-width:thin;
+  grid-auto-rows:auto;
+}
+.training-theme-page[data-training-theme="overview"] .body-theme-control,
+.training-theme-page[data-training-theme="overview"] .body-theme-control:nth-child(even),
+.training-theme-page[data-training-theme="overview"] .body-theme-control:nth-child(3),
+.training-theme-page[data-training-theme="overview"] .body-theme-control.is-active{
+  flex:1 1 0;
+  width:auto;
+  min-width:clamp(172px,calc((100% - 70px) / var(--theme-count,5)),280px);
+  min-height:214px;
+  transform:none;
+}
+.training-theme-page[data-training-theme="overview"] .body-theme-control:hover,
+.training-theme-page[data-training-theme="overview"] .body-theme-control.is-active{transform:translateY(-4px)}
+@media(max-width:720px){
+  .training-theme-page[data-training-theme="overview"] .body-theme-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible}
+  .training-theme-page[data-training-theme="overview"] .body-theme-control,
+  .training-theme-page[data-training-theme="overview"] .body-theme-control:nth-child(even),
+  .training-theme-page[data-training-theme="overview"] .body-theme-control:nth-child(3),
+  .training-theme-page[data-training-theme="overview"] .body-theme-control.is-active{min-width:0;min-height:142px}
+}
+
+/* The selected Theme keeps its large archive cover while the companion rail
+   derives its rows from the live catalog instead of assuming four themes. */
+@media(min-width:1121px){
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-controls{
+    grid-template-rows:repeat(var(--theme-rest-count,4),minmax(58px,1fr));
+    height:clamp(333px,calc(100px + var(--theme-rest-count,4) * 80px),420px);
+  }
+  .training-theme-page:not([data-training-theme="overview"]) .body-theme-control.is-active{grid-row:1/-1;min-height:0;height:100%}
+}

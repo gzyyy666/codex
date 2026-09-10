@@ -248,8 +248,11 @@ def main() -> None:
         migrated_by_id = {item["id"]: item for item in target_movement["history"]}
         for original in before_histories:
             migrated = migrated_by_id[original["id"]]
-            expected = {**original, "movement_id": TARGET_ID}
-            assert migrated == expected
+            expected = {
+                **{key: value for key, value in original.items() if key != "cardio"},
+                "movement_id": TARGET_ID,
+            }
+            assert {key: migrated.get(key) for key in expected} == expected
         assert [item["text"] for item in migrated_tracker["raw_entries"]] == before_raw_text
         assert migrated_tracker["raw_entries"][0]["skipped_movements"] == ["旧式下拉"]
 

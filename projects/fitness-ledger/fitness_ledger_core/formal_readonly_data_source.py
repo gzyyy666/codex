@@ -74,6 +74,15 @@ def _mapped_record(source: dict[str, Any], mapping: dict[str, str]) -> dict[str,
     return result
 
 
+def _mapped_training_record(source: dict[str, Any]) -> dict[str, Any]:
+    """Prefer the editable Session Theme label while retaining legacy Split."""
+    result = _mapped_record(source, FormalReadOnlyDataSource._TRAINING_FIELDS)
+    theme_name = str(source.get("session_theme_name") or source.get("Split") or "").strip()
+    if theme_name:
+        result["split"] = theme_name
+    return result
+
+
 def _structured_sets(value: Any) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         return []
@@ -217,7 +226,7 @@ class FormalReadOnlyDataSource:
             if isinstance(item, dict)
         ]
         training_rows = [
-            _mapped_record(item, FormalReadOnlyDataSource._TRAINING_FIELDS)
+            _mapped_training_record(item)
             for item in training
             if isinstance(item, dict)
         ]

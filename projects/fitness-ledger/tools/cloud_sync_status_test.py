@@ -45,7 +45,11 @@ def main() -> None:
             manifest_path = root / "cloud_sync" / "out" / "cloudbase_import" / "manifest.json"
             state_path = root / "cloud_sync" / "out" / "sync_state.json"
 
-            source = source_metadata(tracker, dictionary)
+            # The Web service reads the canonicalized snapshot.  Build the
+            # fixture fingerprint from that same source so the test asserts
+            # the user-facing contract rather than a pre-migration file hash.
+            canonical_tracker, canonical_dictionary = service.views.snapshot()
+            source = source_metadata(canonical_tracker, canonical_dictionary)
             write_json(manifest_path, {"payload_hash": "payload-a", **source})
             write_json(state_path, state("payload-a"))
             synced = service.cloud_sync_status()
@@ -68,7 +72,8 @@ def main() -> None:
             assert same_date_change["sync_status"] == "LOCAL_NEWER"
             assert same_date_change["local_latest_record_date"] == "2026-07-13"
 
-            current_source = source_metadata(tracker, dictionary)
+            current_tracker, current_dictionary = service.views.snapshot()
+            current_source = source_metadata(current_tracker, current_dictionary)
             write_json(manifest_path, {"payload_hash": "payload-b", **current_source})
             write_json(state_path, state("payload-a"))
             payload_not_uploaded = service.cloud_sync_status()

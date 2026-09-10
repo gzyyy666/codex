@@ -16,6 +16,7 @@ EXPECTED = {
     "fl_meta", "fl_latest_summary", "fl_daily_records", "fl_diet_records",
     "fl_training_sessions", "fl_movements", "fl_movement_history",
     "fl_search_index", "fl_raw_entries", "fl_data_quality_issues",
+    "fl_data_modules", "fl_data_module_records", "fl_data_module_contract",
 }
 
 

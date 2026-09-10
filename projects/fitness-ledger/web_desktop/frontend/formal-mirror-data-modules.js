@@ -334,6 +334,7 @@ function ensureReviewHub(){return}
     const panel=routePanel(route);
     if(route.view==='home')return null;
     if(route.view==='tools')return panel&&panel!=='overview'?{label:'返回 Tools',view:'tools',params:{}}:{label:'返回 Home',view:'home',params:{}};
+    if(route.view==='training'&&document.querySelector('.training-theme-page')?.dataset.trainingTheme&&document.querySelector('.training-theme-page')?.dataset.trainingTheme!=='overview')return {label:'返回 Training',view:'training',params:{}};
     if(route.view==='movements'&&route.params?.get?.('movement_id'))return {label:'返回 Movement',view:'movements',params:{}};
     if(route.view==='dictionary')return {label:'返回上一层',mode:'history',fallback:'tools'};
     if(route.view==='guardian')return {label:'返回 Tools',view:'tools',params:{}};

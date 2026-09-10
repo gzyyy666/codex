@@ -16,10 +16,12 @@ def main() -> None:
     start = source.index("function autoSyncOutcomeMessage")
     end = source.index("function updateSyncNav", start)
     helper = source[start:end]
-    assert "await autoSyncAfterSave()" in source
+    assert "autoSyncAfterSave()" in source
     assert "latestStatus.sync_status==='SYNCED'" in source
     assert "reconciled:true" in source
     assert "reconciled:!['SYNCED','NO_CHANGES'].includes(result.status)" in source
+    assert "const headerHint=main.querySelector('.admin-page-header p')" in source
+    assert "headerHint.textContent=syncHint" in source
 
     script = f"""
 {helper}

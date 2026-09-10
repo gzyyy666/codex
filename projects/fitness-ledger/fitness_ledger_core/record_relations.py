@@ -99,7 +99,12 @@ def _movement_item_from_history(history: dict, session: dict) -> dict:
     item.setdefault("notes", "")
     item.setdefault("exclude_from_progress", False)
     item.setdefault("revision", 1)
-    item.setdefault("updated_at", now_iso())
+    item.setdefault(
+        "updated_at",
+        str(item.get("date") or session.get("Date") or "")[:10] + "T00:00:00"
+        if str(item.get("date") or session.get("Date") or "")[:10]
+        else "",
+    )
     return item
 
 
@@ -216,7 +221,7 @@ def _apply_unambiguous_cardio_migration(database: dict, report: dict) -> None:
                     "source": "cardio migration",
                     "record_day_id": record_day_id(day),
                     "revision": 1,
-                    "updated_at": now_iso(),
+                    "updated_at": f"{day}T00:00:00",
                 }
                 database.setdefault("daily_records", []).append(target)
             value = next(entry["value"] for entry in row["legacy_values"] if entry["value"])
@@ -255,15 +260,52 @@ def _rebuild_movement_projection(database: dict) -> None:
                     "name": str(item.get("display_name") or item.get("name") or movement_id),
                     "aliases": [],
                     "history": [],
-                    "created_at": str(previous_row.get("created_at") or now_iso()),
+                    "created_at": str(
+                        previous_row.get("created_at")
+                        or item.get("updated_at")
+                        or item.get("date")
+                        or ""
+                    ),
                     "projection": MOVEMENT_ITEMS_SCHEMA_VERSION,
                 },
             )
             current["history"].append(copy.deepcopy(item))
-    for movement_id, old in previous.items() if isinstance(previous, dict) else []:
-        if movement_id in projected or not isinstance(old, dict):
+    for movement_key, old in previous.items() if isinstance(previous, dict) else []:
+        if not isinstance(old, dict):
+            continue
+        # Legacy files can contain a compatibility row keyed by an old map
+        # key while carrying the same movement_id as the canonical row that
+        # was just projected from session items.  Keep one identity in the
+        # projection and merge the legacy context into that row instead of
+        # manufacturing a second row with the same movement_id.
+        movement_id = str(old.get("movement_id") or movement_key).strip()
+        if movement_id in projected:
+            current = projected[movement_id]
+            for key, value in old.items():
+                if key not in current:
+                    current[key] = copy.deepcopy(value)
+            current["aliases"] = list(dict.fromkeys([
+                *(current.get("aliases") or []),
+                *(old.get("aliases") or []),
+            ]))
+            existing_history = current.setdefault("history", [])
+            existing_keys = {
+                str(item.get("movement_instance_id") or item.get("id") or "")
+                for item in existing_history
+                if isinstance(item, dict)
+            }
+            for item in old.get("history", []) or []:
+                if not isinstance(item, dict):
+                    continue
+                item_key = str(item.get("movement_instance_id") or item.get("id") or "")
+                if item_key and item_key in existing_keys:
+                    continue
+                existing_history.append(copy.deepcopy(item))
+                if item_key:
+                    existing_keys.add(item_key)
             continue
         projected[movement_id] = copy.deepcopy(old)
+        projected[movement_id]["movement_id"] = movement_id
         projected[movement_id]["projection"] = "legacy-unresolved"
     for movement_id, item in projected.items():
         old = previous.get(movement_id, {}) if isinstance(previous, dict) else {}
@@ -396,10 +438,24 @@ def migrate_state(database: dict, dictionary: dict) -> tuple[dict, dict, dict]:
             session["movement_items"] = []
             report["changed"] = True
 
-    existing_ids = {str(item.get("movement_instance_id") or item.get("id")) for session in sessions for item in session.get("movement_items", []) or [] if isinstance(item, dict)}
+    existing_items_by_id = {
+        str(item.get("movement_instance_id") or item.get("id")): item
+        for session in sessions
+        for item in session.get("movement_items", []) or []
+        if isinstance(item, dict) and str(item.get("movement_instance_id") or item.get("id"))
+    }
+    existing_ids = set(existing_items_by_id)
     for history in _legacy_history(db) if not canonical_state else []:
         history_id = str(history.get("movement_instance_id") or history.get("id") or "")
         if history_id and history_id in existing_ids:
+            existing = existing_items_by_id[history_id]
+            if str(existing.get("movement_id") or "") != str(history.get("movement_id") or ""):
+                report.setdefault("movement_conflicts", []).append({
+                    "type": "duplicate_history_id",
+                    "history_id": history_id,
+                    "existing_movement_id": str(existing.get("movement_id") or ""),
+                    "legacy_movement_id": str(history.get("movement_id") or ""),
+                })
             continue
         candidates = _session_candidates(sessions, history)
         if not candidates:
@@ -419,7 +475,7 @@ def migrate_state(database: dict, dictionary: dict) -> tuple[dict, dict, dict]:
                     "record_day_id": record_day_id(legacy_date),
                     "movement_items": [],
                     "revision": 1,
-                    "updated_at": now_iso(),
+                    "updated_at": f"{legacy_date}T00:00:00",
                 }
                 sessions.append(synthetic)
                 candidates = [synthetic]
@@ -429,6 +485,7 @@ def migrate_state(database: dict, dictionary: dict) -> tuple[dict, dict, dict]:
         item = _movement_item_from_history(history, candidates[0])
         candidates[0]["movement_items"].append(item)
         existing_ids.add(item["movement_instance_id"])
+        existing_items_by_id[item["movement_instance_id"]] = item
         report["movement_items"] += 1
         report["changed"] = True
 
@@ -461,7 +518,12 @@ def migrate_state(database: dict, dictionary: dict) -> tuple[dict, dict, dict]:
             item.setdefault("raw", "")
             item.setdefault("exclude_from_progress", False)
             item.setdefault("revision", 1)
-            item.setdefault("updated_at", now_iso())
+            item.setdefault(
+                "updated_at",
+                str(item.get("date") or session.get("Date") or "")[:10] + "T00:00:00"
+                if str(item.get("date") or session.get("Date") or "")[:10]
+                else "",
+            )
             linked = session_by_id.get(str(item.get("training_session_id")))
             if linked:
                 item.setdefault("raw_entry_id", linked.get("raw_entry_id", ""))
@@ -528,10 +590,7 @@ def validate_relations(database: dict, dictionary: dict) -> list[dict]:
             if str(item.get("training_session_id")) not in sessions:
                 issues.append({"code": "ORPHAN_TRAINING_SESSION", "movement_instance_id": item_id})
             if not str(item.get("movement_id") or ""):
-                # A named untracked/custom movement is a valid session fact;
-                # it simply does not become a Movement Progress identity.
-                if not str(item.get("display_name") or item.get("name") or item.get("raw") or "").strip():
-                    issues.append({"code": "MOVEMENT_ID_MISSING", "movement_instance_id": item_id})
+                issues.append({"code": "MOVEMENT_ID_MISSING", "movement_instance_id": item_id})
             elif definitions and str(item.get("movement_id")) not in definitions:
                 issues.append({"code": "MISSING_MOVEMENT_DEFINITION", "movement_id": item.get("movement_id")})
             if "cardio" in item:

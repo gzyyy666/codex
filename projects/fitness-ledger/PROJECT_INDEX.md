@@ -38,6 +38,8 @@
 
 ## Auxiliary Files
 
+- `tools/simple_natural_language_acceptance_test.py`: Anonymous zero-write acceptance coverage for natural-language preview/export behavior.
+
 | Path | Purpose |
 | --- | --- |
 | `tools/extract_history.mjs` | Read the original workbook into `history_import.json`. |
@@ -60,6 +62,9 @@
 - The Git mirror contains no cloud credentials or provider state. A formal working directory may have a configured provider; use `project_status.py` and Cloud Sync reports instead of this static index to determine live status.
 
 ## Maintenance File Set
+
+- `web_desktop/frontend/assets/session-theme-card-marker-v1.png`: Retained first-generation Session Theme card marker for review history.
+- `web_desktop/frontend/assets/session-theme-card-marker-v2.png`: Current neutral Session Theme card marker used by the Web review surface.
 
 - `FITNESS_LEDGER_MAINTENANCE.md`: safety rules and validation commands.
 - `docs/design/STYLE_BIBLE.md`: current Web visual and interaction authority.

@@ -372,7 +372,74 @@
   .guardian-nav-slot{position:relative;display:grid;place-items:center;width:120px;height:80px;flex:0 0 120px;overflow:visible;isolation:isolate}.guardian-nav-slot .tools-pet-nav{position:absolute!important;left:50%!important;top:50%!important;width:120px!important;height:120px!important;transform:translate(-50%,-50%)!important;z-index:3}.guardian-nav-slot .tools-pet-nav::after{display:none}.guardian-nav-slot .tools-pet-guardian-canvas{inset:0!important;width:120px!important;height:120px!important;transform:none!important}.guardian-nav-status{position:absolute;left:50%;bottom:1px;z-index:4;transform:translate(-50%,100%);color:rgba(31,27,20,.48);font:600 7px/1 var(--font);letter-spacing:.1em;white-space:nowrap;pointer-events:none}.guardian-nav-slot[data-pet-state="error"] .guardian-nav-status{color:#9b3d2e}.guardian-nav-slot[data-pet-state="ready"] .guardian-nav-status{color:rgba(31,27,20,.52)}
   @media(max-width:1120px){.tools-pet-nav::after{display:none}}
   @media(max-width:760px){.tools-lab-shell{padding:22px 16px;border-radius:34px 10px 40px 14px}.tools-card{border-radius:26px 10px 32px 13px}.tools-card-featured{border-radius:38px 11px 30px 14px}.tools-card-sync{border-radius:12px 32px 12px 28px}.tools-card-health{border-radius:32px 11px 38px 10px}.tools-pet-menu{width:min(226px,calc(100vw - 24px))}.tools-pet-nav{flex-basis:68px;width:68px!important;height:68px!important}.tools-pet-nav .tools-pet-guardian-canvas{width:144px!important;height:144px!important;left:-38px!important;top:-38px!important}}
-  @media(prefers-reduced-motion:reduce){.tools-experiment::after{transform:none}.tools-pet-menu{transition:none}.tools-lab-grid::before{filter:none}}
+@media(prefers-reduced-motion:reduce){.tools-experiment::after{transform:none}.tools-pet-menu{transition:none}.tools-lab-grid::before{filter:none}}
+
+/* Session Theme cards: the rail is a responsive archive index, not a fixed
+   five-item body-part strip. Keep every active theme visible in one column. */
+@media(min-width:1121px){
+ .training-theme-page:not([data-training-theme="overview"]) .body-theme-controls{grid-template-rows:repeat(var(--theme-rest-count,4),minmax(0,1fr))!important;height:clamp(333px,calc(120px + var(--theme-rest-count,4) * 78px),520px)!important;overflow:visible}
+ .training-theme-page:not([data-training-theme="overview"]) .body-theme-control.is-active{grid-row:1/-1!important;height:100%;min-height:0!important}
+ .training-theme-page:not([data-training-theme="overview"]) .body-theme-control:not(.is-active){min-height:0!important;height:100%}
+}
+
+/* Theme manager edits are staged in one form and committed together. Keep
+   the color swatch faithful to the catalog slot, including newly added themes. */
+.training-org-batch-form{display:grid;gap:18px}
+.training-org-batch-form .training-org-row{grid-template-columns:18px minmax(0,1fr) auto auto;}
+.training-org-actions{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:8px;border-top:1px solid rgba(24,21,16,.14)}
+.training-org-actions>span{color:var(--muted,#746e63);font-size:11px;line-height:1.4}
+.training-org-color[data-color="ember"]{background:#c86454;box-shadow:0 0 0 4px rgba(200,100,84,.16)}
+.training-org-color[data-color="teal"]{background:#34776f;box-shadow:0 0 0 4px rgba(52,119,111,.16)}
+.training-org-color[data-color="violet"]{background:#8065a8;box-shadow:0 0 0 4px rgba(128,101,168,.16)}
+.training-org-color[data-color="blue"]{background:#3f86a2;box-shadow:0 0 0 4px rgba(63,134,162,.16)}
+.training-org-color[data-color="amber"]{background:#d49a27;box-shadow:0 0 0 4px rgba(212,154,39,.16)}
+.training-org-color[data-color="rose"]{background:#ad6478;box-shadow:0 0 0 4px rgba(173,100,120,.16)}
+.training-org-color[data-color="indigo"]{background:#596fb0;box-shadow:0 0 0 4px rgba(89,111,176,.16)}
+.training-org-color[data-color="green"]{background:#5d8358;box-shadow:0 0 0 4px rgba(93,131,88,.16)}
+@media(max-width:700px){.training-org-actions{align-items:stretch;flex-direction:column}.training-org-actions .btn{width:100%}}
+
+/* A secondary-card mark generated for this surface; never reuse the first-
+   level archive background or the legacy equipment/body artwork. */
+.body-theme-control .session-theme-card-art{position:absolute!important;z-index:0;inset:0!important;width:100%!important;height:100%!important;object-fit:contain!important;object-position:100% 12%!important;opacity:.14!important;filter:saturate(.62) contrast(.94)!important;mix-blend-mode:multiply;pointer-events:none}
+.training-theme-page:not([data-training-theme="overview"]) .body-theme-control.is-active{background:linear-gradient(145deg,rgba(255,253,247,.94),rgba(255,252,245,.86))!important;background-color:var(--training-accent-soft)!important}
+.training-theme-page:not([data-training-theme="overview"]) .body-theme-control.is-active:before{background:none!important;opacity:0!important}
+.training-theme-page:not([data-training-theme="overview"]) .body-theme-control.is-active .session-theme-card-art{display:block!important;opacity:.28!important;mix-blend-mode:normal;filter:saturate(.9) contrast(1.02)!important}
+.body-theme-control:not(.is-active) .session-theme-card-art{display:none}
+.body-theme-control .theme-color-mark,.body-theme-control .theme-cn,.body-theme-control .theme-en,.body-theme-control .theme-meta,.body-theme-control .theme-last{position:relative;z-index:2}
+
+.analysis-export-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:24px}
+.analysis-export-init-prompt{flex:0 0 auto;padding:11px 14px;border:1px solid rgba(31,27,20,.22);border-radius:999px;background:rgba(255,253,247,.66);color:var(--ink);font:600 10px/1 var(--font);letter-spacing:.08em;cursor:pointer;box-shadow:inset 0 1px rgba(255,255,255,.9),0 8px 18px rgba(45,35,20,.06)}
+.analysis-export-init-prompt:hover,.analysis-export-init-prompt:focus-visible{background:var(--ink);color:#fff;outline:none;transform:translateY(-1px)}
+.training-org-semantics{margin-top:8px!important;padding:9px 11px;border-left:3px solid var(--sun);background:rgba(255,218,110,.14);color:rgba(31,27,20,.68)!important}
+.training-org-row.is-disabled{opacity:.66;background:rgba(31,27,20,.025)}
+@media(max-width:720px){.analysis-export-hero{align-items:flex-start;flex-direction:column}.analysis-export-init-prompt{width:max-content}}
+
+/* Detail-page header tools belong to the secondary Theme surface. Do not
+   inherit the overview collage here; use a compact accent treatment instead. */
+@media(min-width:1121px){
+ .training-theme-page:not([data-training-theme="overview"]) .training-header-tools{
+   position:relative;isolation:isolate;overflow:hidden;
+   background:
+     radial-gradient(circle at 86% 18%,color-mix(in srgb,var(--training-accent) 24%,transparent),transparent 34%),
+     linear-gradient(135deg,color-mix(in srgb,var(--training-accent-soft) 54%,#fffdf7),rgba(255,253,247,.9))!important;
+   border:1px solid color-mix(in srgb,var(--training-accent) 22%,rgba(31,27,20,.14));
+   box-shadow:inset 0 1px rgba(255,255,255,.86),0 14px 30px rgba(45,35,20,.07);
+ }
+ .training-theme-page:not([data-training-theme="overview"]) .training-header-tools:before{
+   content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;opacity:.5;
+   background:
+     linear-gradient(120deg,transparent 0 58%,color-mix(in srgb,var(--training-accent) 13%,transparent) 59% 61%,transparent 62%),
+     radial-gradient(ellipse at 75% 88%,color-mix(in srgb,var(--training-accent) 16%,transparent),transparent 42%);
+ }
+ .training-theme-page:not([data-training-theme="overview"]) .training-header-tools>*{position:relative;z-index:1}
+ .training-theme-page:not([data-training-theme="overview"]) .body-theme-deck{
+   position:sticky;top:124px;align-self:start;min-height:0!important;height:auto;
+ }
+ .training-theme-page:not([data-training-theme="overview"]) .body-theme-controls{
+   grid-template-rows:repeat(var(--theme-rest-count,4),minmax(0,1fr))!important;
+   height:clamp(300px,calc(40px + var(--theme-rest-count,4) * 58px),460px)!important;
+ }
+}
 
   .nav-item.nav-guardian{color:#6e5520;border-color:rgba(194,212,163,.36);background:linear-gradient(135deg,rgba(194,212,163,.18),rgba(255,218,110,.12))}.nav-item.nav-guardian b{color:#6e9f75}.nav-item.nav-guardian.is-active{color:#fff;background:#1e2b25;border-color:#1e2b25;box-shadow:0 10px 22px rgba(31,27,20,.16)}
   body.guardian-route .tools-pet-nav{display:inline-grid!important}

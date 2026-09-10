@@ -42,6 +42,7 @@ from fitness_ledger_core.record_relations import (
 )
 from fitness_ledger_core.shared_view_models import LedgerViewModels, movement_in_progress
 from fitness_ledger_core.training_organization import (
+    THEME_COLOR_KEYS,
     normalize_label,
     normalize_training_organization,
     organization_catalog,
@@ -176,6 +177,8 @@ def _product_surface(category_id: str, presentation: dict) -> str:
 def _normalise_business_value(value, field_name: str = ""):
     """Compare ledger content, not JSON layout or write-time bookkeeping."""
     if isinstance(value, str):
+        if field_name.lower() in {"text", "raw", "raw_input"}:
+            return value.strip()
         if field_name.lower() in {"notes", "daily_notes", "diet_notes", "training_notes", "movement_notes"}:
             return normalize_note_text(value)
         lines = [line.rstrip() for line in value.splitlines()]
@@ -346,6 +349,7 @@ class LedgerCommandService:
         self.module_registry_file = Path(module_registry_file) if module_registry_file else None
         self.lock_file = self.data_file.parent / ".fitness-ledger-write.lock"
         self.pair_transaction_file = pair_transaction_journal_path(self.data_file)
+        self._last_migration_report: dict = {}
         self._recover_pending_pair_transaction()
 
     def _recover_pending_pair_transaction(self) -> dict:
@@ -367,7 +371,8 @@ class LedgerCommandService:
             {"daily_records": [], "diet_records": [], "training_sessions": [], "movements": {}, "raw_entries": []},
         )
         dictionary = _read_json(self.dictionary_file, {"version": "1.0", "movements": []})
-        database, dictionary, _report = migrate_state(database, dictionary)
+        database, dictionary, report = migrate_state(database, dictionary)
+        self._last_migration_report = report
         return database, dictionary
 
     def migration_preview(self) -> dict:
@@ -1088,7 +1093,8 @@ class LedgerCommandService:
         fingerprint["identity"] = _stable_json_hash(fingerprint)
         # Read-only previews use the same in-memory canonicalization as normal
         # commands, while the byte fingerprint still detects stale files.
-        tracker, dictionary, _report = migrate_state(decoded["tracker"], decoded["dictionary"])
+        tracker, dictionary, report = migrate_state(decoded["tracker"], decoded["dictionary"])
+        self._last_migration_report = report
         return tracker, dictionary, fingerprint
 
     @staticmethod
@@ -1233,6 +1239,16 @@ class LedgerCommandService:
                 "Every dictionary aliases field must be a list before ownership can be validated.",
                 movement_ids=invalid_alias_definitions,
             )
+        migration_conflicts = [
+            item for item in (self._last_migration_report.get("movement_conflicts") or [])
+            if item.get("type") == "duplicate_history_id"
+        ]
+        if migration_conflicts:
+            block(
+                "HISTORY_ID_CONFLICT",
+                "A legacy history ID is already used by another movement; no merge is safe until it is reviewed.",
+                conflicts=migration_conflicts,
+            )
         if require_custom_source and source and not re.fullmatch(r"CUSTOM_\d+", source_id):
             block("SOURCE_NOT_CUSTOM", "Source is not a structurally valid CUSTOM dictionary identity.")
         if target and re.fullmatch(r"CUSTOM_\d+", target_id):
@@ -1262,6 +1278,16 @@ class LedgerCommandService:
         if len(target_rows) > 1:
             block("TARGET_TRACKER_NOT_UNIQUE", "Target has multiple tracker movement rows.", count=len(target_rows))
         for key, row in source_rows:
+            unknown_fields = sorted(
+                set(row) - {"movement_id", "name", "aliases", "history", "created_at", "projection"}
+            )
+            if unknown_fields:
+                block(
+                    "SOURCE_ROW_UNKNOWN_FIELDS",
+                    "The source tracker row contains fields that cannot be safely migrated.",
+                    path=f"tracker.movements.{key}",
+                    fields=unknown_fields,
+                )
             if not isinstance(row.get("aliases", []), list):
                 block(
                     "SOURCE_ALIAS_INVALID_SHAPE",
@@ -1444,8 +1470,9 @@ class LedgerCommandService:
             key: value for key, value in (target or {}).items() if key != "aliases"
         })
         expected_target_history = [copy.deepcopy(row) for row in target_history_records]
+        target_display_name = target.get("display_name", "") if target else ""
         expected_target_history.extend(
-            [{**copy.deepcopy(row), "movement_id": target_id, "display_name": target.get("display_name", row.get("display_name", ""))} for row in source_history_records]
+            [{**copy.deepcopy(row), "movement_id": target_id, "display_name": target_display_name} for row in source_history_records]
         )
         plan = {
             "operation": (
@@ -1815,91 +1842,122 @@ class LedgerCommandService:
         database, dictionary = self.load_state()
         return organization_catalog(database, dictionary)
 
-    def update_session_theme(self, values: dict) -> dict:
-        """Create, rename, pin, or otherwise update a Session Theme."""
+    def _apply_session_theme_update(self, database: dict, values: dict) -> tuple[dict, bool]:
+        """Apply one Theme edit to an in-memory database without writing it."""
         if not isinstance(values, dict):
             raise LedgerCommandError("Session Theme values must be an object.", "THEME_VALUES_INVALID")
         display_name = str(values.get("display_name", "")).strip()
         if not display_name:
             raise LedgerCommandError("Session Theme name cannot be blank.", "THEME_NAME_REQUIRED")
+        themes = database["training_organization"]["session_themes"]
+        theme_id = str(values.get("theme_id", "")).strip()
+        theme = next((item for item in themes if str(item.get("theme_id")) == theme_id), None)
+        duplicate = next((item for item in themes if item is not theme and normalize_label(item.get("display_name")) == normalize_label(display_name)), None)
+        if duplicate is not None:
+            raise LedgerCommandError("A Session Theme with this name already exists.", "THEME_NAME_CONFLICT", {"theme_id": duplicate.get("theme_id")})
+        was_pinned = bool(theme.get("pinned", False)) if theme else False
+        previous_rank = int(theme.get("focus_rank", 0) or 0) if theme else 0
+        changed = False
+        if theme is None:
+            base = f"theme:{normalize_label(display_name) or 'custom'}"
+            theme_id = base
+            used = {str(item.get("theme_id")) for item in themes}
+            suffix = 2
+            while theme_id in used:
+                theme_id = f"{base}:{suffix}"
+                suffix += 1
+            theme = {
+                "theme_id": theme_id,
+                "display_name": display_name,
+                "active": bool(values.get("active", True)),
+                "sort_order": int(values.get("sort_order", max((int(item.get("sort_order", 0) or 0) for item in themes), default=0) + 10)),
+                "pinned": bool(values.get("pinned", False)),
+                "focus_rank": 0,
+                "artwork_key": "",
+                "color_key": next(
+                    (candidate for candidate in THEME_COLOR_KEYS if candidate not in {str(item.get("color_key", "")).strip() for item in themes}),
+                    theme_color_key(theme_id),
+                ),
+                "system": False,
+            }
+            themes.append(theme)
+            changed = True
+        else:
+            old_name = str(theme.get("display_name") or "").strip()
+            if old_name != display_name:
+                aliases = [str(item).strip() for item in theme.get("aliases", []) or [] if str(item).strip()]
+                if old_name and normalize_label(old_name) not in {normalize_label(item) for item in aliases}:
+                    aliases.append(old_name)
+                theme["aliases"] = aliases
+                theme["display_name"] = display_name
+                changed = True
+                for session in database.get("training_sessions", []) or []:
+                    memberships = session.get("session_theme_ids")
+                    if isinstance(memberships, list):
+                        belongs = theme_id in {str(item) for item in memberships}
+                    else:
+                        belongs = str(session.get("session_theme_id", "")) == theme_id
+                    if belongs and str(session.get("session_theme_name") or "").strip() in {"", old_name}:
+                        session["session_theme_name"] = display_name
+            for key in ("active", "pinned"):
+                if key in values:
+                    next_value = bool(values[key])
+                    if bool(theme.get(key, False if key == "pinned" else True)) != next_value:
+                        theme[key] = next_value
+                        changed = True
+            if values.get("sort_order") is not None:
+                next_order = int(values["sort_order"])
+                if int(theme.get("sort_order", 0) or 0) != next_order:
+                    theme["sort_order"] = next_order
+                    changed = True
+        theme.setdefault("color_key", theme_color_key(theme_id))
+        theme["artwork_key"] = ""
+        if theme.get("pinned") and not was_pinned:
+            for other in themes:
+                if other is not theme and other.get("pinned"):
+                    other["focus_rank"] = max(1, int(other.get("focus_rank", 0) or 0)) + 1
+            theme["focus_rank"] = 1
+            changed = True
+        elif not theme.get("pinned"):
+            theme["focus_rank"] = 0
+            if was_pinned and previous_rank:
+                for other in themes:
+                    if other is not theme and other.get("pinned") and int(other.get("focus_rank", 0) or 0) > previous_rank:
+                        other["focus_rank"] -= 1
+                changed = True
+        elif int(theme.get("focus_rank", 0) or 0) <= 0:
+            theme["focus_rank"] = 1
+            changed = True
+        return copy.deepcopy(theme), changed
+
+    def update_session_theme(self, values: dict) -> dict:
+        """Create, rename, pin, or otherwise update a Session Theme."""
         with self.write_lock():
             database, dictionary = self.load_state()
-            themes = database["training_organization"]["session_themes"]
-            theme_id = str(values.get("theme_id", "")).strip()
-            theme = next((item for item in themes if str(item.get("theme_id")) == theme_id), None)
-            duplicate = next((item for item in themes if item is not theme and normalize_label(item.get("display_name")) == normalize_label(display_name)), None)
-            if duplicate is not None:
-                raise LedgerCommandError("A Session Theme with this name already exists.", "THEME_NAME_CONFLICT", {"theme_id": duplicate.get("theme_id")})
-            was_pinned = bool(theme.get("pinned", False)) if theme else False
-            previous_rank = int(theme.get("focus_rank", 0) or 0) if theme else 0
-            changed = False
-            if theme is None:
-                base = f"theme:{normalize_label(display_name) or 'custom'}"
-                theme_id = base
-                used = {str(item.get("theme_id")) for item in themes}
-                suffix = 2
-                while theme_id in used:
-                    theme_id = f"{base}:{suffix}"
-                    suffix += 1
-                theme = {
-                    "theme_id": theme_id,
-                    "display_name": display_name,
-                    "active": bool(values.get("active", True)),
-                    "sort_order": int(values.get("sort_order", max((int(item.get("sort_order", 0) or 0) for item in themes), default=0) + 10)),
-                    "pinned": bool(values.get("pinned", False)),
-                    "focus_rank": 0,
-                    "artwork_key": "",
-                    "color_key": theme_color_key(theme_id),
-                    "system": False,
-                }
-                themes.append(theme)
-                changed = True
-            else:
-                old_name = str(theme.get("display_name") or "").strip()
-                if old_name != display_name:
-                    aliases = [str(item).strip() for item in theme.get("aliases", []) or [] if str(item).strip()]
-                    if old_name and normalize_label(old_name) not in {normalize_label(item) for item in aliases}:
-                        aliases.append(old_name)
-                    theme["aliases"] = aliases
-                    theme["display_name"] = display_name
-                    changed = True
-                    for session in database.get("training_sessions", []) or []:
-                        if str(session.get("session_theme_id", "")) == theme_id:
-                            session["session_theme_name"] = display_name
-                for key in ("active", "pinned"):
-                    if key in values:
-                        next_value = bool(values[key])
-                        if bool(theme.get(key, False if key == "pinned" else True)) != next_value:
-                            theme[key] = next_value
-                            changed = True
-                if values.get("sort_order") is not None:
-                    next_order = int(values["sort_order"])
-                    if int(theme.get("sort_order", 0) or 0) != next_order:
-                        theme["sort_order"] = next_order
-                        changed = True
-            theme.setdefault("color_key", theme_color_key(theme_id))
-            theme["artwork_key"] = ""
-            if theme.get("pinned") and not was_pinned:
-                for other in themes:
-                    if other is not theme and other.get("pinned"):
-                        other["focus_rank"] = max(1, int(other.get("focus_rank", 0) or 0)) + 1
-                theme["focus_rank"] = 1
-                changed = True
-            elif not theme.get("pinned"):
-                theme["focus_rank"] = 0
-                if was_pinned and previous_rank:
-                    for other in themes:
-                        if other is not theme and other.get("pinned") and int(other.get("focus_rank", 0) or 0) > previous_rank:
-                            other["focus_rank"] -= 1
-                    changed = True
-            elif int(theme.get("focus_rank", 0) or 0) <= 0:
-                theme["focus_rank"] = 1
-                changed = True
+            theme, changed = self._apply_session_theme_update(database, values)
             if not changed:
-                return {"status": "NO_CHANGES", "theme": copy.deepcopy(theme), "organization": organization_catalog(database, dictionary)}
+                return {"status": "NO_CHANGES", "theme": theme, "organization": organization_catalog(database, dictionary)}
             tracker_backup, dictionary_backup = self._checkpoint()
             self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
-            return {"status": "UPDATED", "theme": copy.deepcopy(theme), "organization": organization_catalog(database, dictionary)}
+            return {"status": "UPDATED", "theme": theme, "organization": organization_catalog(database, dictionary)}
+
+    def update_session_themes(self, values: list[dict]) -> dict:
+        """Atomically apply a complete Theme manager form in one write."""
+        if not isinstance(values, list):
+            raise LedgerCommandError("Session Theme updates must be a list.", "THEME_BATCH_INVALID")
+        with self.write_lock():
+            database, dictionary = self.load_state()
+            changed = False
+            updated = []
+            for item in values:
+                theme, item_changed = self._apply_session_theme_update(database, item)
+                updated.append(theme)
+                changed = changed or item_changed
+            if not changed:
+                return {"status": "NO_CHANGES", "themes": updated, "organization": organization_catalog(database, dictionary)}
+            tracker_backup, dictionary_backup = self._checkpoint()
+            self._write_pair(database, dictionary, tracker_backup, dictionary_backup)
+            return {"status": "UPDATED", "themes": updated, "organization": organization_catalog(database, dictionary)}
 
     def set_session_theme_active(self, theme_id: str, active: bool) -> dict:
         theme_id = str(theme_id or "").strip()
@@ -2984,6 +3042,13 @@ class LedgerCommandService:
         database["training_sessions"] = [row for row in database.get("training_sessions", []) if str(row.get("Date", ""))[:10] != target]
         for session in database.get("training_sessions", []):
             session["movement_items"] = [row for row in session.get("movement_items", []) if str(row.get("date", ""))[:10] != target]
+        for movement in database.get("movements", {}).values():
+            if isinstance(movement, dict):
+                movement["history"] = [
+                    row for row in movement.get("history", []) or []
+                    if str(row.get("date", ""))[:10] != target
+                    and str(row.get("record_day_id", "")) != record_day_id(target)
+                ]
         rebuild_movement_projection(database)
         for raw_record in database.get("raw_entries", []):
             if str(raw_record.get("date", ""))[:10] == target and not raw_record.get("superseded"):

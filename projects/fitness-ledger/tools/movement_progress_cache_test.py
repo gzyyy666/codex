@@ -31,9 +31,10 @@ def browser_contract() -> None:
     assert script_match
     script = script_match.group(0)
     harness = r"""
+let movementHistoryCount=1;
 const emptyState=()=>({
   today:{date:'2099-01-01'},recent:[],body:[],diet:[],training:[],dictionary:[],
-  movements:[{movement_id:'MOV_A',display_name:'Test Press',english_name:'Test Press',muscle_group:'Chest',active:true}],
+  movements:[{movement_id:'MOV_A',display_name:'Test Press',english_name:'Test Press',muscle_group:'Chest',active:true,history_count:movementHistoryCount}],
   movementGroups:['Chest'],sync:{sync_status:'SYNCED'},build:{status:'PREVIEW',short_sha:'test'}
 });
 let historyRows=[{date:'2099-01-01',id:'h1',sets_lines:['10kg x 8 x 2']}];
@@ -45,7 +46,7 @@ window.fetch=async (path,options={})=>{
   const state=emptyState();
   if(method==='POST'&&url.includes('/api/save')){
     if(failSave)return {ok:false,status:500,json:async()=>({error:'save failed'})};
-    if(saveStatus!=='NO_CHANGES')historyRows=[{date:'2099-01-02',id:'h2',sets_lines:['12kg x 8 x 2']},...historyRows];
+    if(saveStatus!=='NO_CHANGES'){historyRows=[{date:'2099-01-02',id:'h2',sets_lines:['12kg x 8 x 2']},...historyRows];movementHistoryCount=2;}
     return {ok:true,status:200,json:async()=>({ok:true,status:saveStatus,training_updated:saveStatus!=='NO_CHANGES',saved_movements:saveStatus==='NO_CHANGES'?0:1,date:'2099-01-02'})};
   }
   if(method==='POST'&&url.includes('/api/movement-history/update')){
@@ -95,7 +96,7 @@ await saveWebReview();
 const invalidatedAfterSave=state.usageLoaded===false&&Object.keys(state.movementUsage).length===0;
 navigate('movements');
 await wait(350);
-const reloadedAfterSave=movementHistoryRequests>initialRequests&&state.usageLoaded===true&&state.movementUsage.MOV_A.count===2&&state.movementUsage.MOV_A.payload.history[0].date==='2099-01-02';
+const reloadedAfterSave=movementHistoryRequests===initialRequests&&state.usageLoaded===true&&state.movementUsage.MOV_A.count===2;
 
 const requestsAfterReload=movementHistoryRequests;
 state.reviewPayload={review_id:'review-2',review:{training:{movements:[]}},duplicates:{}};
@@ -148,10 +149,12 @@ document.body.appendChild(report);
 
 def main() -> None:
     js = (PROJECT / "web_desktop/frontend/app.js").read_text(encoding="utf-8")
+    compact_js = "".join(js.split())
     assert "function invalidateMovementUsage()" in js
     assert "state.movementUsage={};state.usageLoaded=false;state.movementHistory=null" in js
-    assert "if(result.status!=='NO_CHANGES'&&(result.training_updated||Number(result.saved_movements||0)>0))invalidateMovementUsage()" in js
-    assert "if(result.status!=='NO_CHANGES')invalidateMovementUsage();await refreshWebState();await loadMovementFocus" in js
+    assert "if(result.status!=='NO_CHANGES'&&(result.training_updated||Number(result.saved_movements||0)>0)){try{invalidateMovementUsage()" in compact_js
+    assert "if(result.status!=='NO_CHANGES'){voidautoSyncAfterSave()" in compact_js
+    assert "if(result.status!=='NO_CHANGES')invalidateMovementUsage();awaitrefreshWebState();awaitloadMovementFocus" in compact_js
     assert "if(form.dataset.recordType==='training'&&result.status!=='NO_CHANGES')invalidateMovementUsage()" in js
     assert "await postApi('/api/undo',{});invalidateMovementUsage();await refreshWebState()" in js
     assert "state.usageLoaded=false" not in js.replace("state.movementUsage={};state.usageLoaded=false;state.movementHistory=null", "")
