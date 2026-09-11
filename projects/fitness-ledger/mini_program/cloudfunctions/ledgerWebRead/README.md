@@ -16,6 +16,9 @@
 开启 HTTP 身份认证，只允许已登录的网页用户访问。函数默认要求
 `Authorization: Bearer <accessToken>`，因此不能被匿名请求直接读取。
 
+`fl_meta.training_organization` 保存与 Web 端相同的 Session Theme 和 Movement
+Category 目录；函数只读该目录，并从 `fl_training_sessions` 解析主题归属，不能写回记录。
+
 配置以下环境变量：
 
 ```text
@@ -32,6 +35,7 @@ FITNESS_LEDGER_WEB_ORIGINS=https://cloud1-d9g35v5s1a904a8ad-1450570992.tcloudbas
 
 ## 读取接口
 
-接口动作与小程序 `ledgerRead` 保持一致，包括 `status`、`latest`、
-`bodyAreas`、`bodyArea`、`trainingRecords`、`movementCatalog`、
-`movementHistory`、`recordDetail` 和 `trainingDayDetail`。
+接口动作与 PWA 当前调用保持一致，包括 `status`、`whoami`、
+`trainingOrganization`、`sessionThemeArea`、`bodyAreas`、`bodyArea`、
+`trainingRecords`、`movementCatalog`、`movementHistory`、`recordDetail` 和
+`trainingDayDetail`。训练详情优先使用 `sessionId`，以保留同日多段训练的边界。

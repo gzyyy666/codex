@@ -20,7 +20,8 @@ def main() -> None:
     for marker in (
         "async function readAction", "exports.main", "OPTIONS", "Authorization", "bodyAreas", "movementHistory",
         "dataModules", "fl_data_modules", "fl_data_module_records", "fl_data_module_contract",
-        "mobileDataModulePayload", "normalizedMobileContract",
+        "mobileDataModulePayload", "normalizedMobileContract", "trainingOrganization",
+        "sessionThemeArea", "theme_names", "session_theme_ids", "sessionId",
     ):
         assert marker in source, f"missing web read contract marker: {marker}"
     for forbidden in ("getWXContext", "FITNESS_LEDGER_ALLOWED_OPENIDS", ".add(", ".update(", ".set(", ".remove("):

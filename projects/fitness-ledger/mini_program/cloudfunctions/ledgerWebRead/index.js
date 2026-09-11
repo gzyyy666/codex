@@ -11,11 +11,14 @@ const COLLECTIONS = {
 };
 
 const BODY_PARTS = {
-  shoulders: { label: "肩", labelEn: "SHOULDERS", groups: ["Shoulder", "Shoulders", "肩部"], split: ["肩", "shoulder"] },
-  chest: { label: "胸", labelEn: "CHEST", groups: ["Chest", "胸部"], split: ["胸", "chest"] },
-  back: { label: "背", labelEn: "BACK", groups: ["Back", "背部"], split: ["背", "back"] },
-  legs: { label: "腿", labelEn: "LEGS", groups: ["Leg", "Legs", "Lower Body", "腿部", "臀部"], split: ["腿", "臀", "leg", "lower"] },
-  arms: { label: "手臂", labelEn: "ARMS", groups: ["Arm", "Arms", "Biceps", "Triceps", "手臂"], split: ["手臂", "二头", "三头", "arm", "biceps", "triceps"] }
+  shoulders: { label: "肩", labelEn: "SHOULDERS", groups: ["Shoulder", "Shoulders", "肩部"] },
+  chest: { label: "胸", labelEn: "CHEST", groups: ["Chest", "胸部"] },
+  back: { label: "背", labelEn: "BACK", groups: ["Back", "背部"] },
+  legs: { label: "腿", labelEn: "LEGS", groups: ["Leg", "Legs", "Lower Body", "腿部"] },
+  arms: { label: "手臂", labelEn: "ARMS", groups: ["Arm", "Arms", "Biceps", "Triceps", "手臂"] },
+  glutes: { label: "臀", labelEn: "GLUTES", groups: ["Glute", "Glutes", "臀", "臀部", "Hip", "Hips"] },
+  core: { label: "核心", labelEn: "CORE", groups: ["Core", "Ab", "Abs", "腹", "核心"] },
+  cardio: { label: "有氧", labelEn: "CARDIO", groups: ["Cardio", "Aerobic", "有氧"] }
 };
 
 function result(data) { return { ok: true, data }; }
@@ -115,6 +118,61 @@ function groupMatches(value, groups) {
   const source = normalized(value);
   return groups.some(group => source === normalized(group) || source.includes(normalized(group)));
 }
+
+function fallbackThemeId(label) {
+  return `legacy:${String(label || "training").trim().toLowerCase().replace(/[^a-z0-9\u3400-\u9fff]+/g, "-").replace(/^-+|-+$/g, "") || "training"}`;
+}
+
+function themeIds(record, organization) {
+  const themes = Array.isArray(organization && organization.session_themes) ? organization.session_themes : [];
+  const valid = new Set(themes.map(item => String(item.theme_id || "")).filter(Boolean));
+  const stored = Array.isArray(record && record.session_theme_ids)
+    ? record.session_theme_ids
+    : [record && record.session_theme_id];
+  const ids = stored.map(value => String(value || "").trim()).filter(value => value && valid.has(value));
+  if (ids.length) return Array.from(new Set(ids));
+  const label = String((record && (record.session_theme_name || record["Session Theme"] || record.Split)) || "").trim();
+  const matched = themes.find(item => String(item.display_name || "").trim() === label);
+  return matched ? [String(matched.theme_id)] : (label ? [fallbackThemeId(label)] : []);
+}
+
+function themeNames(record, organization) {
+  const themes = Array.isArray(organization && organization.session_themes) ? organization.session_themes : [];
+  const byId = Object.fromEntries(themes.map(item => [String(item.theme_id || ""), String(item.display_name || item.theme_id || "")]));
+  const names = themeIds(record, organization).map(id => byId[id]).filter(Boolean);
+  const persisted = String((record && record.session_theme_name) || "").trim();
+  if (persisted && !names.includes(persisted)) names.push(persisted);
+  return names;
+}
+
+function fallbackTrainingOrganization(trainingRows) {
+  const themes = [];
+  let seen = new Set();
+  (trainingRows || []).forEach(row => {
+    const label = String(row.session_theme_name || row["Session Theme"] || row.Split || "").trim();
+    if (!label) return;
+    const id = String(row.session_theme_id || "").trim() || fallbackThemeId(label);
+    if (seen.has(id)) return;
+    seen = new Set([...seen, id]);
+    themes.push({ theme_id: id, display_name: label, active: true, pinned: false, sort_order: themes.length * 10, color_key: "neutral" });
+  });
+  return { session_themes: themes, movement_categories: [] };
+}
+
+async function trainingOrganizationPayload(trainingRows) {
+  const metaRows = await safeAll(COLLECTIONS.meta, 3);
+  const stored = metaRows.find(item => item && item.training_organization && typeof item.training_organization === "object");
+  const organization = stored && stored.training_organization;
+  if (!organization) return fallbackTrainingOrganization(trainingRows);
+  return {
+    session_themes: Array.isArray(organization.session_themes) ? organization.session_themes.filter(item => item && item.active !== false) : [],
+    movement_categories: Array.isArray(organization.movement_categories) ? organization.movement_categories.filter(item => item && item.active !== false) : []
+  };
+}
+
+function decorateTrainingRows(rows, organization) {
+  return (rows || []).map(row => ({ ...row, theme_names: themeNames(row, organization) }));
+}
 function setSummary(sets) {
   return (Array.isArray(sets) ? sets : []).map(item => {
     const weight = item.weight_text || (Number(item.weight) > 0 ? `${Number(item.weight)}kg` : "自重");
@@ -202,7 +260,7 @@ function buildBodyArea(partId, movements, history, sessions) {
     labelEn: theme.labelEn,
     session_count: matchedSessions.length,
     movement_count: movementCards.length,
-    latest_date: matchedSessions[0] ? matchedSessions[0].Date : "",
+    latest_date: matchedSessions[0] ? matchedSessions[0].date : "",
     movements: movementCards,
     sessions: matchedSessions.slice(0, 12)
   };
@@ -215,6 +273,113 @@ async function bodyAreaPayload(partId) {
   ]);
   return buildBodyArea(partId, datasets[0], datasets[1], datasets[2]);
 }
+
+function sessionMovementRows(session, movementMap) {
+  return (Array.isArray(session && session.movement_items) ? session.movement_items : [])
+    .filter(item => item && item.movement_id)
+    .map((item, index) => {
+      const movementId = String(item.movement_id);
+      const definition = movementMap[movementId] || {};
+      return {
+        movement_id: movementId,
+        display_name: item.display_name || definition.display_name || movementId,
+        english_name: definition.english_name || "",
+        muscle_group: definition.muscle_group || "",
+        order: item.order_in_session || item.order || index + 1,
+        sets: Array.isArray(item.sets) ? item.sets : [],
+        notes: item.notes || "",
+        date: String(session.Date || "").slice(0, 10),
+        training_session_id: String(session.id || session._id || "")
+      };
+    });
+}
+
+function buildSessionMovementCards(sessionRows, movementMap, historyRows) {
+  let selectedIds = new Set();
+  const fallbackRows = [];
+  sessionRows.forEach(session => sessionMovementRows(session, movementMap).forEach(item => {
+    selectedIds = new Set([...selectedIds, item.movement_id]);
+    fallbackRows.push(item);
+  }));
+  const recordsByMovement = {};
+  (historyRows || []).forEach(item => {
+    const movementId = String(item.movement_id || "");
+    if (!selectedIds.has(movementId)) return;
+    if (!recordsByMovement[movementId]) recordsByMovement[movementId] = [];
+    recordsByMovement[movementId].push({ ...item, date: String(item.date || "").slice(0, 10) });
+  });
+  fallbackRows.forEach(item => {
+    if (!recordsByMovement[item.movement_id]) recordsByMovement[item.movement_id] = [];
+    if (!recordsByMovement[item.movement_id].some(row => String(row.training_session_id || "") === item.training_session_id)) {
+      recordsByMovement[item.movement_id].push(item);
+    }
+  });
+  return Array.from(selectedIds).map(movementId => {
+    const definition = movementMap[movementId] || {};
+    const records = recordsByMovement[movementId] || [];
+    const compact = records.map(item => ({
+      date: String(item.date || "").slice(0, 10),
+      training_session_id: String(item.training_session_id || ""),
+      order: item.order_in_session || item.order || 0,
+      sets: Array.isArray(item.sets) ? item.sets : [],
+      summary: item.summary || setSummary(item.sets),
+      notes: item.notes || ""
+    })).sort((a, b) => String(b.date).localeCompare(String(a.date)) || Number(b.order || 0) - Number(a.order || 0));
+    if (!compact.length) return null;
+    return {
+      movement_id: movementId,
+      display_name: definition.display_name || fallbackRows.find(item => item.movement_id === movementId)?.display_name || movementId,
+      english_name: definition.english_name || "",
+      muscle_group: definition.muscle_group || "",
+      pinned: definition.pinned === true,
+      focus_rank: Number(definition.focus_rank || 0),
+      sessions: new Set(compact.map(item => item.training_session_id || item.date)).size,
+      latest: compact[0],
+      previous: compact[1] || null,
+      best: compact[0],
+      recent: compact.slice(0, 3)
+    };
+  }).filter(Boolean).sort((a, b) => Number(b.pinned) - Number(a.pinned) || Number(a.focus_rank || 9999) - Number(b.focus_rank || 9999) || b.sessions - a.sessions || String(a.display_name).localeCompare(String(b.display_name), "zh-CN"));
+}
+
+async function sessionThemeAreaPayload(themeId) {
+  const trainingRows = await all(COLLECTIONS.training, 200);
+  const organization = await trainingOrganizationPayload(trainingRows);
+  const theme = (organization.session_themes || []).find(item => String(item.theme_id || "") === String(themeId || ""));
+  if (!theme) return null;
+  const sessions = trainingRows.filter(row => themeIds(row, organization).includes(String(themeId)));
+  sessions.sort((a, b) => String(b.Date || "").localeCompare(String(a.Date || "")) || String(b.id || "").localeCompare(String(a.id || "")));
+  const movements = await all(COLLECTIONS.movements, 200);
+  const movementMap = Object.fromEntries(movements.map(item => [String(item.movement_id || ""), item]));
+  const history = await all(COLLECTIONS.history, 500);
+  const rows = sessions.map(session => {
+    const items = sessionMovementRows(session, movementMap);
+    return {
+      id: session.id || session._id || String(session.Date || ""),
+      date: String(session.Date || "").slice(0, 10),
+      theme_names: themeNames(session, organization),
+      title: session.session_theme_name || theme.display_name || "训练",
+      split: session.Split || "",
+      related_count: items.length,
+      related_movements: items.map(item => item.display_name).filter(Boolean),
+      movement_summary: session["Standardized Summary"] || items.map(item => `${item.display_name}${setSummary(item.sets) ? `：${setSummary(item.sets)}` : ""}`).join("；") || "暂无完整动作摘要",
+      full_summary: session["Standardized Summary"] || items.map(item => `${item.display_name}${setSummary(item.sets) ? `：${setSummary(item.sets)}` : ""}`).join("；") || "暂无完整动作摘要",
+      notes: session.Notes || ""
+    };
+  });
+  return {
+    id: String(themeId),
+    label: String(theme.display_name || themeId),
+    labelEn: String(theme.display_name || themeId).toUpperCase(),
+    theme,
+    session_count: rows.length,
+    movement_count: new Set(sessions.flatMap(session => sessionMovementRows(session, movementMap).map(item => item.movement_id))).size,
+    latest_date: rows[0] ? rows[0].date : "",
+    movements: buildSessionMovementCards(sessions, movementMap, history),
+    sessions: rows.slice(0, 12)
+  };
+}
+
 async function movementCatalogPayload() {
   const movements = await all(COLLECTIONS.movements, 200);
   return movements.filter(item => item.active !== false && item.movement_id && item.display_name).map(item => ({
@@ -244,40 +409,65 @@ async function allOnDate(name, field, date, maxItems = 500) {
   }
   return rows.slice(0, maxItems);
 }
-async function getTrainingDayDetail(date) {
-  const [sessionResult, history] = await Promise.all([
-    db.collection(COLLECTIONS.training).where({ Date: date }).limit(10).get(),
-    allOnDate(COLLECTIONS.history, "date", date)
-  ]);
-  const movementIds = [...new Set(history.map(item => String(item.movement_id || "")).filter(Boolean))];
+async function getTrainingDayDetail(sessionId, entryDate, organization) {
+  const trainingRows = await all(COLLECTIONS.training, 200);
+  const requestedId = String(sessionId || "").trim();
+  const date = String(entryDate || "").slice(0, 10);
+  const session = trainingRows.find(item => requestedId && String(item.id || item._id || "") === requestedId)
+    || trainingRows.find(item => !requestedId && String(item.Date || "").slice(0, 10) === date)
+    || null;
+  const sessionDate = String(session?.Date || date).slice(0, 10);
+  const historyRows = await allOnDate(COLLECTIONS.history, "date", sessionDate);
+  const history = requestedId
+    ? historyRows.filter(item => !item.training_session_id || String(item.training_session_id) === String(session?.id || session?._id || requestedId))
+    : historyRows;
+  const movementIds = [...new Set([
+    ...(session ? sessionMovementRows(session, {}).map(item => item.movement_id) : []),
+    ...history.map(item => String(item.movement_id || ""))
+  ].filter(Boolean))];
   const movementRows = movementIds.length ? (await Promise.all(chunks(movementIds, 20).map(ids => (
     db.collection(COLLECTIONS.movements).where({ movement_id: db.command.in(ids) }).get()
   )))).flatMap(item => item.data || []) : [];
   const movementById = Object.fromEntries(movementRows.map(item => [String(item.movement_id || ""), item]));
-  const movements = history.map((item, index) => {
+  const sessionItems = session ? sessionMovementRows(session, movementById) : [];
+  const sourceItems = sessionItems.length ? sessionItems : history.map((item, index) => ({
+    movement_id: String(item.movement_id || ""),
+    display_name: movementById[String(item.movement_id || "")]?.display_name || String(item.movement_id || ""),
+    english_name: movementById[String(item.movement_id || "")]?.english_name || "",
+    muscle_group: movementById[String(item.movement_id || "")]?.muscle_group || "",
+    order: item.order,
+    sets: Array.isArray(item.sets) ? item.sets : [],
+    notes: item.notes || "",
+    date: sessionDate,
+    training_session_id: String(session?.id || session?._id || "")
+  }));
+  const movements = sourceItems.map((item, index) => {
     const movementId = String(item.movement_id || "");
     const movement = movementById[movementId] || {};
     return {
       movement_id: movementId,
-      movement_name: movement.display_name || movementId,
-      english_name: movement.english_name || "",
-      muscle_group: movement.muscle_group || "",
-      order: item.order === undefined || item.order === null ? null : item.order,
+      movement_name: item.display_name || movement.display_name || movementId,
+      english_name: item.english_name || movement.english_name || "",
+      muscle_group: item.muscle_group || movement.muscle_group || "",
+      order_in_session: item.order === undefined || item.order === null ? index + 1 : item.order,
       sets: Array.isArray(item.sets) ? item.sets : [],
       notes: item.notes || "",
       _source_index: index
     };
   }).sort((a, b) => {
-    const aOrder = a.order === null ? Number.MAX_SAFE_INTEGER : Number(a.order);
-    const bOrder = b.order === null ? Number.MAX_SAFE_INTEGER : Number(b.order);
+    const aOrder = a.order_in_session === null ? Number.MAX_SAFE_INTEGER : Number(a.order_in_session);
+    const bOrder = b.order_in_session === null ? Number.MAX_SAFE_INTEGER : Number(b.order_in_session);
     return aOrder - bOrder || a._source_index - b._source_index;
   }).map(({ _source_index, ...item }) => item);
-  const session = (sessionResult.data || [])[0] || null;
   return {
-    date,
+    date: sessionDate,
     session: session ? {
       id: session.id || session._id || "",
-      date: String(session.Date || "").slice(0, 10),
+      date: sessionDate,
+      session_sequence: session.session_sequence || 1,
+      session_theme_id: String(session.session_theme_id || ""),
+      session_theme_ids: Array.isArray(session.session_theme_ids) ? session.session_theme_ids : [],
+      theme_names: themeNames(session, organization),
       split: session.Split || "",
       summary: session["Standardized Summary"] || "",
       notes: session.Notes || ""
@@ -303,10 +493,14 @@ async function readAction(event) {
       case "bodyRecords": return result(await list(COLLECTIONS.daily, Number(event.limit || 30), Number(event.skip || 0)));
       case "dietRecords": return result(await list(COLLECTIONS.diet, Number(event.limit || 30), Number(event.skip || 0)));
       case "dataModules": return result(await mobileDataModulePayload());
+      case "trainingOrganization": {
+        const rows = await all(COLLECTIONS.training, 200);
+        return result(await trainingOrganizationPayload(rows));
+      }
       case "trainingRecords": {
         const rows = await all(COLLECTIONS.training, 200);
         rows.sort((a, b) => String(b.Date || "").localeCompare(String(a.Date || "")));
-        return result(rows);
+        return result(decorateTrainingRows(rows, await trainingOrganizationPayload(rows)));
       }
       case "bodyAreas": {
         const datasets = await Promise.all([
@@ -328,10 +522,15 @@ async function readAction(event) {
         const data = await bodyAreaPayload(String(event.part || ""));
         return data ? result(data) : failure("INVALID_BODY_PART", "未识别训练部位。");
       }
+      case "sessionThemeArea": {
+        const data = await sessionThemeAreaPayload(String(event.themeId || ""));
+        return data ? result(data) : failure("INVALID_SESSION_THEME", "未识别训练主题。");
+      }
       case "movementCatalog": return result(await movementCatalogPayload());
       case "trainingReference": {
         const where = event.split ? { Split: db.RegExp({ regexp: String(event.split), options: "i" }) } : {};
-        return result((await db.collection(COLLECTIONS.training).where(where).orderBy("Date", "desc").limit(8).get()).data);
+        const rows = (await db.collection(COLLECTIONS.training).where(where).orderBy("Date", "desc").limit(8).get()).data;
+        return result(decorateTrainingRows(rows, await trainingOrganizationPayload(rows)));
       }
       case "search": {
         const query = String(event.query || "").trim();
@@ -365,14 +564,16 @@ async function readAction(event) {
       case "movement": return result((await db.collection(COLLECTIONS.movements).where({ movement_id: String(event.movementId || "") }).limit(1).get()).data[0] || null);
       case "trainingDayDetail": {
         const date = String(event.date || "").slice(0, 10);
-        if (!validIsoDate(date)) return failure("INVALID_DATE", "日期格式应为 YYYY-MM-DD。");
-        return result(await getTrainingDayDetail(date));
+        const sessionId = String(event.sessionId || "").trim();
+        if (!sessionId && !validIsoDate(date)) return failure("INVALID_DATE", "日期格式应为 YYYY-MM-DD。");
+        const rows = await all(COLLECTIONS.training, 200);
+        return result(await getTrainingDayDetail(sessionId, date, await trainingOrganizationPayload(rows)));
       }
       case "recordDetail": {
         const date = String(event.date || "").slice(0, 10);
         const fetch = name => db.collection(name).where({ Date: date }).get();
         const [body, diet, training] = await Promise.all([fetch(COLLECTIONS.daily), fetch(COLLECTIONS.diet), fetch(COLLECTIONS.training)]);
-        return result({ date, body: body.data, diet: diet.data, training: training.data });
+        return result({ date, body: body.data, diet: diet.data, training: decorateTrainingRows(training.data, await trainingOrganizationPayload(training.data)) });
       }
       case "quality": return result(await list(COLLECTIONS.quality, 50, 0, "date"));
       default: return failure("UNKNOWN_ACTION", "未知只读操作。");

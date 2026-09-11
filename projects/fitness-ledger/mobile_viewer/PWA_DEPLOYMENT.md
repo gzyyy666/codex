@@ -22,7 +22,7 @@
    CloudBase 账号登录。微信小程序的登录会话不会自动继承到 Safari。
 4. 将实际访问地址加入 CloudBase Web 安全来源/安全域名配置。
 5. 一个 Web 只读 API 地址，接口需要覆盖 PWA 当前使用的 `pwa/read` action：
-   `status`、`whoami`、`bodyAreas`、`bodyArea`、`trainingRecords`、
+   `status`、`whoami`、`trainingOrganization`、`sessionThemeArea`、`bodyAreas`、`bodyArea`、`trainingRecords`、
    `bodyRecords`、`dietRecords`、`recordDetail`、`trainingDayDetail`、
   `movementCatalog`、`movement`、`movementHistory`、`search`。
 
@@ -70,7 +70,8 @@ python tools/pwa_deployment_preflight.py
 ```
 
 2. 完成 Web 只读 API 和 Web 登录配置，并在浏览器中验证 `status`、
-   `movementCatalog`、`movementHistory` 三个接口。
+   `trainingOrganization`、`sessionThemeArea`、`movementCatalog`、
+   `movementHistory` 四个接口；确认训练记录携带 `theme_names`。
 3. 将 PWA 的 `config.js` 中 `apiBaseUrl` 指向审查过的 Web API，并将
    `requireWebAuth` 设为 `true`；不要把密钥放入 `config.js`。
 4. 登录 CloudBase 后上传静态文件。

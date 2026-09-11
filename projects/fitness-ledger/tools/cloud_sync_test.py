@@ -45,6 +45,8 @@ def main() -> None:
                 if line.strip()
             )
         )
+        assert meta["training_organization"]["session_themes"], "Cloud metadata must carry Session Theme catalog"
+        assert "movement_categories" in meta["training_organization"]
         commands: list[tuple[str, str]] = []
         original_client = upload_to_cloudbase._make_tcb_client
         original_command = upload_to_cloudbase._run_tcb_command

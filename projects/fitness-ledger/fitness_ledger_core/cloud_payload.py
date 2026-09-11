@@ -4,6 +4,8 @@ import hashlib
 import json
 from datetime import datetime
 
+from .training_organization import organization_catalog
+
 
 SCHEMA_VERSION = "fitness-ledger-read-replica-v2"
 
@@ -145,6 +147,11 @@ def build_cloud_payload(
         "latest_record_date": payload["fl_latest_summary"][0]["date"] if payload["fl_latest_summary"] else "",
         "collection_counts": collection_counts,
         "collection_hashes": collection_hashes,
+        # The PWA needs the same editable Session Theme and Movement Category
+        # catalog as Web. Keep it in the sanitized metadata row so the
+        # read-only cloud function can expose the catalog without inventing
+        # themes from the legacy Split field.
+        "training_organization": organization_catalog(_tracker, dictionary),
     }
     if data_module_collections:
         metadata["extensions"] = ["data-modules-v1"]
