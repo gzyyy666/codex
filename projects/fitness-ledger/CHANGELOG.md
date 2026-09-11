@@ -1,5 +1,14 @@
 # Fitness Ledger Changelog
 
+## 2026-09-11 - PWA review adapter and visible version refresh
+
+- Restored the computer Review URL to a real local PWA adapter instead of a
+  static-only file server, so Movement Module reads and recent movement data
+  are available during review.
+- Bumped the visible PWA marker to `PWA v1.1.9 · build 2026.09.11.05`, the
+  Service Worker cache to `fitness-ledger-pwa-v45`, and resource queries to
+  `20260911-05` so phone clients can identify and fetch the new bundle.
+
 ## 2026-09-11 - PWA Training Home formal release
 
 - Promoted the Training Note-first PWA homepage to the formal mobile bundle.
