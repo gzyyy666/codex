@@ -1,5 +1,15 @@
 # Fitness Ledger Changelog
 
+## 2026-09-11 - PWA input focus viewport fix
+
+- Kept the Movement Module rail and recent movement content in the homepage
+  document flow while the Training Note textarea receives phone keyboard focus.
+- Temporarily compacted only the focused, non-expanded note surface and restored
+  the pre-focus scroll position after blur; no movement/module data or record
+  logic changed.
+- Published visible marker `PWA v1.1.12 · build 2026.09.11.08`, Service Worker
+  `fitness-ledger-pwa-v48`, and resource query `20260911-08`.
+
 ## 2026-09-11 - PWA focus scrolling and note density fix
 
 - Kept the Movement Module rail and selected movement archive reachable while

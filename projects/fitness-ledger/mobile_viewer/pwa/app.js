@@ -12,7 +12,7 @@ const BODY_PARTS = [
 ];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.11 · build 2026.09.11.07";
+const BUILD_VERSION = "PWA v1.1.12 · build 2026.09.11.08";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -774,6 +774,40 @@ let noteTimer;
 let noteCatalogPromise;
 let dataModulePromise;
 let routeRequest = 0;
+let noteFocusScrollTop = null;
+
+function restoreNoteFocusViewport() {
+  if (state.route.name !== "reference" || noteFocusScrollTop === null) return;
+  const target = noteFocusScrollTop;
+  noteFocusScrollTop = null;
+  window.requestAnimationFrame(() => window.scrollTo({ top: target, behavior: "auto" }));
+}
+
+function stabilizeNoteFocusViewport() {
+  if (state.route.name !== "reference" || noteFocusScrollTop === null) return;
+  window.requestAnimationFrame(() => {
+    if (document.activeElement?.matches?.("[data-note]")) {
+      window.scrollTo({ top: noteFocusScrollTop, behavior: "auto" });
+    }
+  });
+}
+
+document.addEventListener("focusin", event => {
+  if (!event.target.matches("[data-note]")) return;
+  noteFocusScrollTop = window.scrollY;
+  document.documentElement.classList.add("pwa-note-focused");
+  stabilizeNoteFocusViewport();
+});
+document.addEventListener("focusout", event => {
+  if (!event.target.matches("[data-note]")) return;
+  window.setTimeout(() => {
+    if (document.activeElement?.matches?.("[data-note]")) return;
+    document.documentElement.classList.remove("pwa-note-focused");
+    restoreNoteFocusViewport();
+  }, 50);
+});
+window.visualViewport?.addEventListener("resize", stabilizeNoteFocusViewport, { passive: true });
+
 function loadNoteCatalog() {
   if (Array.isArray(state.noteCatalog)) return Promise.resolve(state.noteCatalog);
   if (!noteCatalogPromise) {
@@ -897,7 +931,7 @@ document.addEventListener("click", event => {
 });
 window.addEventListener("scroll", scheduleDockCheck, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260911-07", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260911-08", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

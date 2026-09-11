@@ -491,7 +491,7 @@ button { color: inherit; cursor: pointer; }
 .reference-home .note-stack--compact .note-decoration { display:block; }
 
 /* Homepage entries are Movement Modules; Session Theme is record metadata only. */
-.reference-page.reference-home { overflow-x: clip; overflow-y: visible; }
+.reference-page.reference-home { overflow: visible; }
 .reference-home .note-stack:not(.note-stack--compact) .note-sheet { min-height:440px; }
 .reference-home .note-stack:not(.note-stack--compact) .note-editor { min-height:320px; }
 .reference-home .home-module-pill { min-height:40px; padding:7px 14px; border:1px solid color-mix(in srgb,var(--decorative-accent) 16%,rgba(35,64,49,.12)); border-radius:999px; background:rgba(255,255,255,.44); color:#203329; font:500 13px/1.2 "PingFang SC","Microsoft YaHei","Microsoft YaHei UI",sans-serif; box-shadow:0 3px 10px rgba(43,71,54,.05); transition:background-color .26s ease,border-color .26s ease,box-shadow .26s ease,transform .18s ease; }
@@ -502,3 +502,13 @@ button { color: inherit; cursor: pointer; }
 .reference-home .home-module-pill.color-teal { --chip-accent:#3f7768; --chip-soft:#cfe5da; }
 .reference-home .home-module-pill.color-rose { --chip-accent:#9b5967; --chip-soft:#eed2d9; }
 .reference-home .home-module-pill.color-blue { --chip-accent:#4a789e; --chip-soft:#d2e5f1; }
+
+/* Keep the Movement Module rail in the document while a phone keyboard is open.
+   The note remains comfortable to edit, but the browser no longer needs to pan
+   the whole page so far that the lower homepage appears to vanish. */
+@media (max-width: 699px) {
+  html.pwa-note-focused .reference-home { overflow: visible; scroll-padding-bottom: 35vh; }
+  html.pwa-note-focused .reference-home .note-stack:not(.note-stack--compact) .note-sheet { min-height:300px; }
+  html.pwa-note-focused .reference-home .note-stack:not(.note-stack--compact) .note-editor { min-height:180px; margin:8px 0 6px; }
+  html.pwa-note-focused .reference-home .note-decoration { display:none; }
+}
