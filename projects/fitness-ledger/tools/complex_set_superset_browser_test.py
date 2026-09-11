@@ -174,10 +174,15 @@ def main() -> None:
         parsed = post_json(browser, "/api/parse", {"raw": RAW})
         saved = post_json(browser, "/api/save", {"review_id": parsed["review_id"], "review": parsed["review"]})
         assert saved["ok"] is True, saved
+        analysis_contract = browser.evaluate("(async()=>{const [prompt,catalog]=await Promise.all([fetch('/api/analysis-export/initialization-prompt').then(r=>r.json()),fetch('/api/data-modules/analysis-catalog').then(r=>r.json())]);return {prompt,catalog}})()")
+        prompt_text = analysis_contract["prompt"]["prompt_template"]
+        assert all(token in prompt_text for token in ("segmented set", "segments", "set_count", "segment_count", "total_reps", "volume", "organization_relations.members")), prompt_text
+        assert analysis_contract["catalog"]["schema"] == "fitness-ledger-data-module-analysis-catalog-v1"
 
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('training'); true")
         _wait(browser, "!!document.querySelector('.training-theme-page')")
         _wait(browser, "document.querySelectorAll('.body-theme-control').length >= 2")
+        assert browser.evaluate("document.querySelectorAll('.session-slip').length") == 1
         click(browser, "[data-training-theme='chest']")
         _wait(browser, "document.querySelectorAll('.session-slip').length === 1")
         chest_text = browser.evaluate("document.body.innerText")
@@ -196,6 +201,19 @@ def main() -> None:
         history_text = browser.evaluate("document.body.innerText")
         assert "7.5kg × 6 + 5kg × 8 × 3组" in history_text and "超级组 A" in history_text and "Triceps Pushdown" in history_text, history_text[:2500]
         capture(browser, output / "complex-set-history-and-superset-context.png")
+        click(browser, ".history-superset-context")
+        _wait(browser, "!!document.querySelector('.overlay .superset-detail-members')")
+        relation_text = browser.evaluate("document.body.innerText")
+        assert "当前动作" in relation_text and "同组成员" in relation_text and "Triceps Pushdown" in relation_text and "30kg × 12 × 3" in relation_text, relation_text[:2500]
+        capture(browser, output / "superset-relation-detail-desktop.png")
+        click(browser, "[data-close]")
+        _command(browser, "Emulation.setDeviceMetricsOverride", {"width": 420, "height": 900, "deviceScaleFactor": 1, "mobile": True, "screenWidth": 420, "screenHeight": 900})
+        _wait(browser, "!!document.querySelector('.history-superset-context')")
+        click(browser, ".history-superset-context")
+        _wait(browser, "!!document.querySelector('.overlay .superset-detail-members')")
+        narrow_relation_text = browser.evaluate("document.body.innerText")
+        assert "Triceps Pushdown" in narrow_relation_text and "30kg × 12 × 3" in narrow_relation_text, narrow_relation_text[:2500]
+        capture(browser, output / "superset-relation-detail-narrow.png")
 
         print(json.dumps({
             "status": "PASS",
@@ -204,6 +222,8 @@ def main() -> None:
             "superset_session": str(output / "superset-session-chest-theme.png"),
             "superset_session_shoulders": str(output / "superset-session-shoulders-theme.png"),
             "movement_history": str(output / "complex-set-history-and-superset-context.png"),
+            "relation_detail_desktop": str(output / "superset-relation-detail-desktop.png"),
+            "relation_detail_narrow": str(output / "superset-relation-detail-narrow.png"),
             "multi_theme": {"chest_sessions": 1, "shoulder_sessions": 1},
             "complex_set_text": "7.5kg × 6 + 5kg × 8 × 3组",
             "relation_text": "超级组 A · Triceps Pushdown",

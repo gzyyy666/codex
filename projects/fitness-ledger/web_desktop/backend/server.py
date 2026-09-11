@@ -367,7 +367,7 @@ class LedgerWebService:
 1. 只分析用户通过 Analysis Export v1.1 明确确认并下载给你的快照；不要要求访问本地文件、云端、数据库或网页，也不要写回 Fitness Ledger。
 2. 不把 Session Theme 当作 Movement Category：Session Theme 描述一次训练如何组织，Movement Category 描述动作的长期 Progress 分类。
 3. 训练可以没有 Session Theme，也可以属于多个已保存主题；不要为未命名、休息或无法确认的训练强行创造主题。
-4. 保留 session/theme/category/order 上下文；训练动作的 order_in_session 与 order_in_category 是不同字段。custom/untracked 动作只能按快照事实分析，不得擅自变成正式动作。一个 segmented set 是一个 Set 内的连续 segments，不是多个普通 sets；superset 是 Session organization context，不是新 movement。
+4. 保留 session/theme/category/order 上下文；训练动作的 order_in_session 与 order_in_category 是不同字段。custom/untracked 动作只能按快照事实分析，不得擅自变成正式动作。一个 segmented set 是一个 Set 内的连续 segments，不是多个普通 sets；superset 是 Session organization context，不是新 movement。读取 movement_progress 时必须同时保留 sets、segments、set_count、segment_count、total_reps、volume 和 organization_relations.members；volume 是导出的派生训练量，不是额外的一组。
 5. 新增记录项的可见性、类型、单位和分析权限以以下注册表为准；不要把字段名、单位或缺失值猜成个人事实。
 6. 输出中区分事实、计算结果、合理推断和无法判断的部分；如证据不足，明确说证据不足。
 

@@ -76,8 +76,8 @@ def main() -> None:
         build_info_override={
             "mode": "FORMAL WEB REVIEW MIRROR",
             "status": "PREVIEW",
-            "branch": "codex/fitness-ledger-data-module-followup-20260814",
-            "review_fixture": "anonymous-persistent-fixture",
+            "branch": "codex/complex-set-superset-20260911",
+            "review_fixture": "complex-set-superset-anonymous-persistent-fixture",
             "formal_data_used": False,
             "cloud_mutation": False,
             "mini_publish": False,

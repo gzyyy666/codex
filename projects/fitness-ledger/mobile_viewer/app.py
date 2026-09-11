@@ -113,6 +113,31 @@ def _pwa_training_session_detail(data_access: LedgerDataAccess, session_id: str,
     catalog = {item["movement_id"]: item for item in _pwa_movement_catalog(data_access)}
     raw_items = list(session.get("movement_items", []) or [])
     raw_items.sort(key=lambda item: (int(item.get("order_in_session") or item.get("order") or 9999), str(item.get("movement_item_id") or item.get("movement_id") or "")))
+    item_by_instance_id = {str(item.get("movement_instance_id") or item.get("id") or ""): item for item in raw_items}
+
+    def relation_context(item: dict) -> list[dict]:
+        item_id = str(item.get("movement_instance_id") or item.get("id") or "")
+        result = []
+        for relation in session.get("organization_relations", []) or []:
+            if not isinstance(relation, dict) or item_id not in {str(value) for value in relation.get("members", []) or []}:
+                continue
+            enriched = dict(relation)
+            enriched["co_members"] = []
+            for member_id in relation.get("members", []) or []:
+                if str(member_id) == item_id:
+                    continue
+                member = item_by_instance_id.get(str(member_id), {})
+                member_definition = catalog.get(str(member.get("movement_id") or ""), {})
+                member_sets = member.get("sets") if isinstance(member.get("sets"), list) else []
+                enriched["co_members"].append({
+                    "movement_id": member.get("movement_id", ""),
+                    "movement_name": member.get("display_name") or member_definition.get("display_name", ""),
+                    "movement_instance_id": member_id,
+                    "sets_lines": [_pwa_set_summary(member_sets)] if member_sets else [],
+                })
+            result.append(enriched)
+        return result
+
     movements = []
     for index, item in enumerate(raw_items):
         movement_id = str(item.get("movement_id") or "")
@@ -129,10 +154,7 @@ def _pwa_training_session_detail(data_access: LedgerDataAccess, session_id: str,
             "summary": summary,
             "notes": str(item.get("notes") or ""),
             "training_session_id": str(session.get("id") or ""),
-            "organization_relations": [
-                dict(relation) for relation in session.get("organization_relations", []) or []
-                if str(item.get("movement_instance_id") or item.get("id") or "") in {str(value) for value in relation.get("members", []) or []}
-            ],
+            "organization_relations": relation_context(item),
         })
     theme_ids = [str(value) for value in (session.get("session_theme_ids") or []) if str(value).strip()]
     primary_theme_id = str(session.get("session_theme_id") or "").strip()

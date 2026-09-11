@@ -52,6 +52,27 @@ def parsed(raw: str, *, issues: list[dict] | None = None, directives: list[dict]
     }
 
 
+def relation_neutral_signature(session: dict) -> dict:
+    items = session.get("movement_items", []) or []
+    item_rows = []
+    for item in items:
+        sets = item.get("sets", []) or []
+        item_rows.append({
+            "identity": item.get("movement_instance_id") or item.get("id"),
+            "order": item.get("order_in_session", item.get("order")),
+            "set_count": sum(int(set_item.get("sets", 1) or 1) for set_item in sets),
+            "volume": round(sum(set_volume(set_item) for set_item in sets), 2),
+        })
+    return {
+        "movement_count": len(items),
+        "set_count": sum(row["set_count"] for row in item_rows),
+        "movement_volume": [row["volume"] for row in item_rows],
+        "session_volume": round(sum(row["volume"] for row in item_rows), 2),
+        "order": [row["order"] for row in item_rows],
+        "identity": [row["identity"] for row in item_rows],
+    }
+
+
 def main() -> None:
     themes = [
         {"theme_id": "chest", "display_name": "胸", "aliases": ["胸部"]},
@@ -125,6 +146,12 @@ def main() -> None:
         session = stored["training_sessions"][0]
         assert session["organization_relations"][0]["type"] == "superset"
         assert session["movement_items"][0]["sets"][0]["segments"]
+        relation_free = copy.deepcopy(session)
+        relation_free.pop("organization_relations", None)
+        relation_only = copy.deepcopy(relation_free)
+        relation_only["organization_relations"] = copy.deepcopy(session["organization_relations"])
+        assert relation_neutral_signature(relation_free) == relation_neutral_signature(relation_only)
+        assert all("organization_relations" not in item for item in session["movement_items"])
         assert not validate_relations(stored, json.loads(dictionary.read_text(encoding="utf-8")))
         before = tracker.read_bytes()
         try:
@@ -139,6 +166,11 @@ def main() -> None:
         movement = views.movement_history_by_id("A")
         assert movement["history"][0]["metrics"]["volume"] == 255
         assert movement["history"][0]["organization_relations"][0]["co_members"][0]["movement_name"] == "Press B"
+        archive = views.training_archive()
+        assert len(archive) == 1 and archive[0]["id"] == session["id"]
+        assert len(archive[0]["movement_refs"]) == 2
+        assert {ref["training_session_id"] for ref in archive[0]["movement_refs"]} == {session["id"]}
+        assert archive[0]["movement_refs"][0]["organization_relations"][0]["co_members"]
 
     print("FITNESS_LEDGER_COMPLEX_SET_SUPERSET_OK")
 

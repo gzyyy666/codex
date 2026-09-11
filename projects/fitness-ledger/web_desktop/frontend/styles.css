@@ -472,6 +472,12 @@ body:has(.export-page) .privacy i{box-shadow:0 0 10px rgba(80,170,115,.35)}
   .training-theme-page:not([data-training-theme="overview"]) .training-focus-panel{min-height:136px;padding:16px 22px!important}.training-theme-page:not([data-training-theme="overview"]) .training-focus-panel>h2{font-size:50px}.training-theme-page:not([data-training-theme="overview"]) .focus-metrics strong{font-size:24px}
   .training-theme-page:not([data-training-theme="overview"]) .training-theme-toolbar{margin:0 0 8px}
 }
+
+/* Complex Set + Session Superset: relation context stays compact, but is inspectable. */
+.history-superset-context{display:flex;flex-wrap:wrap;align-items:center;gap:5px 8px;margin-top:10px;padding:7px 9px;border:1px solid rgba(24,21,16,.15);border-radius:8px;background:rgba(255,253,247,.72);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.history-superset-context:hover,.history-superset-context:focus-visible{border-color:rgba(24,21,16,.48);box-shadow:0 5px 14px rgba(35,29,18,.08);outline:none}
+.history-superset-context b{color:#7f5b13;font-size:11px}.history-superset-context span{padding-left:8px;border-left:1px solid rgba(24,21,16,.18);font-size:11px}.history-superset-context small{width:100%;color:var(--graphite);font-size:10px}
+.superset-detail-copy p{margin:0 0 16px;line-height:1.6}.superset-detail-copy p b,.superset-detail-members>b{display:block;margin-bottom:6px;color:var(--graphite);font-size:10px;letter-spacing:.08em;text-transform:uppercase}.superset-detail-members{padding-top:14px;border-top:1px solid rgba(24,21,16,.12)}.superset-detail-member{display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid rgba(24,21,16,.1);font-size:12px}.superset-detail-member:last-child{border-bottom:0}.superset-detail-member span{color:var(--graphite);text-align:right}
 @media(max-width:1180px){.movement-index-hero{grid-template-columns:1fr minmax(340px,.8fr);grid-template-areas:"label toolbar" "title toolbar" "copy dictionary"}.movement-dictionary-entry{justify-self:end;width:228px}}
 @media(max-width:980px){.movement-index-hero{grid-template-columns:1fr;grid-template-areas:"label" "title" "copy" "dictionary" "toolbar"}.movement-dictionary-entry{justify-self:start;width:min(100%,280px);margin:8px 0}.movement-index-hero .movement-toolbar{margin-top:8px}}
 @media(max-width:720px){.body-toolbar,.diet-toolbar{display:grid;grid-template-columns:1fr;width:100%}.movement-dictionary-entry{width:100%}}
