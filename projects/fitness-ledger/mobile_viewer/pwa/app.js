@@ -7,19 +7,19 @@ const BODY_PARTS = [
   { id: "legs", cn: "腿", en: "LEGS", tone: "violet" },
   { id: "arms", cn: "手臂", en: "ARMS", tone: "blue" },
   { id: "glutes", cn: "臀", en: "GLUTES", tone: "rose" },
-  { id: "core", cn: "核心", en: "CORE", tone: "amber" },
+  { id: "core", cn: "核心", en: "CORE", tone: "white" },
   { id: "cardio", cn: "有氧", en: "CARDIO", tone: "blue" }
 ];
 // Movement Modules use the Web movement-index palette, not Session Theme
 // color_key. These are separate data concepts even when their labels match.
 const MOVEMENT_MODULE_TONES = Object.freeze({
   shoulders: "amber", chest: "ember", back: "teal", legs: "violet",
-  arms: "blue", glutes: "rose", core: "amber", cardio: "blue"
+  arms: "blue", glutes: "rose", core: "white", cardio: "blue"
 });
 const DEFAULT_ACTIVE_BODY_PART_IDS = new Set(["chest", "shoulders", "back", "legs", "arms", "core"]);
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.14 · build 2026.09.11.10";
+const BUILD_VERSION = "PWA v1.1.15 · build 2026.09.11.11";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -955,7 +955,7 @@ document.addEventListener("click", event => {
 });
 window.addEventListener("scroll", () => { scheduleDockCheck(); positionCandidateOverlay(); }, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260911-10", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260911-11", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

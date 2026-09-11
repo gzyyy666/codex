@@ -1,5 +1,14 @@
 # Fitness Ledger Changelog
 
+## 2026-09-11 - PWA movement module color and home stability release
+
+- Aligned PWA Movement Module colors with the Web movement artwork palette;
+  Core now uses a clean white module surface.
+- Preserved the shared expanded state across module switches, sticky note/home
+  navigation behavior, candidate overlay avoidance, and async refresh guards.
+- Published visible marker `PWA v1.1.15 · build 2026.09.11.11`, Service Worker
+  `fitness-ledger-pwa-v51`, and resource query `20260911-11`.
+
 ## 2026-09-11 - PWA homepage async organization stability
 
 - Fixed the CloudBase read fallback so a homepage does not replace its

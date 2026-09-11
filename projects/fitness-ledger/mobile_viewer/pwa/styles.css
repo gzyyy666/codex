@@ -144,6 +144,7 @@ button { color: inherit; cursor: pointer; }
 .reference-home.theme-color-violet { --page-bg:#f4f0f8; --theme-accent:#8065a8; --theme-soft:#d5c5e8; --theme-faint:rgba(213,197,232,.4); --decorative-accent:#8065a8; --note-shadow-tint:rgba(75,53,107,.15); --note-edge-tint:rgba(128,101,168,.24); }
 .reference-home.theme-color-blue { --page-bg:#edf4f8; --theme-accent:#3f86a2; --theme-soft:#b8dce8; --theme-faint:rgba(184,220,232,.4); --decorative-accent:#3f86a2; --note-shadow-tint:rgba(38,92,117,.15); --note-edge-tint:rgba(63,134,162,.24); }
 .reference-home.theme-color-rose { --page-bg:#f7edf0; --theme-accent:#ad6478; --theme-soft:#e4bec8; --theme-faint:rgba(228,190,200,.4); --decorative-accent:#ad6478; --note-shadow-tint:rgba(104,48,64,.15); --note-edge-tint:rgba(173,100,120,.24); }
+.reference-home.theme-color-white { --page-bg:#fbfaf6; --theme-accent:#77736b; --theme-soft:#f1eee7; --theme-faint:rgba(255,255,255,.72); --decorative-accent:#77736b; --note-shadow-tint:rgba(67,63,54,.12); --note-edge-tint:rgba(119,115,107,.2); }
 .reference-home .home-module-pill { border-color:color-mix(in srgb,var(--chip-accent,var(--theme-accent)) 28%,rgba(35,64,49,.12)); background:color-mix(in srgb,var(--chip-soft,var(--theme-soft)) 34%,rgba(255,255,255,.72)); }
 .reference-home .home-module-pill.is-active { border-color:var(--chip-accent,var(--theme-accent)); background:color-mix(in srgb,var(--chip-soft,var(--theme-soft)) 78%,white); box-shadow:0 7px 18px color-mix(in srgb,var(--chip-accent,var(--theme-accent)) 22%,transparent); }
 .reference-home .home-module-pill.color-amber { --chip-accent:#d49a27; --chip-soft:#f2d88b; }
@@ -152,6 +153,7 @@ button { color: inherit; cursor: pointer; }
 .reference-home .home-module-pill.color-violet { --chip-accent:#8065a8; --chip-soft:#d5c5e8; }
 .reference-home .home-module-pill.color-blue { --chip-accent:#3f86a2; --chip-soft:#b8dce8; }
 .reference-home .home-module-pill.color-rose { --chip-accent:#ad6478; --chip-soft:#e4bec8; }
+.reference-home .home-module-pill.color-white { --chip-accent:#77736b; --chip-soft:#f1eee7; }
 
 /* Give the selected-but-collapsed overview enough room to be read on the
    first viewport, while keeping the writing board proportionate. */

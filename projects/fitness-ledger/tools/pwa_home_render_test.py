@@ -63,6 +63,7 @@ def main() -> None:
         first = evaluate(browser, "document.querySelectorAll('.home-module-pill').length")
         stable = evaluate(browser, "new Promise(resolve => setTimeout(() => resolve(document.querySelectorAll('.home-module-pill').length), 800))")
         assert first == stable == 6, {"first": first, "stable": stable}
+        assert evaluate(browser, "document.querySelector('[data-part-id=core]').className.includes('color-white')") is True
         evaluate(browser, "document.querySelector('.home-module-pill').click()")
         wait_for(browser, "!!document.querySelector('.movement-preview')")
         selected_tone = evaluate(browser, "document.querySelector('.reference-home').className")
