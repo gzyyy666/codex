@@ -27,7 +27,7 @@ const moduleTools = window.FLDataModules || {
 const app = document.querySelector("#app");
 const state = {
   route: parseRoute(), loading: true, error: "", status: null, identity: null,
-  areas: [], area: null, themeArea: null, organization: null, selectedThemeId: null, archiveExpanded: false, trainingRecords: [], bodyRecords: [], dietRecords: [],
+  areas: [], area: null, organization: null, selectedPartId: null, archiveExpanded: false, trainingRecords: [], bodyRecords: [], dietRecords: [],
   dataModuleContract: moduleTools.normalizeContract({ modules: [] }), dataModuleError: "",
   record: null, trainingDay: null, movement: null, movementHistory: [],
   sortBy: "frequency", order: "newest", query: "", note: loadNote(),
@@ -162,9 +162,25 @@ function loadIncomingShareIntent() {
 function bodyPart(id) { return BODY_PARTS.find(item => item.id === id) || BODY_PARTS[0]; }
 function activeBodyParts() {
   const categories = state.organization?.movement_categories;
-  if (!Array.isArray(categories) || !categories.length) return BODY_PARTS;
+  if (!Array.isArray(categories)) return BODY_PARTS;
   const known = new Map(BODY_PARTS.map(item => [item.id, item]));
-  return categories.map(item => known.get(String(item.category_id))).filter(Boolean);
+  return categories.filter(item => item && item.active !== false).map(item => {
+    const base = known.get(String(item.category_id));
+    if (!base) return null;
+    return {
+      ...base,
+      cn: String(item.label_zh || item.display_name_zh || base.cn),
+      en: String(item.display_name || item.display_name_en || item.labelEn || item.label_en || base.en),
+      tone: String(item.color_key || base.tone)
+    };
+  }).filter(Boolean);
+}
+function activeMovementModules() {
+  const areas = new Map((Array.isArray(state.areas) ? state.areas : []).map(item => [String(item.id || ""), item]));
+  return activeBodyParts().map(part => ({
+    ...part,
+    area: areas.get(part.id) || { id: part.id, label: part.cn, labelEn: part.en, session_count: 0, movement_count: 0, latest_date: "" }
+  }));
 }
 function sessionThemeNames(record) {
   const themes = Array.isArray(state.organization?.session_themes) ? state.organization.session_themes : [];
@@ -503,26 +519,23 @@ function updateNoteStatus(message = "已自动保存") {
 
 function renderReference() {
   const fresh = freshness(state.status);
-  const themes = (Array.isArray(state.organization?.session_themes) ? state.organization.session_themes : [])
-    .filter(item => item && item.active !== false)
-    .slice()
-    .sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || Number(a.sort_order || 0) - Number(b.sort_order || 0));
-  const selected = themes.find(item => String(item.theme_id) === String(state.selectedThemeId)) || null;
+  const modules = activeMovementModules();
+  const selected = modules.find(item => String(item.id) === String(state.selectedPartId)) || null;
   const allowedColors = new Set(["neutral", "violet", "amber", "ember", "teal", "rose", "blue"]);
-  const colorKey = selected && allowedColors.has(String(selected.color_key)) ? String(selected.color_key) : "neutral";
+  const colorKey = selected && allowedColors.has(String(selected.tone)) ? String(selected.tone) : "neutral";
   const palette = `theme-color-${colorKey}`;
   const stateName = selected ? (state.archiveExpanded ? "selected-expanded" : "selected-collapsed") : "neutral";
   const note = `<section class="note-stack ${state.archiveExpanded ? "note-stack--compact" : ""}" aria-label="Training Note"><div class="note-sheet"><div class="note-head"><div class="note-eyebrow">TRAINING NOTE / 训练记录</div></div><textarea class="note-editor" data-note data-note-surface="home" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="enter" aria-label="训练记录备忘录" placeholder="今天做了什么，就先记什么……">${esc(state.note)}</textarea><div class="note-footer"><div class="notepad-actions"><button data-action="copy-note">COPY</button><button class="danger-link" data-action="clear-note">CLEAR</button><button data-action="expand-note">发送到电脑</button></div><div class="notepad-status" data-note-status>${esc(state.noteCopyStatus || "已自动保存")}</div></div><div class="note-decoration" aria-hidden="true">Good<br>Progress!</div></div></section>`;
-  const pills = `<section class="theme-strip" aria-label="Session Theme"><div class="theme-strip-scroll" role="listbox">${themes.map(theme => `<button class="home-theme-pill ${String(theme.theme_id) === String(state.selectedThemeId) ? "is-active" : ""} color-${esc(String(theme.color_key || "neutral"))}" data-action="select-theme" data-theme-id="${esc(theme.theme_id)}" role="option" aria-selected="${String(theme.theme_id) === String(state.selectedThemeId)}"><span aria-hidden="true">✣</span>${esc(theme.display_name || theme.theme_id)}</button>`).join("")}</div></section>`;
-  const area = state.themeArea;
-  const archive = !selected ? `<section class="movement-preview"><div class="eyebrow">MOVEMENTS / 最近表现</div><div class="movement-placeholder"><div class="movement-placeholder-icon" aria-hidden="true">▥</div><div><strong>请先选择训练主题</strong><span>选择训练主题后查看动作、训练频率、最近表现与历史记录。</span></div><b aria-hidden="true">⌄</b></div></section>` : !state.archiveExpanded ? `<section class="movement-preview"><div class="eyebrow">MOVEMENTS / 最近表现</div><button class="movement-summary" data-action="toggle-archive"><div class="movement-placeholder-icon" aria-hidden="true">▥</div><div><strong>${esc(selected.display_name || selected.theme_id)} · ${Number(area?.movement_count || 0)} 个动作</strong><span>最近训练 ${esc(area?.latest_date || "暂无")}</span></div><b aria-hidden="true">展开⌄</b></button></section>` : renderThemeArchive(area);
+  const pills = `<section class="theme-strip" aria-label="Movement Modules"><div class="theme-strip-scroll" role="listbox">${modules.map(module => `<button class="home-module-pill ${String(module.id) === String(state.selectedPartId) ? "is-active" : ""} color-${esc(String(module.tone || "neutral"))}" data-action="select-module" data-part-id="${esc(module.id)}" role="option" aria-selected="${String(module.id) === String(state.selectedPartId)}" title="${esc(module.en)}"><span aria-hidden="true">✣</span>${esc(module.cn)}</button>`).join("")}</div></section>`;
+  const selectedArea = state.area || selected?.area || null;
+  const archive = !selected ? "" : !state.archiveExpanded ? `<section class="movement-preview"><div class="eyebrow">MOVEMENTS / 最近表现</div><button class="movement-summary" data-action="toggle-archive"><div class="movement-placeholder-icon" aria-hidden="true">▥</div><div><strong>${esc(selected.cn)} · ${Number(selectedArea?.movement_count || 0)} 个动作</strong><span>${selectedArea?.latest_date ? `最近训练 ${esc(selectedArea.latest_date)}` : "暂无动作历史"}</span></div><b aria-hidden="true">展开⌄</b></button></section>` : renderMovementModuleArchive(selectedArea);
   const header = `<header class="home-header"><div class="home-header-top"><div class="eyebrow">LOCAL ONLY / TRAINING NOTE</div><div class="home-motif" aria-hidden="true">A<br>STRONGER<br>YOU<br>EVERYDAY<br><i></i></div></div><h1 class="home-title">训练首页。</h1>${fresh ? `<div class="home-meta freshness ${fresh.stale ? "stale" : ""}">${esc(fresh.text)}</div>` : ""}</header>`;
   const candidateStable = state.noteDetailOpen || state.noteCandidatesLoading || state.noteCandidates.length || state.noteCandidatesCollapsed ? " reference-home--stable" : "";
   return renderShell(`${pageStart(`reference-page reference-home ${palette}${candidateStable}`)}<div class="home-shell" data-home-state="${stateName}" data-theme-color="${colorKey}">${header}${note}<div data-candidate-region>${renderCandidateOverlay()}</div>${pills}${state.loading ? stateMessage("正在整理训练档案…") : state.error ? stateMessage(state.error, true) : archive}</div>${state.noteDetailOpen ? renderNoteDetail() : ""}${pageEnd()}`);
 }
 
-function renderThemeArchive(area) {
-  if (!area) return stateMessage("该训练主题暂时没有可显示的动作记录。");
+function renderMovementModuleArchive(area) {
+  if (!area) return stateMessage("该 movement module 暂时没有可显示的动作记录。");
   const movements = [...(area.movements || [])].sort((a, b) => state.sortBy === "recent" ? String(b.latest?.date || "").localeCompare(String(a.latest?.date || "")) : Number(b.sessions || 0) - Number(a.sessions || 0));
   const sessions = Array.isArray(area.sessions) ? area.sessions : [];
   const sessionHistory = sessions.length ? `<div class="theme-session-list"><div class="eyebrow">SESSION HISTORY / ${sessions.length}</div>${sessions.map(item => `<div class="theme-session-row"><b>${esc(item.date)}</b><span>${esc(item.title || item.split || "训练主题")}</span><small>${item.related_count || 0} 个动作</small></div>`).join("")}</div>` : "";
@@ -674,27 +687,27 @@ function render() {
   scheduleDockCheck();
 }
 
-async function selectSessionTheme(themeId) {
-  const id = String(themeId || "").trim();
+async function selectMovementModule(partId) {
+  const id = String(partId || "").trim();
   if (!id) return;
-  if (String(state.selectedThemeId || "") === id) {
-    state.selectedThemeId = null;
+  if (String(state.selectedPartId || "") === id) {
+    state.selectedPartId = null;
     state.archiveExpanded = false;
-    state.themeArea = null;
+    state.area = null;
     state.loading = false;
     state.error = "";
     resetViewport();
     render();
     return;
   }
-  state.selectedThemeId = id;
+  state.selectedPartId = id;
   state.archiveExpanded = false;
-  state.themeArea = null;
+  state.area = null;
   state.loading = true;
   state.error = "";
   render();
   try {
-    state.themeArea = await call("sessionThemeArea", { themeId: id });
+    state.area = await call("bodyArea", { part: id });
   } catch (error) {
     setError(error);
   }
@@ -710,12 +723,13 @@ async function loadRoute() {
   try {
     const name = state.route.name; const part = state.route.params.get("part");
     if (name === "reference") {
-      const [organizationResult, statusResult] = await Promise.allSettled([call("trainingOrganization"), call("status")]);
+      const [organizationResult, statusResult, areasResult] = await Promise.allSettled([call("trainingOrganization"), call("status"), call("bodyAreas")]);
       if (organizationResult.status === "rejected") throw organizationResult.reason;
       state.organization = organizationResult.value || null;
-      state.selectedThemeId = null;
+      state.selectedPartId = null;
       state.archiveExpanded = false;
-      state.themeArea = null;
+      state.area = null;
+      state.areas = areasResult.status === "fulfilled" && Array.isArray(areasResult.value) ? areasResult.value : [];
       state.status = statusResult.status === "fulfilled" ? statusResult.value : null;
     } else if (name === "training") {
       const [trainingResult, statusResult, organizationResult] = await Promise.allSettled([call("trainingRecords"), call("status"), call("trainingOrganization")]);
@@ -860,8 +874,8 @@ document.addEventListener("click", event => {
   if (route) { state.query = ""; state.order = "newest"; navigate(route); return; }
   const sort = event.target.closest("[data-sort]")?.dataset.sort; if (sort) { state.sortBy = sort; render(); return; }
   const action = event.target.closest("[data-action]")?.dataset.action; if (!action) return;
-  if (action === "select-theme") { void selectSessionTheme(event.target.closest("[data-theme-id]")?.dataset.themeId); return; }
-  if (action === "toggle-archive") { if (state.selectedThemeId) { state.archiveExpanded = !state.archiveExpanded; resetViewport(); render(); } return; }
+  if (action === "select-module") { void selectMovementModule(event.target.closest("[data-part-id]")?.dataset.partId); return; }
+  if (action === "toggle-archive") { if (state.selectedPartId) { state.archiveExpanded = !state.archiveExpanded; resetViewport(); render(); } return; }
   if (action === "toggle-order") { state.order = state.order === "newest" ? "oldest" : "newest"; render(); }
   if (action === "expand-note") { state.noteExpanded = true; state.shareDraft = state.note; state.shareTitle = "手机训练记录"; state.shareSent = false; state.shareError = ""; state.shareNotice = ""; state.shareOpen = true; render(); }
   if (action === "toggle-dock") { state.dockOpen = !state.dockOpen; render(); }
@@ -883,7 +897,7 @@ document.addEventListener("click", event => {
 });
 window.addEventListener("scroll", scheduleDockCheck, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260911-03", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260911-04", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

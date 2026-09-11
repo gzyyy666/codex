@@ -31,10 +31,22 @@ const contract = tools.normalizeContract({
       display_surface: { value: 'record_only' },
       history: [{ record_id: 'private-1', date: '2026-08-15', value: 9, actual_unit: '' }],
     },
+    {
+      module_id: 'retired_metric', label: '已停用字段', category_id: 'body', status: 'retired',
+      display_surface: { value: 'category_page' },
+      history: [{ record_id: 'retired-1', date: '2026-08-15', value: 1, actual_unit: '' }],
+    },
+    {
+      module_id: 'inactive_metric', label: '暂不显示字段', category_id: 'body', status: 'inactive',
+      display_surface: { value: 'category_page' },
+      history: [{ record_id: 'inactive-1', date: '2026-08-15', value: 2, actual_unit: '' }],
+    },
   ],
 })
 
 assert.strictEqual(contract.modules.length, 5)
+assert.ok(!contract.modules.some(item => item.module_id === 'retired_metric'))
+assert.ok(!contract.modules.some(item => item.module_id === 'inactive_metric'))
 assert.strictEqual(tools.categoryEntriesForDate(contract, 'body', '2026-08-15')[0].value, '82.5 cm')
 assert.strictEqual(tools.categoryEntriesForDate(contract, 'diet', '2026-08-14')[0].value, '5 g')
 assert.strictEqual(tools.categoryEntriesForDate(contract, 'training', '2026-08-13')[0].value, '8')

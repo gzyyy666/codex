@@ -60,6 +60,10 @@ def main() -> None:
     assert 'href="./share.html"' not in app_source
     assert 'const dataModuleRequest = refreshDataModules();' in app_source
     assert 'await refreshDataModules();' not in app_source
+    for marker in ('call("bodyAreas")', 'call("bodyArea"', 'selectMovementModule', 'home-module-pill', 'data-action="select-module"'):
+        assert marker in app_source, f"missing Movement Module homepage marker: {marker}"
+    assert 'call("sessionThemeArea"' not in app_source, "homepage must not depend on Session Theme area data"
+    assert '请先选择训练主题' not in app_source, "homepage must not show the obsolete Session Theme prompt"
     for marker in (
         'call("dataModules")',
         "mergeRecordsWithCategoryDates",
@@ -96,9 +100,9 @@ def main() -> None:
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'includes("/api/")' in service_worker
-    assert 'fitness-ledger-pwa-v43' in service_worker
-    assert '"./data-modules.js?v=20260820-04"' in service_worker
-    assert 'register("./sw.js?v=20260911-03", { updateViaCache: "none" })' in app_source
+    assert 'fitness-ledger-pwa-v44' in service_worker
+    assert '"./data-modules.js?v=20260911-04"' in service_worker
+    assert 'register("./sw.js?v=20260911-04", { updateViaCache: "none" })' in app_source
     assert 'cache: "no-store"' in api_source
     assert 'READ_TIMEOUT_MS' in api_source and 'READ_ATTEMPTS' in api_source
     assert 'Promise.allSettled' in app_source

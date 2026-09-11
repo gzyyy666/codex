@@ -60,7 +60,8 @@
   function normalizeContract(payload) {
     const modules = (Array.isArray(payload && payload.modules) ? payload.modules : [])
       .map(normalizeModule)
-      .filter(Boolean);
+      .filter(Boolean)
+      .filter(module => !["inactive", "retired"].includes(module.status));
     return { schema: "fitness-ledger-mobile-module-read-model-v1", modules };
   }
 
