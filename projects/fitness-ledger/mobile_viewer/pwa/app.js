@@ -516,7 +516,7 @@ function renderReference() {
   const pills = `<section class="theme-strip" aria-label="Session Theme"><div class="theme-strip-scroll" role="listbox">${themes.map(theme => `<button class="home-theme-pill ${String(theme.theme_id) === String(state.selectedThemeId) ? "is-active" : ""} color-${esc(String(theme.color_key || "neutral"))}" data-action="select-theme" data-theme-id="${esc(theme.theme_id)}" role="option" aria-selected="${String(theme.theme_id) === String(state.selectedThemeId)}"><span aria-hidden="true">✣</span>${esc(theme.display_name || theme.theme_id)}</button>`).join("")}</div></section>`;
   const area = state.themeArea;
   const archive = !selected ? `<section class="movement-preview"><div class="eyebrow">MOVEMENTS / 最近表现</div><div class="movement-placeholder"><div class="movement-placeholder-icon" aria-hidden="true">▥</div><div><strong>请先选择训练主题</strong><span>选择训练主题后查看动作、训练频率、最近表现与历史记录。</span></div><b aria-hidden="true">⌄</b></div></section>` : !state.archiveExpanded ? `<section class="movement-preview"><div class="eyebrow">MOVEMENTS / 最近表现</div><button class="movement-summary" data-action="toggle-archive"><div class="movement-placeholder-icon" aria-hidden="true">▥</div><div><strong>${esc(selected.display_name || selected.theme_id)} · ${Number(area?.movement_count || 0)} 个动作</strong><span>最近训练 ${esc(area?.latest_date || "暂无")}</span></div><b aria-hidden="true">展开⌄</b></button></section>` : renderThemeArchive(area);
-  const header = `<header class="home-header"><div class="home-header-top"><div class="eyebrow">LOCAL ONLY / TRAINING NOTE</div><div class="home-motif" aria-hidden="true">A<br>STRONGER<br>YOU<br>EVERYDAY<br><i></i></div></div><h1 class="home-title">训练首页。</h1><p class="home-intro">不是训练计划。选择今天的训练主题，<br>快速回看动作、最近表现与历史轨迹。</p>${fresh ? `<div class="home-meta freshness ${fresh.stale ? "stale" : ""}">${esc(fresh.text)}</div>` : ""}</header>`;
+  const header = `<header class="home-header"><div class="home-header-top"><div class="eyebrow">LOCAL ONLY / TRAINING NOTE</div><div class="home-motif" aria-hidden="true">A<br>STRONGER<br>YOU<br>EVERYDAY<br><i></i></div></div><h1 class="home-title">训练首页。</h1>${fresh ? `<div class="home-meta freshness ${fresh.stale ? "stale" : ""}">${esc(fresh.text)}</div>` : ""}</header>`;
   const candidateStable = state.noteDetailOpen || state.noteCandidatesLoading || state.noteCandidates.length || state.noteCandidatesCollapsed ? " reference-home--stable" : "";
   return renderShell(`${pageStart(`reference-page reference-home ${palette}${candidateStable}`)}<div class="home-shell" data-home-state="${stateName}" data-theme-color="${colorKey}">${header}${note}<div data-candidate-region>${renderCandidateOverlay()}</div>${pills}${state.loading ? stateMessage("正在整理训练档案…") : state.error ? stateMessage(state.error, true) : archive}</div>${state.noteDetailOpen ? renderNoteDetail() : ""}${pageEnd()}`);
 }
@@ -883,7 +883,7 @@ document.addEventListener("click", event => {
 });
 window.addEventListener("scroll", scheduleDockCheck, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260911-01", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260911-02", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

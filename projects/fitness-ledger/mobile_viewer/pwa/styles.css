@@ -108,6 +108,20 @@ button { color: inherit; cursor: pointer; }
 .reference-home .home-theme-pill { min-height:40px; padding:7px 14px; border:1px solid color-mix(in srgb,var(--decorative-accent) 16%,rgba(35,64,49,.12)); border-radius:999px; background:rgba(255,255,255,.44); color:#203329; font:500 13px/1.2 "PingFang SC","Microsoft YaHei","Microsoft YaHei UI",sans-serif; box-shadow:0 3px 10px rgba(43,71,54,.05); }
 .reference-home .home-theme-pill.is-active { border-color:var(--decorative-accent); background:color-mix(in srgb,var(--decorative-accent) 17%,rgba(255,255,255,.76)); box-shadow:0 6px 16px color-mix(in srgb,var(--decorative-accent) 20%,transparent); }
 .reference-home .home-theme-pill span { margin-right:5px; color:var(--decorative-accent); }
+
+/* 2026-09-11 homepage density: remove the redundant intro while preserving a fuller note surface. */
+.reference-home .home-header { min-height:136px; }
+.reference-home .note-stack { margin-top:2px; }
+.reference-home .note-sheet { min-height:320px; }
+.reference-home .note-footer { padding-top:6px; }
+.reference-home .notepad-actions { gap:14px; }
+.reference-home .notepad-actions button { min-height:18px; line-height:1.1; }
+.reference-home .note-footer .notepad-status { min-height:10px; margin-top:4px; }
+.reference-home .theme-strip { margin-top:12px; }
+.reference-home .movement-preview { margin-top:14px; }
+.reference-home .note-stack--compact .note-sheet { min-height:250px; }
+.reference-home .note-stack--compact .note-editor { min-height:120px; margin:13px 0 8px; }
+.reference-home .theme-archive { margin-top:8px; }
 .reference-home .note-stack--compact .note-sheet { min-height:185px; }
 .reference-home .note-stack--compact .note-editor { min-height:66px; margin:12px 0 10px; font-size:15px; }
 .reference-home .note-stack--compact .note-decoration { display:none; }
