@@ -5,9 +5,9 @@
 ## Git 基线
 
 - 当前分支：`main`
-- `HEAD` / `main` / `origin/main`：`9fc0a064220ac96149dd12304dee370865e92401`
+- `HEAD` / `main` / `origin/main`：`a20ce97cf3126461c42d29d53bd8fbb95bf5b6da`
 - 远端：`https://github.com/gzyyy666/codex.git`
-- 源码工作区已封板（09-11）：PWA Training Note 首页、Movement Module 动态入口、核心白色模块、两阶段动作滚动与正式缓存版本已提交并推送，工作区干净。
+- 源码工作区已封板（09-11）：PWA Training Note 首页、Movement Module 动态入口、两阶段动作滚动、Complex Set / Session Superset 结构链和 Daily Entry LLM 模板 v10 已提交并推送，工作区干净。
 
 ## 正式入口
 
@@ -18,6 +18,8 @@
 - PWA Service Worker：`fitness-ledger-pwa-v53`，脚本资源查询版本 `20260911-13`
 - CloudBase 环境：`cloud1-d9g35v5s1a904a8ad`
 - Web 服务正式状态：通过 `/api/build-info` 核验；修改桌面端后必须重新写回正式目录并重启 `launcher.pyw`。
+- 本次正式同步：桌面/Web/PWA 源文件已与 `a20ce97` 对齐；CloudBase `fl_*` 副本已重建并通过 `fl_meta` 校验，PWA 静态托管已上传 22 个文件。
+- 云函数状态：现有 `ledgerWebRead` / `ledgerRead` 保持 Active/Event 和原代码，CLI COS 上传连续超时，未删除、改型或替换；需要后续在 CloudBase 上传链路恢复后再单独部署函数代码。
 
 ## 已交付功能
 
@@ -36,4 +38,4 @@
 
 ## 当前状态注意事项
 
-`project_status.py` 会分别报告正式目录与 Git 的历史漂移；本次部署仅同步 PWA 发布范围，未主动写入正式数据。正式 PWA 文件已与本次发布基线对齐并上传 CloudBase；正式数据 fingerprint 以每次实时状态输出为准；完整回归若遇到历史动作词典断言失败，应单独记录，不要用改数据掩盖测试失败。
+`project_status.py` 会分别报告正式目录与 Git 的历史漂移；当前正式源文件已与 `HEAD` 对齐，正式数据 fingerprint 前后保持不变。完整回归若遇到历史动作词典或 movement lifecycle fixture 断言失败，应单独记录，不要用改数据掩盖测试失败。PWA 静态包和 Cloud 数据副本已更新；云函数代码仍待 CloudBase COS 上传恢复后补发。

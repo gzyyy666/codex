@@ -1,5 +1,22 @@
 # Fitness Ledger Changelog
 
+## 2026-09-11 - Complex Set / Session Superset and Daily Entry template release
+
+- Published the shared Complex Set structure and Session Superset relation
+  contract across Daily Entry parsing, canonical training sessions, Movement
+  Progress, Analysis Export, the desktop Web surface, and the PWA read model.
+- A Superset now keeps one canonical session, preserves member order, and
+  exposes the other members through desktop hover/focus details and a mobile
+  tap-to-expand relation panel. Multiple registered Session Themes can show
+  the same complete session without duplicating the record.
+- Published Daily Entry LLM template v10 with explicit ASCII entry rules,
+  Complex Set versus Superset boundaries, scoped Notes, dynamic registered
+  fields, and unknown-theme/field handling.
+- Formal source deployment and the CloudBase read replica were verified at
+  commit `a20ce97`; the PWA static bundle was uploaded. Cloud function code
+  upload remains pending because CloudBase COS uploads timed out twice; the
+  existing Event functions were left intact.
+
 ## 2026-09-11 - PWA homepage two-stage movement scrolling release
 
 - Corrected expanded homepage scrolling so the Training Note, Movement Module
