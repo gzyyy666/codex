@@ -7,8 +7,8 @@
   --pwa-control-height: 42px; --pwa-tap-target-min: 44px; --pwa-accent: #2c7252; --pwa-accent-soft: #d6e9df;
 }
 * { box-sizing: border-box; }
-html { min-height: 100%; overflow-x: hidden; background: var(--paper); }
-body { min-height: 100%; margin: 0; overflow-x: hidden; color: var(--ink); background: var(--paper); font-family: "PingFang SC", "Microsoft YaHei UI", sans-serif; }
+html { min-height: 100%; overflow-x: clip; background: var(--paper); }
+body { min-height: 100%; margin: 0; overflow-x: clip; color: var(--ink); background: var(--paper); font-family: "PingFang SC", "Microsoft YaHei UI", sans-serif; }
 button, input, textarea { font: inherit; }
 button { color: inherit; cursor: pointer; }
 .app { min-height: 100dvh; padding-bottom: calc(78px + env(safe-area-inset-bottom)); }
@@ -564,4 +564,45 @@ button { color: inherit; cursor: pointer; }
   html.pwa-note-focused .reference-home .note-stack:not(.note-stack--compact) .note-sheet { min-height:300px; }
   html.pwa-note-focused .reference-home .note-stack:not(.note-stack--compact) .note-editor { min-height:180px; margin:8px 0 6px; }
   html.pwa-note-focused .reference-home .note-decoration { display:none; }
+  .reference-home .home-shell[data-home-state="selected-expanded"] .note-stack { top:calc(-8px - 4.533vw - env(safe-area-inset-top)); }
+}
+
+/* 2026-09-11 two-stage homepage scroll.
+   The fixed tab bar was covering the first archive card after the note board
+   grew. The collapsed state now reserves a readable overview; expanded mode
+   turns the note, module rail, archive title and sort controls into one
+   measured sticky header, leaving only movement details to continue scrolling. */
+.reference-page.reference-home { padding-bottom:calc(116px + env(safe-area-inset-bottom)); }
+.reference-home .home-shell[data-home-state="selected-collapsed"] .note-stack:not(.note-stack--compact) .note-sheet { min-height:320px; }
+.reference-home .home-shell[data-home-state="selected-collapsed"] .note-stack:not(.note-stack--compact) .note-editor { min-height:208px; margin:9px 0 7px; }
+.reference-home .home-shell[data-home-state="selected-collapsed"] .movement-preview { margin-top:6px; }
+.reference-home .home-shell[data-home-state="selected-collapsed"] .movement-summary { min-height:84px; padding:12px 13px; }
+.reference-home .home-shell[data-home-state="selected-expanded"] .note-stack {
+  top:env(safe-area-inset-top);
+  z-index:41;
+  padding-top:8px;
+  padding-bottom:6px;
+  background:var(--page-bg);
+}
+.reference-home .home-shell[data-home-state="selected-expanded"] .note-stack--compact .note-sheet { min-height:258px; }
+.reference-home .home-shell[data-home-state="selected-expanded"] .note-stack--compact .note-editor { min-height:101px; margin:9px 0 7px; }
+.reference-home .home-shell[data-home-state="selected-expanded"] .theme-strip {
+  top:calc(env(safe-area-inset-top) + var(--expanded-note-height, 280px));
+  z-index:40;
+  padding:5px 0 3px;
+  background:var(--page-bg);
+}
+.reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive { margin-top:8px; }
+.reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive-head {
+  position:sticky;
+  top:calc(env(safe-area-inset-top) + var(--expanded-note-height, 280px) + var(--expanded-strip-height, 52px));
+  z-index:39;
+  padding:4px 0 7px;
+  background:var(--page-bg);
+}
+.reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive-list { padding-bottom:calc(24px + env(safe-area-inset-bottom)); }
+.reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive .movement-card { margin-top:7px; padding:11px; }
+.reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive .movement-name { font-size:19px; }
+@media (max-width:699px) {
+  .reference-home .home-shell[data-home-state="selected-expanded"] .note-stack { top:calc(-8px - 4.533vw - env(safe-area-inset-top)); }
 }

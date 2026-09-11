@@ -19,7 +19,7 @@ const MOVEMENT_MODULE_TONES = Object.freeze({
 const DEFAULT_ACTIVE_BODY_PART_IDS = new Set(["chest", "shoulders", "back", "legs", "arms", "core"]);
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.15 · build 2026.09.11.11";
+const BUILD_VERSION = "PWA v1.1.16 · build 2026.09.11.12";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -519,6 +519,23 @@ function positionCandidateOverlay() {
   state.candidateAnchorTop = top;
   overlay.style.setProperty("--candidate-top", `${top}px`);
 }
+let expandedHomeLayoutFrame = 0;
+function positionExpandedHome() {
+  const home = document.querySelector('.reference-home .home-shell[data-home-state="selected-expanded"]');
+  if (!home) return;
+  const note = home.querySelector('.note-stack');
+  const strip = home.querySelector('.theme-strip');
+  if (!note || !strip) return;
+  home.style.setProperty('--expanded-note-height', `${Math.ceil(note.getBoundingClientRect().height)}px`);
+  home.style.setProperty('--expanded-strip-height', `${Math.ceil(strip.getBoundingClientRect().height)}px`);
+}
+function scheduleExpandedHomeLayout() {
+  if (expandedHomeLayoutFrame) return;
+  expandedHomeLayoutFrame = window.requestAnimationFrame(() => {
+    expandedHomeLayoutFrame = 0;
+    positionExpandedHome();
+  });
+}
 function refreshCandidateOverlay(animateCollapse = false) {
   const region = document.querySelector("[data-candidate-region]");
   if (!region) return;
@@ -558,7 +575,7 @@ function renderMovementModuleArchive(area) {
   const movements = [...(area.movements || [])].sort((a, b) => state.sortBy === "recent" ? String(b.latest?.date || "").localeCompare(String(a.latest?.date || "")) : Number(b.sessions || 0) - Number(a.sessions || 0));
   const sessions = Array.isArray(area.sessions) ? area.sessions : [];
   const sessionHistory = sessions.length ? `<div class="theme-session-list"><div class="eyebrow">SESSION HISTORY / ${sessions.length}</div>${sessions.map(item => `<div class="theme-session-row"><b>${esc(item.date)}</b><span>${esc(item.title || item.split || "训练主题")}</span><small>${item.related_count || 0} 个动作</small></div>`).join("")}</div>` : "";
-  return `<section class="theme-archive"><div class="archive-heading"><div><div class="eyebrow">MOVEMENTS / FREQUENCY</div><h2>动作与最近表现</h2></div><div class="archive-heading-actions"><strong>${movements.length}</strong><button class="archive-collapse" data-action="toggle-archive">收起</button></div></div><div class="sort-rail"><span>排序</span><button class="${state.sortBy === "frequency" ? "is-active" : ""}" data-sort="frequency">训练频率</button><button class="${state.sortBy === "recent" ? "is-active" : ""}" data-sort="recent">最近训练</button><button class="${state.sortBy === "session" ? "is-active" : ""}" data-sort="session">按训练日</button></div>${movements.length ? movements.map(renderMovementCard).join("") : stateMessage("该主题暂时没有动作历史。")}<details class="theme-session-secondary"><summary>相关训练 session（${sessions.length}）</summary>${sessionHistory}</details></section>`;
+  return `<section class="theme-archive"><div class="theme-archive-head"><div class="archive-heading"><div><div class="eyebrow">MOVEMENTS / FREQUENCY</div><h2>动作与最近表现</h2></div><div class="archive-heading-actions"><strong>${movements.length}</strong><button class="archive-collapse" data-action="toggle-archive">收起</button></div></div><div class="sort-rail"><span>排序</span><button class="${state.sortBy === "frequency" ? "is-active" : ""}" data-sort="frequency">训练频率</button><button class="${state.sortBy === "recent" ? "is-active" : ""}" data-sort="recent">最近训练</button><button class="${state.sortBy === "session" ? "is-active" : ""}" data-sort="session">按训练日</button></div></div><div class="theme-archive-list">${movements.length ? movements.map(renderMovementCard).join("") : stateMessage("该主题暂时没有动作历史。")}<details class="theme-session-secondary"><summary>相关训练 session（${sessions.length}）</summary>${sessionHistory}</details></div></section>`;
 }
 
 function renderMovementCard(item) {
@@ -691,6 +708,7 @@ function render() {
   // Re-apply the anchored candidate position after that DOM replacement so it
   // cannot fall back to the legacy top position.
   positionCandidateOverlay();
+  scheduleExpandedHomeLayout();
   const shareDialog = document.querySelector("#share-confirm-dialog");
   if (shareDialog && !shareDialog.open) shareDialog.showModal();
   enhanceDataModuleSurface();
@@ -953,9 +971,10 @@ document.addEventListener("click", event => {
   if (action === "close-note-detail") { state.noteDetailRequest += 1; state.noteDetailOpen = false; state.noteDetailLoading = false; render(); }
   if (action === "noop") return;
 });
-window.addEventListener("scroll", () => { scheduleDockCheck(); positionCandidateOverlay(); }, { passive: true });
+window.addEventListener("scroll", () => { scheduleDockCheck(); positionCandidateOverlay(); scheduleExpandedHomeLayout(); }, { passive: true });
+window.addEventListener("resize", scheduleExpandedHomeLayout, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260911-11", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260911-12", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();
