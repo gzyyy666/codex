@@ -1,5 +1,13 @@
 # Fitness Ledger Changelog
 
+## 2026-09-11 - PWA focus scrolling fix (candidate)
+
+- Kept the Movement Module rail and selected movement archive reachable while
+  the Training Note receives focus on a phone by allowing vertical page flow
+  and clipping only horizontal decorative overflow.
+- Prepared visible build `PWA v1.1.10 · build 2026.09.11.06` with Service
+  Worker `fitness-ledger-pwa-v46` / resource query `20260911-06`.
+
 ## 2026-09-11 - PWA review adapter and visible version refresh
 
 - Restored the computer Review URL to a real local PWA adapter instead of a
