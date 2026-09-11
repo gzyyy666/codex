@@ -30,6 +30,19 @@ _SUPERSET = re.compile(
 )
 
 
+def _normalize_structure_punctuation(value: str) -> str:
+    """Accept common full-width punctuation without changing user raw text."""
+    return str(value or "").translate(str.maketrans({
+        "（": "(",
+        "）": ")",
+        "＋": "+",
+        "－": "-",
+        "，": ",",
+        "：": ":",
+        "＝": "=",
+    }))
+
+
 def _weight(value: str) -> dict[str, Any]:
     text = str(value).strip()
     if re.fullmatch(rf"{_NUMBER}", text):
@@ -38,8 +51,9 @@ def _weight(value: str) -> dict[str, Any]:
 
 
 def _segments_from_pairs(text: str) -> list[dict[str, Any]]:
-    matches = list(_SEGMENT.finditer(str(text).replace("－", "-")))
-    compact = re.sub(r"\s+", "", str(text))
+    normalized = _normalize_structure_punctuation(text)
+    matches = list(_SEGMENT.finditer(normalized))
+    compact = re.sub(r"\s+", "", normalized)
     if not re.fullmatch(rf"{_LOAD}[x×*]\d+(?:\+{_LOAD}[x×*]\d+)+", compact, re.I):
         raise TrainingStructureError("complex set 必须是多个明确的 weight x reps，并使用 + 连接。", "SEGMENT_PARSE_FAILED")
     if not matches:
@@ -60,7 +74,7 @@ def parse_segmented_blocks(text: str) -> tuple[list[dict[str, Any]], list[dict[s
     Compact rows preserve the existing repetition count in ``sets``.  The
     explicit ``sets: a; b; c`` form creates one row per unequal set.
     """
-    value = str(text or "")
+    value = _normalize_structure_punctuation(text)
     blocks: list[dict[str, Any]] = []
     issues: list[dict[str, str]] = []
     for match in _COMPACT.finditer(value):
@@ -94,7 +108,7 @@ def parse_segmented_blocks(text: str) -> tuple[list[dict[str, Any]], list[dict[s
 
 
 def has_segmented_syntax(text: str) -> bool:
-    value = str(text or "")
+    value = _normalize_structure_punctuation(text)
     return bool(_COMPACT.search(value) or _UNEQUAL.search(value) or re.search(r"\([^()]+\)\s*[-–]\s*\([^()]+\)", value))
 
 
@@ -139,7 +153,7 @@ def parse_superset_directives(text: str) -> tuple[list[dict[str, Any]], list[dic
     for line in str(text or "").splitlines():
         if not line.strip().lower().startswith("superset"):
             continue
-        match = _SUPERSET.match(line)
+        match = _SUPERSET.match(_normalize_structure_punctuation(line))
         if not match:
             issues.append({"code": "SUPERSET_SYNTAX_INVALID", "message": "超级组必须使用 superset: A = movement 1, movement 2 格式。"})
             continue

@@ -65,6 +65,8 @@ def main() -> None:
     assert not issues and len(blocks) == 1 and len(blocks[0]["segments"]) == 2
     assert set_volume(blocks[0]) == 255 and set_total_reps(blocks[0]) == 42
     assert format_set_item(blocks[0]) == "7.5kg × 6 + 5kg × 8 × 3组"
+    fullwidth_blocks, fullwidth_issues = parse_segmented_blocks("（7.5＋5）－（6＋8）－3")
+    assert not fullwidth_issues and fullwidth_blocks == blocks
 
     fixture_path = PROJECT / "tools" / "fixtures" / "analysis_export_anonymous" / "fixture.json"
     fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
@@ -90,6 +92,8 @@ def main() -> None:
 
     directives, directive_issues = parse_superset_directives("superset: A = movement 1, movement 2")
     assert not directive_issues and directives == [{"label": "A", "orders": [1, 2]}]
+    fullwidth_directives, fullwidth_directive_issues = parse_superset_directives("superset：A＝movement 1，movement 2")
+    assert not fullwidth_directive_issues and fullwidth_directives == directives
     items = [{"id": "i1", "movement_instance_id": "i1", "order": 1}, {"id": "i2", "movement_instance_id": "i2", "order": 2}]
     relations, relation_issues = relation_specs(directives, items, "s1")
     assert not relation_issues and relations[0]["members"] == ["i1", "i2"]
@@ -98,7 +102,12 @@ def main() -> None:
     stable = loader.load_module()
     assert stable.extract_load_blocks("60 x 5 x 3") == [{"weight": 60.0, "reps": 5, "sets": 3}]
     assert stable.extract_load_blocks("(7.5+5)-(6+8)-3")[0]["segments"] == blocks[0]["segments"]
+    assert stable.extract_load_blocks("（7.5＋5）－（6＋8）－3")[0]["segments"] == blocks[0]["segments"]
     assert stable.extract_load_blocks("(7.5+5+2.5)-(6+8)-3") == []
+    parser = stable.FitnessTrackerApp.__new__(stable.FitnessTrackerApp)
+    parser.movement_definitions_by_alias = {}
+    bare_training = parser.parse_entry("3. y举\n（7.5＋5）－（6＋8）－3")["training"]
+    assert len(bare_training["movements"]) == 1 and bare_training["movements"][0]["sets"][0]["segments"] == blocks[0]["segments"]
 
     with tempfile.TemporaryDirectory(prefix="fitness-ledger-structure-") as root:
         root = Path(root)

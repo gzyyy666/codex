@@ -3392,6 +3392,17 @@ def extract_training_section(text: str) -> tuple[str, str]:
             if not legacy_action_note:
                 break
         body_lines.append(line)
+    if in_training:
+        return split, "\n".join(body_lines).strip()
+
+    # A copied movement snippet can lose the ``training:`` label and its
+    # indentation.  Keep it on the training path when a numbered action is
+    # followed by an explicit set expression; otherwise ordinary prose keeps
+    # the historical no-training behavior.
+    nonempty = [line for line in lines if line.strip()]
+    if nonempty and re.match(r"^\s*\d+\s*[.)、。]\s*\S+", nonempty[0]):
+        if any(extract_load_blocks(line) or has_segmented_syntax(line) for line in nonempty[1:]):
+            return "", "\n".join(lines).strip()
     return split, "\n".join(body_lines).strip()
 
 

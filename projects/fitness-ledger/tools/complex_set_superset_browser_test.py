@@ -34,6 +34,9 @@ training: 胸肩
 30kg x 12 x 3
 superset: A = movement 1, movement 2
 """
+PASTED_SNIPPET = """3. y举
+（7.5＋5）－（6＋8）－3
+"""
 
 
 def write_json(path: Path, value: object) -> None:
@@ -148,6 +151,15 @@ def main() -> None:
         service = _start_service(port, sandbox.name)
         edge, browser, edge_data = _start_browser(port)
         _command(browser, "Emulation.setDeviceMetricsOverride", {"width": 1440, "height": 1100, "deviceScaleFactor": 1, "mobile": False})
+
+        browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('quick'); true")
+        _wait(browser, "!!document.querySelector('#raw-entry')")
+        set_text(browser, "#raw-entry", PASTED_SNIPPET)
+        click(browser, "#parse")
+        _wait(browser, "!!document.querySelector('.review-scroll-page')")
+        pasted_review = browser.evaluate("document.body.innerText")
+        assert "y举" in pasted_review and "7.5kg × 6 + 5kg × 8 × 3组" in pasted_review, pasted_review[:2000]
+        assert not browser.evaluate("!!document.querySelector('#dm-definition-form')")
 
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('quick'); true")
         _wait(browser, "!!document.querySelector('#raw-entry')")

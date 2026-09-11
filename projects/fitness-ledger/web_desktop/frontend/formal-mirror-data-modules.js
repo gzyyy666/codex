@@ -104,7 +104,9 @@ async function enhanceSurfacePage(){const route=bridge.currentRoute();const view
  function dedupeCategorySurface(){const view=bridge.currentRoute().view==='movements'?'movement':bridge.currentRoute().view;const nodes=$$(`[data-dm-category-page="${view}"]`);nodes.slice(0,-1).forEach(node=>node.remove())}enhanceSurfacePage=async function(){await compactSurfaceBase();await enhanceNonArchiveCategoryPage();dedupeCategorySurface()};function enhanceQuickPage(){if(bridge.currentRoute().view!=='quick')return;$('.dm-entry-hint')?.remove()}
 function renderCurrent(){const route=bridge.currentRoute();if(route.view==='tools'&&route.params.get('panel')==='data-modules')renderManagementPage();else{enhanceQuickPage();enhanceToolsOverview();enhanceSurfacePage()}}
  const standardEntryLabel=/^\s*(?:date|日期|weight|体重|bowel(?:\s+movement)?|排便|training|训练|cardio|有氧|diet|饮食|calories?|热量|protein|蛋白质|carbs?|碳水|fat|脂肪|food(?:\s+summary)?|饮食记录|notes?|备注|训练备注|饮食备注)\s*[:：]/im;
- const standardTrainingRow=/^\s+\d+\s*[.)、。]/m;
+ // A pasted Daily Entry may lose its leading indentation. A numbered row
+ // followed by a movement name is still a training record, not a new module.
+ const standardTrainingRow=/^\s*\d+\s*[.)、。]\s*\S+/m;
  const hasValue=value=>value!==null&&value!==undefined&&String(value).trim()!=='';
  function hasStandardImportContent(payload){const review=payload?.review||{},body=review.body||{},diet=review.diet||{},training=review.training||{};return hasValue(body.weight)||hasValue(body.bowel_movement)||hasValue(body.training_summary)||hasValue(body.cardio_summary)||hasValue(body.notes)||hasValue(diet.calories)||hasValue(diet.protein)||hasValue(diet.carbs)||hasValue(diet.fat)||hasValue(diet.food_summary)||hasValue(diet.notes)||hasValue(training.split)||hasValue(training.standardized_summary)||hasValue(training.notes)||Boolean(training.movements?.length)}
  const looksLikeStandardEntry=raw=>standardEntryLabel.test(String(raw||''))||standardTrainingRow.test(String(raw||''));

@@ -73,6 +73,20 @@ Missing, duplicated, cross-session, or ambiguous members produce a warning
 and no relation write. Neighboring movements without this directive remain
 unrelated.
 
+## Copy/paste guard and punctuation compatibility follow-up
+
+The template now requires a complete Daily Entry with `date:` and `training:`
+labels. It must not return only a fragment such as `3. Y举` plus a set line,
+because an unlabelled fragment can be routed to the generic Data Module
+discovery flow. The client recognizes a numbered movement row with an explicit
+set expression even when clipboard handling removes its leading indentation.
+
+The deterministic parser accepts both the documented ASCII grammar and common
+full-width input punctuation (`（ ）＋－，：＝`). It normalizes only the
+structural copy used for parsing; `Raw Record` remains unchanged. The template
+continues to emit ASCII punctuation so generated text is stable across
+clients.
+
 ## Session Theme resolution and the no-theme path
 
 The Session Theme catalog is authoritative for archive grouping. A complete
