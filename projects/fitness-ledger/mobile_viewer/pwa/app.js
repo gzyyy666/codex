@@ -19,7 +19,7 @@ const MOVEMENT_MODULE_TONES = Object.freeze({
 const DEFAULT_ACTIVE_BODY_PART_IDS = new Set(["chest", "shoulders", "back", "legs", "arms", "core"]);
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.17 · build 2026.09.11.13";
+const BUILD_VERSION = "PWA v1.1.18 · build 2026.09.11.14";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -239,6 +239,17 @@ function freshness(meta) {
 }
 
 function setLine(item) {
+  if (Array.isArray(item?.segments) && item.segments.length) {
+    const segments = item.segments.map(segment => {
+      const rawWeight = segment?.weight_text ?? segment?.weight;
+      const weight = rawWeight === undefined || rawWeight === null || rawWeight === "" || Number(rawWeight) === 0
+        ? "自重"
+        : (/^\s*\d+(?:\.\d+)?\s*$/.test(String(rawWeight)) ? `${Number(rawWeight)}kg` : String(rawWeight));
+      return `${weight} × ${segment?.reps ?? "-"}`;
+    }).join(" + ");
+    const count = Number(item.sets || 1);
+    return `${segments}${count !== 1 ? ` × ${count}组` : ""}`;
+  }
   const weight = item.weight_text || item.weightText || (item.weight ? `${item.weight} kg` : "自重");
   return `${weight} ${item.reps ? `${item.reps} 次` : ""} ${item.sets ? `× ${item.sets} 组` : ""}`.trim();
 }
@@ -253,6 +264,7 @@ function previewSetParts(item) {
   return [weightLabel, repsLabel, setsLabel];
 }
 function previewSetLine(item) {
+  if (Array.isArray(item?.segments) && item.segments.length) return setLine(item);
   return previewSetParts(item).filter(value => value !== "-").join(" / ");
 }
 function renderCandidateSet(item, index) {
@@ -260,6 +272,7 @@ function renderCandidateSet(item, index) {
   return `<div class="candidate-set"><span>${String(index + 1).padStart(2, "0")}</span><div class="candidate-set-values"><b>${esc(weight)}</b><b>${esc(reps)}</b><b>${esc(sets)}</b></div></div>`;
 }
 function setSummary(item) {
+  if (Array.isArray(item?.sets) && item.sets.some(set => Array.isArray(set?.segments) && set.segments.length)) return item.sets.map(setLine).join("  ");
   if (item.summary) return item.summary;
   if (Array.isArray(item.sets) && item.sets.length) return item.sets.map(setLine).join("  ");
   if (Array.isArray(item.sets_lines)) return item.sets_lines.join(" · ");
@@ -596,7 +609,9 @@ function renderMovementModuleArchive(area) {
 }
 
 function renderMovementCard(item) {
-  return `<button class="movement-card" data-action="movement" data-id="${esc(item.movement_id)}" data-part="${esc(state.route.params.get("part") || "")}"><div class="movement-head"><div>${item.pinned ? `<span class="focus-mark">★ FOCUS</span>` : ""}<div class="movement-name">${esc(item.display_name)}</div><div class="movement-en">${esc(item.english_name || "")}</div></div><span class="session-badge">${item.sessions || 0} 次</span></div>${item.latest ? `<div class="latest-set"><span>最近</span><span>${esc(item.latest.date)}${item.latest.order ? ` · 第 ${item.latest.order} 动作` : ""}</span></div><div class="set-summary">${esc(setSummary(item.latest))}</div>` : ""}<div class="compare-grid"><div class="compare-cell"><span>上一次</span><b>${esc(item.previous ? setSummary(item.previous) : "首次记录")}</b></div><div class="compare-cell"><span>历史最好</span><b>${item.best && metric(item.best, "max_weight") ? `${metric(item.best, "max_weight")} kg` : item.best && metric(item.best, "total_reps") ? `${metric(item.best, "total_reps")} reps` : "-"}</b></div></div>${item.latest?.notes ? `<div class="movement-note">${esc(item.latest.notes)}</div>` : ""}<div class="movement-action">查看完整轨迹 →</div></button>`;
+  const latest = item.latest ? { ...item.latest, movement_id: item.movement_id, movement_name: item.display_name } : null;
+  const relationDetails = latest?.organization_relations?.length ? sessionRelationDetails(latest.organization_relations, latest) : "";
+  return `<article class="movement-card" data-action="movement" data-id="${esc(item.movement_id)}" data-part="${esc(state.route.params.get("part") || "")}" tabindex="0"><div class="movement-head"><div>${item.pinned ? `<span class="focus-mark">★ FOCUS</span>` : ""}<div class="movement-name">${esc(item.display_name)}</div><div class="movement-en">${esc(item.english_name || "")}</div></div><span class="session-badge">${item.sessions || 0} 次</span></div>${item.latest ? `<div class="latest-set"><span>最近</span><span>${esc(item.latest.date)}${item.latest.order ? ` · 第 ${item.latest.order} 动作` : ""}</span></div><div class="set-summary">${esc(setSummary(item.latest))}</div>` : ""}${relationDetails}<div class="compare-grid"><div class="compare-cell"><span>上一次</span><b>${esc(item.previous ? setSummary(item.previous) : "首次记录")}</b></div><div class="compare-cell"><span>历史最好</span><b>${item.best && metric(item.best, "max_weight") ? `${metric(item.best, "max_weight")} kg` : item.best && metric(item.best, "total_reps") ? `${metric(item.best, "total_reps")} reps` : "-"}</b></div></div>${item.latest?.notes ? `<div class="movement-note">${esc(item.latest.notes)}</div>` : ""}<button type="button" class="movement-action movement-track-link" data-action="movement" data-id="${esc(item.movement_id)}" data-part="${esc(state.route.params.get("part") || "")}">查看完整轨迹 →</button></article>`;
 }
 function renderSessions(sessions, label) {
   return `<section class="session-list"><div class="list-heading"><div><div class="eyebrow">TRAINING SESSIONS / RECENT</div><h2 class="section-title">相关训练 session</h2></div><span class="count">${sessions.length}</span></div>${sessions.length ? sessions.map(item => `<button class="session-card" data-action="session" data-session-id="${esc(item.id || "")}" data-date="${esc(item.date)}" data-part="${esc(state.route.params.get("part") || "")}"><div class="session-card-head"><b>${esc(item.date)}</b><span>${esc((item.theme_names || [item.title || item.split || `${label}训练`]).join(" · "))}</span></div><div class="session-meta"><span>${item.related_count || 0} 个相关动作</span><span>独立 session</span></div><div class="chips">${(item.related_movements || []).slice(0, 4).map(name => `<span>${esc(name)}</span>`).join("")}</div><p>${esc(item.full_summary || item.movement_summary || "暂无完整动作摘要")}</p>${item.notes ? `<div class="session-note">${esc(item.notes)}</div>` : ""}<div class="movement-action">查看 session 详情 →</div></button>`).join("") : stateMessage("该部位暂时没有相关训练 session。")}</section>`;
@@ -642,7 +657,7 @@ function sessionRelationDetails(relations, item) {
     const currentLines = item?.summary || setSummary(item) || "未提供结构化组信息";
     const currentRow = `<li class="is-current"><strong>#${esc(currentOrder)} ${esc(currentName)}<small>当前动作</small></strong><span>${esc(currentLines)}</span></li>`;
     const memberRows = members.map(member => `<li><strong>#${esc(member.relation_order || "")} ${esc(member.movement_name || member.movement_id || "未命名动作")}</strong><span>${esc((member.sets_lines || []).join(" · ") || "未提供结构化组信息")}</span></li>`).join("");
-    return `<details class="session-relation-detail"><summary class="session-relation-badge">超级组${relation.label ? ` ${esc(relation.label)}` : ""} · 第 ${esc(currentOrder)}/${esc(memberCount)} 个动作</summary><div class="session-relation-body"><b>小 session · 组内顺序与组数据</b><ul>${currentRow}${memberRows || "<li>没有可展开的同组成员。</li>"}</ul></div></details>`;
+    return `<details class="session-relation-detail" data-action="noop"><summary class="session-relation-badge">超级组${relation.label ? ` ${esc(relation.label)}` : ""} · 第 ${esc(currentOrder)}/${esc(memberCount)} 个动作</summary><div class="session-relation-body"><b>小 session · 组内顺序与组数据</b><ul>${currentRow}${memberRows || "<li>没有可展开的同组成员。</li>"}</ul></div></details>`;
   }).join("");
 }
 
@@ -1007,7 +1022,7 @@ document.addEventListener("click", event => {
 window.addEventListener("scroll", () => { scheduleDockCheck(); positionCandidateOverlay(); scheduleExpandedHomeLayout(); }, { passive: true });
 window.addEventListener("resize", scheduleExpandedHomeLayout, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260911-13", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260911-14", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

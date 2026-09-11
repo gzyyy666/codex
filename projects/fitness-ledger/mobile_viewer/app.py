@@ -81,6 +81,40 @@ def _pwa_set_summary(sets: list[dict]) -> str:
     return " · ".join(format_set_line(item) for item in sets or [])
 
 
+def _pwa_relation_context(session: dict, item: dict, item_by_instance_id: dict[str, dict], catalog: dict[str, dict]) -> list[dict]:
+    """Enrich persisted session relations for compact movement projections."""
+    item_id = str(item.get("movement_instance_id") or item.get("id") or "")
+    if not item_id:
+        return []
+    result = []
+    for relation in session.get("organization_relations", []) or []:
+        if not isinstance(relation, dict):
+            continue
+        relation_members = [str(value) for value in relation.get("members", []) or []]
+        if item_id not in relation_members:
+            continue
+        enriched = dict(relation)
+        enriched["member_order"] = relation_members.index(item_id) + 1
+        enriched["member_count"] = len(relation_members)
+        enriched["co_members"] = []
+        for relation_order, member_id in enumerate(relation_members, start=1):
+            if member_id == item_id:
+                continue
+            member = item_by_instance_id.get(member_id, {})
+            member_definition = catalog.get(str(member.get("movement_id") or ""), {})
+            member_sets = member.get("sets") if isinstance(member.get("sets"), list) else []
+            enriched["co_members"].append({
+                "movement_id": member.get("movement_id", ""),
+                "movement_name": member.get("display_name") or member_definition.get("display_name", ""),
+                "movement_instance_id": member_id,
+                "relation_order": relation_order,
+                "order_in_session": member.get("order_in_session") or member.get("order", ""),
+                "sets_lines": [_pwa_set_summary(member_sets)] if member_sets else [],
+            })
+        result.append(enriched)
+    return result
+
+
 def _pwa_session_theme_names(record: dict, organization: dict) -> list[str]:
     """Resolve only persisted session-theme ids/names; never infer from Split."""
     themes = organization.get("session_themes", []) if organization else []
@@ -115,34 +149,6 @@ def _pwa_training_session_detail(data_access: LedgerDataAccess, session_id: str,
     raw_items.sort(key=lambda item: (int(item.get("order_in_session") or item.get("order") or 9999), str(item.get("movement_item_id") or item.get("movement_id") or "")))
     item_by_instance_id = {str(item.get("movement_instance_id") or item.get("id") or ""): item for item in raw_items}
 
-    def relation_context(item: dict) -> list[dict]:
-        item_id = str(item.get("movement_instance_id") or item.get("id") or "")
-        result = []
-        for relation in session.get("organization_relations", []) or []:
-            if not isinstance(relation, dict) or item_id not in {str(value) for value in relation.get("members", []) or []}:
-                continue
-            enriched = dict(relation)
-            relation_members = [str(value) for value in relation.get("members", []) or []]
-            enriched["member_order"] = relation_members.index(item_id) + 1 if item_id in relation_members else ""
-            enriched["member_count"] = len(relation_members)
-            enriched["co_members"] = []
-            for relation_order, member_id in enumerate(relation.get("members", []) or [], start=1):
-                if str(member_id) == item_id:
-                    continue
-                member = item_by_instance_id.get(str(member_id), {})
-                member_definition = catalog.get(str(member.get("movement_id") or ""), {})
-                member_sets = member.get("sets") if isinstance(member.get("sets"), list) else []
-                enriched["co_members"].append({
-                    "movement_id": member.get("movement_id", ""),
-                    "movement_name": member.get("display_name") or member_definition.get("display_name", ""),
-                    "movement_instance_id": member_id,
-                    "relation_order": relation_order,
-                    "order_in_session": member.get("order_in_session") or member.get("order", ""),
-                    "sets_lines": [_pwa_set_summary(member_sets)] if member_sets else [],
-                })
-            result.append(enriched)
-        return result
-
     movements = []
     for index, item in enumerate(raw_items):
         movement_id = str(item.get("movement_id") or "")
@@ -159,7 +165,7 @@ def _pwa_training_session_detail(data_access: LedgerDataAccess, session_id: str,
             "summary": summary,
             "notes": str(item.get("notes") or ""),
             "training_session_id": str(session.get("id") or ""),
-            "organization_relations": relation_context(item),
+            "organization_relations": _pwa_relation_context(session, item, item_by_instance_id, catalog),
         })
     theme_ids = [str(value) for value in (session.get("session_theme_ids") or []) if str(value).strip()]
     primary_theme_id = str(session.get("session_theme_id") or "").strip()
@@ -205,6 +211,23 @@ def _pwa_body_area(data_access: LedgerDataAccess, part_id: str) -> dict | None:
         movement_id for movement_id, item in catalog.items()
         if any(group.lower() in str(item.get("muscle_group") or "").lower() for group in part["groups"])
     }
+    sessions_by_id = {str(session.get("id") or ""): session for session in tracker.get("training_sessions", []) or [] if session.get("id")}
+    sessions_by_date: dict[str, list[dict]] = {}
+    for session in tracker.get("training_sessions", []) or []:
+        sessions_by_date.setdefault(str(session.get("Date") or "")[:10], []).append(session)
+
+    def history_session(item: dict) -> dict | None:
+        session_id = str(item.get("training_session_id") or "")
+        if session_id and session_id in sessions_by_id:
+            return sessions_by_id[session_id]
+        date_value = str(item.get("date") or "")[:10]
+        candidates = sessions_by_date.get(date_value, [])
+        instance_id = str(item.get("movement_instance_id") or item.get("id") or "")
+        for candidate in candidates:
+            if instance_id and any(str(row.get("movement_instance_id") or row.get("id") or "") == instance_id for row in candidate.get("movement_items", []) or []):
+                return candidate
+        return candidates[0] if len(candidates) == 1 else None
+
     history_by_id: dict[str, list[dict]] = {}
     for movement in tracker.get("movements", {}).values():
         movement_id = str(movement.get("movement_id") or "")
@@ -224,15 +247,20 @@ def _pwa_body_area(data_access: LedgerDataAccess, part_id: str) -> dict | None:
         for item in history:
             metrics = item.get("metrics") or {}
             sets = item.get("sets") or []
+            session = history_session(item)
+            session_items = session.get("movement_items", []) if session else []
+            item_by_instance_id = {str(row.get("movement_instance_id") or row.get("id") or ""): row for row in session_items if isinstance(row, dict)}
             compact.append({
                 "date": str(item.get("date") or "")[:10],
-                "order": item.get("order") or 0,
+                "training_session_id": str(item.get("training_session_id") or (session or {}).get("id") or ""),
+                "order": item.get("order_in_session") or item.get("order") or 0,
                 "sets": sets,
                 "summary": _pwa_set_summary(sets),
                 "notes": str(item.get("notes") or ""),
                 "max_weight": float(metrics.get("max_weight") or 0),
                 "total_reps": int(metrics.get("total_reps") or 0),
                 "volume": float(metrics.get("volume") or 0),
+                "organization_relations": _pwa_relation_context(session, item, item_by_instance_id, catalog) if session else [],
             })
         best = max(compact, key=lambda item: (item["max_weight"], item["volume"], item["total_reps"]))
         movement_cards.append({
@@ -253,23 +281,24 @@ def _pwa_body_area(data_access: LedgerDataAccess, part_id: str) -> dict | None:
     for movement_id, records in history_by_id.items():
         for record in records:
             history_rows.append((str(record.get("date") or "")[:10], movement_id, record))
-    sessions_by_date = {}
-    training_by_date = {str(item.get("Date") or "")[:10]: item for item in tracker.get("training_sessions", [])}
+    session_rollups = {}
     for date_value, movement_id, record in history_rows:
-        session = sessions_by_date.setdefault(date_value, {"date": date_value, "related_movements": [], "records": []})
+        session_id = str(record.get("training_session_id") or "")
+        key = session_id or f"date:{date_value}"
+        session = session_rollups.setdefault(key, {"id": session_id or date_value, "date": date_value, "related_movements": [], "records": []})
         name = catalog.get(movement_id, {}).get("display_name") or movement_id
         if name not in session["related_movements"]:
             session["related_movements"].append(name)
         session["records"].append(record)
     sessions = []
-    for date_value in sorted(sessions_by_date, reverse=True):
-        session = sessions_by_date[date_value]
-        training = training_by_date.get(date_value, {})
+    for session in sorted(session_rollups.values(), key=lambda item: (item["date"], item["id"]), reverse=True):
+        training = sessions_by_id.get(str(session["id"]), {})
         sessions.append({
-            "id": date_value,
-            "date": date_value,
+            "id": session["id"],
+            "date": session["date"],
             "split": training.get("Split") or f"{part['label']}训练",
             "title": training.get("Split") or f"{part['label']}训练",
+            "theme_names": _pwa_session_theme_names(training, _pwa_training_organization(data_access)) if training else [],
             "related_count": len(session["related_movements"]),
             "related_movements": session["related_movements"],
             "movement_summary": training.get("Standardized Summary") or "暂无完整动作摘要",
@@ -319,6 +348,7 @@ def _pwa_session_theme_area(data_access: LedgerDataAccess, theme_id: str) -> dic
         })
     session_rows.sort(key=lambda item: (item["date"], item["id"]), reverse=True)
     catalog = {item["movement_id"]: item for item in _pwa_movement_catalog(data_access)}
+    sessions_by_id = {str(session.get("id") or ""): session for session in tracker.get("training_sessions", []) or [] if session.get("id")}
     movement_ids = {str(item.get("movement_id")) for session in tracker.get("training_sessions", []) or [] if str(session.get("id") or "") in session_ids for item in session.get("movement_items", []) or [] if item.get("movement_id")}
     movement_cards = []
     for movement_id in movement_ids:
@@ -327,7 +357,20 @@ def _pwa_session_theme_area(data_access: LedgerDataAccess, theme_id: str) -> dic
             continue
         history = [dict(item) for item in movement_items(tracker, movement_id) if str(item.get("training_session_id") or "") in session_ids]
         history.sort(key=lambda item: (str(item.get("date") or ""), int(item.get("order") or 9999)), reverse=True)
-        compact = [{"date": str(item.get("date") or "")[:10], "training_session_id": str(item.get("training_session_id") or ""), "order": item.get("order") or 0, "sets": item.get("sets") or [], "summary": _pwa_set_summary(item.get("sets") or []), "notes": str(item.get("notes") or "")} for item in history]
+        compact = []
+        for item in history:
+            session = sessions_by_id.get(str(item.get("training_session_id") or ""), {})
+            session_items = session.get("movement_items", []) if session else []
+            item_by_instance_id = {str(row.get("movement_instance_id") or row.get("id") or ""): row for row in session_items if isinstance(row, dict)}
+            compact.append({
+                "date": str(item.get("date") or "")[:10],
+                "training_session_id": str(item.get("training_session_id") or ""),
+                "order": item.get("order_in_session") or item.get("order") or 0,
+                "sets": item.get("sets") or [],
+                "summary": _pwa_set_summary(item.get("sets") or []),
+                "notes": str(item.get("notes") or ""),
+                "organization_relations": _pwa_relation_context(session, item, item_by_instance_id, catalog) if session else [],
+            })
         if not compact:
             continue
         movement_cards.append({"movement_id": movement_id, "display_name": definition.get("display_name") or movement_id, "english_name": definition.get("english_name") or "", "muscle_group": definition.get("muscle_group") or "", "pinned": bool(definition.get("pinned")), "focus_rank": int(definition.get("focus_rank") or 0), "sessions": len({row["training_session_id"] or row["date"] for row in compact}), "latest": compact[0], "previous": compact[1] if len(compact) > 1 else None, "best": compact[0], "recent": compact[:3]})

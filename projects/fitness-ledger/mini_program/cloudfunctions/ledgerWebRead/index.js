@@ -226,10 +226,50 @@ function compactHistory(item) {
     organization_relations: Array.isArray(item.organization_relations) ? item.organization_relations : []
   };
 }
+function relationContextForItem(session, item, movementMap) {
+  const itemId = String(item?.movement_instance_id || item?.id || "");
+  if (!itemId || !session) return [];
+  const sessionItems = Array.isArray(session.movement_items) ? session.movement_items : [];
+  const itemByInstanceId = Object.fromEntries(sessionItems.map(row => [String(row.movement_instance_id || row.id || ""), row]));
+  return (Array.isArray(session.organization_relations) ? session.organization_relations : [])
+    .filter(relation => Array.isArray(relation.members) && relation.members.map(String).includes(itemId))
+    .map(relation => {
+      const members = relation.members.map(String);
+      const enriched = { ...relation, member_order: members.indexOf(itemId) + 1, member_count: members.length, co_members: [] };
+      enriched.co_members = members.filter(memberId => memberId !== itemId).map((memberId, index) => {
+        const member = itemByInstanceId[memberId] || {};
+        const definition = movementMap[String(member.movement_id || "")] || {};
+        return {
+          movement_id: member.movement_id || "",
+          movement_name: member.display_name || definition.display_name || "",
+          movement_instance_id: memberId,
+          relation_order: members.indexOf(memberId) + 1,
+          order_in_session: member.order_in_session || member.order || "",
+          sets_lines: Array.isArray(member.sets) && member.sets.length ? [setSummary(member.sets)] : []
+        };
+      });
+      return enriched;
+    });
+}
 function buildBodyArea(partId, movements, history, sessions) {
   const theme = BODY_PARTS[partId];
   if (!theme) return null;
   const activeMovements = movements.filter(item => item.active !== false && groupMatches(item.muscle_group, theme.groups));
+  const sessionById = Object.fromEntries((sessions || []).map(item => [String(item.id || item._id || ""), item]));
+  const sessionsByDate = {};
+  (sessions || []).forEach(item => {
+    const date = String(item.Date || "").slice(0, 10);
+    if (date) (sessionsByDate[date] || (sessionsByDate[date] = [])).push(item);
+  });
+  const movementMap = Object.fromEntries((movements || []).map(item => [String(item.movement_id || ""), item]));
+  const historySession = item => {
+    const byId = sessionById[String(item.training_session_id || "")];
+    if (byId) return byId;
+    const dateCandidates = sessionsByDate[String(item.date || "").slice(0, 10)] || [];
+    const instanceId = String(item.movement_instance_id || item.id || "");
+    return dateCandidates.find(session => instanceId && (session.movement_items || []).some(row => String(row.movement_instance_id || row.id || "") === instanceId))
+      || (dateCandidates.length === 1 ? dateCandidates[0] : null);
+  };
   const historyByMovement = {};
   history.forEach(item => {
     if (!historyByMovement[item.movement_id]) historyByMovement[item.movement_id] = [];
@@ -237,7 +277,11 @@ function buildBodyArea(partId, movements, history, sessions) {
   });
   const movementCards = activeMovements.map(movement => {
     const records = (historyByMovement[movement.movement_id] || []).sort((a, b) => String(b.date).localeCompare(String(a.date)));
-    const compact = records.map(compactHistory);
+    const compact = records.map(item => {
+      const session = historySession(item);
+      const relations = relationContextForItem(session, item, movementMap);
+      return { ...compactHistory(item), training_session_id: String(item.training_session_id || session?.id || ""), order: item.order_in_session || item.order || 0, organization_relations: relations.length ? relations : compactHistory(item).organization_relations };
+    });
     const best = compact.reduce((current, item) => {
       if (!current || item.max_weight > current.max_weight || (item.max_weight === current.max_weight && item.volume > current.volume)) return item;
       return current;
@@ -264,21 +308,26 @@ function buildBodyArea(partId, movements, history, sessions) {
   });
   const activeIds = new Set(activeMovements.map(item => String(item.movement_id || "")));
   const movementById = Object.fromEntries(activeMovements.map(item => [String(item.movement_id || ""), item]));
-  const relatedByDate = {};
+  const relatedBySession = {};
   history.forEach(item => {
     const movementId = String(item.movement_id || "");
     const date = String(item.date || "").slice(0, 10);
     if (!date || !activeIds.has(movementId)) return;
-    if (!relatedByDate[date]) relatedByDate[date] = [];
-    relatedByDate[date].push({ ...compactHistory(item), movement_id: movementId, display_name: movementById[movementId].display_name || "" });
+    const session = historySession(item);
+    const key = String(item.training_session_id || session?.id || `date:${date}`);
+    if (!relatedBySession[key]) relatedBySession[key] = [];
+    const relations = relationContextForItem(session, item, movementMap);
+    relatedBySession[key].push({ ...compactHistory(item), movement_id: movementId, display_name: movementById[movementId].display_name || "", training_session_id: key, organization_relations: relations.length ? relations : compactHistory(item).organization_relations });
   });
-  const sessionsByDate = {};
-  sessions.forEach(item => { const date = String(item.Date || "").slice(0, 10); if (date && !sessionsByDate[date]) sessionsByDate[date] = item; });
-  const matchedSessions = Object.keys(relatedByDate).sort((a, b) => b.localeCompare(a)).map(date => {
-    const session = sessionsByDate[date] || {};
-    const related = relatedByDate[date].sort((a, b) => Number(a.order || 999) - Number(b.order || 999));
+  const matchedSessions = Object.keys(relatedBySession).sort((a, b) => {
+    const aDate = String(relatedBySession[a][0]?.date || ""), bDate = String(relatedBySession[b][0]?.date || "");
+    return bDate.localeCompare(aDate) || b.localeCompare(a);
+  }).map(key => {
+    const related = relatedBySession[key].sort((a, b) => Number(a.order || 999) - Number(b.order || 999));
+    const session = sessionById[key] || {};
+    const date = String(related[0]?.date || session.Date || "").slice(0, 10);
     return {
-      id: session.id || session._id || date,
+      id: session.id || session._id || key.replace(/^date:/, ""),
       date,
       split: session.Split || "",
       notes: session.Notes || "",
@@ -323,7 +372,7 @@ function sessionMovementRows(session, movementMap) {
         notes: item.notes || "",
         date: String(session.Date || "").slice(0, 10),
         training_session_id: String(session.id || session._id || ""),
-        organization_relations: (Array.isArray(session.organization_relations) ? session.organization_relations : []).filter(relation => Array.isArray(relation.members) && relation.members.map(String).includes(String(item.movement_instance_id || item.id || "")))
+        organization_relations: relationContextForItem(session, item, movementMap)
       };
     });
 }
