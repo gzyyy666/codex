@@ -10,6 +10,7 @@ const BODY_PARTS = [
   { id: "core", cn: "核心", en: "CORE", tone: "amber" },
   { id: "cardio", cn: "有氧", en: "CARDIO", tone: "blue" }
 ];
+const DEFAULT_ACTIVE_BODY_PART_IDS = new Set(["chest", "shoulders", "back", "legs", "arms", "core"]);
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
 const BUILD_VERSION = "PWA v1.1.13 · build 2026.09.11.09";
@@ -162,7 +163,7 @@ function loadIncomingShareIntent() {
 function bodyPart(id) { return BODY_PARTS.find(item => item.id === id) || BODY_PARTS[0]; }
 function activeBodyParts() {
   const categories = state.organization?.movement_categories;
-  if (!Array.isArray(categories)) return BODY_PARTS;
+  if (!Array.isArray(categories) || !categories.length) return BODY_PARTS.filter(item => DEFAULT_ACTIVE_BODY_PART_IDS.has(item.id));
   const known = new Map(BODY_PARTS.map(item => [item.id, item]));
   return categories.filter(item => item && item.active !== false).map(item => {
     const base = known.get(String(item.category_id));

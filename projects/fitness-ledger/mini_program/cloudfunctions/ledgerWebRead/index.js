@@ -194,7 +194,7 @@ async function trainingOrganizationPayload(trainingRows) {
   if (!organization) return fallbackTrainingOrganization(trainingRows);
   return {
     session_themes: Array.isArray(organization.session_themes) ? organization.session_themes.filter(item => item && item.active !== false) : [],
-    movement_categories: mergeMovementCategories(organization.movement_categories).filter(item => item && item.active !== false)
+    movement_categories: mergeMovementCategories(organization.movement_categories)
   };
 }
 

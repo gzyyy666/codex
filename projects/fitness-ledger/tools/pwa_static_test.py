@@ -40,6 +40,7 @@ def main() -> None:
         assert f'"{route}"' in app_source, f"missing Mini Program route: {route}"
     assert "NOTE_KEY" in app_source
     assert "toneForArea" in app_source
+    assert "DEFAULT_ACTIVE_BODY_PART_IDS" in app_source
     assert 'freeform-notepad:v2:current-training' in app_source
     assert "findLastCandidate" in app_source
     assert "previewHistory" in app_source

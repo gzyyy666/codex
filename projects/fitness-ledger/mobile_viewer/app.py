@@ -31,7 +31,7 @@ PWA_BODY_PARTS = {
 def _pwa_training_organization(data_access: LedgerDataAccess) -> dict:
     normalized, _ = normalize_training_organization(data_access._tracker(), data_access._cache.get("dictionary", {}) if data_access._cache else {})
     organization = normalized.get("training_organization", {})
-    return {"session_themes": [item for item in organization.get("session_themes", []) if item.get("active", True)], "movement_categories": [item for item in organization.get("movement_categories", []) if item.get("active", True)]}
+    return {"session_themes": [item for item in organization.get("session_themes", []) if item.get("active", True)], "movement_categories": organization.get("movement_categories", [])}
 
 
 def _empty_data_module_contract() -> dict:
