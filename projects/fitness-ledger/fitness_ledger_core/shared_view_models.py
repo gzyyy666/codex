@@ -180,8 +180,10 @@ class LedgerViewModels:
         for relation in session.get("organization_relations", []) or []:
             if not isinstance(relation, dict) or item_id not in {str(value) for value in relation.get("members", []) or []}:
                 continue
+            relation_members = [str(value) for value in relation.get("members", []) or []]
+            member_order = relation_members.index(item_id) + 1 if item_id in relation_members else ""
             co_members = []
-            for member_id in relation.get("members", []) or []:
+            for relation_order, member_id in enumerate(relation.get("members", []) or [], start=1):
                 if str(member_id) == item_id:
                     continue
                 member = item_by_id.get(str(member_id), {})
@@ -190,9 +192,11 @@ class LedgerViewModels:
                     "movement_id": member.get("movement_id", ""),
                     "movement_name": definition.get("display_name") or member.get("display_name", ""),
                     "movement_instance_id": member_id,
+                    "relation_order": relation_order,
+                    "order_in_session": member.get("order_in_session") or member.get("order", ""),
                     "sets_lines": LedgerViewModels.history_set_lines(member),
                 })
-            context.append({"id": relation.get("id", ""), "type": relation.get("type", ""), "label": relation.get("label", ""), "co_members": co_members})
+            context.append({"id": relation.get("id", ""), "type": relation.get("type", ""), "label": relation.get("label", ""), "member_order": member_order, "member_count": len(relation_members), "co_members": co_members})
         return context
 
     def movement_history_by_id(self, movement_id: str, limit: int = 8, before_date: str = "") -> dict:

@@ -84,12 +84,12 @@ def main() -> None:
         command(browser, "Page.reload", {"ignoreCache": True})
         wait(browser, "document.readyState==='complete' && !!document.querySelector('.training-session-only') && document.body.innerText.includes('Incline Press')")
         before = browser.evaluate("document.body.innerText")
-        assert "超级组 A" in before and "同组成员" not in before, before
+        assert "超级组 A" in before and "第 1/2 个动作" in before and "同组成员" not in before, before
         assert browser.evaluate("document.querySelector('.session-relation-detail').open") is False
         browser.evaluate("document.querySelector('.session-relation-badge').click(); true")
         wait(browser, "document.querySelector('.session-relation-detail').open === true")
         after = browser.evaluate("document.body.innerText")
-        assert "同组成员与组数据" in after and "Triceps Pushdown" in after and "30kg × 12 × 3" in after, after
+        assert "小 session · 组内顺序与组数据" in after and "当前动作" in after and "Triceps Pushdown" in after and "30kg × 12 × 3" in after and "#2" in after, after
         assert browser.evaluate("document.documentElement.scrollWidth===document.documentElement.clientWidth") is True
         capture(browser, args.output / "superset-relation-detail-pwa.png")
         print(json.dumps({"status": "PASS", "screenshot": str(args.output / "superset-relation-detail-pwa.png"), "tap_fallback": True, "members_visible": True}, ensure_ascii=False, indent=2))

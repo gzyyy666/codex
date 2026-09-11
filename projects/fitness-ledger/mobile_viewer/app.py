@@ -122,8 +122,11 @@ def _pwa_training_session_detail(data_access: LedgerDataAccess, session_id: str,
             if not isinstance(relation, dict) or item_id not in {str(value) for value in relation.get("members", []) or []}:
                 continue
             enriched = dict(relation)
+            relation_members = [str(value) for value in relation.get("members", []) or []]
+            enriched["member_order"] = relation_members.index(item_id) + 1 if item_id in relation_members else ""
+            enriched["member_count"] = len(relation_members)
             enriched["co_members"] = []
-            for member_id in relation.get("members", []) or []:
+            for relation_order, member_id in enumerate(relation.get("members", []) or [], start=1):
                 if str(member_id) == item_id:
                     continue
                 member = item_by_instance_id.get(str(member_id), {})
@@ -133,6 +136,8 @@ def _pwa_training_session_detail(data_access: LedgerDataAccess, session_id: str,
                     "movement_id": member.get("movement_id", ""),
                     "movement_name": member.get("display_name") or member_definition.get("display_name", ""),
                     "movement_instance_id": member_id,
+                    "relation_order": relation_order,
+                    "order_in_session": member.get("order_in_session") or member.get("order", ""),
                     "sets_lines": [_pwa_set_summary(member_sets)] if member_sets else [],
                 })
             result.append(enriched)

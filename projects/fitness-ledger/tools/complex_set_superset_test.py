@@ -165,7 +165,10 @@ def main() -> None:
         views = LedgerViewModels(tracker, dictionary)
         movement = views.movement_history_by_id("A")
         assert movement["history"][0]["metrics"]["volume"] == 255
-        assert movement["history"][0]["organization_relations"][0]["co_members"][0]["movement_name"] == "Press B"
+        relation_context = movement["history"][0]["organization_relations"][0]
+        assert relation_context["member_order"] == 1 and relation_context["member_count"] == 2
+        assert relation_context["co_members"][0]["movement_name"] == "Press B"
+        assert relation_context["co_members"][0]["relation_order"] == 2
         archive = views.training_archive()
         assert len(archive) == 1 and archive[0]["id"] == session["id"]
         assert len(archive[0]["movement_refs"]) == 2

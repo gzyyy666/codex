@@ -12,7 +12,7 @@
 | Complex Set 解析、保存、历史 | `ALREADY_COMPLETE_PROVEN` | `(7.5+5)-(6+8)-3` 与全角输入均保留为一个 Set、两个 segments、3 组；历史显示 `7.5kg × 6 + 5kg × 8 × 3组`，没有伪造单一重量。 |
 | Superset 是纯关系上下文 | `ALREADY_COMPLETE_PROVEN` | 关系中性回归测试比较写入前后：movement count、set count、各动作 volume、session volume、order、identity 均不变。 |
 | Superset 单一真相 | `ALREADY_COMPLETE_PROVEN` | canonical 只在 Session 的 `organization_relations[]` 保存关系；动作项不复制 relation。View Model 再按成员投影 `co_members`。 |
-| Desktop 关系详情 | `COMPLETED_THIS_ROUND` | 历史页关系条现在是可聚焦、可点击的小型控件；详情显示当前动作、全部同组动作和各自组数据。 |
+| Desktop 关系详情 | `COMPLETED_THIS_ROUND` | 历史页关系条现在是可悬停、可聚焦、可点击的小型控件；悬停直接显示组内顺序和同组组数据，点击仍打开完整详情。 |
 | Narrow / touch 关系详情 | `COMPLETED_THIS_ROUND` | Desktop 窄视口点击与 PWA 触摸视口原生 `details` 展开均通过浏览器测试；无 hover 时仍能看到全部成员与组数据。 |
 | Analysis Export JSON / Markdown | `COMPLETED_THIS_ROUND` | 使用当前候选的匿名 materializer 生成真实 JSON 样本；现有协议同时接受 `json` 与 `markdown`，不新增第二套导出结构。 |
 | Analysis Dataset Catalog 与外部分析 LLM | `COMPLETED_THIS_ROUND` | `DATASET_FIELDS`、materializer 字段类型、动态 Analysis Catalog、初始化 prompt 和真实导出样本形成同一条链；prompt 已明确 `segments`、组数/次数/volume、`organization_relations.members` 的语义。 |
@@ -75,8 +75,8 @@
 
 当前行为保持小范围：
 
-- Desktop Movement History：`超级组 A · Triceps Pushdown` 是可聚焦按钮，点击后打开现有轻量 modal；显示当前动作和全部 co-member 的 `sets_lines`。
-- PWA / touch：动作卡使用原生 `<details>`；点击 `超级组 A · 2 个动作` 展开同组成员。没有依赖 hover，也没有把 button 嵌套进 button。
+- Desktop Movement History：`超级组 A · 组内 1/2 · Triceps Pushdown` 是可悬停、可聚焦按钮；悬停卡直接显示“当前动作 + 按组内顺序排列的全部成员 + 各自 `sets_lines`”，点击后打开现有轻量 modal 作为完整查看和触摸 fallback。
+- PWA / touch：动作卡使用原生 `<details>`；`超级组 A · 第 1/2 个动作` 展开后显示当前动作和按关系顺序排列的全部成员。没有依赖 hover，也没有把 button 嵌套进 button。
 - 未关联动作不出现空关系控件；未知或不完整成员不会被猜成新动作，只显示已有 canonical 信息。
 
 浏览器证据：
@@ -85,6 +85,7 @@
 - [胸主题完整 Session](C:/Users/26087/.codex/visualizations/2026/09/11/01a08fdf-80a7-7d82-9c93-1585913987bf/completion-final3/superset-session-chest-theme.png)
 - [肩主题同一 Session](C:/Users/26087/.codex/visualizations/2026/09/11/01a08fdf-80a7-7d82-9c93-1585913987bf/completion-final3/superset-session-shoulders-theme.png)
 - [Desktop 关系详情](C:/Users/26087/.codex/visualizations/2026/09/11/01a08fdf-80a7-7d82-9c93-1585913987bf/completion-final3/superset-relation-detail-desktop.png)
+- [Desktop 悬停关系详情](C:/Users/26087/.codex/visualizations/2026/09/11/01a08fdf-80a7-7d82-9c93-1585913987bf/completion-hover-final/superset-relation-hover-desktop.png)
 - [窄视口关系详情](C:/Users/26087/.codex/visualizations/2026/09/11/01a08fdf-80a7-7d82-9c93-1585913987bf/completion-final3/superset-relation-detail-narrow.png)
 - [PWA 触摸展开](C:/Users/26087/.codex/visualizations/2026/09/11/01a08fdf-80a7-7d82-9c93-1585913987bf/completion-pwa-final2/superset-relation-detail-pwa.png)
 
@@ -186,7 +187,7 @@ Session 内明确的超级组使用独立关系标记，不合并动作：
 | charts | 原行为不变 | 图表只接收可比较 scalar；复杂记录仍在完整 history | relation 只作 context |
 | session summary / Open Record | 原行为不变 | 一个动作、完整组结构 | 一个 Session、关系在 Session context |
 | Analysis Export | 原字段与协议不变 | `sets`、`segments`、派生字段一并导出 | `organization_relations.members` 一并导出 |
-| PWA | 原动作卡与 session 浏览不变 | summary 保留结构 | tap 展开所有 co-members 和 set info |
+| PWA | 原动作卡与 session 浏览不变 | summary 保留结构 | tap 展开当前动作 + 按顺序排列的全部成员和 set info |
 
 ## 6. 新 session / 缺失 theme 的处理
 
@@ -200,7 +201,8 @@ Session 内明确的超级组使用独立关系标记，不合并动作：
 
 改动集中在候选：
 
-- `web_desktop/frontend/app.js` / `styles.css`：关系详情按钮、现有 modal 展示。
+- `fitness_ledger_core/shared_view_models.py`：关系只读投影补充 `member_order` / `member_count` / `relation_order`。
+- `web_desktop/frontend/app.js` / `styles.css`：关系条显示组内顺序，hover/focus 展示轻量详情卡，click 保留完整 modal。
 - `mobile_viewer/pwa/app.js` / `styles.css`：touch-friendly 原生展开和 PWA relation member projection。
 - `web_desktop/backend/server.py`：分析 LLM 初始化提示词明确字段与派生量语义。
 - `tools/complex_set_superset_test.py`：canonical relation single-source 与关系中性 invariant。

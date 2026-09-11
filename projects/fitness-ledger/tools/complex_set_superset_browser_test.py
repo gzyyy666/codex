@@ -200,11 +200,18 @@ def main() -> None:
         _wait(browser, "!!document.querySelector('.movement-detail-page .trajectory')")
         history_text = browser.evaluate("document.body.innerText")
         assert "7.5kg × 6 + 5kg × 8 × 3组" in history_text and "超级组 A" in history_text and "Triceps Pushdown" in history_text, history_text[:2500]
+        assert browser.evaluate("document.querySelector('.history-superset-context').innerText.includes('组内 1/2')") is True
+        context_rect = browser.evaluate("(()=>{const r=document.querySelector('.history-superset-context').getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2}})()")
+        _command(browser, "Input.dispatchMouseEvent", {"type": "mouseMoved", "x": context_rect["x"], "y": context_rect["y"]})
+        _wait(browser, "getComputedStyle(document.querySelector('.history-superset-hover-card')).display !== 'none'")
+        hover_text = browser.evaluate("document.querySelector('.history-superset-hover-card').innerText")
+        assert "小 session" in hover_text and "Triceps Pushdown" in hover_text and "30kg × 12 × 3" in hover_text and "#2" in hover_text, hover_text
+        capture(browser, output / "superset-relation-hover-desktop.png")
         capture(browser, output / "complex-set-history-and-superset-context.png")
         click(browser, ".history-superset-context")
         _wait(browser, "!!document.querySelector('.overlay .superset-detail-members')")
         relation_text = browser.evaluate("document.body.innerText")
-        assert "当前动作" in relation_text and "同组成员" in relation_text and "Triceps Pushdown" in relation_text and "30kg × 12 × 3" in relation_text, relation_text[:2500]
+        assert "当前动作" in relation_text and "组内动作与组数据" in relation_text and "Triceps Pushdown" in relation_text and "30kg × 12 × 3" in relation_text, relation_text[:2500]
         capture(browser, output / "superset-relation-detail-desktop.png")
         click(browser, "[data-close]")
         _command(browser, "Emulation.setDeviceMetricsOverride", {"width": 420, "height": 900, "deviceScaleFactor": 1, "mobile": True, "screenWidth": 420, "screenHeight": 900})
@@ -223,6 +230,7 @@ def main() -> None:
             "superset_session_shoulders": str(output / "superset-session-shoulders-theme.png"),
             "movement_history": str(output / "complex-set-history-and-superset-context.png"),
             "relation_detail_desktop": str(output / "superset-relation-detail-desktop.png"),
+            "relation_hover_desktop": str(output / "superset-relation-hover-desktop.png"),
             "relation_detail_narrow": str(output / "superset-relation-detail-narrow.png"),
             "multi_theme": {"chest_sessions": 1, "shoulder_sessions": 1},
             "complex_set_text": "7.5kg × 6 + 5kg × 8 × 3组",
