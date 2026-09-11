@@ -2,18 +2,24 @@ import { apiDescription, call, privateAccountIdentity, privateDatabase, signIn }
 
 const BODY_PARTS = [
   { id: "shoulders", cn: "肩", en: "SHOULDERS", tone: "amber" },
-  { id: "chest", cn: "胸", en: "CHEST", tone: "coral" },
+  { id: "chest", cn: "胸", en: "CHEST", tone: "ember" },
   { id: "back", cn: "背", en: "BACK", tone: "teal" },
   { id: "legs", cn: "腿", en: "LEGS", tone: "violet" },
-  { id: "arms", cn: "手臂", en: "ARMS", tone: "cyan" },
+  { id: "arms", cn: "手臂", en: "ARMS", tone: "blue" },
   { id: "glutes", cn: "臀", en: "GLUTES", tone: "rose" },
   { id: "core", cn: "核心", en: "CORE", tone: "amber" },
   { id: "cardio", cn: "有氧", en: "CARDIO", tone: "blue" }
 ];
+// Movement Modules use the Web movement-index palette, not Session Theme
+// color_key. These are separate data concepts even when their labels match.
+const MOVEMENT_MODULE_TONES = Object.freeze({
+  shoulders: "amber", chest: "ember", back: "teal", legs: "violet",
+  arms: "blue", glutes: "rose", core: "amber", cardio: "blue"
+});
 const DEFAULT_ACTIVE_BODY_PART_IDS = new Set(["chest", "shoulders", "back", "legs", "arms", "core"]);
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.13 · build 2026.09.11.09";
+const BUILD_VERSION = "PWA v1.1.14 · build 2026.09.11.10";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -172,7 +178,9 @@ function activeBodyParts() {
       ...base,
       cn: String(item.label_zh || item.display_name_zh || base.cn),
       en: String(item.display_name || item.display_name_en || item.labelEn || item.label_en || base.en),
-      tone: String(item.color_key || base.tone)
+      // Movement module appearance follows its module id. Do not reuse the
+      // Session Theme color_key returned in the same organization payload.
+      tone: MOVEMENT_MODULE_TONES[base.id] || base.tone
     };
   }).filter(Boolean);
 }
@@ -495,9 +503,19 @@ function positionCandidateOverlay() {
   const themeStrip = document.querySelector(".reference-home .theme-strip");
   if (!overlay || !themeStrip) return;
   const strip = themeStrip.getBoundingClientRect();
-  const maxTop = Math.max(8, window.innerHeight - (overlay.classList.contains("collapsed") ? 31 : 176));
-  const preservedTop = state.candidateAnchorTop == null ? NaN : Number(state.candidateAnchorTop);
-  const top = Number.isFinite(preservedTop) ? preservedTop : Math.min(Math.max(8, strip.bottom + 8), maxTop);
+  const note = document.querySelector(".reference-home .note-sheet")?.getBoundingClientRect();
+  const height = overlay.classList.contains("collapsed") ? 23 : 166;
+  const gap = 8;
+  const maxTop = Math.max(8, window.innerHeight - height - 8);
+  const belowContent = Math.max(strip.bottom + gap, note?.bottom ? note.bottom + gap : 0);
+  const aboveNote = note ? note.top - height - gap : NaN;
+  let top = belowContent;
+  // Prefer the gap below the input board. If the board fills the viewport,
+  // use the space above it instead; never deliberately cover the note sheet.
+  if (note && top < note.bottom && Number.isFinite(aboveNote) && aboveNote >= 8) top = aboveNote;
+  if (note && top < note.bottom && aboveNote < 8) top = Math.max(8, Math.min(belowContent, maxTop));
+  top = Math.min(Math.max(8, top), maxTop);
+  if (note && top < note.bottom && top + height > note.top && Number.isFinite(aboveNote) && aboveNote >= 8) top = aboveNote;
   state.candidateAnchorTop = top;
   overlay.style.setProperty("--candidate-top", `${top}px`);
 }
@@ -701,14 +719,17 @@ async function selectMovementModule(partId) {
     render();
     return;
   }
+  const wasExpanded = state.archiveExpanded;
   state.selectedPartId = id;
-  state.archiveExpanded = false;
+  // Expanded is a homepage viewing mode, not a property of one module.
+  state.archiveExpanded = wasExpanded;
   state.area = null;
   state.loading = true;
   state.error = "";
   render();
   try {
-    state.area = await call("bodyArea", { part: id });
+    const area = await call("bodyArea", { part: id });
+    if (String(state.selectedPartId || "") === id) state.area = area;
   } catch (error) {
     setError(error);
   }
@@ -726,6 +747,7 @@ async function loadRoute() {
     if (name === "reference") {
       const [organizationResult, statusResult, areasResult] = await Promise.allSettled([call("trainingOrganization"), call("status"), call("bodyAreas")]);
       if (organizationResult.status === "rejected") throw organizationResult.reason;
+      if (requestId !== routeRequest) return;
       state.organization = organizationResult.value || null;
       state.selectedPartId = null;
       state.archiveExpanded = false;
@@ -735,6 +757,7 @@ async function loadRoute() {
     } else if (name === "training") {
       const [trainingResult, statusResult, organizationResult] = await Promise.allSettled([call("trainingRecords"), call("status"), call("trainingOrganization")]);
       if (trainingResult.status === "rejected") throw trainingResult.reason;
+      if (requestId !== routeRequest) return;
       state.trainingRecords = Array.isArray(trainingResult.value) ? trainingResult.value : [];
       state.status = statusResult.status === "fulfilled" ? statusResult.value : null;
       state.organization = organizationResult.status === "fulfilled" ? organizationResult.value : state.organization;
@@ -930,9 +953,9 @@ document.addEventListener("click", event => {
   if (action === "close-note-detail") { state.noteDetailRequest += 1; state.noteDetailOpen = false; state.noteDetailLoading = false; render(); }
   if (action === "noop") return;
 });
-window.addEventListener("scroll", scheduleDockCheck, { passive: true });
+window.addEventListener("scroll", () => { scheduleDockCheck(); positionCandidateOverlay(); }, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260911-09", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260911-10", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

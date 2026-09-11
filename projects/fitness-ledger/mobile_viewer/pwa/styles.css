@@ -135,6 +135,57 @@ button { color: inherit; cursor: pointer; }
   .notepad-actions button, .notepad-head button { min-height: 32px; }
 }
 
+/* 2026-09-11 PWA home polish: Movement Module colors follow the Web
+   movement-index artwork palette. Session Theme colors remain independent. */
+.reference-home.theme-color-neutral { --page-bg:#f2f7f0; --theme-accent:#397151; --theme-soft:#dfeee3; --theme-faint:rgba(214,232,218,.42); --decorative-accent:#397151; --note-shadow-tint:rgba(48,91,67,.15); --note-edge-tint:rgba(57,113,81,.22); }
+.reference-home.theme-color-amber { --page-bg:#fbf1d8; --theme-accent:#d49a27; --theme-soft:#f2d88b; --theme-faint:rgba(242,216,139,.35); --decorative-accent:#d49a27; --note-shadow-tint:rgba(157,108,18,.17); --note-edge-tint:rgba(212,154,39,.25); }
+.reference-home.theme-color-ember { --page-bg:#f8eee8; --theme-accent:#c86454; --theme-soft:#efb9ae; --theme-faint:rgba(239,185,174,.35); --decorative-accent:#c86454; --note-shadow-tint:rgba(142,61,48,.15); --note-edge-tint:rgba(200,100,84,.24); }
+.reference-home.theme-color-teal { --page-bg:#eaf3ef; --theme-accent:#34776f; --theme-soft:#afd6cc; --theme-faint:rgba(175,214,204,.38); --decorative-accent:#34776f; --note-shadow-tint:rgba(31,86,77,.17); --note-edge-tint:rgba(52,119,111,.24); }
+.reference-home.theme-color-violet { --page-bg:#f4f0f8; --theme-accent:#8065a8; --theme-soft:#d5c5e8; --theme-faint:rgba(213,197,232,.4); --decorative-accent:#8065a8; --note-shadow-tint:rgba(75,53,107,.15); --note-edge-tint:rgba(128,101,168,.24); }
+.reference-home.theme-color-blue { --page-bg:#edf4f8; --theme-accent:#3f86a2; --theme-soft:#b8dce8; --theme-faint:rgba(184,220,232,.4); --decorative-accent:#3f86a2; --note-shadow-tint:rgba(38,92,117,.15); --note-edge-tint:rgba(63,134,162,.24); }
+.reference-home.theme-color-rose { --page-bg:#f7edf0; --theme-accent:#ad6478; --theme-soft:#e4bec8; --theme-faint:rgba(228,190,200,.4); --decorative-accent:#ad6478; --note-shadow-tint:rgba(104,48,64,.15); --note-edge-tint:rgba(173,100,120,.24); }
+.reference-home .home-module-pill { border-color:color-mix(in srgb,var(--chip-accent,var(--theme-accent)) 28%,rgba(35,64,49,.12)); background:color-mix(in srgb,var(--chip-soft,var(--theme-soft)) 34%,rgba(255,255,255,.72)); }
+.reference-home .home-module-pill.is-active { border-color:var(--chip-accent,var(--theme-accent)); background:color-mix(in srgb,var(--chip-soft,var(--theme-soft)) 78%,white); box-shadow:0 7px 18px color-mix(in srgb,var(--chip-accent,var(--theme-accent)) 22%,transparent); }
+.reference-home .home-module-pill.color-amber { --chip-accent:#d49a27; --chip-soft:#f2d88b; }
+.reference-home .home-module-pill.color-ember { --chip-accent:#c86454; --chip-soft:#efb9ae; }
+.reference-home .home-module-pill.color-teal { --chip-accent:#34776f; --chip-soft:#afd6cc; }
+.reference-home .home-module-pill.color-violet { --chip-accent:#8065a8; --chip-soft:#d5c5e8; }
+.reference-home .home-module-pill.color-blue { --chip-accent:#3f86a2; --chip-soft:#b8dce8; }
+.reference-home .home-module-pill.color-rose { --chip-accent:#ad6478; --chip-soft:#e4bec8; }
+
+/* Give the selected-but-collapsed overview enough room to be read on the
+   first viewport, while keeping the writing board proportionate. */
+.reference-home .home-shell[data-home-state="selected-collapsed"] .note-sheet { min-height:350px; }
+.reference-home .home-shell[data-home-state="selected-collapsed"] .note-editor { min-height:225px; margin:9px 0 7px; }
+.reference-home .home-shell[data-home-state="selected-collapsed"] .movement-preview { margin-top:7px; }
+.reference-home .home-shell[data-home-state="selected-collapsed"] .movement-summary { min-height:82px; padding:13px 14px; }
+
+/* Expanded mode is one shared viewing state. The note and module rail form a
+   compact sticky header; only the archive below them continues to scroll. */
+.reference-home .home-shell[data-home-state="selected-expanded"] .note-stack {
+  position:sticky;
+  top:env(safe-area-inset-top);
+  z-index:31;
+  margin-left:0;
+  margin-right:0;
+  padding-top:11px;
+  background:var(--page-bg);
+}
+.reference-home .home-shell[data-home-state="selected-expanded"] .note-stack--compact .note-sheet { min-height:272px; }
+.reference-home .home-shell[data-home-state="selected-expanded"] .note-stack--compact .note-editor { min-height:106px; margin:9px 0 7px; }
+.reference-home .home-shell[data-home-state="selected-expanded"] .theme-strip {
+  position:sticky;
+  top:calc(env(safe-area-inset-top) + 283px);
+  z-index:30;
+  margin-top:0;
+  padding:7px 0 2px;
+  background:var(--page-bg);
+}
+.reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive { margin-top:10px; }
+.reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive .archive-heading { padding-top:3px; }
+.reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive .movement-card { margin-top:7px; padding:11px; }
+.reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive .movement-name { font-size:19px; }
+
 /* Sealed Mini Program parity: the PWA keeps the same local note flow,
    read-only candidate overlay, and mobile archive proportions. */
 .notepad-observer-anchor { height: 1px; margin: 0; pointer-events: none; }

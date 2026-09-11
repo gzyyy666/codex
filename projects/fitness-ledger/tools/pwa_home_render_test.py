@@ -65,6 +65,15 @@ def main() -> None:
         assert first == stable == 6, {"first": first, "stable": stable}
         evaluate(browser, "document.querySelector('.home-module-pill').click()")
         wait_for(browser, "!!document.querySelector('.movement-preview')")
+        selected_tone = evaluate(browser, "document.querySelector('.reference-home').className")
+        assert any(name in selected_tone for name in ("theme-color-amber", "theme-color-ember", "theme-color-teal", "theme-color-violet", "theme-color-blue", "theme-color-rose")), selected_tone
+        evaluate(browser, "document.querySelector('[data-action=toggle-archive]').click()")
+        wait_for(browser, "document.querySelector('[data-home-state]').dataset.homeState === 'selected-expanded'")
+        assert evaluate(browser, "getComputedStyle(document.querySelector('.note-stack')).position") == "sticky"
+        first_module = evaluate(browser, "document.querySelector('[data-part-id]').dataset.partId")
+        evaluate(browser, "document.querySelectorAll('.home-module-pill')[1].click()")
+        wait_for(browser, "document.querySelector('[data-home-state]').dataset.homeState === 'selected-expanded' && document.querySelector('[data-part-id].is-active').dataset.partId !== arguments[0]".replace("arguments[0]", repr(first_module)))
+        assert evaluate(browser, "document.querySelector('[data-home-state]').dataset.homeState") == "selected-expanded"
         evaluate(browser, "document.querySelector('[data-note]').focus()")
         focused = evaluate(browser, "new Promise(resolve => setTimeout(() => resolve(document.querySelectorAll('.home-module-pill').length), 500))")
         assert focused == 6, focused
