@@ -1,5 +1,16 @@
 # Fitness Ledger Changelog
 
+## 2026-09-11 - PWA homepage two-stage movement scrolling release
+
+- Corrected expanded homepage scrolling so the Training Note, Movement Module
+  rail, and movement heading remain fixed after the first scroll phase;
+  movement cards now scroll inside their own bounded region.
+- Reclaimed the collapsed first viewport so the recent-movement overview is not
+  covered by the fixed bottom navigation, and changed document horizontal
+  clipping to preserve mobile sticky behavior.
+- Published visible marker `PWA v1.1.17 · build 2026.09.11.13`, Service Worker
+  `fitness-ledger-pwa-v53`, and resource query `20260911-13`.
+
 ## 2026-09-11 - PWA movement module color and home stability release
 
 - Aligned PWA Movement Module colors with the Web movement artwork palette;

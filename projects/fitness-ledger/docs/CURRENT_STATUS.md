@@ -5,17 +5,17 @@
 ## Git 基线
 
 - 当前分支：`main`
-- `HEAD` / `main` / `origin/main`：`4265c32e1d02c3ffd2596eb71c63178f031ca7f5`
+- `HEAD` / `main` / `origin/main`：`3ba348fd4aa60e18082194063df3b3f20efe3ec0`（文档提交后以实时状态为准）
 - 远端：`https://github.com/gzyyy666/codex.git`
-- 源码工作区已封板（09-11）：PWA Training Note 首页、Movement Module 动态入口、核心白色模块与正式缓存版本已提交并推送，工作区干净。
+- 源码工作区已封板（09-11）：PWA Training Note 首页、Movement Module 动态入口、核心白色模块、两阶段动作滚动与正式缓存版本已提交并推送，工作区干净。
 
 ## 正式入口
 
 - 正式目录：`D:\FitnessLedger\app`
 - 桌面入口：桌面 `Fitness Ledger Web.lnk` → `D:\FitnessLedger\app\web_desktop\launch-desktop.vbs`
 - PWA 地址：`https://cloud1-d9g35v5s1a904a8ad-1450570992.tcloudbaseapp.com`
-- PWA 当前前端标记：`PWA v1.1.15 · build 2026.09.11.11`
-- PWA Service Worker：`fitness-ledger-pwa-v51`，脚本资源查询版本 `20260911-11`
+- PWA 当前前端标记：`PWA v1.1.17 · build 2026.09.11.13`
+- PWA Service Worker：`fitness-ledger-pwa-v53`，脚本资源查询版本 `20260911-13`
 - CloudBase 环境：`cloud1-d9g35v5s1a904a8ad`
 - Web 服务正式状态：通过 `/api/build-info` 核验；修改桌面端后必须重新写回正式目录并重启 `launcher.pyw`。
 
@@ -36,4 +36,4 @@
 
 ## 当前状态注意事项
 
-`project_status.py` 会分别报告正式目录与 Git 的历史漂移；本次部署仅同步 PWA 发布范围，未主动写入正式数据。正式 PWA 文件已与 `4265c32` 对齐并上传 CloudBase；正式数据 fingerprint 以每次实时状态输出为准；完整回归若遇到历史动作词典断言失败，应单独记录，不要用改数据掩盖测试失败。
+`project_status.py` 会分别报告正式目录与 Git 的历史漂移；本次部署仅同步 PWA 发布范围，未主动写入正式数据。正式 PWA 文件已与本次发布基线对齐并上传 CloudBase；正式数据 fingerprint 以每次实时状态输出为准；完整回归若遇到历史动作词典断言失败，应单独记录，不要用改数据掩盖测试失败。
