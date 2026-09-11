@@ -5,7 +5,7 @@
 ## Git 基线
 
 - 当前分支：`main`
-- `HEAD` / `main` / `origin/main`：`3ba348fd4aa60e18082194063df3b3f20efe3ec0`（文档提交后以实时状态为准）
+- `HEAD` / `main` / `origin/main`：`9fc0a064220ac96149dd12304dee370865e92401`
 - 远端：`https://github.com/gzyyy666/codex.git`
 - 源码工作区已封板（09-11）：PWA Training Note 首页、Movement Module 动态入口、核心白色模块、两阶段动作滚动与正式缓存版本已提交并推送，工作区干净。
 
