@@ -101,6 +101,12 @@ def extract_note_sections(raw: str) -> dict[str, str]:
                     matched = (scope, match.group(1))
                     break
         if matched:
+            if matched[0] in {"diet_notes", "training_notes"}:
+                # A named top-level notes scope ends training-section
+                # ownership.  This matters when a daily ``notes:`` block
+                # follows ``training notes:`` without an intervening cardio
+                # section: both scopes must remain independently recoverable.
+                in_training = False
             if matched[0] == "daily_notes" and in_training:
                 next_line = raw_lines[index + 1].strip() if index + 1 < len(raw_lines) else ""
                 # An unindented, populated `notes:` inside the training

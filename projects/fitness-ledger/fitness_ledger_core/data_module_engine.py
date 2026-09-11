@@ -1571,7 +1571,7 @@ class DataModuleEngine:
         )
         module_catalog_text = "\n".join(module_lines) or "- 当前没有已启用的自定义记录项；如需识别新词，请先在数据模块中建立定义。"
         prompt_template = f"""你是 Fitness Ledger Daily Entry 的录入词整理器。
-把用户关于一天的自然语言记录整理为可直接粘贴到 Daily Entry 的纯文本。只排版、归类和按允许规则估算，不写报告、分析或解释。
+把用户关于一天的自然语言记录整理为可直接粘贴到 Daily Entry 的纯文本。只排版、归类和按允许规则估算，不写报告、分析或解释。模板只描述当前注册表和通用产品规则，不包含任何人的历史记录、长期记忆或固定饮食习惯。
 
 【标准结构示例】
 date: YYYY-MM-DD
@@ -1593,23 +1593,35 @@ diet notes:
 training: <训练部位>
 {training_dynamic_example}
 
+【训练块缩进硬约束】
+training: 这一顶层标签必须顶格。training 区块内每一个非空动作相关行都必须且只能以一个 ASCII 半角空格开头：包括 superset 行、动作编号行、普通组行、复杂组行、sets: 行和动作 notes: 行。禁止 Tab、两个或更多前导空格；training notes: 是顶层标签，必须顶格。动作之间留一个空行。
  1. <动作名称>
  <重量>-<次数>-<组数>
  notes: <动作说明>
 
-复杂组（同一个 Set 内连续执行多个 segment）使用以下精确格式：
+【普通组与复杂组】
+普通组是一行“重量-次数-组数”，同一动作下多行普通组表示多个独立 Set。仅仅出现相邻重量、先做一个重量再做另一个重量，不能自行合并为复杂组；如果用户没有说同一组连续、递减、drop set、机械降重、连续换重量或同一 Set 多个 segment，就保持普通组。
+复杂组只能表示一个动作的一个 Set 内连续执行多个 segment；它不是两个动作，也不是 Session 关系。所有 Set 的 segment 结构完全相同，才可以压缩为：
  (7.5+5)-(6+8)-3
-其中每组都是 7.5×6 + 5×8；“+”是结构连接符，不是数学加法，也不能拆成两个普通 Set。
-重量段与次数段必须一一对应。若每组不同，使用明确的逐组格式：
+它表示每组都是 7.5x6 + 5x8；“+”是结构连接符，不是数学加法，不能拆成两个普通 Set。重量段与次数段必须一一对应。
+各组结构或次数不同，不得压缩，必须逐组写成：
  sets: 7.5x6+5x8; 7.5x6+5x7; 7.5x5+5x8
-不得把不同的组错误压缩为 ×N；信息不完整时不猜测。
-上述复杂组标记必须使用 ASCII 半角字符 `(` `)` `+` `-`；不要输出全角 `（` `）` `＋` `－`。
+信息不完整时不猜测，不补齐 segment、次数或组数。复杂组语法只允许 ASCII 半角 `(` `)` `+` `-` `x` `;` `:`；不要输出全角标点或乘号。
 
-Session 内明确的超级组使用独立关系标记，不合并动作：
+【复杂组与超级组必须分开】
+Complex Set = 一个动作、一个 Set、多个连续 segment；Superset = Session 内两个或多个不同动作之间的明确执行关系。Superset 不能写进一个动作的 sets，也不能把多个动作合并成一个 Complex Set。
+只有用户明确说“超级组/superset/交替连续做/两动作连做”等关系时，才在 training 区块中、第一条动作之前单独输出唯一格式：
  superset: A = movement 1, movement 2
-该行必须单独占一行，并使用 ASCII 半角 `:` `=` `,`；只有用户明确表达为超级组时才输出，动作仍按编号独立保留，不能从相邻动作推断。
+其中 A 是本训练块内从 A 开始连续编号的关系标签；成员必须使用动作编号，动作仍逐一保留。没有明确关系时，即使动作相邻、同一训练部位或记录连续，也不要输出 superset。若以后出现三个动作，写 `superset: A = movement 1, movement 2, movement 3`。
 
-training notes: <整次训练说明>
+ 1. <动作名称>
+ <重量>-<次数>-<组数>
+ notes: <只属于该动作的原文说明>
+
+ 2. <动作名称>
+ <重量>-<次数>-<组数>
+
+training notes: <只属于整次训练的原文说明>
 {movement_dynamic_example}
 
 cardio:
@@ -1617,15 +1629,25 @@ cardio:
 {extension_dynamic_example}
 
 notes:
-<整日说明>
+<只属于整日的原文说明>
+
+【Notes 作用域】
+动作后的 `notes:` 只记录该动作；`training notes:` 只记录整次训练；`diet notes:` 只记录饮食参数、估算依据或饮食说明；顶层 `notes:` 只记录整日说明。保留用户原话、语气和数值，不专业化改写，不把一个作用域的 Notes 搬到另一个作用域；无法归类但属于已有内容的说明放入最合适的既有 Notes。
+
+【多轮修正】
+“改成/换成/减少到/增加到/实际是/不是 X 而是 Y/前面的 X 算错了/把 X 换为 Y”表示覆盖此前值；“再加/另外加/后续补/晚上再吃/再来一份”表示新增。每次都输出修正后的完整当前状态 Daily Entry，不输出 diff，不重复已被覆盖的旧值。新对话没有服务端历史状态；若上下文中没有上一版完整记录，先要求用户提供上一版或完整当前状态。
+
+【日期、有氧与营养边界】
+只有在当前对话提供了可靠的当前日期/时间上下文时，才将“今天、昨天、跨午夜”换算为实际日期；无法可靠确定时要求 `YYYY-MM-DD`。明确说在午夜后仍归前一天的记录，按用户归属；不要自作判断。
+只保留用户明确记录的有氧；明确无有氧时写“无”，省略时不要添加默认有氧。包装营养值、净重和用户明确给出的参数优先；带骨、带皮、整只耳等只能在有可靠依据时估算，否则把不确定性写入 diet notes。只有信息足够时才给整日 calories/protein/carbs/fat，不制造虚假精度，也不把逐项营养分析塞进 diet 食物清单。
 
 【输出规则】
 1. 只输出一份完整、可直接粘贴到 Daily Entry 输入板的纯文本 Daily Entry；无 Markdown、代码围栏、JSON、表格、前言或结语。不要只输出某个动作片段，也不要把训练动作创建成 Data Module。
 2. 顶层标签顶格；有内容的标准字段按 date、weight、可选身体指标、已登记的 Body 字段、排便、营养、已登记的 Diet 字段、diet、training、已登记的 Training 字段、cardio 的顺序输出；其他已登记字段按其定义归属插入。diet notes 紧跟 diet，training notes 放在最后一个动作后，notes 放在最后。
-3. training 内每一行动作首行使用一个 ASCII 半角空格；动作编号连续；动作之间留一个空行。重量不带 kg、公斤、lb 等单位，普通组记录统一为“重量-次数-组数”，自重写“自重-次数-组数”；复杂组和 superset 只使用上面的明确格式。必须保留 `date:` 与 `training:` 顶层标签，不能只输出“3. 动作名 + 组数”片段。
-4. 保留用户原始动作、组数、饮食、机器数据、主观感受和 Notes；不得删减、合并、改写或推断睡眠、疲劳、疼痛、状态、训练质量。未明确记录的有氧不猜测；明确无有氧时写“无”。
-5. notes、diet notes、training notes 和动作 notes 必须保持各自作用域；未知事实放入合适的既有 Notes，不创建未登记字段。
-6. 日期使用实际发生日期；无法可靠确定时先要求 YYYY-MM-DD。营养只在有足够饮食与分量时估算整日 calories/protein/carbs/fat，不在 diet 中拆项分析。
+3. training 内所有非空动作相关行严格使用一个 ASCII 半角空格，不得使用 Tab 或多余空格；动作编号连续；重量不带 kg、公斤、lb 等单位，普通组统一为“重量-次数-组数”，自重写“自重-次数-组数”；复杂组和 superset 只使用上面的明确格式。必须保留 `date:` 与 `training:` 顶层标签，不能只输出动作片段。
+4. 保留用户原始动作、组数、饮食、机器数据、主观感受和 Notes；不得删减、合并、改写或推断睡眠、疲劳、疼痛、状态、训练质量。未明确记录的有氧不猜测。
+5. notes、diet notes、training notes 和动作 notes 必须保持各自作用域；已登记字段必须按注册表归属输出，未登记的新词不能伪装成顶层字段。
+6. 只对明确记录且有依据的内容归类或估算；不能可靠确定的日期、segment、营养或状态先保留不确定性或要求补充，不猜测。
 
 【当前已登记且可直接录入的新增字段】
 {module_catalog_text}
@@ -1638,8 +1660,8 @@ notes:
 先按上述规则整理以下原始记录，最终只输出整理后的 Daily Entry：
 {{{{daily_text}}}}"""
         return {
-            "schema": "fitness-ledger-llm-entry-template-v9",
-            "template_version": 9,
+            "schema": "fitness-ledger-llm-entry-template-v10",
+            "template_version": 10,
             "purpose": "按当前 Daily Entry 契约，把自然语言整理为可直接粘贴的原始饮食/训练记录、Notes、整日营养汇总和当前注册表中的新增字段。",
             "workflow": {
                 "step_1": "复制 prompt_template 给 LLM，并把原始记录放入 {{daily_text}}。",
@@ -1667,14 +1689,22 @@ notes:
                     "input": "use an explicitly present alias and preserve its declared data_type",
                     "downstream": ["category_id", "placement", "display_surface", "renderer", "capabilities"],
                 },
-                "training_block": "one_ascii_space_before_action_and_all_action_lines",
+                "training_block": "exactly_one_ascii_space_before_every_nonempty_training_block_line",
+                "training_indentation": "exactly one ASCII space before superset, movement header, ordinary set, complex set, sets:, and movement notes; top-level training notes remains flush-left",
                 "action_set_line": "20-10-3 or 自重-20-1; output weight without kg/公斤/lb units",
+                "complex_set": "one movement and one set with multiple explicit continuous segments; identical structures may use compact syntax, unequal structures must use explicit sets:",
+                "superset": "explicit session relation only: one standalone indented superset line before movements, e.g. superset: A = movement 1, movement 2",
                 "unknown_line": "无法归类的原文不要猜测；保留到已有 Notes 或先建立记录项定义。",
             },
             "instructions": [
-                "当前 Daily Entry 纯文本格式优先于分析式或报告式输出；不要删除或改写用户原始 Notes。",
-                "日期使用 YYYY-MM-DD；如果无法由实际发生时间可靠确定，先要求补充日期，不猜测。",
+                "当前 Daily Entry 纯文本格式优先于分析式或报告式输出；不要删除、专业化改写或迁移用户原始 Notes。",
+                "training 区块每一条非空动作相关行严格使用一个 ASCII 半角空格；顶层标签顶格，禁止 Tab 和多余前导空格。",
+                "Complex Set 只在一个动作的一个 Set 内存在明确连续 segment 时使用；相邻重量不是依据，只有完全相同结构才压缩，不同结构用 sets: 逐组表达。",
+                "Superset 只在用户明确表达 Session 内动作关系时使用唯一的 superset: A = movement 1, movement 2 格式，不从相邻动作推断。",
+                "多轮修正按覆盖或新增语义处理，并每次输出完整当前状态；没有上一版上下文时要求完整当前状态。",
+                "日期只有在可靠当前日期上下文存在时才解析相对日期；无法确定先要求 YYYY-MM-DD，不猜测。",
                 "只保留用户明确记录的有氧；明确无有氧时输出无，不添加默认有氧。",
+                "包装值、净重和明确参数优先；不确定的营养估算进入 diet notes，不制造虚假精度。",
                 "当前 modules 目录中的 active recordable 字段可以直接录入；不要输出内部字段标识，不要创造未登记字段。",
                 "LLM 输出只用于粘贴到输入板，仍必须经过 Fitness Ledger 的 Preview → Confirm 流程，不能直接写入。",
             ],
@@ -1686,13 +1716,20 @@ notes:
                 "registered_modules": "dynamic registry fields; use the declared alias and data_type, while downstream placement/capabilities remain definition-owned",
             },
             "behavior_contract": {
-                "training_record_prefix": "exactly_one_ascii_space_before_numbered_movement",
+                "training_record_prefix": "exactly_one_ascii_space_before_every_nonempty_training_block_line",
                 "canonical_format_priority": "date/weight/排便/macros/diet/training/cardio with raw food lines, stable blank lines and one-space training blocks",
                 "training_weight_format": "weight-reps-sets with no weight unit; use 自重-reps-sets for bodyweight",
+                "training_indentation": "one ASCII space exactly on every non-empty training block line including superset, movement, set, complex set, sets: and movement notes; top-level labels flush-left",
+                "complex_set_boundary": "explicit continuous multi-segment execution within one movement and one set only; adjacent loads alone remain ordinary sets",
+                "complex_set_compaction": "compact syntax only when every set has the same segment structure; otherwise explicit sets: rows",
+                "complex_set_ascii": "generated syntax uses only ASCII parentheses, plus, hyphen, x, semicolon and colon",
+                "superset_contract": "explicit standalone indented superset line before movement blocks: superset: A = movement 1, movement 2; preserve independent movement numbering and order",
                 "cardio_behavior": "preserve explicit cardio only; explicit no-cardio becomes 无; never invent a default cardio",
                 "bowel_missing_behavior": "omit the bowel field when absent; preserve the existing Daily Entry missing-bowel review behavior",
                 "user_notes_preservation": "copy explicit daily, diet, training and action notes without deletion, paraphrase or scope migration",
                 "nutrition_estimation": "estimate only the daily calories/protein/carbs/fat summary using confirmed conversation parameters first",
+                "date_context": "resolve relative dates only with reliable current date/time context; otherwise require YYYY-MM-DD",
+                "multi_turn_correction": "overwrite correction language replaces prior state, add language appends, and every response is the complete current state",
                 "custom_field_boundary": "an explicitly named active registered module is eligible according to its declared data_type; text modules preserve text, numeric modules require explicit numeric values; never create an unregistered field",
                 "registered_field_downstream": "category, placement, display_surface, renderer, analysis_visible, statistics_visible, cloud_syncable, and mini_program_visible are definition-owned and must be respected by downstream consumers",
             },

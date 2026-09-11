@@ -85,12 +85,15 @@ def assert_copyable_format(raw: str) -> None:
     labels = top_level_labels(raw)
     core = [label for label in labels if label in CORE_ORDER]
     assert core == sorted(core, key=CORE_ORDER.index), core
-    training = raw.split("training:", 1)[1].split("\ncardio:", 1)[0] if "training:" in raw else ""
+    training = raw.split("training:", 1)[1] if "training:" in raw else ""
+    training = re.split(r"\n(?=(?:cardio|notes):)", training, maxsplit=1)[0]
     action_headers = re.findall(r"^ (\d+)\. ", training, re.MULTILINE)
     assert action_headers == [str(index) for index in range(1, len(action_headers) + 1)]
     for line in training.splitlines():
-        if line.strip() and not line.startswith(" ") and not line.startswith("training notes:"):
-            raise AssertionError(f"training line is not one-space indented: {line!r}")
+        if not line.strip() or line.startswith("training notes:"):
+            continue
+        if "\t" in line or not line.startswith(" ") or line.startswith("  "):
+            raise AssertionError(f"training line does not have exactly one ASCII leading space: {line!r}")
 
 
 def test_prompt_contract_and_dynamic_registry() -> None:
@@ -135,13 +138,24 @@ def test_prompt_contract_and_dynamic_registry() -> None:
     )
     engine = DataModuleEngine(registry, Path(tempfile.gettempdir()) / "fitness-ledger-prompt-test-tracker.json")
     template = engine.llm_entry_template()
-    assert template["schema"] == "fitness-ledger-llm-entry-template-v9"
-    assert template["template_version"] == 9
+    assert template["schema"] == "fitness-ledger-llm-entry-template-v10"
+    assert template["template_version"] == 10
     assert "饮水量 | 可识别词=饮水量、water | 类型=quantity" in template["prompt_template"]
     assert "保留用户原始动作、组数、饮食、机器数据、主观感受和 Notes" in template["prompt_template"]
     assert "未明确记录的有氧不猜测" in template["prompt_template"]
     assert "重量不带 kg、公斤、lb 等单位" in template["prompt_template"]
     assert "重量-次数-组数" in template["prompt_template"]
+    assert "每一个非空动作相关行都必须且只能以一个 ASCII 半角空格开头" in template["prompt_template"]
+    assert "相邻重量、先做一个重量再做另一个重量，不能自行合并为复杂组" in template["prompt_template"]
+    assert "所有 Set 的 segment 结构完全相同，才可以压缩" in template["prompt_template"]
+    assert "各组结构或次数不同，不得压缩" in template["prompt_template"]
+    assert "Complex Set = 一个动作、一个 Set、多个连续 segment；Superset" in template["prompt_template"]
+    assert " superset: A = movement 1, movement 2" in template["prompt_template"]
+    assert "不是 X 而是 Y" in template["prompt_template"]
+    assert "再加/另外加/后续补" in template["prompt_template"]
+    assert "只有在当前对话提供了可靠的当前日期/时间上下文时" in template["prompt_template"]
+    assert "包装营养值、净重和用户明确给出的参数优先" in template["prompt_template"]
+    assert all(mark not in template["prompt_template"] for mark in "（）＋－×")
     assert "悍马推肩" not in template["prompt_template"]
     assert "【执行原始记录】" in template["prompt_template"]
     assert "体脂率、体脂、body fat" in template["prompt_template"]
@@ -163,6 +177,85 @@ def test_prompt_contract_and_dynamic_registry() -> None:
     preview = engine.preview("date: 2026-09-07\n精神状态: 上午注意力集中，下午一般。\nweight: 64 kg")
     assert preview["candidates"][0]["module_id"] == "mental_state"
     assert preview["candidates"][0]["value"] == "上午注意力集中，下午一般。"
+
+
+def test_training_structure_boundaries_and_notes() -> None:
+    app = parser_fixture()
+    ordinary = """date: 2026-09-11
+training: 肩
+
+ 1. 侧平举
+ 7.5-6-1
+ 5-8-1
+"""
+    assert_copyable_format(ordinary)
+    parsed_ordinary = app.parse_entry(ordinary)
+    assert len(parsed_ordinary["training"]["movements"]) == 1
+    assert parsed_ordinary["training"]["movements"][0]["sets"] == [
+        {"weight": 7.5, "reps": 6, "sets": 1},
+        {"weight": 5.0, "reps": 8, "sets": 1},
+    ]
+    assert parsed_ordinary["training"]["_superset_directives"] == []
+
+    bodyweight = """date: 2026-09-11
+training: 背
+
+ 1. 引体向上
+ 自重-12-1
+"""
+    assert_copyable_format(bodyweight)
+    assert app.parse_entry(bodyweight)["training"]["movements"][0]["sets"][0]["weight_text"] == "自重"
+
+    compact = """date: 2026-09-11
+training: 胸
+
+ 1. 坐姿腿举
+ (7.5+5)-(6+8)-3
+"""
+    assert_copyable_format(compact)
+    compact_movement = app.parse_entry(compact)["training"]["movements"][0]
+    assert compact_movement["sets"][0]["segments"] == [
+        {"weight": 7.5, "reps": 6},
+        {"weight": 5.0, "reps": 8},
+    ]
+
+    unequal = """date: 2026-09-11
+training: 胸
+
+ 1. 坐姿腿举
+ sets: 7.5x6+5x8; 7.5x6+5x7; 7.5x5+5x8
+"""
+    assert_copyable_format(unequal)
+    unequal_sets = app.parse_entry(unequal)["training"]["movements"][0]["sets"]
+    assert len(unequal_sets) == 3 and all(item["sets"] == 1 for item in unequal_sets)
+
+    explicit_superset = """date: 2026-09-11
+training: 胸肩
+
+ superset: A = movement 1, movement 2
+
+ 1. 俯身哑铃飞鸟
+ 10-12-3
+
+ 2. 侧平举
+ 5-12-3
+
+training notes: 两个动作交替连续完成。
+notes: 保留原话，不做专业化改写。
+"""
+    assert_copyable_format(explicit_superset)
+    parsed_superset = app.parse_entry(explicit_superset)
+    assert parsed_superset["training"]["_superset_directives"] == [{"label": "A", "orders": [1, 2]}]
+    assert parsed_superset["training"]["notes"] == "两个动作交替连续完成。"
+    assert parsed_superset["body"]["notes"] == "保留原话，不做专业化改写。"
+
+    invalid_indent = ordinary.replace(" 1. 侧平举", "\t1. 侧平举")
+    try:
+        assert_copyable_format(invalid_indent)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("tab-indented training lines must fail the copyable contract")
 
 
 def test_historical_daily_entry_outputs_parse_without_scope_loss() -> None:
@@ -385,5 +478,6 @@ training: 背
 
 if __name__ == "__main__":
     test_prompt_contract_and_dynamic_registry()
+    test_training_structure_boundaries_and_notes()
     test_historical_daily_entry_outputs_parse_without_scope_loss()
-    print("LLM entry prompt regression: PASS (dynamic registry + 4 historical cases)")
+    print("LLM entry prompt regression: PASS (dynamic registry + structure boundaries + 4 historical cases)")

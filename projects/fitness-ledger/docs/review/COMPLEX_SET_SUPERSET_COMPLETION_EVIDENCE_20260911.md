@@ -16,7 +16,7 @@
 | Narrow / touch 关系详情 | `COMPLETED_THIS_ROUND` | Desktop 窄视口点击与 PWA 触摸视口原生 `details` 展开均通过浏览器测试；无 hover 时仍能看到全部成员与组数据。 |
 | Analysis Export JSON / Markdown | `COMPLETED_THIS_ROUND` | 使用当前候选的匿名 materializer 生成真实 JSON 样本；现有协议同时接受 `json` 与 `markdown`，不新增第二套导出结构。 |
 | Analysis Dataset Catalog 与外部分析 LLM | `COMPLETED_THIS_ROUND` | `DATASET_FIELDS`、materializer 字段类型、动态 Analysis Catalog、初始化 prompt 和真实导出样本形成同一条链；prompt 已明确 `segments`、组数/次数/volume、`organization_relations.members` 的语义。 |
-| Daily Entry 外部录入 LLM | `ALREADY_COMPLETE_PROVEN` | 当前 `fitness-ledger-llm-entry-template-v9` 已要求顶层完整 Daily Entry、动作编号顶格规则、ASCII 结构标记、Complex Set 与 Superset 独立格式、未知信息不猜。 |
+| Daily Entry 外部录入 LLM | `ALREADY_COMPLETE_PROVEN` | 当前 `fitness-ledger-llm-entry-template-v10` 已要求顶层完整 Daily Entry、训练块每个非空动作相关行恰好一个 ASCII 空格、ASCII 结构标记、Complex Set 与 Superset 独立格式、未知信息不猜。 |
 | 标量消费者 | `ALREADY_COMPLETE_PROVEN` | Movement Progress、latest/previous/best、volume、图表、session summary、Analysis Export、PWA、Open Record 均读取 canonical projection；Complex Set 只在不可比较的标量 PR 路径排除，训练记录和 volume 仍保留。 |
 | 正式运行发布 | `BLOCKED` | 本轮按约束不触碰 `D:\FitnessLedger\app`、正式 tracker、Cloud、merge、push、deploy、tag；这是授权边界，不是候选实现缺口。 |
 
@@ -155,16 +155,18 @@
 
 ### Daily Entry 外部录入 LLM
 
-当前 v9 模板实际要求的关键片段是：
+当前 v10 模板实际要求的关键片段是：
 
 ```text
 training:
  1. <动作名称>
  <重量>-<次数>-<组数>
 
-复杂组（同一个 Set 内连续执行多个 segment）使用以下精确格式：
+training 区块内每一个非空动作相关行（包括 superset、动作编号、组、复杂组、sets:、动作 notes:）恰好以一个 ASCII 半角空格开头；顶层 training notes: 顶格。
+
+复杂组（同一个动作的同一个 Set 内连续执行多个 segment）使用以下精确格式：
  (7.5+5)-(6+8)-3
-其中每组都是 7.5×6 + 5×8；“+”是结构连接符，不是数学加法，也不能拆成两个普通 Set。
+其中每组都是 7.5x6 + 5x8；“+”是结构连接符，不是数学加法，也不能拆成两个普通 Set。若各组结构不同，使用 `sets: 7.5x6+5x8; 7.5x6+5x7`，不压缩。
 复杂组每一个动作仍只有一个编号；不得拆成多个普通动作或伪造单一重量。
 
 Session 内明确的超级组使用独立关系标记，不合并动作：

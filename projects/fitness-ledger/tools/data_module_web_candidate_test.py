@@ -106,7 +106,7 @@ class DataModuleWebCandidateTests(unittest.TestCase):
                 _status, mini = get("/api/data-modules/mini-contract")
                 self.assertEqual(mini["modules"][0]["module_id"], "waist_cm")
                 _status, template = get("/api/data-modules/llm-template")
-                self.assertEqual(template["schema"], "fitness-ledger-llm-entry-template-v9")
+                self.assertEqual(template["schema"], "fitness-ledger-llm-entry-template-v10")
                 self.assertFalse(template["source"]["contains_personal_records"])
                 _status, statistics = get("/api/data-modules/statistics?module_id=waist_cm")
                 self.assertEqual(statistics["summary"]["count"], 1)
