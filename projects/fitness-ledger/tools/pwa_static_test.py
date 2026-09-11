@@ -96,9 +96,9 @@ def main() -> None:
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'includes("/api/")' in service_worker
-    assert 'fitness-ledger-pwa-v42' in service_worker
+    assert 'fitness-ledger-pwa-v43' in service_worker
     assert '"./data-modules.js?v=20260820-04"' in service_worker
-    assert 'register("./sw.js?v=20260911-02", { updateViaCache: "none" })' in app_source
+    assert 'register("./sw.js?v=20260911-03", { updateViaCache: "none" })' in app_source
     assert 'cache: "no-store"' in api_source
     assert 'READ_TIMEOUT_MS' in api_source and 'READ_ATTEMPTS' in api_source
     assert 'Promise.allSettled' in app_source

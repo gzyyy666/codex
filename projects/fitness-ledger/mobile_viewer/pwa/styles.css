@@ -467,3 +467,25 @@ button { color: inherit; cursor: pointer; }
 .reference-home .home-theme-pill { min-height:40px; padding:7px 14px; border:1px solid color-mix(in srgb,var(--decorative-accent) 16%,rgba(35,64,49,.12)); border-radius:999px; background:rgba(255,255,255,.44); color:#203329; font:500 13px/1.2 "PingFang SC","Microsoft YaHei","Microsoft YaHei UI",sans-serif; box-shadow:0 3px 10px rgba(43,71,54,.05); }
 .reference-home .home-theme-pill.is-active { border-color:var(--decorative-accent); background:color-mix(in srgb,var(--decorative-accent) 17%,rgba(255,255,255,.76)); box-shadow:0 6px 16px color-mix(in srgb,var(--decorative-accent) 20%,transparent); }
 .reference-home .home-theme-pill span { margin-right:5px; color:var(--decorative-accent); }
+
+/* 2026-09-11 note surface correction: the space released from the removed
+   homepage copy belongs to the writing area, not to empty card chrome. */
+.reference-home .home-header { min-height:112px; }
+.reference-home .home-title { margin:8px 0 4px; }
+.reference-home .home-meta.freshness { margin-top:6px; font-size:9px; }
+.reference-home .note-stack { margin-top:0; }
+.reference-home .note-sheet { min-height:480px; padding-top:20px; }
+.reference-home .note-editor { min-height:360px; margin:10px 0 7px; }
+.reference-home .note-footer { padding-top:4px; }
+.reference-home .notepad-actions { gap:12px; }
+.reference-home .note-footer .notepad-status { min-height:9px; margin-top:3px; }
+.reference-home .theme-strip { margin-top:8px; }
+.reference-home .theme-strip-scroll { padding-bottom:2px; }
+.reference-home .movement-preview { margin-top:8px; }
+.reference-home .theme-archive { margin-top:6px; }
+.reference-home .theme-archive .archive-heading h2 { font-size:clamp(22px,5.8vw,32px); line-height:1; }
+.reference-home .theme-archive .sort-rail { margin-top:4px; }
+.reference-home .theme-archive .sort-rail > button { padding-top:6px; padding-bottom:6px; }
+.reference-home .note-stack--compact .note-sheet { min-height:330px; }
+.reference-home .note-stack--compact .note-editor { min-height:132px; margin:11px 0 8px; font-size:15px; }
+.reference-home .note-stack--compact .note-decoration { display:block; }
