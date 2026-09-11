@@ -24,6 +24,7 @@ from .intelligent_export_models import (
     stable_hash,
 )
 from .shared_view_models import history_in_progress, movement_in_progress
+from .training_structure import set_total_reps, set_volume
 from .movement_target_scope import body_part_id_for_muscle_group
 from .record_relations import movement_items
 
@@ -31,8 +32,8 @@ from .record_relations import movement_items
 MODULE_FIELDS = {
     "body": ("Weight (kg)", "Bowel Movement", "Training", "Cardio", "Notes"),
     "diet": ("Calories (kcal)", "Protein (g)", "Carbs (g)", "Fat (g)", "Food Summary", "Notes"),
-    "training": ("Split", "Standardized Summary", "Notes"),
-    "movement_history": ("date", "movement_id", "sets", "order", "notes", "exclude_from_progress"),
+    "training": ("Split", "Standardized Summary", "organization_relations", "Notes"),
+    "movement_history": ("date", "movement_id", "sets", "segments", "organization_relations", "order", "notes", "exclude_from_progress"),
     "raw_entries": ("date", "id"),
 }
 
@@ -94,13 +95,25 @@ def _module_card(module_id: str, rows: list[dict], fields: tuple[str, ...]) -> M
 
 def _performance(history: dict) -> dict:
     sets = []
+    total_reps = 0
+    volume = 0.0
+    segment_count = 0
+    complex_sets = False
     for item in history.get("sets", []) or []:
         if not isinstance(item, dict):
             continue
-        values = {key: item.get(key) for key in ("weight", "weight_text", "reps", "sets") if item.get(key) not in (None, "")}
+        values = {key: item.get(key) for key in ("weight", "weight_text", "reps", "sets", "segments") if item.get(key) not in (None, "")}
         if values:
             sets.append(values)
-    return {"set_count": len(sets), "structured": bool(sets)}
+            if isinstance(item.get("segments"), list) and item["segments"]:
+                complex_sets = True
+                segment_count = max(segment_count, len(item["segments"]))
+                total_reps += set_total_reps(item)
+                volume += set_volume(item)
+            else:
+                total_reps += int(item.get("reps") or 0) * int(item.get("sets") or 0)
+                volume += float(item.get("weight") or 0) * int(item.get("reps") or 0) * int(item.get("sets") or 0)
+    return {"set_count": sum(int(item.get("sets") or 1) for item in history.get("sets", []) if isinstance(item, dict)), "segment_count": segment_count, "total_reps": total_reps, "volume": round(volume, 2), "complex": complex_sets, "structured": bool(sets)}
 
 
 def _movement_aliases(definition: dict) -> list[str]:
@@ -349,7 +362,7 @@ class DataCatalogBuilder:
                 rid = f"movement-history:{movement_id}:{history.get('id') or stable_hash([_date(history.get('date')), history.get('order'), history.get('sets')])[:20]}"
                 note_id = self._add_note(notes, "movement", history, str(history.get("notes", "")), rid, movement_id, str(history.get("id", "")))
                 flags = ["excluded_from_progress"] if history.get("exclude_from_progress") else []
-                candidate_records.append(CandidateRecordCard(rid, "movement_history", _date(history.get("date")), "movement_history", {"movement_id": movement_id, "order": history.get("order"), "sets": _performance(history), "exclude_from_progress": bool(history.get("exclude_from_progress"))}, flags, [movement_id], [note_id] if note_id else [], 100))
+                candidate_records.append(CandidateRecordCard(rid, "movement_history", _date(history.get("date")), "movement_history", {"movement_id": movement_id, "order": history.get("order"), "sets": _performance(history), "segments": history.get("segments", []), "organization_relations": history.get("organization_relations", []), "exclude_from_progress": bool(history.get("exclude_from_progress"))}, flags, [movement_id], [note_id] if note_id else [], 100))
 
         for row in all_rows["raw_entries"]:
             rid = _record_id("raw", row)

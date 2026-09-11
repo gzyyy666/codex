@@ -66,11 +66,11 @@ _FIELD_TERMS = {
         "carbs_g": ("碳水",), "fat_g": ("脂肪",), "food_summary": ("食物", "吃了什么"),
     },
     "training": {
-        "date": ("日期",), "split": ("分化",), "standardized_summary": ("训练", "锻炼", "健身"),
+        "date": ("日期",), "split": ("分化",), "standardized_summary": ("训练", "锻炼", "健身"), "organization_relations": ("超级组", "训练组织"),
     },
     "movement_progress": {
         "date": ("日期",), "movement_id": ("动作ID",), "movement_name": ("动作",),
-        "body_part": ("部位",), "variant": ("变式",), "order": ("顺序",), "sets": ("组数", "次数", "负重"),
+        "body_part": ("部位",), "variant": ("变式",), "order": ("顺序",), "sets": ("组数", "次数", "负重"), "segments": ("segment", "阶段", "连续重量"), "set_count": ("组数",), "segment_count": ("阶段数",), "total_reps": ("总次数",), "volume": ("容量", "训练量"), "organization_relations": ("超级组", "训练组织"),
     },
 }
 _DEFAULT_FIELDS = {

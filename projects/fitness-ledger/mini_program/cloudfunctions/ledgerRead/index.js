@@ -124,6 +124,10 @@ function groupMatches(value, groups) {
 }
 function setSummary(sets) {
   return (Array.isArray(sets) ? sets : []).map(item => {
+    if (Array.isArray(item.segments) && item.segments.length) {
+      const parts = item.segments.map(segment => `${segment.weight_text || (Number(segment.weight) > 0 ? `${Number(segment.weight)}kg` : "自重")} × ${segment.reps || "-"}`).join(" + ");
+      return `${parts}${Number(item.sets || 1) > 1 ? ` × ${item.sets}组` : ""}`;
+    }
     const weight = item.weight_text || (Number(item.weight) > 0 ? `${Number(item.weight)}kg` : "自重");
     return `${weight} × ${item.reps || "-"} × ${item.sets || 1}`;
   }).join(" · ");
@@ -139,7 +143,8 @@ function compactHistory(item) {
     notes: item.notes || "",
     max_weight: Number(metrics.max_weight || 0),
     total_reps: Number(metrics.total_reps || 0),
-    volume: Number(metrics.volume || 0)
+    volume: Number(metrics.volume || 0),
+    organization_relations: Array.isArray(item.organization_relations) ? item.organization_relations : []
   };
 }
 function buildBodyArea(partId, movements, history, sessions) {
@@ -272,6 +277,7 @@ async function getTrainingDayDetail(date) {
       order: item.order === undefined || item.order === null ? null : item.order,
       sets: Array.isArray(item.sets) ? item.sets : [],
       notes: item.notes || "",
+      organization_relations: Array.isArray(item.organization_relations) ? item.organization_relations : [],
       _source_index: index
     };
   }).sort((a, b) => {

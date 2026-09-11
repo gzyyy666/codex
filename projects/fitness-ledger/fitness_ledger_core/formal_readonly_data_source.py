@@ -86,7 +86,7 @@ def _mapped_training_record(source: dict[str, Any]) -> dict[str, Any]:
 def _structured_sets(value: Any) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         return []
-    allowed = {"role", "weight", "weight_text", "reps", "sets"}
+    allowed = {"role", "weight", "weight_text", "reps", "sets", "segments"}
     return [
         {key: deepcopy(item[key]) for key in sorted(set(item) & allowed)}
         for item in value
@@ -230,6 +230,8 @@ class FormalReadOnlyDataSource:
             for item in training
             if isinstance(item, dict)
         ]
+        for row, source in zip(training_rows, [item for item in training if isinstance(item, dict)]):
+            row["organization_relations"] = deepcopy(source.get("organization_relations", []))
         dictionary_by_id = {
             str(item.get("movement_id")): item
             for item in dictionary_items
@@ -255,6 +257,11 @@ class FormalReadOnlyDataSource:
 
         movement_rows: list[dict[str, Any]] = []
         canonical_history_ids: set[str] = set()
+        sessions_by_id = {
+            str(item.get("id")): item
+            for item in training
+            if isinstance(item, dict) and item.get("id")
+        }
 
         def append_history(history: dict[str, Any], movement: dict[str, Any] | None = None) -> None:
             movement_id = str(history.get("movement_id") or "")
@@ -279,6 +286,26 @@ class FormalReadOnlyDataSource:
                     row[field] = deepcopy(history[field])
             if "sets" in history:
                 row["sets"] = _structured_sets(history["sets"])
+                row["segments"] = [deepcopy(item.get("segments", [])) for item in row["sets"] if item.get("segments")]
+                row["set_count"] = sum(int(item.get("sets") or 1) for item in row["sets"])
+                row["segment_count"] = max((len(item.get("segments", [])) for item in row["sets"]), default=0)
+                row["total_reps"] = sum(
+                    (sum(int(segment.get("reps") or 0) for segment in item.get("segments", [])) * int(item.get("sets") or 1))
+                    if item.get("segments") else int(item.get("reps") or 0) * int(item.get("sets") or 0)
+                    for item in row["sets"]
+                )
+                row["volume"] = round(sum(
+                    (sum(float(segment.get("weight") or 0) * int(segment.get("reps") or 0) for segment in item.get("segments", [])) * int(item.get("sets") or 1))
+                    if item.get("segments") else float(item.get("weight") or 0) * int(item.get("reps") or 0) * int(item.get("sets") or 0)
+                    for item in row["sets"]
+                ), 2)
+            session = sessions_by_id.get(str(history.get("training_session_id")), {})
+            history_id = str(history.get("movement_instance_id") or history.get("id") or "")
+            row["organization_relations"] = [
+                deepcopy(relation)
+                for relation in session.get("organization_relations", []) or []
+                if isinstance(relation, dict) and history_id in {str(value) for value in relation.get("members", []) or []}
+            ]
             if "notes" in history:
                 row["movement_notes"] = deepcopy(history["notes"])
             row["exclude_from_progress"] = bool(

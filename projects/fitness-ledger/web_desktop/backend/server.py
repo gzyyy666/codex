@@ -346,7 +346,7 @@ class LedgerWebService:
                     "type": "training",
                     "time_range": {"mode": "recent_days", "days": 28},
                     "filters": {"split": "某个已存在的 Session Theme"},
-                    "fields": ["date", "split", "standardized_summary"],
+                    "fields": ["date", "split", "standardized_summary", "organization_relations"],
                     "notes_scope": "training",
                 },
                 {
@@ -354,7 +354,7 @@ class LedgerWebService:
                     "type": "movement_progress",
                     "time_range": {"mode": "recent_days", "days": 28},
                     "filters": {"movement_selector": {"kind": "movement_name", "value": "动作名称"}},
-                    "fields": ["date", "movement_id", "movement_name", "body_part", "variant", "order", "sets"],
+                    "fields": ["date", "movement_id", "movement_name", "body_part", "variant", "order", "sets", "segments", "set_count", "segment_count", "total_reps", "volume", "organization_relations"],
                     "notes_scope": "movement",
                 },
             ],
@@ -367,7 +367,7 @@ class LedgerWebService:
 1. 只分析用户通过 Analysis Export v1.1 明确确认并下载给你的快照；不要要求访问本地文件、云端、数据库或网页，也不要写回 Fitness Ledger。
 2. 不把 Session Theme 当作 Movement Category：Session Theme 描述一次训练如何组织，Movement Category 描述动作的长期 Progress 分类。
 3. 训练可以没有 Session Theme，也可以属于多个已保存主题；不要为未命名、休息或无法确认的训练强行创造主题。
-4. 保留 session/theme/category/order 上下文；训练动作的 order_in_session 与 order_in_category 是不同字段。custom/untracked 动作只能按快照事实分析，不得擅自变成正式动作。
+4. 保留 session/theme/category/order 上下文；训练动作的 order_in_session 与 order_in_category 是不同字段。custom/untracked 动作只能按快照事实分析，不得擅自变成正式动作。一个 segmented set 是一个 Set 内的连续 segments，不是多个普通 sets；superset 是 Session organization context，不是新 movement。
 5. 新增记录项的可见性、类型、单位和分析权限以以下注册表为准；不要把字段名、单位或缺失值猜成个人事实。
 6. 输出中区分事实、计算结果、合理推断和无法判断的部分；如证据不足，明确说证据不足。
 

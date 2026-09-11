@@ -135,8 +135,8 @@ def test_prompt_contract_and_dynamic_registry() -> None:
     )
     engine = DataModuleEngine(registry, Path(tempfile.gettempdir()) / "fitness-ledger-prompt-test-tracker.json")
     template = engine.llm_entry_template()
-    assert template["schema"] == "fitness-ledger-llm-entry-template-v8"
-    assert template["template_version"] == 8
+    assert template["schema"] == "fitness-ledger-llm-entry-template-v9"
+    assert template["template_version"] == 9
     assert "饮水量 | 可识别词=饮水量、water | 类型=quantity" in template["prompt_template"]
     assert "保留用户原始动作、组数、饮食、机器数据、主观感受和 Notes" in template["prompt_template"]
     assert "未明确记录的有氧不猜测" in template["prompt_template"]

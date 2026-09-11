@@ -129,6 +129,10 @@ def _pwa_training_session_detail(data_access: LedgerDataAccess, session_id: str,
             "summary": summary,
             "notes": str(item.get("notes") or ""),
             "training_session_id": str(session.get("id") or ""),
+            "organization_relations": [
+                dict(relation) for relation in session.get("organization_relations", []) or []
+                if str(item.get("movement_instance_id") or item.get("id") or "") in {str(value) for value in relation.get("members", []) or []}
+            ],
         })
     theme_ids = [str(value) for value in (session.get("session_theme_ids") or []) if str(value).strip()]
     primary_theme_id = str(session.get("session_theme_id") or "").strip()

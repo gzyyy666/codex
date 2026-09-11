@@ -434,6 +434,10 @@ def migrate_state(database: dict, dictionary: dict) -> tuple[dict, dict, dict]:
                     report["changed"] = True
         session.setdefault("record_day_id", record_day_id(session_date))
         session.setdefault("movement_items", [])
+        session.setdefault("organization_relations", [])
+        if not isinstance(session["organization_relations"], list):
+            session["organization_relations"] = []
+            report["changed"] = True
         if not isinstance(session["movement_items"], list):
             session["movement_items"] = []
             report["changed"] = True
@@ -580,6 +584,20 @@ def validate_relations(database: dict, dictionary: dict) -> list[dict]:
                 issues.append({"code": "MISSING_RECORD_DAY", "collection": collection, "id": row.get("id")})
     instance_ids: set[str] = set()
     for session in _rows(database, "training_sessions"):
+        session_item_ids = {
+            str(item.get("movement_instance_id") or item.get("id") or "")
+            for item in session.get("movement_items", []) or []
+            if isinstance(item, dict)
+        }
+        for relation in session.get("organization_relations", []) or []:
+            if not isinstance(relation, dict):
+                issues.append({"code": "INVALID_ORGANIZATION_RELATION", "training_session_id": session.get("id")})
+                continue
+            members = [str(value) for value in relation.get("members", []) or []]
+            if relation.get("type") != "superset" or len(members) < 2 or len(set(members)) != len(members):
+                issues.append({"code": "INVALID_SUPERSET_RELATION", "training_session_id": session.get("id"), "relation_id": relation.get("id")})
+            elif any(member not in session_item_ids for member in members):
+                issues.append({"code": "ORPHAN_SUPERSET_MEMBER", "training_session_id": session.get("id"), "relation_id": relation.get("id")})
         for item in session.get("movement_items", []) or []:
             if not isinstance(item, dict):
                 continue

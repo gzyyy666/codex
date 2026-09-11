@@ -1597,6 +1597,17 @@ training: <训练部位>
  <重量>-<次数>-<组数>
  notes: <动作说明>
 
+复杂组（同一个 Set 内连续执行多个 segment）使用：
+ (7.5+5)-(6+8)-3
+其中每组都是 7.5×6 + 5×8；“+”不是数学加法，也不能拆成两个普通 Set。
+重量段与次数段必须一一对应。若每组不同，使用明确的逐组格式：
+ sets: 7.5x6+5x8; 7.5x6+5x7; 7.5x5+5x8
+不得把不同的组错误压缩为 ×N；信息不完整时不猜测。
+
+Session 内明确的超级组使用独立关系标记，不合并动作：
+ superset: A = movement 1, movement 2
+只有用户明确表达为超级组时才输出该行；动作仍按编号独立保留，不能从相邻动作推断。
+
 training notes: <整次训练说明>
 {movement_dynamic_example}
 
@@ -1610,7 +1621,7 @@ notes:
 【输出规则】
 1. 只输出纯文本 Daily Entry；无 Markdown、代码围栏、JSON、表格、前言或结语。
 2. 顶层标签顶格；有内容的标准字段按 date、weight、可选身体指标、已登记的 Body 字段、排便、营养、已登记的 Diet 字段、diet、training、已登记的 Training 字段、cardio 的顺序输出；其他已登记字段按其定义归属插入。diet notes 紧跟 diet，training notes 放在最后一个动作后，notes 放在最后。
-3. training 内每一行首行使用一个 ASCII 半角空格；动作编号连续；动作之间留一个空行。重量不带 kg、公斤、lb 等单位，组记录统一为“重量-次数-组数”，自重写“自重-次数-组数”。
+3. training 内每一行首行使用一个 ASCII 半角空格；动作编号连续；动作之间留一个空行。重量不带 kg、公斤、lb 等单位，普通组记录统一为“重量-次数-组数”，自重写“自重-次数-组数”；复杂组和 superset 只使用上面的明确格式。
 4. 保留用户原始动作、组数、饮食、机器数据、主观感受和 Notes；不得删减、合并、改写或推断睡眠、疲劳、疼痛、状态、训练质量。未明确记录的有氧不猜测；明确无有氧时写“无”。
 5. notes、diet notes、training notes 和动作 notes 必须保持各自作用域；未知事实放入合适的既有 Notes，不创建未登记字段。
 6. 日期使用实际发生日期；无法可靠确定时先要求 YYYY-MM-DD。营养只在有足够饮食与分量时估算整日 calories/protein/carbs/fat，不在 diet 中拆项分析。
@@ -1626,8 +1637,8 @@ notes:
 先按上述规则整理以下原始记录，最终只输出整理后的 Daily Entry：
 {{{{daily_text}}}}"""
         return {
-            "schema": "fitness-ledger-llm-entry-template-v8",
-            "template_version": 8,
+            "schema": "fitness-ledger-llm-entry-template-v9",
+            "template_version": 9,
             "purpose": "按当前 Daily Entry 契约，把自然语言整理为可直接粘贴的原始饮食/训练记录、Notes、整日营养汇总和当前注册表中的新增字段。",
             "workflow": {
                 "step_1": "复制 prompt_template 给 LLM，并把原始记录放入 {{daily_text}}。",

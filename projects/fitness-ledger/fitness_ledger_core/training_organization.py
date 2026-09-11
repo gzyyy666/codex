@@ -147,6 +147,75 @@ def _theme_id_for_label(label: str, themes: list[dict]) -> str | None:
     return None
 
 
+def resolve_session_theme_ids(label: str, themes: list[dict]) -> list[str]:
+    """Resolve one explicit session label to one or more catalog themes.
+
+    Whole-label matches win.  Otherwise only an unambiguous decomposition of
+    the complete normalized label into existing theme names/aliases is
+    accepted, so ``胸肩`` can map to ``胸`` + ``肩`` without using movement
+    body parts or adjacency as an inference source.
+    """
+    value = str(label or "").strip()
+    if not value:
+        return []
+    exact = _theme_id_for_label(value, themes)
+    if exact:
+        return [exact]
+
+    valid = [
+        (str(theme.get("theme_id") or "").strip(), normalize_label(name))
+        for theme in themes
+        for name in [theme.get("display_name"), *(theme.get("aliases") or [])]
+        if str(theme.get("theme_id") or "").strip() and normalize_label(name)
+    ]
+    normalized = normalize_label(value)
+    if not normalized:
+        return []
+
+    # Explicit separators make the intended multi-theme boundary visible;
+    # the compact form is handled by the same full-string matcher below.
+    chunks = [part for part in re.split(r"[,+＋、/／&和及|｜;；]+", value) if part.strip()]
+    if len(chunks) >= 2:
+        resolved: list[str] = []
+        for chunk in chunks:
+            match = _theme_id_for_label(chunk.strip(), themes)
+            if not match:
+                resolved = []
+                break
+            resolved.append(match)
+        if resolved and len(set(resolved)) == len(resolved):
+            return resolved
+
+    # Dynamic programming over the complete label allows compact Chinese
+    # input such as 胸肩 while rejecting partial/ambiguous guesses.
+    matches_by_start: dict[int, list[tuple[int, str]]] = {}
+    for theme_id, variant in valid:
+        start = 0
+        while True:
+            start = normalized.find(variant, start)
+            if start < 0:
+                break
+            matches_by_start.setdefault(start, []).append((start + len(variant), theme_id))
+            start += 1
+
+    paths: list[tuple[str, ...]] = []
+
+    def walk(position: int, path: tuple[str, ...]) -> None:
+        if position == len(normalized):
+            if len(path) >= 2 and len(set(path)) == len(path):
+                paths.append(path)
+            return
+        for end, theme_id in matches_by_start.get(position, []):
+            if theme_id not in path:
+                walk(end, (*path, theme_id))
+
+    walk(0, ())
+    unique = {tuple(path) for path in paths}
+    if len(unique) == 1:
+        return list(next(iter(unique)))
+    return []
+
+
 def _ensure_theme_for_legacy_label(themes: list[dict], label: str, preferred_id: str = "") -> str:
     label = str(label or "").strip()
     if not label:
@@ -186,8 +255,7 @@ def _session_theme_ids(session: dict, themes: list[dict], label: str) -> list[st
         ids = [single] if single in valid else []
     if ids:
         return list(dict.fromkeys(ids))
-    matched = _theme_id_for_label(label, themes)
-    return [matched] if matched else []
+    return resolve_session_theme_ids(label, themes)
 
 
 def normalize_training_organization(database: dict, dictionary: dict) -> tuple[dict, bool]:

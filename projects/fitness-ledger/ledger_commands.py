@@ -41,6 +41,11 @@ from fitness_ledger_core.record_relations import (
     validate_relations,
 )
 from fitness_ledger_core.shared_view_models import LedgerViewModels, movement_in_progress
+from fitness_ledger_core.training_structure import (
+    parse_segmented_blocks,
+    parse_superset_directives,
+    relation_specs,
+)
 from fitness_ledger_core.training_organization import (
     THEME_COLOR_KEYS,
     normalize_label,
@@ -2598,6 +2603,11 @@ class LedgerCommandService:
 
     @staticmethod
     def _parse_sets_text(text: str) -> list[dict]:
+        segmented, issues = parse_segmented_blocks(text)
+        if segmented or issues:
+            if issues:
+                raise LedgerCommandError(issues[0]["message"], issues[0]["code"])
+            return segmented
         sets = []
         normalized = str(text or "").replace("×", "x").replace("*", "x").replace("X", "x")
         pattern = re.compile(r"(?P<load>自重|body\s*weight|bw|\d+(?:\.\d+)?(?:\s*kg)?)\s*x\s*(?P<reps>\d+)\s*x\s*(?P<sets>\d+)", re.I)
@@ -2833,6 +2843,10 @@ class LedgerCommandService:
             if current_revision != int(preview.get("expected_revision", 0) or 0):
                 raise LedgerCommandError("This training session changed after preview. Run the raw diff again.", "REVISION_CONFLICT", {"current_revision": current_revision})
             parsed = preview.get("parsed") or {}
+            structure_issues = parsed.get("training", {}).get("_structure_issues", []) or []
+            if structure_issues:
+                issue = structure_issues[0]
+                raise LedgerCommandError(str(issue.get("message", "训练结构无法确定解析。")), str(issue.get("code", "INVALID_TRAINING_STRUCTURE")))
             by_id, by_alias = _dictionary_indexes(dictionary)
             desired = []
             for item in parsed.get("training", {}).get("movements", []) or []:
@@ -2854,6 +2868,14 @@ class LedgerCommandService:
             for key, history in existing.items():
                 if key not in desired_keys:
                     session["movement_items"] = [item for item in session.get("movement_items", []) if item is not history]
+            relations, relation_issues = relation_specs(
+                (parsed.get("training", {}).get("_superset_directives", []) or []),
+                session.get("movement_items", []) or [],
+                session_id,
+            )
+            if relation_issues:
+                raise LedgerCommandError(relation_issues[0]["message"], relation_issues[0]["code"])
+            session["organization_relations"] = relations
             raw_entry = next((item for item in database.get("raw_entries", []) if str(item.get("id")) == str(session.get("raw_entry_id", ""))), None)
             if raw_entry is None:
                 raw_entry = {"id": _stable_json_hash({"session_id": session_id, "raw": raw_text})[:24], "date": canonical_date(session.get("Date")), "source": "raw edit", "record_day_id": record_day_id(session.get("Date")), "revision": 0}
@@ -2985,6 +3007,8 @@ class LedgerCommandService:
                 add("medium", "missing_sets", f"动作“{movement.get('name', '')}”没有识别到组数。")
             if not movement.get("movement_id"):
                 add("medium", "new_movement", f"新动作“{movement.get('name', '')}”需要确认处理方式。")
+        for issue in training.get("_structure_issues", []) or []:
+            add("high", str(issue.get("code", "invalid_training_structure")), str(issue.get("message", "训练结构需要确认。")))
         duplicates = self.records_on_date(database, parsed.get("date", ""))
         if any(duplicates.values()):
             add(
@@ -3026,6 +3050,11 @@ class LedgerCommandService:
                     "exclude_from_progress must be boolean.",
                     "INVALID_PROGRESS_EXCLUSION",
                 )
+        training = parsed.get("training", {})
+        structure_issues = training.get("_structure_issues", []) or []
+        if structure_issues:
+            issue = structure_issues[0]
+            raise LedgerCommandError(str(issue.get("message", "训练结构无法确定解析。")), str(issue.get("code", "INVALID_TRAINING_STRUCTURE")))
 
     def _checkpoint(self) -> tuple[Path, Path]:
         try:
@@ -3288,6 +3317,11 @@ class LedgerCommandService:
             training_notes = normalize_note_text(training.get("notes", ""))
             if save_mode == "append_training":
                 training_notes = f"同日追加训练。{training_notes}" if training_notes else "同日追加训练。"
+            relations, relation_issues = relation_specs(
+                training.get("_superset_directives", []) or [], training_items, training_record_id
+            )
+            if relation_issues:
+                raise LedgerCommandError(relation_issues[0]["message"], relation_issues[0]["code"])
             database.setdefault("training_sessions", []).append(
                 {
                     "id": training_record_id, "No.": day_number, "Date": entry_date,
@@ -3295,6 +3329,7 @@ class LedgerCommandService:
                     "Standardized Summary": training.get("standardized_summary") or "；".join(summary_parts),
                     "Notes": training_notes,
                     "movement_items": training_items,
+                    "organization_relations": relations,
                     "save_mode": save_mode, "source": "text entry",
                     "record_day_id": record_day_id(entry_date), "raw_entry_id": raw_record["id"],
                     "raw_revision_id": raw_record["raw_revision_id"], "revision": 1, "updated_at": now_iso(),

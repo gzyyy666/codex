@@ -58,12 +58,12 @@
     },
     "training_dataset": {
       "type": "object", "additionalProperties": false,
-      "properties": { "dataset_id": { "$ref": "#/$defs/dataset_id" }, "type": { "const": "training" }, "time_range": { "$ref": "#/$defs/training_time_range" }, "filters": { "$ref": "#/$defs/training_filters" }, "fields": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["date", "split", "standardized_summary"] } }, "notes_scope": { "const": "training" } },
+      "properties": { "dataset_id": { "$ref": "#/$defs/dataset_id" }, "type": { "const": "training" }, "time_range": { "$ref": "#/$defs/training_time_range" }, "filters": { "$ref": "#/$defs/training_filters" }, "fields": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["date", "split", "standardized_summary", "organization_relations"] } }, "notes_scope": { "const": "training" } },
       "required": ["dataset_id", "type", "time_range", "filters", "fields"]
     },
     "movement_dataset": {
       "type": "object", "additionalProperties": false,
-      "properties": { "dataset_id": { "$ref": "#/$defs/dataset_id" }, "type": { "const": "movement_progress" }, "time_range": { "$ref": "#/$defs/movement_time_range" }, "filters": { "$ref": "#/$defs/movement_filters" }, "fields": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["date", "movement_id", "movement_name", "body_part", "variant", "order", "sets"] } }, "notes_scope": { "const": "movement" }, "set_roles": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["top", "working", "backoff"] } } },
+      "properties": { "dataset_id": { "$ref": "#/$defs/dataset_id" }, "type": { "const": "movement_progress" }, "time_range": { "$ref": "#/$defs/movement_time_range" }, "filters": { "$ref": "#/$defs/movement_filters" }, "fields": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["date", "movement_id", "movement_name", "body_part", "variant", "order", "sets", "segments", "set_count", "segment_count", "total_reps", "volume", "organization_relations"] } }, "notes_scope": { "const": "movement" }, "set_roles": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["top", "working", "backoff"] } } },
       "required": ["dataset_id", "type", "time_range", "filters", "fields"]
     },
     "output": { "type": "object", "additionalProperties": false, "properties": { "formats": { "type": "array", "minItems": 1, "maxItems": 2, "uniqueItems": true, "items": { "enum": ["json", "markdown"] } } }, "required": ["formats"] }

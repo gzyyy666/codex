@@ -203,6 +203,10 @@ function decorateTrainingRows(rows, organization) {
 }
 function setSummary(sets) {
   return (Array.isArray(sets) ? sets : []).map(item => {
+    if (Array.isArray(item.segments) && item.segments.length) {
+      const parts = item.segments.map(segment => `${segment.weight_text || (Number(segment.weight) > 0 ? `${Number(segment.weight)}kg` : "自重")} × ${segment.reps || "-"}`).join(" + ");
+      return `${parts}${Number(item.sets || 1) > 1 ? ` × ${item.sets}组` : ""}`;
+    }
     const weight = item.weight_text || (Number(item.weight) > 0 ? `${Number(item.weight)}kg` : "自重");
     return `${weight} × ${item.reps || "-"} × ${item.sets || 1}`;
   }).join(" · ");
@@ -218,7 +222,8 @@ function compactHistory(item) {
     notes: item.notes || "",
     max_weight: Number(metrics.max_weight || 0),
     total_reps: Number(metrics.total_reps || 0),
-    volume: Number(metrics.volume || 0)
+    volume: Number(metrics.volume || 0),
+    organization_relations: Array.isArray(item.organization_relations) ? item.organization_relations : []
   };
 }
 function buildBodyArea(partId, movements, history, sessions) {
@@ -317,7 +322,8 @@ function sessionMovementRows(session, movementMap) {
         sets: Array.isArray(item.sets) ? item.sets : [],
         notes: item.notes || "",
         date: String(session.Date || "").slice(0, 10),
-        training_session_id: String(session.id || session._id || "")
+        training_session_id: String(session.id || session._id || ""),
+        organization_relations: (Array.isArray(session.organization_relations) ? session.organization_relations : []).filter(relation => Array.isArray(relation.members) && relation.members.map(String).includes(String(item.movement_instance_id || item.id || "")))
       };
     });
 }
@@ -351,7 +357,8 @@ function buildSessionMovementCards(sessionRows, movementMap, historyRows) {
       order: item.order_in_session || item.order || 0,
       sets: Array.isArray(item.sets) ? item.sets : [],
       summary: item.summary || setSummary(item.sets),
-      notes: item.notes || ""
+      notes: item.notes || "",
+      organization_relations: Array.isArray(item.organization_relations) ? item.organization_relations : []
     })).sort((a, b) => String(b.date).localeCompare(String(a.date)) || Number(b.order || 0) - Number(a.order || 0));
     if (!compact.length) return null;
     return {
@@ -392,6 +399,7 @@ async function sessionThemeAreaPayload(themeId) {
       related_movements: items.map(item => item.display_name).filter(Boolean),
       movement_summary: session["Standardized Summary"] || items.map(item => `${item.display_name}${setSummary(item.sets) ? `：${setSummary(item.sets)}` : ""}`).join("；") || "暂无完整动作摘要",
       full_summary: session["Standardized Summary"] || items.map(item => `${item.display_name}${setSummary(item.sets) ? `：${setSummary(item.sets)}` : ""}`).join("；") || "暂无完整动作摘要",
+      organization_relations: Array.isArray(session.organization_relations) ? session.organization_relations : [],
       notes: session.Notes || ""
     };
   });

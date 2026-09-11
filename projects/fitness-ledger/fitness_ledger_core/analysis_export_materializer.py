@@ -43,6 +43,12 @@ _FIELD_TYPES = {
     "variant": "string",
     "order": "integer",
     "sets": "array",
+    "segments": "array",
+    "set_count": "integer",
+    "segment_count": "integer",
+    "total_reps": "integer",
+    "volume": "number",
+    "organization_relations": "array",
     "notes": "string",
 }
 

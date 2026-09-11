@@ -7,6 +7,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from fitness_ledger_core.record_relations import migrate_state, record_day_id, movement_items
+from fitness_ledger_core.training_structure import format_set_item, parse_segmented_blocks
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -67,7 +68,7 @@ def format_weight(item: dict) -> str:
 
 
 def format_set_line(item: dict) -> str:
-    return f"{format_weight(item)} × {item.get('reps', '-')} × {item.get('sets', '-')}"
+    return format_set_item(item)
 
 
 def extract_set_lines_from_raw(raw: str) -> list[str]:
@@ -100,6 +101,11 @@ def extract_set_lines_from_raw(raw: str) -> list[str]:
 
     for line in lines:
         if line.lower().startswith("notes:"):
+            continue
+        segmented, _issues = parse_segmented_blocks(line)
+        for item in segmented:
+            append_unique(format_set_item(item))
+        if segmented:
             continue
         line_hits = 0
         for match in weighted_pattern.finditer(line):

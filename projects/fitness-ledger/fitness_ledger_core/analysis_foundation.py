@@ -197,7 +197,7 @@ CAPABILITY_DEFINITIONS = (
     CapabilityDefinition(
         "training_context",
         "Training context",
-        "Analyze training-day and session context without inventing movements.",
+        "Analyze training-day and session context, including explicit Session organization relations, without inventing movements.",
         ("DataCatalogBuilder.module:training", "AnalysisExportCommandParser.domain:training", "IntentCompiler.dimension:training_context"),
         ("training_context",),
     ),

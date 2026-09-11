@@ -24,8 +24,8 @@ MATCH_MODES = ("single_latest_matching_session", "each_matching_session")
 DATASET_FIELDS = {
     "body": ("date", "weight_kg", "bowel_movement", "training_label", "cardio_summary"),
     "diet": ("date", "calories_kcal", "protein_g", "carbs_g", "fat_g", "food_summary"),
-    "training": ("date", "split", "standardized_summary"),
-    "movement_progress": ("date", "movement_id", "movement_name", "body_part", "variant", "order", "sets"),
+    "training": ("date", "split", "standardized_summary", "organization_relations"),
+    "movement_progress": ("date", "movement_id", "movement_name", "body_part", "variant", "order", "sets", "segments", "set_count", "segment_count", "total_reps", "volume", "organization_relations"),
 }
 DATASET_FILTERS = {
     "body": frozenset(),

@@ -23,6 +23,12 @@ from fitness_ledger_core.notes import (
     normalize_note_text,
 )
 from fitness_ledger_core.record_relations import movement_items, rebuild_movement_projection, migrate_state, record_day_id
+from fitness_ledger_core.training_structure import (
+    format_set_item,
+    has_segmented_syntax,
+    parse_segmented_blocks,
+    parse_superset_directives,
+)
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -1565,7 +1571,7 @@ class FitnessTrackerApp(tk.Tk):
             box.columnconfigure(1, weight=1)
             original = movement.get("name", "")
             movement_id = movement.get("movement_id", "")
-            sets_text = ", ".join(f"{item['weight']:g}kg × {item['reps']} × {item['sets']}" for item in movement.get("sets", [])) or "未识别组数"
+            sets_text = ", ".join(format_set_item(item) for item in movement.get("sets", [])) or "未识别组数"
             tk.Label(box, text=f"{movement.get('order')}. 原始动作：{original}", bg=COLORS["cream"], fg=COLORS["navy"], font=("Microsoft YaHei UI", 10, "bold")).grid(row=0, column=0, columnspan=2, sticky="w", padx=12, pady=(10, 4))
             tk.Label(box, text=f"movement_id: {movement_id or 'NEW'}\nsets: {sets_text}", bg=COLORS["cream"], fg=COLORS["muted"], justify="left").grid(row=1, column=0, sticky="nw", padx=12)
             standard_name = tk.Entry(box, bg=COLORS["white"], fg=COLORS["ink"], relief="flat")
@@ -3178,7 +3184,7 @@ class FitnessTrackerApp(tk.Tk):
             widgets = {}
             fields = (
                 ("order", "动作顺序", record.get("order", ""), 1),
-                ("sets_text", "组数", "\n".join(f"{format_number(item.get('weight'))} × {format_number(item.get('reps'))} × {format_number(item.get('sets'))}" for item in record.get("sets", [])), 4),
+                ("sets_text", "组数", "\n".join(format_set_item(item) for item in record.get("sets", [])), 4),
                 ("notes", "动作备注", record.get("notes", ""), 3),
                 ("raw", "原始细节", record.get("raw", ""), 4),
             )
@@ -3303,6 +3309,9 @@ def _safe_build_set_item(weight_text: str, reps: str, sets: str) -> dict:
 
 
 def extract_load_blocks(text: str) -> list[dict]:
+    segmented, _issues = parse_segmented_blocks(text)
+    if segmented or has_segmented_syntax(text):
+        return segmented
     blocks = []
     normalized = (
         str(text or "")
@@ -3558,6 +3567,10 @@ def _patched_parse_entry(self, raw: str) -> dict:
     parsed["body"]["notes"] = note_sections["daily_notes"]
     parsed["diet"]["notes"] = note_sections["diet_notes"]
     parsed["training"]["notes"] = note_sections["training_notes"]
+    segmented, structure_issues = parse_segmented_blocks(parsed["training"].get("raw", ""))
+    directives, relation_issues = parse_superset_directives(parsed["training"].get("raw", ""))
+    parsed["training"]["_structure_issues"] = structure_issues + relation_issues
+    parsed["training"]["_superset_directives"] = directives
     return parsed
 
 
@@ -4682,7 +4695,7 @@ def _editorial_open_review_window(self) -> None:
         title = tk.Frame(card, bg=COLORS["paper"])
         title.pack(fill="x", padx=14, pady=(12, 6))
         tk.Label(title, text=f"{movement.get('order')}. {movement.get('name', '')}", bg=COLORS["paper"], fg=COLORS["hero_text"], font=("Microsoft YaHei UI", 10, "bold")).pack(anchor="w")
-        sets_text = ", ".join(f"{item.get('weight_text') or format_number(item.get('weight'))} × {item['reps']} × {item['sets']}" for item in movement.get("sets", [])) or "No structured sets yet"
+        sets_text = ", ".join(format_set_item(item) for item in movement.get("sets", [])) or "No structured sets yet"
         tk.Label(title, text=sets_text, bg=COLORS["paper"], fg=COLORS["muted"], justify="left", wraplength=900, font=("Microsoft YaHei UI", 8)).pack(anchor="w", pady=(4, 0))
         content = tk.Frame(card, bg=COLORS["paper"])
         content.pack(fill="x", padx=14, pady=(0, 12))

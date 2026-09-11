@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .notes import normalize_note_text
 from .record_relations import migrate_state, movement_items
+from .training_structure import format_set_item, set_total_reps, set_volume
 
 
 def _number(value) -> float | None:
@@ -65,19 +66,30 @@ class LedgerViewModels:
 
     @staticmethod
     def history_set_lines(history: dict) -> list[str]:
-        lines = []
-        for item in history.get("sets", []) or []:
-            weight = item.get("weight_text") or item.get("weight")
-            if weight in (None, "", 0, 0.0):
-                weight = "自重"
-            lines.append(f"{weight} × {item.get('reps', '-')} × {item.get('sets', '-')}")
-        return lines
+        return [format_set_item(item) for item in history.get("sets", []) or []]
 
     @staticmethod
     def history_metrics(history: dict) -> dict:
         max_weight, total_reps, volume = 0.0, 0, 0.0
         has_structured_sets = False
+        has_complex_sets = False
+        segment_count = 0
+        set_count = 0
         for item in history.get("sets", []) or []:
+            segments = item.get("segments")
+            if isinstance(segments, list) and segments:
+                valid = [segment for segment in segments if _number(segment.get("reps")) is not None and (_number(segment.get("weight")) is not None or str(segment.get("weight_text", "")).strip())]
+                repetitions = int(item.get("sets") or 1)
+                if not valid or repetitions <= 0:
+                    continue
+                has_structured_sets = True
+                has_complex_sets = True
+                segment_count = max(segment_count, len(valid))
+                set_count += repetitions
+                max_weight = max(max_weight, max(float(segment.get("weight") or 0) for segment in valid))
+                total_reps += set_total_reps(item)
+                volume += set_volume(item)
+                continue
             reps_value = _number(item.get("reps"))
             sets_value = _number(item.get("sets"))
             if reps_value is None or sets_value is None or reps_value <= 0 or sets_value <= 0:
@@ -86,6 +98,7 @@ class LedgerViewModels:
             reps = int(reps_value)
             sets = int(sets_value)
             has_structured_sets = True
+            set_count += sets
             max_weight = max(max_weight, weight)
             total_reps += reps * sets
             volume += weight * reps * sets
@@ -94,6 +107,10 @@ class LedgerViewModels:
             "total_reps": total_reps,
             "volume": round(volume, 2),
             "has_structured_sets": has_structured_sets,
+            "has_complex_sets": has_complex_sets,
+            "segment_count": segment_count,
+            "set_count": set_count,
+            "scalar_metric_eligible": has_structured_sets and not has_complex_sets,
         }
 
     @classmethod
@@ -101,6 +118,8 @@ class LedgerViewModels:
         """Return the authoritative progress metric used by Movement Progress and PR checks."""
         metrics = cls.history_metrics(history)
         if not metrics["has_structured_sets"]:
+            return None
+        if metrics["has_complex_sets"]:
             return None
         metric_type = "load" if metrics["max_weight"] > 0 else "reps"
         return {
@@ -150,6 +169,32 @@ class LedgerViewModels:
             "order": current.get("order"),
         }
 
+    @staticmethod
+    def relation_context(tracker: dict, item: dict, by_id: dict) -> list[dict]:
+        item_id = str(item.get("movement_instance_id") or item.get("id") or "")
+        session = next((row for row in tracker.get("training_sessions", []) or [] if str(row.get("id")) == str(item.get("training_session_id"))), None)
+        if not session:
+            return []
+        context = []
+        item_by_id = {str(row.get("movement_instance_id") or row.get("id")): row for row in session.get("movement_items", []) or []}
+        for relation in session.get("organization_relations", []) or []:
+            if not isinstance(relation, dict) or item_id not in {str(value) for value in relation.get("members", []) or []}:
+                continue
+            co_members = []
+            for member_id in relation.get("members", []) or []:
+                if str(member_id) == item_id:
+                    continue
+                member = item_by_id.get(str(member_id), {})
+                definition = by_id.get(str(member.get("movement_id", "")), {})
+                co_members.append({
+                    "movement_id": member.get("movement_id", ""),
+                    "movement_name": definition.get("display_name") or member.get("display_name", ""),
+                    "movement_instance_id": member_id,
+                    "sets_lines": LedgerViewModels.history_set_lines(member),
+                })
+            context.append({"id": relation.get("id", ""), "type": relation.get("type", ""), "label": relation.get("label", ""), "co_members": co_members})
+        return context
+
     def movement_history_by_id(self, movement_id: str, limit: int = 8, before_date: str = "") -> dict:
         tracker, dictionary = self.snapshot()
         by_id, _ = self.dictionary_indexes(dictionary)
@@ -175,6 +220,7 @@ class LedgerViewModels:
             item["movement_notes"] = normalize_note_text(item.get("notes", ""))
             item["sets_lines"] = self.history_set_lines(item)
             item["metrics"] = self.history_metrics(item)
+            item["organization_relations"] = self.relation_context(tracker, item, by_id)
             projected.append(item)
         projected_progress = [item for item in projected if movement_is_progress and history_in_progress(item)]
         recent = [item for item in projected_progress if item["metrics"]["has_structured_sets"]][:3]
@@ -266,6 +312,7 @@ class LedgerViewModels:
                 "is_linkable": bool(movement_id),
                 "sets_lines": self.history_set_lines(row),
                 "has_structured_sets": self.history_metrics(row)["has_structured_sets"],
+                "organization_relations": self.relation_context(tracker, row, by_id),
             })
             history_by_day.setdefault(key, []).append(row)
 
@@ -298,6 +345,7 @@ class LedgerViewModels:
                     "exclude_from_progress": bool(row.get("exclude_from_progress", False)),
                     "has_structured_sets": bool(row.get("has_structured_sets")),
                     "training_session_id": row.get("training_session_id", session.get("id", "")),
+                    "organization_relations": row.get("organization_relations", []),
                     "revision": int(row.get("revision", 1) or 1),
                 }
                 for row in movement_refs
@@ -361,6 +409,7 @@ class LedgerViewModels:
                         "exclude_from_progress": bool(item.get("exclude_from_progress", False)),
                         "movement_notes": normalize_note_text(item.get("notes", "")),
                         "metrics": self.history_metrics(item),
+                        "organization_relations": self.relation_context(tracker, item, by_id),
                     }
                     for item in histories
                 ],
