@@ -1,5 +1,15 @@
 # Fitness Ledger Changelog
 
+## 2026-09-11 - PWA homepage async organization stability
+
+- Fixed the CloudBase read fallback so a homepage does not replace its
+  Movement Module rail with an empty list while the organization metadata is
+  absent or still being initialized.
+- Kept the current defaults aligned with Web: Core is active, while Glutes and
+  Cardio remain opt-in until explicitly enabled in the Web organization.
+- Published visible marker `PWA v1.1.13 · build 2026.09.11.09`, Service Worker
+  `fitness-ledger-pwa-v49`, and resource query `20260911-09`.
+
 ## 2026-09-11 - PWA input focus viewport fix
 
 - Kept the Movement Module rail and recent movement content in the homepage

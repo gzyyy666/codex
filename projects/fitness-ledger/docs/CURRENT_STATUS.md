@@ -14,8 +14,8 @@
 - 正式目录：`D:\FitnessLedger\app`
 - 桌面入口：桌面 `Fitness Ledger Web.lnk` → `D:\FitnessLedger\app\web_desktop\launch-desktop.vbs`
 - PWA 地址：`https://cloud1-d9g35v5s1a904a8ad-1450570992.tcloudbaseapp.com`
-- PWA 当前前端标记：`PWA v1.1.12 · build 2026.09.11.08`
-- PWA Service Worker：`fitness-ledger-pwa-v48`，脚本资源查询版本 `20260911-08`
+- PWA 当前前端标记：`PWA v1.1.13 · build 2026.09.11.09`
+- PWA Service Worker：`fitness-ledger-pwa-v49`，脚本资源查询版本 `20260911-09`
 - CloudBase 环境：`cloud1-d9g35v5s1a904a8ad`
 - Web 服务正式状态：通过 `/api/build-info` 核验；修改桌面端后必须重新写回正式目录并重启 `launcher.pyw`。
 

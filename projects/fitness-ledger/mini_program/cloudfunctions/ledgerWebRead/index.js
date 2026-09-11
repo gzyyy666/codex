@@ -21,6 +21,20 @@ const BODY_PARTS = {
   cardio: { label: "有氧", labelEn: "CARDIO", groups: ["Cardio", "Aerobic", "有氧"] }
 };
 
+// Keep the read-only PWA contract aligned with the Web normalizer when the
+// cloud metadata collection has not received the organization document yet.
+// Core is visible by default; Glutes and Cardio remain opt-in.
+const DEFAULT_MOVEMENT_CATEGORIES = [
+  { category_id: "chest", display_name: "Chest", active: true, sort_order: 10, system: true },
+  { category_id: "shoulders", display_name: "Shoulders", active: true, sort_order: 20, system: true },
+  { category_id: "back", display_name: "Back", active: true, sort_order: 30, system: true },
+  { category_id: "legs", display_name: "Legs", active: true, sort_order: 40, system: true },
+  { category_id: "glutes", display_name: "Glutes", active: false, sort_order: 50, system: true },
+  { category_id: "arms", display_name: "Arms", active: true, sort_order: 60, system: true },
+  { category_id: "core", display_name: "Core", active: true, sort_order: 70, system: true },
+  { category_id: "cardio", display_name: "Cardio", active: false, sort_order: 80, system: true }
+];
+
 function result(data) { return { ok: true, data }; }
 function failure(code, message) { return { ok: false, code, message }; }
 async function list(name, limit = 20, skip = 0, orderField = "Date") {
@@ -156,7 +170,21 @@ function fallbackTrainingOrganization(trainingRows) {
     seen = new Set([...seen, id]);
     themes.push({ theme_id: id, display_name: label, active: true, pinned: false, sort_order: themes.length * 10, color_key: "neutral" });
   });
-  return { session_themes: themes, movement_categories: [] };
+  return { session_themes: themes, movement_categories: DEFAULT_MOVEMENT_CATEGORIES.map(item => ({ ...item })) };
+}
+
+function mergeMovementCategories(existing) {
+  const rows = Array.isArray(existing) ? existing : [];
+  const byId = new Map(rows
+    .filter(item => item && String(item.category_id || "").trim())
+    .map(item => [String(item.category_id), item]));
+  const merged = DEFAULT_MOVEMENT_CATEGORIES.map(item => ({ ...item, ...(byId.get(item.category_id) || {}) }));
+  const known = new Set(merged.map(item => item.category_id));
+  rows.forEach(item => {
+    const categoryId = String(item?.category_id || "").trim();
+    if (categoryId && !known.has(categoryId)) merged.push({ ...item, category_id: categoryId });
+  });
+  return merged;
 }
 
 async function trainingOrganizationPayload(trainingRows) {
@@ -166,7 +194,7 @@ async function trainingOrganizationPayload(trainingRows) {
   if (!organization) return fallbackTrainingOrganization(trainingRows);
   return {
     session_themes: Array.isArray(organization.session_themes) ? organization.session_themes.filter(item => item && item.active !== false) : [],
-    movement_categories: Array.isArray(organization.movement_categories) ? organization.movement_categories.filter(item => item && item.active !== false) : []
+    movement_categories: mergeMovementCategories(organization.movement_categories).filter(item => item && item.active !== false)
   };
 }
 
