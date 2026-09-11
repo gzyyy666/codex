@@ -19,7 +19,7 @@ const MOVEMENT_MODULE_TONES = Object.freeze({
 const DEFAULT_ACTIVE_BODY_PART_IDS = new Set(["chest", "shoulders", "back", "legs", "arms", "core"]);
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.16 · build 2026.09.11.12";
+const BUILD_VERSION = "PWA v1.1.17 · build 2026.09.11.13";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -525,15 +525,32 @@ function positionExpandedHome() {
   if (!home) return;
   const note = home.querySelector('.note-stack');
   const strip = home.querySelector('.theme-strip');
-  if (!note || !strip) return;
+  const archiveHead = home.querySelector('.theme-archive-head');
+  if (!note || !strip || !archiveHead) return;
   home.style.setProperty('--expanded-note-height', `${Math.ceil(note.getBoundingClientRect().height)}px`);
   home.style.setProperty('--expanded-strip-height', `${Math.ceil(strip.getBoundingClientRect().height)}px`);
+  home.style.setProperty('--expanded-archive-head-height', `${Math.ceil(archiveHead.getBoundingClientRect().height)}px`);
+}
+function syncExpandedScrollLock() {
+  const home = document.querySelector('.reference-home .home-shell[data-home-state="selected-expanded"]');
+  const noteSheet = home?.querySelector('.note-sheet');
+  if (!home || !noteSheet) return;
+  const locked = home.classList.contains('expanded-scroll-locked');
+  const noteTop = noteSheet.getBoundingClientRect().top;
+  // Keep a small hysteresis band so the height change caused by opening the
+  // nested list cannot immediately undo the lock at the same scroll offset.
+  const shouldLock = locked ? noteTop <= 12 : noteTop <= 4;
+  if (shouldLock === locked) return;
+  const scrollY = window.scrollY;
+  home.classList.toggle('expanded-scroll-locked', shouldLock);
+  if (shouldLock) window.requestAnimationFrame(() => window.scrollTo(0, scrollY));
 }
 function scheduleExpandedHomeLayout() {
   if (expandedHomeLayoutFrame) return;
   expandedHomeLayoutFrame = window.requestAnimationFrame(() => {
     expandedHomeLayoutFrame = 0;
     positionExpandedHome();
+    syncExpandedScrollLock();
   });
 }
 function refreshCandidateOverlay(animateCollapse = false) {
@@ -974,7 +991,7 @@ document.addEventListener("click", event => {
 window.addEventListener("scroll", () => { scheduleDockCheck(); positionCandidateOverlay(); scheduleExpandedHomeLayout(); }, { passive: true });
 window.addEventListener("resize", scheduleExpandedHomeLayout, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260911-12", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260911-13", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

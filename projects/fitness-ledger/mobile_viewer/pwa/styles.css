@@ -601,8 +601,15 @@ button { color: inherit; cursor: pointer; }
   background:var(--page-bg);
 }
 .reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive-list { padding-bottom:calc(24px + env(safe-area-inset-bottom)); }
+.reference-home .home-shell[data-home-state="selected-expanded"].expanded-scroll-locked .theme-archive-list {
+  max-height:max(160px, calc(100dvh - env(safe-area-inset-top) - var(--expanded-note-height, 280px) - var(--expanded-strip-height, 52px) - var(--expanded-archive-head-height, 92px) - 116px));
+  overflow-y:auto;
+  overscroll-behavior-y:auto;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+}
 .reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive .movement-card { margin-top:7px; padding:11px; }
 .reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive .movement-name { font-size:19px; }
 @media (max-width:699px) {
-  .reference-home .home-shell[data-home-state="selected-expanded"] .note-stack { top:calc(-8px - 4.533vw - env(safe-area-inset-top)); }
+  .reference-home .home-shell[data-home-state="selected-expanded"] .note-stack { top:calc(-8px - env(safe-area-inset-top)); }
 }
