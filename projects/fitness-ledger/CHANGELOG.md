@@ -1,5 +1,15 @@
 # Fitness Ledger Changelog
 
+## 2026-09-11 - PWA complex-set and superset display parity release
+
+- Released PWA movement-card formatting for segmented Complex Sets and
+  expandable Session Superset member/order context.
+- Preserved same-day sibling session boundaries in the local and cloud read
+  projections; no canonical data migration or protected data write occurred.
+- Uploaded the 22-file static PWA bundle and updated the independent
+  `ledgerWebRead` function at commit `dddaae5`; the Mini Program `ledgerRead`
+  function was not modified.
+
 ## 2026-09-11 - Complex Set / Session Superset and Daily Entry template release
 
 - Published the shared Complex Set structure and Session Superset relation

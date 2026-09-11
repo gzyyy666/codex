@@ -2,7 +2,7 @@
 
 日期：2026-09-11
 范围：独立候选工作区 `codex/pwa-display-fix-20260911`
-状态：已完成本地候选修复，等待人工 Review；未合并、未 Push、未部署正式环境。
+状态：已完成人工 Review，并已合并、Push、写回正式目录及发布正式 PWA / `ledgerWebRead`。
 
 ## 结论
 
@@ -77,4 +77,4 @@ Web 与 PWA 都是对 canonical `TrainingSession` 的读取投影，但各自有
 
 ## 发布边界
 
-这是一份候选修复和产品体验记录。正式环境、正式云函数和其他未合并工作区均未被触碰。人工 Review 通过后，下一步才是按正式发布流程合并、推送并部署云端与桌面/手机入口。
+正式发布提交为 `dddaae5c262668ebba802a53bcb105a6d49ab0aa`。正式目录、PWA 静态站点和独立 `ledgerWebRead` 均已核验；保护数据未改变，其他未合并工作区未被触碰。恢复点为 `D:\FitnessLedger\archive\fitness-ledger-release-backup-dddaae5-20260911`。

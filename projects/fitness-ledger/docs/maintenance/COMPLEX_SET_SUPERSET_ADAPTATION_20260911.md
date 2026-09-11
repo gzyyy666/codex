@@ -1,7 +1,8 @@
 # Complex Set + Session Superset Compatibility Note
 
-Status: candidate implementation / review only. This note does not authorize
-formal data writeback, service restart, merge, push, deployment, or migration.
+Status: released and verified in the formal Web/PWA read path on 2026-09-11.
+The canonical data contract remains additive; no formal data migration was
+performed.
 
 ## Scope and product decision
 
@@ -196,12 +197,12 @@ must not infer that it caused fatigue, performance change, or efficiency.
 
 ## Review checklist
 
-- [ ] ordinary `60kg × 5 × 3` unchanged
-- [ ] `(7.5+5)-(6+8)-3` round-trips as 3 sets / 2 segments and volume 255
-- [ ] mismatch warns and performs zero canonical write
-- [ ] unequal complex sets remain per-set and are not compressed
-- [ ] one segment edit leaves all other records unchanged
-- [ ] explicit superset creates one Session relation; adjacency alone does not
-- [ ] old data, raw stripping, Cloud/PWA and Analysis Export remain compatible
-- [ ] browser evidence covers Review, history, Session, and hover/tap context
-- [ ] candidate status, diff, tests, and incomplete runtime evidence reported
+- [x] ordinary `60kg × 5 × 3` unchanged
+- [x] `(7.5+5)-(6+8)-3` round-trips as 3 sets / 2 segments and volume 255
+- [x] mismatch warns and performs zero canonical write
+- [x] unequal complex sets remain per-set and are not compressed
+- [x] one segment edit leaves all other records unchanged
+- [x] explicit superset creates one Session relation; adjacency alone does not
+- [x] old data, raw stripping, Cloud/PWA and Analysis Export remain compatible
+- [x] browser evidence covers Review, history, Session, and hover/tap context
+- [x] formal PWA static bundle and independent `ledgerWebRead` deployment verified

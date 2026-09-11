@@ -5,7 +5,7 @@
 ## Git 基线
 
 - 当前分支：`main`
-- `HEAD` / `main` / `origin/main`：`a20ce97cf3126461c42d29d53bd8fbb95bf5b6da`
+- `HEAD` / `main` / `origin/main`：`dddaae5c262668ebba802a53bcb105a6d49ab0aa`
 - 远端：`https://github.com/gzyyy666/codex.git`
 - 源码工作区已封板（09-11）：PWA Training Note 首页、Movement Module 动态入口、两阶段动作滚动、Complex Set / Session Superset 结构链和 Daily Entry LLM 模板 v10 已提交并推送，工作区干净。
 
@@ -14,12 +14,12 @@
 - 正式目录：`D:\FitnessLedger\app`
 - 桌面入口：桌面 `Fitness Ledger Web.lnk` → `D:\FitnessLedger\app\web_desktop\launch-desktop.vbs`
 - PWA 地址：`https://cloud1-d9g35v5s1a904a8ad-1450570992.tcloudbaseapp.com`
-- PWA 当前前端标记：`PWA v1.1.17 · build 2026.09.11.13`
-- PWA Service Worker：`fitness-ledger-pwa-v53`，脚本资源查询版本 `20260911-13`
+- PWA 当前前端标记：`PWA v1.1.18 · build 2026.09.11.14`
+- PWA Service Worker：`fitness-ledger-pwa-v54`，脚本资源查询版本 `20260911-14`
 - CloudBase 环境：`cloud1-d9g35v5s1a904a8ad`
 - Web 服务正式状态：通过 `/api/build-info` 核验；修改桌面端后必须重新写回正式目录并重启 `launcher.pyw`。
-- 本次正式同步：桌面/Web/PWA 源文件已与 `a20ce97` 对齐；CloudBase `fl_*` 副本已重建并通过 `fl_meta` 校验，PWA 静态托管已上传 22 个文件。
-- 云函数状态：现有 `ledgerWebRead` / `ledgerRead` 保持 Active/Event 和原代码，CLI COS 上传连续超时，未删除、改型或替换；需要后续在 CloudBase 上传链路恢复后再单独部署函数代码。
+- 本次正式同步：桌面/Web/PWA 源文件已与 `dddaae5` 对齐；CloudBase `fl_*` 副本和保护数据指纹未改变，PWA 静态托管已上传 22 个文件。
+- 云函数状态：独立 `ledgerWebRead` 已在 `2026-09-11 23:33:01` 更新为本次读取适配代码并保持 Active/Event；小程序专用 `ledgerRead` 未修改。
 
 ## 已交付功能
 
