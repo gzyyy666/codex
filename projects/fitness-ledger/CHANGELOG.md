@@ -1,12 +1,17 @@
 # Fitness Ledger Changelog
 
-## 2026-09-11 - PWA focus scrolling fix (candidate)
+## 2026-09-11 - PWA focus scrolling and note density fix
 
 - Kept the Movement Module rail and selected movement archive reachable while
   the Training Note receives focus on a phone by allowing vertical page flow
   and clipping only horizontal decorative overflow.
 - Prepared visible build `PWA v1.1.10 · build 2026.09.11.06` with Service
   Worker `fitness-ledger-pwa-v46` / resource query `20260911-06`.
+- Reduced only the non-expanded note surface to 440px / 320px so the
+  Movement Module rail moves upward; expanded movement content keeps its
+  existing compact layout.
+- Finalized the release marker as `PWA v1.1.11 · build 2026.09.11.07`, with
+  Service Worker `fitness-ledger-pwa-v47` / resource query `20260911-07`.
 
 ## 2026-09-11 - PWA review adapter and visible version refresh
 
