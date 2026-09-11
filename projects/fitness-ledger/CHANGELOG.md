@@ -1,5 +1,15 @@
 # Fitness Ledger Changelog
 
+## 2026-09-11 - PWA Training Home formal release
+
+- Promoted the Training Note-first PWA homepage to the formal mobile bundle.
+- Homepage module navigation now follows enabled Movement Modules, including
+  deselection and dynamic Web organization state, while Session Themes remain
+  reserved for training records and archive detail.
+- Updated the PWA cache marker to `fitness-ledger-pwa-v44` /
+  `20260911-04` and deployed the reviewed static bundle to the formal runtime
+  and CloudBase static hosting.
+
 ## 2026-09-10 - Movement modules, session-based training, and PWA parity
 
 - Added independent Glutes and Cardio body-part mappings across analysis export,

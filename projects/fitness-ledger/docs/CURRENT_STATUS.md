@@ -1,21 +1,21 @@
 # Fitness Ledger 当前状态
 
-更新时间：2026-08-26（以 `python tools/project_status.py --write --json` 为准）
+更新时间：2026-09-11（以 `python tools/project_status.py --write --json` 为准）
 
 ## Git 基线
 
 - 当前分支：`main`
-- `HEAD` / `main`：`5813f0f`（已含 08-26 两笔封板提交）；`origin/main` 待推送（GitHub 认证待授权）
+- `HEAD` / `main` / `origin/main`：本次正式 PWA 基线提交（完整 SHA 以 `project_status.py` 输出为准）
 - 远端：`https://github.com/gzyyy666/codex.git`
-- 源码工作区已封板（08-26）：任务路由门禁文档与 UI/PWA 改动均已提交，工作区干净。
+- 源码工作区已封板（09-11）：PWA Training Note 首页、Movement Module 动态入口与正式缓存版本已提交并推送，工作区干净。
 
 ## 正式入口
 
 - 正式目录：`D:\FitnessLedger\app`
 - 桌面入口：桌面 `Fitness Ledger Web.lnk` → `D:\FitnessLedger\app\web_desktop\launch-desktop.vbs`
 - PWA 地址：`https://cloud1-d9g35v5s1a904a8ad-1450570992.tcloudbaseapp.com`
-- PWA 当前前端标记：`PWA v1.1.6 · build 2026.08.26.05`
-- PWA Service Worker：`fitness-ledger-pwa-v35`，脚本资源查询版本 `20260826-05`
+- PWA 当前前端标记：`PWA v1.1.7 · build 2026.09.11.04`
+- PWA Service Worker：`fitness-ledger-pwa-v44`，脚本资源查询版本 `20260911-04`
 - CloudBase 环境：`cloud1-d9g35v5s1a904a8ad`
 - Web 服务正式状态：通过 `/api/build-info` 核验；修改桌面端后必须重新写回正式目录并重启 `launcher.pyw`。
 
@@ -36,4 +36,4 @@
 
 ## 当前状态注意事项
 
-`project_status.py` 当前报告正式目录与 Git 代码文件已对齐（`deployment.status=CURRENT`，`different=[]`）。完整回归若遇到历史动作词典断言失败，应单独记录，不要用改数据掩盖测试失败。
+`project_status.py` 会分别报告正式目录与 Git 的历史漂移；本次仅同步 PWA 发布范围，保护正式数据不变。完整回归若遇到历史动作词典断言失败，应单独记录，不要用改数据掩盖测试失败。
