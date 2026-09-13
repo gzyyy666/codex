@@ -661,6 +661,7 @@ button { color: inherit; cursor: pointer; }
   margin-left: 0;
   padding: 0;
 }
+html:not(.pwa-keyboard-open) .reference-home .candidate-overlay { display:none; }
 .reference-home .theme-strip--loading {
   min-height: 52px;
   display: grid;
@@ -756,12 +757,17 @@ button { color: inherit; cursor: pointer; }
   html.pwa-keyboard-open .reference-home .home-shell[data-home-state="selected-collapsed"] .note-editor,
   html.pwa-keyboard-open .reference-home .home-shell[data-home-state="selected-expanded"] .note-stack--compact .note-editor {
     flex:none;
-    height:calc(6 * 1.55em + 18px);
-    min-height:calc(6 * 1.55em + 18px);
-    max-height:calc(6 * 1.55em + 18px);
+    height:calc(5 * 1.55em + 16px)!important;
+    min-height:calc(5 * 1.55em + 16px)!important;
+    max-height:calc(5 * 1.55em + 16px)!important;
     margin:7px 0 5px;
     padding:8px 0;
     overflow-y:auto;
+  }
+  html.pwa-keyboard-open .reference-home .home-shell[data-home-state="neutral"] .note-editor {
+    height:calc(4 * 1.55em + 16px)!important;
+    min-height:calc(4 * 1.55em + 16px)!important;
+    max-height:calc(4 * 1.55em + 16px)!important;
   }
   html.pwa-keyboard-open .reference-home .note-decoration { display:none; }
   html.pwa-keyboard-open .reference-home .note-footer { padding-top:2px; }

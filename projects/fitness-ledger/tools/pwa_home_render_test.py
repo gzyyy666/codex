@@ -138,9 +138,8 @@ def main() -> None:
         assert focused == 8, focused
         evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.value='器械三头下压'; note.dispatchEvent(new Event('input', {bubbles:true})); return true; })()")
         wait_for(browser, "!!document.querySelector('.candidate-overlay:not(.collapsed) .candidate b')")
-        candidate_layout = evaluate(browser, "(() => { const candidate=document.querySelector('.candidate-overlay'); const note=document.querySelector('.note-sheet').getBoundingClientRect(); const editor=document.querySelector('[data-note]').getBoundingClientRect(); const rail=document.querySelector('.theme-strip'); const archive=document.querySelector('.theme-archive'); return {position:getComputedStyle(candidate).position, top:candidate.getBoundingClientRect().top, noteBottom:note.bottom, sheetHeight:note.height, editorHeight:editor.height, headerDisplay:getComputedStyle(document.querySelector('.home-header')).display, railDisplay:getComputedStyle(rail).display, archiveDisplay:getComputedStyle(archive).display, editorFont:Number.parseFloat(getComputedStyle(document.querySelector('[data-note]')).fontSize), viewportScale:window.visualViewport?.scale || 1, candidateName:document.querySelector('.candidate b')?.textContent}; })()")
-        assert candidate_layout["position"] == "relative", candidate_layout
-        assert candidate_layout["top"] >= candidate_layout["noteBottom"] - 1, candidate_layout
+        candidate_layout = evaluate(browser, "(() => { const candidate=document.querySelector('.candidate-overlay'); const note=document.querySelector('.note-sheet').getBoundingClientRect(); const editor=document.querySelector('[data-note]').getBoundingClientRect(); const rail=document.querySelector('.theme-strip'); const archive=document.querySelector('.theme-archive'); return {display:getComputedStyle(candidate).display, sheetHeight:note.height, editorHeight:editor.height, headerDisplay:getComputedStyle(document.querySelector('.home-header')).display, railDisplay:getComputedStyle(rail).display, archiveDisplay:getComputedStyle(archive).display, editorFont:Number.parseFloat(getComputedStyle(document.querySelector('[data-note]')).fontSize), viewportScale:window.visualViewport?.scale || 1, candidateName:document.querySelector('.candidate b')?.textContent}; })()")
+        assert candidate_layout["display"] == "none", candidate_layout
         assert candidate_layout["headerDisplay"] != "none", candidate_layout
         assert candidate_layout["railDisplay"] != "none" and candidate_layout["archiveDisplay"] != "none", candidate_layout
         assert candidate_layout["editorFont"] >= 16 and candidate_layout["viewportScale"] == 1, candidate_layout
@@ -149,7 +148,7 @@ def main() -> None:
         assert candidate_layout["candidateName"] == "器械三头下压", candidate_layout
         evaluate(browser, "(() => { const list=document.querySelector('.candidate-history-list'); const first=list.querySelector('.candidate-history'); list.append(first.cloneNode(true), first.cloneNode(true)); const values=first.querySelectorAll('.candidate-set-values b'); if(values.length===3){ values[0].textContent='127.5 kg'; values[1].textContent='15 次'; values[2].textContent='3 组'; } document.documentElement.classList.add('pwa-keyboard-open'); const home=document.querySelector('.home-shell').getBoundingClientRect(); const editor=document.querySelector('[data-note]').getBoundingClientRect(); const overlay=document.querySelector('.candidate-overlay'); overlay.style.setProperty('--keyboard-candidate-top', `${Math.round(editor.bottom-home.top-1)}px`); const scroll=overlay.querySelector('.candidate-scroll'); scroll.style.setProperty('--candidate-latest-height', `${Math.ceil(first.getBoundingClientRect().bottom-scroll.getBoundingClientRect().top+8)}px`); return true; })()")
         keyboard_layout = evaluate(browser, "new Promise(resolve => requestAnimationFrame(() => { const editor=document.querySelector('[data-note]').getBoundingClientRect(); const candidate=document.querySelector('.candidate-overlay').getBoundingClientRect(); const header=document.querySelector('.home-header').getBoundingClientRect(); const scroll=document.querySelector('.candidate-scroll'); const first=document.querySelector('.candidate-history'); const values=[...first.querySelectorAll('.candidate-set-values b')]; resolve({editorHeight:editor.height, editorBottom:editor.bottom, candidateTop:candidate.top, candidateHistories:[...document.querySelectorAll('.candidate-history')].filter(item => getComputedStyle(item).display !== 'none').length, columns:getComputedStyle(document.querySelector('.candidate-sets')).gridTemplateColumns, latestFullyVisible:first.getBoundingClientRect().bottom <= scroll.getBoundingClientRect().bottom+1, scrollHeight:scroll.scrollHeight, clientHeight:scroll.clientHeight, valuesFit:values.every(item => item.scrollWidth <= item.clientWidth+1), header:getComputedStyle(document.querySelector('.home-header')).display, headerHeight:header.height, rail:getComputedStyle(document.querySelector('.theme-strip')).display, archive:getComputedStyle(document.querySelector('.theme-archive')).display}); }))")
-        assert 160 <= keyboard_layout["editorHeight"] <= 170, keyboard_layout
+        assert 138 <= keyboard_layout["editorHeight"] <= 142, keyboard_layout
         assert abs(keyboard_layout["candidateTop"] - keyboard_layout["editorBottom"]) <= 2, keyboard_layout
         assert keyboard_layout["candidateHistories"] == 3, keyboard_layout
         assert len(keyboard_layout["columns"].split()) == 1, keyboard_layout
@@ -175,6 +174,12 @@ def main() -> None:
         assert collapsed_focus["editorFont"] == 16, collapsed_focus
         assert abs(collapsed_focus["sheetHeight"] - collapsed_before_focus["sheetHeight"]) <= 2, (collapsed_before_focus, collapsed_focus)
         assert abs(collapsed_focus["editorHeight"] - collapsed_before_focus["editorHeight"]) <= 2, (collapsed_before_focus, collapsed_focus)
+        evaluate(browser, "document.querySelector('.home-module-pill.is-active').click(); true")
+        wait_for(browser, "document.querySelector('[data-home-state]').dataset.homeState === 'neutral'")
+        evaluate(browser, "document.documentElement.classList.add('pwa-keyboard-open'); true")
+        neutral_keyboard_height = evaluate(browser, "document.querySelector('[data-note]').getBoundingClientRect().height")
+        assert 113 <= neutral_keyboard_height <= 117, neutral_keyboard_height
+        evaluate(browser, "document.documentElement.classList.remove('pwa-keyboard-open'); true")
         print("PWA_HOME_RENDER_STABILITY: PASS")
     finally:
         if browser is not None:
