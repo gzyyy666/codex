@@ -47,7 +47,7 @@ function recentPanel(title='Unavailable'){return `<section class="rail-section">
 const pageHeader=(title,sub)=>`<header><h1 class="page-title">${title}</h1><p class="page-subtitle">${sub}</p><span class="accent-line"></span></header>`;
 const pager=()=>`<div class="pagination records-status"><span>Showing local records</span></div>`;
 
-function homePage(){const t=state.today,b=t.body||{},d=t.diet||{},tr=t.training||{};main.innerHTML=`<section class="home-page"><div class="home-stage"><div class="home-copy"><span class="home-index">01</span><span class="eyebrow">LOCAL FITNESS JOURNAL</span><h1>Daily<br>Capture</h1><p>记录身体、饮食与训练，把自由文字沉淀为可回看的个人档案。</p><div class="home-actions"><button class="btn btn-primary" data-go="quick">Write today's log <span>→</span></button><button class="home-text-link" data-go="movements">Explore movement archive</button></div></div><div class="home-photo" aria-hidden="true"></div><aside class="home-slip"><span class="eyebrow">LATEST ENTRY / ${esc(t.date||'—')}</span><div class="home-slip-value">${esc(value(b,'Weight (kg)'))}<small>kg</small></div><div class="home-slip-row"><span>${esc(value(tr,'split','Split'))}</span><span>${esc(value(d,'Calories (kcal)'))} kcal</span></div></aside><div class="home-orbit">FREEFORM · REVIEW · STRUCTURED · PRIVATE ·</div></div><section class="home-index-strip"><div class="home-index-head"><span><b>02</b> RECENT ARCHIVE</span><button data-go="body">View full journal →</button></div><div class="home-tickets">${state.recent.slice(0,3).map((r,i)=>`<button class="home-ticket" data-record="${esc(r.date)}"><span class="ticket-no">0${i+1}</span><strong>${esc(r.date)}</strong><small>${esc(r.weight||'—')} kg · ${esc(r.split||'Rest')}</small><em>${esc(r.calories||'—')} kcal</em></button>`).join('')}</div></section></section>`}
+function homePage(){const t=state.today,b=t.body||{},d=t.diet||{},tr=t.training||{};main.innerHTML=`<section class="home-page"><div class="home-stage"><div class="home-copy"><span class="home-index">01</span><span class="eyebrow">个人训练记录</span><h1>Daily<br>Capture</h1><p>记录身体、饮食与训练，把自由文字沉淀为可回看的个人档案。</p><div class="home-actions"><button class="btn btn-primary" data-go="quick">记录今天 <span>→</span></button><button class="home-text-link" data-go="movements">查看动作档案</button></div></div><div class="home-photo" aria-hidden="true"></div><aside class="home-slip"><span class="eyebrow">最近记录 / ${esc(t.date||'—')}</span><div class="home-slip-value">${esc(value(b,'Weight (kg)'))}<small>kg</small></div><div class="home-slip-row"><span>${esc(value(tr,'split','训练部位'))}</span><span>${esc(value(d,'Calories (kcal)'))} kcal</span></div></aside><div class="home-orbit">自由记录 · 复核确认 · 结构化归档 · 私密保存 ·</div></div><section class="home-index-strip"><div class="home-index-head"><span><b>02</b> 近期记录</span><button data-go="body">查看全部记录 →</button></div><div class="home-tickets">${state.recent.slice(0,3).map((r,i)=>`<button class="home-ticket" data-record="${esc(r.date)}"><span class="ticket-no">0${i+1}</span><strong>${esc(r.date)}</strong><small>${esc(r.weight||'—')} kg · ${esc(r.split||'休息')}</small><em>${esc(r.calories||'—')} kcal</em></button>`).join('')}</div></section></section>`}
 
 function quickPage(){main.innerHTML=`<section class="page entry-page"><header class="entry-header"><div><span class="eyebrow">02 / Unavailable</span><h1 class="page-title">Unavailable</h1><p class="page-subtitle">Unavailable</p></div><button class="home-text-link" data-go="home">← Unavailable</button></header><div class="entry-spread"><article class="capture"><span class="eyebrow">FREEFORM → STRUCTURED</span><h2>Unavailable</h2><textarea id="raw-entry" placeholder="写下今天的任何内容…"></textarea><div class="actions"><button class="btn btn-primary" id="parse">Unavailable →</button><button class="btn btn-light" data-mock="Unavailable">Undo last save</button></div><p class="phase">Read-only Web preview. Formal writes remain in the stable desktop app.</p></article><aside class="entry-aside">${statusPanel()}${recentPanel()}</aside></div></section>`}
 
@@ -326,7 +326,7 @@ function updateSyncNav(){
   nav.setAttribute('aria-label',copy);
 }
 function showSaveReceipt(result,error){const receipt=$('#save-receipt');if(!receipt)return;clearTimeout(state.receiptTimer);if(error){receipt.innerHTML=`<span>SAVE NEEDS ATTENTION</span><strong>${esc(error)}</strong>`}else if(result.status==='NO_CHANGES'){receipt.innerHTML='<span>NO CHANGES TO SAVE</span>'}else{const verb=result.status==='UPDATED'?'UPDATED':'SAVED',facts=[],date=result.date||result.record?.Date||result.history?.date||'';if(result.saved_movements)facts.push(`${result.saved_movements} movements · ${result.working_sets||0} working sets`);if(Number(result.progress_excluded_count||0)>0)facts.push(`${result.progress_excluded_count} 个动作仅保留训练记录`);if(result.body_updated&&result.diet_updated)facts.push('Body and diet updated');else if(result.training_updated)facts.push('Training updated');receipt.innerHTML=`<span>${esc(String(date||'RECORD').toUpperCase())} ${verb}</span>${facts.map(x=>`<strong>${esc(x)}</strong>`).join('')}${(state.syncStatus?.payload_stale===true||['LOCAL_NEWER','LOCAL_CHANGES','READY'].includes(state.syncStatus?.sync_status))?'<small>Cloud copy pending</small>':''}`};receipt.classList.add('is-visible');state.receiptTimer=setTimeout(()=>receipt.classList.remove('is-visible'),4200)}
-async function refreshWebState(){const slots=['today','recent','body','diet','training','movements','dictionary','movementGroups','syncStatus','trainingOrganization','dataModuleCatalog','dataModuleExport'];const requests=[api('/api/today'),api('/api/recent?limit=5'),api('/api/body?limit=100'),api('/api/diet?limit=100'),api('/api/training?limit=100'),api('/api/movements?limit=100'),api('/api/dictionary'),api('/api/movement-groups'),api('/api/cloud-sync/status'),api('/api/training-organization'),api('/api/data-modules/product-catalog'),api('/api/data-modules/export')];const results=await Promise.allSettled(requests);const failures=[];results.forEach((result,index)=>{if(result.status==='fulfilled')state[slots[index]]=result.value;else failures.push(result.reason)});state.dataModulesReady=results[10]?.status==='fulfilled'&&results[11]?.status==='fulfilled';updateSyncNav();publishGuardianBodyRegions();if(results[5]?.status==='fulfilled'&&state.view==='movements'&&state.usageLoaded)void loadMovementUsage();if(failures.length)throw failures[0]}
+async function refreshWebState(){const slots=['today','recent','body','diet','training','movements','dictionary','movementGroups','syncStatus','trainingOrganization','dataModuleCatalog','dataModuleExport'];const requests=[api('/api/today'),api('/api/recent?limit=5'),api('/api/body?limit=100'),api('/api/diet?limit=100'),api('/api/training?limit=100'),api('/api/movements?limit=100'),api('/api/dictionary'),api('/api/movement-groups'),api('/api/cloud-sync/status'),api('/api/training-organization'),api('/api/data-modules/product-catalog'),api('/api/data-modules/export')];const results=await Promise.allSettled(requests);results.forEach((result,index)=>{if(result.status==='fulfilled')state[slots[index]]=result.value});state.dataModulesReady=results[10]?.status==='fulfilled'&&results[11]?.status==='fulfilled';updateSyncNav();publishGuardianBodyRegions();if(results[5]?.status==='fulfilled'&&state.view==='movements'&&state.usageLoaded)void loadMovementUsage();const requiredFailure=results.slice(0,10).find(result=>result.status==='rejected');if(requiredFailure)throw requiredFailure.reason}
 async function saveWebReview(saveMode=null){
   if(state.saving)return;
   const review=collectReviewForm();
@@ -832,28 +832,29 @@ function copyCloudSyncReport(){navigator.clipboard.writeText(JSON.stringify({man
 async function verifyCloudSync(){const value=$('#cloud-meta-input')?.value.trim();if(!value){showToast('请先粘贴 fl_meta JSON。');return}try{const result=await postApi('/api/cloud-sync/verify',{cloud_meta:JSON.parse(value)}),target=$('#cloud-sync-verification');if(target){const rows=Object.entries(result.collections||{}).map(([name,item])=>`<div><code>${esc(name)}</code><span>${item.expected} / ${item.actual}</span><b>${item.ok?'OK':'Mismatch'}</b><small>${esc((item.actual_hash||'').slice(0,12))}</small></div>`).join('');target.className=`cloud-sync-verification ${result.verified?'is-success':'is-warning'}`;target.innerHTML=`<p>${result.verified?'校验通过：云端副本与本地生成包一致。':'校验未通过：不要将本次导入视为同步完成。'}</p>${rows}`}}catch(error){showToast(error.message||'校验失败。')}}
 
 function cloudSyncModeText(status){
-  if(status?.network_upload_configured)return '保存后自动尝试 · 仍可手动触发';
-  if(status?.upload_provider_ready&&status?.provider==='mock')return '保存后自动检查 · 本地模拟';
+  if(status?.network_upload_configured)return '保存后自动同步 · 可手动触发';
+  if(status?.upload_provider_ready&&status?.provider==='mock')return '保存后自动检查 · 本地演练';
   return '保存后检查 · 同步服务待就绪';
 }
 function cloudSyncModeHint(status){
-  if(status?.network_upload_configured)return '每日记录确认保存后会自动尝试上传并校验；手动同步仍保留，用于你主动控制小修改的批量提交。';
-  if(status?.upload_provider_ready&&status?.provider==='mock')return '当前使用 mock provider；每日记录保存后会自动完成本地模拟检查，不写入真实 CloudBase。';
-  return '同步服务当前未就绪；确认保存仍只写本地，配置完成后每日记录会自动尝试同步，手动同步入口始终保留。';
+  if(status?.network_upload_configured)return '每日记录确认保存后会自动同步；你也可以在这里手动发起同步并查看结果。';
+  if(status?.upload_provider_ready&&status?.provider==='mock')return '当前为本地演练模式；每日记录保存后会自动完成本地检查，不会写入真实云端。';
+  return '当前尚未完成云端同步配置；确认保存仍只写本地，配置完成后会自动尝试同步。';
 }
 function cloudStatusPresentation(status){
   const code=String(status?.sync_status||'NOT_CONFIGURED').toUpperCase();
   const map={
-    SYNCED:['本地与云端一致','最近一次同步已通过云端校验。','synced','重新校验'],
-    NO_CHANGES:['无需同步','当前 Payload 与云端版本一致。','synced','重新校验'],
-    LOCAL_NEWER:['本地有新的数据','点击同步，将最新数据更新至 CloudBase。','newer','同步到 CloudBase'],
-    NOT_CONFIGURED:['尚未完成上传配置','本地数据不受影响；完成配置后即可启用真实同步。','neutral','查看配置说明'],
-    UPLOAD_FAILED:['同步未完成','本地正式数据仍然安全，请检查详情后重试。','failed','重新同步'],
-    CLOUD_MISMATCH:['云端校验未通过','上传结果与本地 Payload 不一致，本次未标记为成功。','failed','重新同步'],
-    DRY_RUN:['检查完成','本次只执行本地校验，没有写入 CloudBase。','neutral','刷新状态'],
-    READY:['已准备好同步','本地导入包已准备好，等待手动触发同步。','newer','同步到 CloudBase'],
+    SYNCED:['已同步','本地记录与云端副本已完成校验。','synced','重新检查'],
+    NO_CHANGES:['已同步','没有新的记录需要同步。','synced','重新检查'],
+    LOCAL_NEWER:['待同步','本地有更新，点击同步即可上传最新记录。','newer','立即同步'],
+    LOCAL_CHANGES:['待同步','本地有更新，点击同步即可上传最新记录。','newer','立即同步'],
+    NOT_CONFIGURED:['尚未配置','本地数据不受影响；完成配置后即可启用云端同步。','neutral','查看说明'],
+    UPLOAD_FAILED:['同步未完成','本地记录仍然安全，请重新同步或查看高级信息。','failed','重新同步'],
+    CLOUD_MISMATCH:['校验未通过','云端副本与本地记录暂未确认一致，请重新同步。','failed','重新同步'],
+    DRY_RUN:['本地检查完成','本次只完成本地检查，没有更新云端副本。','neutral','刷新状态'],
+    READY:['待同步','本地记录已准备好，等待你手动发起同步。','newer','立即同步'],
   };
-  return {code, ...(map[code]||['正在同步','正在生成 Payload、上传集合并验证云端数据。','working','正在同步…'])};
+  return {code, ...(map[code]||['正在同步','正在准备同步，请稍候。','working','同步中…'])};
 }
 const cloudTruth=v=>v===true||['ok','ready','configured','connected','available','synced','verified'].includes(String(v||'').toLowerCase());
 const cloudVerdict=(v,yes='已确认',no='需验证')=>cloudTruth(v)?yes:no;
@@ -1378,3 +1379,61 @@ document.addEventListener('submit',event=>{const form=event.target.closest?.('[d
 reviewDataModuleFieldMarkup=function(review,category){const candidates=review?.data_modules?.candidates||[],actual=new Set(candidates.map(item=>String(item.module_id))),fields=reviewDataModuleFieldMarkupWithSlots(review,category),slots=(review?.data_module_slots||[]).filter(item=>String(item.module?.category_id||'extension')===category&&!actual.has(String(item.module?.module_id||''))).map(item=>{const module=item.module||{},label=module.label||module.module_id||'新增记录项',unit=module.display_unit||module.actual_unit||'',type=module.data_type||'text',path=`data_modules.slot_values.${module.module_id}`;return`<label class="review-field is-wide review-data-module-field review-data-module-reserved"><span>${esc(label)}${unit?` (${esc(unit)})`:''} <small>可选新增信息 · ${type==='text'?'自由内容（数字或文字）':type}</small></span>${type==='text'?`<textarea rows="3" data-review-slot="${esc(module.module_id)}" aria-label="${esc(label)}"></textarea>`:`<input type="number" data-review-slot="${esc(module.module_id)}" aria-label="${esc(label)}">`}</label>`}).join('');return fields+slots};
 document.addEventListener('click',event=>{const target=event.target.closest?.('[data-superset-context-index]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();openSupersetRelationDetail(target.dataset.supersetContextIndex)},true);
 const originalCollectReviewForm=collectReviewForm;collectReviewForm=function(){const review=originalCollectReviewForm();if(!review)return review;const candidates=review.data_modules?.candidates||[],existing=new Set(candidates.map(item=>String(item.module_id)));$$('[data-review-slot]').forEach(input=>{const value=String(input.value||'').trim();const moduleId=String(input.dataset.reviewSlot||'');if(value&&!existing.has(moduleId)){candidates.push({module_id:moduleId,date:review.date,value});existing.add(moduleId)}});return review};
+
+const baseQuickPageForChinese=quickPage;
+quickPage=function(){
+  baseQuickPageForChinese();
+  const set=(selector,text)=>{const node=document.querySelector(selector);if(node)node.textContent=text};
+  set('.entry-title-lockup .eyebrow','02 / 每日录入');
+  const title=document.querySelector('.entry-title-lockup .page-title');if(title)title.innerHTML='<span>记录</span> 今天。';
+  const subtitle=document.querySelector('.entry-title-lockup .page-subtitle');if(subtitle)subtitle.innerHTML='先自由记录，<b>复核后再整理</b>。';
+  set('.entry-rule span:first-child','本地记录');set('.entry-rule span:last-child','私密档案');
+  set('.entry-header .home-text-link','← 返回主页');set('.capture .eyebrow','自由记录 → 结构化归档');
+  const captureTitle=document.querySelector('.capture h2');if(captureTitle)captureTitle.innerHTML='先记录。 <em>再整理。</em>';
+  const parse=document.querySelector('#parse');if(parse)parse.innerHTML='识别并复核 <span>→</span>';
+  set('[data-undo]','撤销上次保存');set('.entry-save-float span','本地优先');set('.entry-save-float strong','可以开始记录');set('.entry-save-float small','复核确认后才会保存。');set('.entry-workbench .phase','先复核；确认保存后会自动创建本地备份。');
+};
+
+const baseToolsPageForChinese=toolsPage;
+toolsPage=function(){
+  baseToolsPageForChinese();
+  if(state.routeParams?.panel)return;
+  const set=(selector,text)=>{const node=document.querySelector(selector);if(node)node.textContent=text};
+  set('.tools-template-v6 .admin-breadcrumb strong','本地维护');set('.tools-template-v6 .admin-header-actions [data-view="dictionary"]','动作词典 →');
+  set('.admin-export-card .admin-kicker','01 / 分析导出');set('.admin-export-card h2','整理档案');set('.admin-export-card .admin-card-footer span','仅本地 · V1.1');set('.admin-export-card .admin-card-footer strong','打开导出 →');
+  set('.admin-health-card .admin-kicker','02 / 档案状态');set('.admin-health-card h2','保持档案清晰');set('.admin-health-card header p','同步和数据检查共享本地上下文，但各自只做一件事。');
+  set('.admin-health-card .admin-action-row[data-tools-panel="sync"] strong','云端同步');set('.admin-health-card .admin-action-row[data-tools-panel="sync"] small','生成、上传并校验只读副本。');set('.admin-health-card .admin-action-row[data-tools-panel="health"] strong','数据检查');set('.admin-health-card .admin-action-row[data-tools-panel="health"] small','扫描、定位并确认本地结构问题。');set('.admin-health-card .admin-card-footer span','本地记录 → 只读副本');set('.admin-health-card .admin-card-footer strong','打开档案状态 →');
+  set('.admin-reference-card .admin-kicker','参考 / 受控词汇');set('.admin-reference-card h2','动作词典');set('.admin-reference-card button','打开词典 →');
+  set('.admin-workspace-brand span','工具 / 工作区');set('.admin-workspace-brand strong','档案总览');
+  document.querySelectorAll('.admin-workspace-label').forEach(node=>{const map={'MAIN':'主要功能','REFERENCE':'参考工具','DISPLAY':'显示效果'};if(map[node.textContent.trim()])node.textContent=map[node.textContent.trim()]});
+  document.querySelectorAll('.admin-workspace-nav').forEach(node=>{const map={'Overview':'总览','Data Check':'数据检查','Cloud Sync':'云端同步','Export':'导出','Movement Dictionary':'动作词典'};const label=[...node.childNodes].find(item=>item.nodeType===Node.TEXT_NODE);const key=label?.textContent.trim();if(label&&map[key])label.textContent=map[key]});
+  set('.admin-workspace-footer .admin-status-badge','本地优先');set('.admin-workspace-footer small','本地记录是唯一事实来源');
+  document.querySelectorAll('.admin-kpi-label').forEach(node=>{const map={'ARCHIVE HEALTH':'档案状态','LOCAL LATEST':'本地最新','CLOUD REPLICA':'云端副本','DATA CHECK':'数据检查'};if(map[node.textContent.trim()])node.textContent=map[node.textContent.trim()]});
+  document.querySelectorAll('.admin-kpi-card small').forEach(node=>{const map={'open review items':'待处理项目','primary record':'主要记录','read-only copy':'只读副本','opens the review queue':'打开检查列表'};if(map[node.textContent.trim()])node.textContent=map[node.textContent.trim()]});
+};
+
+// Keep Cloud Sync focused on the user's decision: are the three surfaces in
+// agreement, and should I sync now? Technical evidence remains available on
+// demand so the default screen stays readable for everyday use.
+cloudSyncPage=async function(){
+  main.innerHTML='<div class="loading-page"><i></i><p>正在读取同步状态…</p></div>';
+  try{state.cloudSync=await api('/api/cloud-sync/status')}catch(error){state.cloudSync={error:error.message}}
+  state.syncStatus=state.cloudSync;
+  updateSyncNav();
+  const status=state.cloudSync||{},presentation=cloudStatusPresentation(status),isVerified=['SYNCED','NO_CHANGES'].includes(presentation.code);
+  const localDate=status.local_latest_record_date||'暂无记录',cloudDate=status.cloud_latest_record_date||'尚未确认';
+  const localState=localDate==='暂无记录'?'暂无记录':status.payload_stale||['LOCAL_NEWER','LOCAL_CHANGES','READY'].includes(presentation.code)?'有新记录待同步':'已保存';
+  const cloudState=isVerified?'已确认':cloudDate==='尚未确认'?'待同步':'待确认';
+  const phoneState=isVerified&&cloudDate!=='尚未确认'?'可查看':'待确认';
+  const phoneNote=isVerified&&cloudDate!=='尚未确认'?'手机端读取同一份云端副本':'完成同步后再到手机端查看';
+  const real=Boolean(status.network_upload_configured),ready=Boolean(status.upload_provider_ready);
+  const runLabel=real?'立即同步':ready?'执行本地检查':'查看同步说明';
+  const lastSync=status.last_sync_at||status.last_sync_result?.finished_at||'尚未同步';
+  const advancedStatus=status.error?'当前无法读取同步状态，请稍后重试。':`上次同步：${lastSync}`;
+  const technicalChecks=status.last_sync_result?.cloud_verification?.checks||{};
+  const verifiedCount=Object.values(technicalChecks).filter(Boolean).length;
+  const advancedResult=isVerified?'本次同步已通过完整校验。':verifiedCount?`已完成 ${verifiedCount} 项检查，仍需确认最终结果。`:'尚未形成完整校验结果。';
+  const card=(label,value,note,klass)=>`<article class="cloud-sync-user-card ${klass||''}"><span>${label}</span><strong>${esc(value)}</strong><small>${esc(note)}</small></article>`;
+  main.innerHTML=`<section class="page admin-page admin-sync-page cloud-sync-page cloud-sync-business" data-cloud-state="${esc(presentation[2])}"><button class="admin-back-link" data-tools-panel="overview">← 返回工具</button><header class="admin-page-header cloud-sync-business-head"><div><div class="admin-breadcrumb"><span>工具</span><i>/</i><strong>数据同步</strong></div><h1>云端同步</h1><p>查看本地记录、云端副本和手机端是否一致，也可以手动发起同步。</p></div><div class="admin-header-actions"><span class="admin-status-badge ${isVerified?'is-clear':presentation[2]==='failed'?'is-review':''}"><i></i>${esc(presentation[0])}</span></div></header><section class="cloud-sync-user-grid" aria-label="同步范围">${card('本地记录',localState,localDate,'is-local')}${card('云端副本',cloudState,cloudDate,'is-cloud')}${card('手机端',phoneState,phoneNote,'is-phone')}</section><div class="admin-sync-local-state ${localState==='有新记录待同步'?'is-pending':isVerified?'is-synced':''}" role="status"><i></i><strong>${esc(localState)}</strong><span>${esc(presentation[1])}</span></div><section class="cloud-sync-business-layout"><section class="admin-panel admin-sync-primary cloud-sync-business-primary"><header class="admin-panel-header"><div><span class="admin-kicker">同步状态</span><h2>${esc(presentation[0])}</h2><p id="cloud-sync-stage">${esc(cloudSyncModeHint(status))}</p></div><span class="admin-panel-meta">${esc(cloudSyncModeText(status))}</span></header><div class="cloud-sync-business-facts"><div><span>本地最新记录</span><strong>${esc(localDate)}</strong></div><div><span>云端最新记录</span><strong>${esc(cloudDate)}</strong></div><div><span>手机端状态</span><strong>${esc(phoneState)}</strong></div></div><div class="admin-sync-actions"><button class="admin-button admin-button-primary" data-cloud-sync-run>${esc(runLabel)} <span>→</span></button><button class="admin-button admin-button-quiet" data-cloud-sync-refresh>刷新状态</button></div><p class="admin-safety-note"><i></i>${real?'确认保存后会自动同步；手动同步用于立即检查最新结果。':ready?'当前为本地演练模式，不会更新真实云端。':'当前还未完成云端配置，本地记录不会受到影响。'}</p></section><aside class="admin-panel cloud-sync-business-help"><span class="admin-kicker">同步反馈</span><h2>${isVerified?'已经确认':'等待确认'}</h2><p>${esc(advancedStatus)}</p><p class="cloud-sync-feedback-note">${esc(advancedResult)}</p><button class="admin-button admin-button-outline admin-button-wide" data-tools-panel="health">查看数据问题 <span>→</span></button></aside></section><details class="admin-advanced cloud-sync-advanced"><summary><span><strong>高级信息</strong><small>仅在需要排查同步问题时查看</small></span><i>+</i></summary><div class="admin-advanced-body"><div class="admin-advanced-actions"><button class="link" data-cloud-sync-build>生成同步文件</button><button class="link" data-cloud-sync-directory>打开导入目录</button><button class="link" data-cloud-sync-preview ${status.manifest?.generated_at?'':'disabled'}>查看同步文件</button><button class="link" data-cloud-sync-copy>复制同步报告</button><button class="link" data-cloud-sync-guide>查看配置说明</button><button class="link" data-cloud-sync-env>复制环境信息</button><button class="link" data-cloud-sync-check="cloud">检查云端连接</button><button class="link" data-cloud-sync-check="ledger">检查手机端读取</button><button class="link" data-cloud-sync-check="allowlist">检查访问权限</button></div><details class="cloud-manual-verify"><summary>手动校验云端副本 <small>仅用于故障排查</small></summary><div><textarea id="cloud-meta-input" rows="5" placeholder='粘贴云端副本信息'></textarea><button class="btn" data-cloud-sync-verify>开始校验</button></div><div id="cloud-sync-verification" class="cloud-sync-verification"></div></details></div></details></section>`;
+  loadArchiveHealth().then(()=>{const count=Number(state.archiveHealth?.issue_count||0),node=$('[data-sync-unresolved]'),badge=$('[data-sync-health-count]');if(node)node.textContent=String(count);if(badge)badge.textContent=count?`${count} 项待处理`:'当前无需处理'});
+};

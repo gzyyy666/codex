@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import tempfile
 import threading
@@ -122,11 +123,11 @@ def main() -> None:
         root / "backups",
         analysis_export_protocol=AnalysisExportProtocolService(AnonymousFixtureProvider()),
     )
-    server = create_server(port=0, service=service)
+    server = create_server(port=int(os.environ.get("FITNESS_LEDGER_REVIEW_PORT", "0")), service=service)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     print(f"Fitness Ledger anonymous Web Polish review: http://127.0.0.1:{server.server_port}/#movements", flush=True)
-    print("Review paths: #body, #movements, #tools?panel=export. Formal data is not loaded.", flush=True)
+    print("Review paths: #home, #body, #movements, #tools, #tools?panel=sync. Formal data is not loaded.", flush=True)
     try:
         thread.join()
     except KeyboardInterrupt:

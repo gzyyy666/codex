@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Fitness Ledger Web</title>
   <link rel="stylesheet" href="styles.css?v=20260910-session-theme-ux-r7" />
-  <link rel="stylesheet" href="final-pass.css?v=20260913-web-controls-r2" />
+  <link rel="stylesheet" href="final-pass.css?v=20260913-web-controls-r3" />
   <link rel="stylesheet" href="tools-archive-control.css?v=20260810-v95" />
   <link rel="stylesheet" href="tools-template-adapter.css?v=20260910-session-theme-ux-r6" />
   <link rel="stylesheet" href="formal-mirror-data-modules.css?v=20260904-v22" />
@@ -17,22 +17,22 @@
     <aside class="sidebar">
       <div class="brand"><div class="brand-mark"><img src="assets/fitness-ledger-monogram.png" alt="Fitness Ledger monogram"></div><strong>FITNESS LEDGER</strong><small>MOVE. RECORD. KNOW.</small></div>
       <nav aria-label="主导航">
-        <button class="nav-item is-active" data-view="home"><span>00</span><b>⌂</b>Home</button>
-        <button class="nav-item" data-view="quick"><span>01</span><b>✎</b>Daily Entry</button>
-        <button class="nav-item" data-view="body"><span>02</span><b>♙</b>Body</button>
-        <button class="nav-item" data-view="diet"><span>03</span><b>♜</b>Diet</button>
-        <button class="nav-item" data-view="training"><span>04</span><b>↔</b>Training</button>
-        <button class="nav-item" data-view="movements"><span>05</span><b>⌁</b>Movement Progress</button>
-        <button class="nav-item nav-tools" data-view="tools"><span>08</span><b>◌</b>Tools</button>
+        <button class="nav-item is-active" data-view="home"><span>00</span><b>⌂</b>主页</button>
+        <button class="nav-item" data-view="quick"><span>01</span><b>✎</b>每日录入</button>
+        <button class="nav-item" data-view="body"><span>02</span><b>♙</b>身体记录</button>
+        <button class="nav-item" data-view="diet"><span>03</span><b>♜</b>饮食记录</button>
+        <button class="nav-item" data-view="training"><span>04</span><b>↔</b>训练记录</button>
+        <button class="nav-item" data-view="movements"><span>05</span><b>⌁</b>动作表现</button>
+        <button class="nav-item nav-tools" data-view="tools"><span>08</span><b>◌</b>工具</button>
       </nav>
-      <div class="privacy"><i></i><div>LOCAL-FIRST / PRIVATE<small>JSON remains the source of truth</small></div><div class="privacy-signals"><button class="health-nav-entry" data-data-check-open data-health-nav-entry hidden aria-label="查看待处理的数据问题"><span>Data</span><i class="health-nav-status" aria-hidden="true"></i></button><button class="health-nav-entry sync-nav-entry" data-cloud-sync-open data-sync-nav-entry hidden aria-label="查看云同步状态"><span>Sync</span><i class="health-nav-status sync-nav-status" aria-hidden="true"></i></button></div><button class="build-identity" type="button" data-build-identity aria-expanded="false" aria-label="查看运行版本"><span class="build-identity-label">BUILD UNKNOWN</span><i aria-hidden="true">⌄</i></button><span>▣</span></div>
+      <div class="privacy"><i></i><div>本地优先 / 私密保存<small>本地记录是唯一事实来源</small></div><div class="privacy-signals"><button class="health-nav-entry" data-data-check-open data-health-nav-entry hidden aria-label="查看待处理的数据问题"><span>数据</span><i class="health-nav-status" aria-hidden="true"></i></button><button class="health-nav-entry sync-nav-entry" data-cloud-sync-open data-sync-nav-entry hidden aria-label="查看云同步状态"><span>同步</span><i class="health-nav-status sync-nav-status" aria-hidden="true"></i></button></div><button class="build-identity" type="button" data-build-identity aria-expanded="false" aria-label="查看运行版本"><span class="build-identity-label">运行版本待确认</span><i aria-hidden="true">⌄</i></button><span>▣</span></div>
     </aside>
-    <main id="main" aria-live="polite"><div class="loading-page"><i></i><p>Loading your local journal…</p></div></main>
+    <main id="main" aria-live="polite"><div class="loading-page"><i></i><p>正在读取本地记录…</p></div></main>
   </div>
   <div id="overlay-root"></div>
   <div id="toast" role="status"></div>
   <aside id="save-receipt" class="save-receipt" role="status" aria-live="polite"></aside>
-  <script type="module" src="app.js?v=20260913-web-controls-r2"></script>
+  <script type="module" src="app.js?v=20260913-web-controls-r3"></script>
   <script type="module" src="formal-mirror-data-modules.js?v=20260911-v40"></script>
 </body>
 </html>
