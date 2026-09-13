@@ -556,14 +556,7 @@ button { color: inherit; cursor: pointer; }
 .reference-home .home-module-pill.color-rose { --chip-accent:#9b5967; --chip-soft:#eed2d9; }
 .reference-home .home-module-pill.color-blue { --chip-accent:#4a789e; --chip-soft:#d2e5f1; }
 
-/* Keep the Movement Module rail in the document while a phone keyboard is open.
-   The note remains comfortable to edit, but the browser no longer needs to pan
-   the whole page so far that the lower homepage appears to vanish. */
 @media (max-width: 699px) {
-  html.pwa-note-focused .reference-home { overflow: visible; scroll-padding-bottom: 35vh; }
-  html.pwa-note-focused .reference-home .note-stack:not(.note-stack--compact) .note-sheet { min-height:300px; }
-  html.pwa-note-focused .reference-home .note-stack:not(.note-stack--compact) .note-editor { min-height:180px; margin:8px 0 6px; }
-  html.pwa-note-focused .reference-home .note-decoration { display:none; }
   .reference-home .home-shell[data-home-state="selected-expanded"] .note-stack { top:calc(-8px - 4.533vw - env(safe-area-inset-top)); }
 }
 
@@ -697,33 +690,6 @@ button { color: inherit; cursor: pointer; }
     margin-top: 7px;
     border-radius: 18px 5px 18px 18px;
   }
-  html.pwa-note-focused .reference-home {
-    min-height: auto;
-    scroll-padding-bottom: calc(28dvh + env(safe-area-inset-bottom));
-  }
-  html.pwa-note-focused .reference-home .note-stack:not(.note-stack--compact) .note-sheet {
-    min-height: 270px;
-  }
-  html.pwa-note-focused .reference-home .note-stack:not(.note-stack--compact) .note-editor {
-    min-height: 150px;
-    max-height: 28dvh;
-    overflow-y: auto;
-    margin: 8px 0 6px;
-  }
-  /* A focused note may reveal candidate history. Let the whole lower stack
-     return to normal flow so the sticky desktop archive stack cannot slide
-     underneath that history while the visual viewport is keyboard-short. */
-  html.pwa-note-focused .reference-home .home-shell[data-home-state="selected-expanded"] .note-stack,
-  html.pwa-note-focused .reference-home .home-shell[data-home-state="selected-expanded"] .theme-strip,
-  html.pwa-note-focused .reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive,
-  html.pwa-note-focused .reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive-head {
-    position: relative;
-    top: auto;
-    z-index: auto;
-  }
-  html.pwa-note-focused .reference-home .candidate-overlay .candidate-scroll {
-    max-height: min(30dvh, 260px);
-  }
 }
 
 /* 2026-09-13 scroll convergence.
@@ -753,41 +719,7 @@ button { color: inherit; cursor: pointer; }
 }
 
 @media (max-width:699px) {
-  /* The keyboard is a separate visual viewport. Removing the decorative
-     homepage header gives the editor and read-only action recognition a
-     predictable place above it. */
-  html.pwa-note-focused { scroll-padding-top:max(44px, env(safe-area-inset-top)); }
-  html.pwa-note-focused .reference-home .home-header { display:none; }
-  html.pwa-note-focused .reference-home .note-stack,
-  html.pwa-note-focused .reference-home .home-shell[data-home-state="selected-expanded"] .note-stack {
-    position:relative;
-    top:auto;
-    z-index:auto;
-    margin-top:0;
-    padding-top:max(44px, env(safe-area-inset-top));
-  }
+  /* Keep focus layout-neutral. iOS may resize/pan the visual viewport for its
+     keyboard, but focusing the note must not hide or resize homepage modules. */
   html.pwa-note-focused .reference-home .note-editor { font-size:16px; }
-  html.pwa-note-focused .reference-home .theme-strip,
-  html.pwa-note-focused .reference-home .movement-preview,
-  html.pwa-note-focused .reference-home .theme-archive {
-    display:none !important;
-  }
-  html.pwa-note-focused .reference-home .note-stack:not(.note-stack--compact) .note-sheet {
-    min-height:min(270px, calc(var(--pwa-visual-height, 100dvh) * .7));
-  }
-  html.pwa-note-focused .reference-home .note-stack:not(.note-stack--compact) .note-editor {
-    min-height:min(150px, calc(var(--pwa-visual-height, 100dvh) * .38));
-    max-height:calc(var(--pwa-visual-height, 100dvh) * .38);
-  }
-  html.pwa-note-focused .reference-home .note-stack--compact .note-sheet {
-    min-height:min(230px, calc(var(--pwa-visual-height, 100dvh) * .58));
-  }
-  html.pwa-note-focused .reference-home .note-stack--compact .note-editor {
-    min-height:min(92px, calc(var(--pwa-visual-height, 100dvh) * .25));
-    max-height:calc(var(--pwa-visual-height, 100dvh) * .25);
-    overflow-y:auto;
-  }
-  html.pwa-note-focused .reference-home .candidate-overlay .candidate-scroll {
-    max-height:min(190px, calc(var(--pwa-visual-height, 100dvh) * .3));
-  }
 }

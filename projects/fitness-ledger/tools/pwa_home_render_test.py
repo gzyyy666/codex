@@ -132,18 +132,20 @@ def main() -> None:
         evaluate(browser, "document.querySelectorAll('.home-module-pill')[1].click()")
         wait_for(browser, "document.querySelector('[data-home-state]')?.dataset.homeState === 'selected-expanded' && !!document.querySelector('.home-module-pill.is-active')?.dataset.partId && document.querySelector('.home-module-pill.is-active').dataset.partId !== arguments[0]".replace("arguments[0]", repr(first_module)))
         assert evaluate(browser, "document.querySelector('[data-home-state]').dataset.homeState") == "selected-expanded"
+        expanded_before_focus = evaluate(browser, "(() => { const sheet=document.querySelector('.note-sheet').getBoundingClientRect(); const editor=document.querySelector('[data-note]').getBoundingClientRect(); return {sheetHeight:sheet.height, editorHeight:editor.height}; })()")
         evaluate(browser, "document.querySelector('[data-note]').focus()")
         focused = evaluate(browser, "new Promise(resolve => setTimeout(() => resolve(document.querySelectorAll('.home-module-pill').length), 500))")
         assert focused == 8, focused
         evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.value='器械三头下压'; note.dispatchEvent(new Event('input', {bubbles:true})); return true; })()")
         wait_for(browser, "!!document.querySelector('.candidate-overlay:not(.collapsed) .candidate b')")
-        candidate_layout = evaluate(browser, "(() => { const candidate=document.querySelector('.candidate-overlay'); const note=document.querySelector('.note-sheet').getBoundingClientRect(); const rail=document.querySelector('.theme-strip'); const archive=document.querySelector('.theme-archive'); return {position:getComputedStyle(candidate).position, top:candidate.getBoundingClientRect().top, bottom:candidate.getBoundingClientRect().bottom, noteBottom:note.bottom, headerDisplay:getComputedStyle(document.querySelector('.home-header')).display, railDisplay:getComputedStyle(rail).display, archiveDisplay:getComputedStyle(archive).display, editorFont:Number.parseFloat(getComputedStyle(document.querySelector('[data-note]')).fontSize), viewportScale:window.visualViewport?.scale || 1, viewport:innerHeight, candidateName:document.querySelector('.candidate b')?.textContent}; })()")
+        candidate_layout = evaluate(browser, "(() => { const candidate=document.querySelector('.candidate-overlay'); const note=document.querySelector('.note-sheet').getBoundingClientRect(); const editor=document.querySelector('[data-note]').getBoundingClientRect(); const rail=document.querySelector('.theme-strip'); const archive=document.querySelector('.theme-archive'); return {position:getComputedStyle(candidate).position, top:candidate.getBoundingClientRect().top, noteBottom:note.bottom, sheetHeight:note.height, editorHeight:editor.height, headerDisplay:getComputedStyle(document.querySelector('.home-header')).display, railDisplay:getComputedStyle(rail).display, archiveDisplay:getComputedStyle(archive).display, editorFont:Number.parseFloat(getComputedStyle(document.querySelector('[data-note]')).fontSize), viewportScale:window.visualViewport?.scale || 1, candidateName:document.querySelector('.candidate b')?.textContent}; })()")
         assert candidate_layout["position"] == "relative", candidate_layout
         assert candidate_layout["top"] >= candidate_layout["noteBottom"] - 1, candidate_layout
-        assert candidate_layout["headerDisplay"] == "none", candidate_layout
-        assert candidate_layout["railDisplay"] == "none" and candidate_layout["archiveDisplay"] == "none", candidate_layout
+        assert candidate_layout["headerDisplay"] != "none", candidate_layout
+        assert candidate_layout["railDisplay"] != "none" and candidate_layout["archiveDisplay"] != "none", candidate_layout
         assert candidate_layout["editorFont"] >= 16 and candidate_layout["viewportScale"] == 1, candidate_layout
-        assert candidate_layout["bottom"] <= candidate_layout["viewport"] + 1, candidate_layout
+        assert abs(candidate_layout["sheetHeight"] - expanded_before_focus["sheetHeight"]) <= 2, (expanded_before_focus, candidate_layout)
+        assert abs(candidate_layout["editorHeight"] - expanded_before_focus["editorHeight"]) <= 2, (expanded_before_focus, candidate_layout)
         assert candidate_layout["candidateName"] == "器械三头下压", candidate_layout
         evaluate(browser, "document.querySelector('[data-note]').blur(); true")
         wait_for(browser, "!document.documentElement.classList.contains('pwa-note-focused')")
@@ -151,10 +153,14 @@ def main() -> None:
         assert restored["rail"] != "none" and restored["archive"] != "none", restored
         evaluate(browser, "document.querySelector('.archive-collapse').click(); true")
         wait_for(browser, "document.querySelector('[data-home-state]').dataset.homeState === 'selected-collapsed'")
+        collapsed_before_focus = evaluate(browser, "(() => { const sheet=document.querySelector('.note-sheet').getBoundingClientRect(); const editor=document.querySelector('[data-note]').getBoundingClientRect(); return {sheetHeight:sheet.height, editorHeight:editor.height}; })()")
         evaluate(browser, "document.querySelector('[data-note]').focus(); true")
         wait_for(browser, "document.documentElement.classList.contains('pwa-note-focused')")
-        collapsed_focus = evaluate(browser, "({header:getComputedStyle(document.querySelector('.home-header')).display, rail:getComputedStyle(document.querySelector('.theme-strip')).display, preview:getComputedStyle(document.querySelector('.movement-preview')).display, editorFont:Number.parseFloat(getComputedStyle(document.querySelector('[data-note]')).fontSize)})")
-        assert collapsed_focus == {"header": "none", "rail": "none", "preview": "none", "editorFont": 16}, collapsed_focus
+        collapsed_focus = evaluate(browser, "(() => { const sheet=document.querySelector('.note-sheet').getBoundingClientRect(); const editor=document.querySelector('[data-note]').getBoundingClientRect(); return {header:getComputedStyle(document.querySelector('.home-header')).display, rail:getComputedStyle(document.querySelector('.theme-strip')).display, preview:getComputedStyle(document.querySelector('.movement-preview')).display, editorFont:Number.parseFloat(getComputedStyle(document.querySelector('[data-note]')).fontSize), sheetHeight:sheet.height, editorHeight:editor.height}; })()")
+        assert collapsed_focus["header"] != "none" and collapsed_focus["rail"] != "none" and collapsed_focus["preview"] != "none", collapsed_focus
+        assert collapsed_focus["editorFont"] == 16, collapsed_focus
+        assert abs(collapsed_focus["sheetHeight"] - collapsed_before_focus["sheetHeight"]) <= 2, (collapsed_before_focus, collapsed_focus)
+        assert abs(collapsed_focus["editorHeight"] - collapsed_before_focus["editorHeight"]) <= 2, (collapsed_before_focus, collapsed_focus)
         print("PWA_HOME_RENDER_STABILITY: PASS")
     finally:
         if browser is not None:
