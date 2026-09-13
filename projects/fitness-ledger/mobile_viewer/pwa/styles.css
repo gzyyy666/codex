@@ -735,6 +735,15 @@ button { color: inherit; cursor: pointer; }
     padding-bottom:0;
     background:transparent;
   }
+  html.pwa-keyboard-open .reference-home .home-header {
+    min-height:0;
+    max-height:0;
+    margin:0;
+    padding:0;
+    overflow:hidden;
+    opacity:0;
+    pointer-events:none;
+  }
   html.pwa-keyboard-open .reference-home .note-sheet,
   html.pwa-keyboard-open .reference-home .note-stack--compact .note-sheet,
   html.pwa-keyboard-open .reference-home .home-shell[data-home-state="selected-collapsed"] .note-sheet,
@@ -757,9 +766,16 @@ button { color: inherit; cursor: pointer; }
   html.pwa-keyboard-open .reference-home .note-decoration { display:none; }
   html.pwa-keyboard-open .reference-home .note-footer { padding-top:2px; }
   html.pwa-keyboard-open .reference-home .candidate-overlay {
-    margin-top:calc(2 * 1.55em);
+    position:absolute;
+    z-index:52;
+    top:var(--keyboard-candidate-top);
+    right:0;
+    left:0;
+    width:auto;
+    margin:0;
     padding:7px;
     border-radius:14px 5px 14px 14px;
+    box-shadow:0 10px 24px rgba(53,44,29,.18);
   }
   html.pwa-keyboard-open .reference-home .candidate-overlay .candidate-head { min-height:16px; }
   html.pwa-keyboard-open .reference-home .candidate-overlay .candidate-scroll {
@@ -770,6 +786,7 @@ button { color: inherit; cursor: pointer; }
   html.pwa-keyboard-open .reference-home .candidate-overlay .candidate { margin-top:3px; padding:7px; }
   html.pwa-keyboard-open .reference-home .candidate-history-list .candidate-history:not(:first-child) { display:none; }
   html.pwa-keyboard-open .reference-home .candidate-history { padding:4px 0 0; }
-  html.pwa-keyboard-open .reference-home .candidate-sets { grid-template-columns:repeat(3,minmax(0,1fr)); gap:3px; margin-top:4px; }
+  html.pwa-keyboard-open .reference-home .candidate-sets { grid-template-columns:repeat(2,minmax(0,1fr)); gap:3px; margin-top:4px; }
   html.pwa-keyboard-open .reference-home .candidate-set { min-height:20px; padding:2px 3px; }
+  html.pwa-keyboard-open .reference-home .candidate-set-values b { overflow:visible; white-space:nowrap; }
 }

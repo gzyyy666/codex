@@ -54,7 +54,7 @@ def main() -> None:
     assert "refreshCandidateOverlay" in app_source
     assert "noteHistoryCache" in app_source
     assert 'data-candidate-region' in app_source
-    assert 'PWA v1.1.24' in app_source
+    assert 'PWA v1.1.25' in app_source
     assert 'data-action="expand-note">发送到电脑</button>' in app_source
     assert 'if (action === "expand-note") { state.noteExpanded = true; state.shareDraft = state.note; state.shareTitle = "手机训练记录"; state.shareSent = false;' in app_source
     assert '确认发送' in app_source and 'PHONE_INBOX_TIMEOUT_MS = 15000' in app_source
@@ -104,9 +104,9 @@ def main() -> None:
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'includes("/api/")' in service_worker
-    assert 'fitness-ledger-pwa-v60' in service_worker
-    assert '"./data-modules.js?v=20260913-21"' in service_worker
-    assert 'register("./sw.js?v=20260913-21", { updateViaCache: "none" })' in app_source
+    assert 'fitness-ledger-pwa-v61' in service_worker
+    assert '"./data-modules.js?v=20260913-22"' in service_worker
+    assert 'register("./sw.js?v=20260913-22", { updateViaCache: "none" })' in app_source
     assert '.reference-page.reference-home { overflow: visible; }' in css_source
     assert '.reference-home .note-stack:not(.note-stack--compact) .note-sheet { min-height:440px; }' in css_source
     assert 'document.documentElement.classList.add("pwa-note-focused")' in app_source
@@ -123,7 +123,9 @@ def main() -> None:
     assert "visualViewportBaselineHeight - viewport.height" in app_source
     assert "html.pwa-keyboard-open .reference-home .note-editor" in css_source
     assert "height:calc(6 * 1.55em + 18px);" in css_source
-    assert "grid-template-columns:repeat(3,minmax(0,1fr))" in css_source
+    assert "grid-template-columns:repeat(2,minmax(0,1fr))" in css_source
+    assert 'candidate.style.setProperty("--keyboard-candidate-top"' in app_source
+    assert "html.pwa-keyboard-open .reference-home .home-header" in css_source
     assert "html.pwa-note-focused .reference-home .home-header { display:none; }" not in css_source
     assert "html.pwa-note-focused .reference-home .theme-strip" not in css_source
     assert "html.pwa-note-focused .reference-home .theme-archive" not in css_source

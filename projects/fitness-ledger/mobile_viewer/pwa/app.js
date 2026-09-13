@@ -20,7 +20,7 @@ const DEFAULT_ACTIVE_BODY_PART_IDS = new Set(["chest", "shoulders", "back", "leg
 const DEFAULT_BODY_PART_ORDER = ["chest", "shoulders", "back", "legs", "arms", "glutes", "core", "cardio"];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.24 · build 2026.09.13.21";
+const BUILD_VERSION = "PWA v1.1.25 · build 2026.09.13.22";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -928,8 +928,16 @@ function scheduleKeyboardWorkspaceAlignment() {
     keyboardAlignmentFrame = 0;
     if (!document.documentElement.classList.contains("pwa-keyboard-open")) return;
     const note = document.querySelector(".reference-home .note-stack");
+    const home = document.querySelector(".reference-home .home-shell");
+    const editor = note?.querySelector("[data-note]");
+    const candidate = home?.querySelector(".candidate-overlay:not(.collapsed)");
     const viewport = window.visualViewport;
-    if (!note || !viewport) return;
+    if (!note || !home || !editor || !viewport) return;
+    if (candidate) {
+      const homeRect = home.getBoundingClientRect();
+      const editorRect = editor.getBoundingClientRect();
+      candidate.style.setProperty("--keyboard-candidate-top", `${Math.round(editorRect.bottom - homeRect.top - 1)}px`);
+    }
     const top = window.scrollY + note.getBoundingClientRect().top - viewport.offsetTop - 6;
     window.scrollTo({ top: Math.max(0, top), behavior: "auto" });
   });
@@ -1094,7 +1102,7 @@ document.addEventListener("click", event => {
 window.addEventListener("scroll", () => { enforceExpandedHomeScrollLock(); scheduleDockCheck(); positionCandidateOverlay(); scheduleExpandedHomeLayout(); }, { passive: true });
 window.addEventListener("resize", () => { syncVisualViewportMetrics(); scheduleExpandedHomeLayout(); }, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260913-21", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260913-22", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();
