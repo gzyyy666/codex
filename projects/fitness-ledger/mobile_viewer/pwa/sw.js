@@ -1,11 +1,11 @@
-const CACHE_NAME = "fitness-ledger-pwa-v63";
+const CACHE_NAME = "fitness-ledger-pwa-v64";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=20260913-24",
+  "./styles.css?v=20260913-25",
   "./config.js?v=20260820-04",
-  "./app.js?v=20260913-24",
-  "./data-modules.js?v=20260913-24",
+  "./app.js?v=20260913-25",
+  "./data-modules.js?v=20260913-25",
   "./api.js?v=20260820-04",
   "./share.html",
   "./share.css?v=20260820-04",
