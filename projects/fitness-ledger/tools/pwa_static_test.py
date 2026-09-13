@@ -54,7 +54,7 @@ def main() -> None:
     assert "refreshCandidateOverlay" in app_source
     assert "noteHistoryCache" in app_source
     assert 'data-candidate-region' in app_source
-    assert 'PWA v1.1.25' in app_source
+    assert 'PWA v1.1.26' in app_source
     assert 'data-action="expand-note">发送到电脑</button>' in app_source
     assert 'if (action === "expand-note") { state.noteExpanded = true; state.shareDraft = state.note; state.shareTitle = "手机训练记录"; state.shareSent = false;' in app_source
     assert '确认发送' in app_source and 'PHONE_INBOX_TIMEOUT_MS = 15000' in app_source
@@ -104,9 +104,9 @@ def main() -> None:
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'includes("/api/")' in service_worker
-    assert 'fitness-ledger-pwa-v61' in service_worker
-    assert '"./data-modules.js?v=20260913-22"' in service_worker
-    assert 'register("./sw.js?v=20260913-22", { updateViaCache: "none" })' in app_source
+    assert 'fitness-ledger-pwa-v62' in service_worker
+    assert '"./data-modules.js?v=20260913-23"' in service_worker
+    assert 'register("./sw.js?v=20260913-23", { updateViaCache: "none" })' in app_source
     assert '.reference-page.reference-home { overflow: visible; }' in css_source
     assert '.reference-home .note-stack:not(.note-stack--compact) .note-sheet { min-height:440px; }' in css_source
     assert 'document.documentElement.classList.add("pwa-note-focused")' in app_source
@@ -117,15 +117,21 @@ def main() -> None:
     assert "--pwa-visual-height" in app_source
     assert ".reference-home .candidate-overlay {\n  position: relative;" in css_source
     assert ".reference-home .candidate-overlay .candidate-scroll {" in css_source
-    assert "max-height: min(34dvh, 320px);" in css_source
+    assert "max-height: var(--candidate-latest-height, 240px);" in css_source
     assert "html.pwa-note-focused .reference-home .note-editor { font-size:16px; }" in css_source
     assert 'classList.toggle("pwa-keyboard-open", keyboardOpen)' in app_source
     assert "visualViewportBaselineHeight - viewport.height" in app_source
     assert "html.pwa-keyboard-open .reference-home .note-editor" in css_source
     assert "height:calc(6 * 1.55em + 18px);" in css_source
-    assert "grid-template-columns:repeat(2,minmax(0,1fr))" in css_source
+    assert "grid-template-columns:1fr" in css_source
     assert 'candidate.style.setProperty("--keyboard-candidate-top"' in app_source
     assert "html.pwa-keyboard-open .reference-home .home-header" in css_source
+    assert "--candidate-latest-height" in app_source and "--candidate-latest-height" in css_source
+    assert "candidate-set--complex" in app_source
+    assert "candidate-history:not(:first-child)" not in css_source
+    assert "最近两次训练" in app_source and "最高重量" in app_source
+    movement_card_source = app_source.split("function renderMovementCard", 1)[1].split("function renderSessions", 1)[0]
+    assert "历史最好" not in movement_card_source and ">上一次<" not in movement_card_source
     assert "html.pwa-note-focused .reference-home .home-header { display:none; }" not in css_source
     assert "html.pwa-note-focused .reference-home .theme-strip" not in css_source
     assert "html.pwa-note-focused .reference-home .theme-archive" not in css_source

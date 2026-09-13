@@ -650,7 +650,7 @@ button { color: inherit; cursor: pointer; }
 }
 .reference-home .candidate-overlay .candidate-scroll {
   height: auto;
-  max-height: min(34dvh, 320px);
+  max-height: var(--candidate-latest-height, 240px);
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
@@ -779,14 +779,47 @@ button { color: inherit; cursor: pointer; }
   }
   html.pwa-keyboard-open .reference-home .candidate-overlay .candidate-head { min-height:16px; }
   html.pwa-keyboard-open .reference-home .candidate-overlay .candidate-scroll {
-    max-height:none;
-    overflow:visible;
+    max-height:var(--candidate-latest-height, 240px);
+    overflow-y:auto;
     margin-top:3px;
   }
   html.pwa-keyboard-open .reference-home .candidate-overlay .candidate { margin-top:3px; padding:7px; }
-  html.pwa-keyboard-open .reference-home .candidate-history-list .candidate-history:not(:first-child) { display:none; }
   html.pwa-keyboard-open .reference-home .candidate-history { padding:4px 0 0; }
-  html.pwa-keyboard-open .reference-home .candidate-sets { grid-template-columns:repeat(2,minmax(0,1fr)); gap:3px; margin-top:4px; }
+  html.pwa-keyboard-open .reference-home .candidate-sets { grid-template-columns:1fr; gap:3px; margin-top:4px; }
   html.pwa-keyboard-open .reference-home .candidate-set { min-height:20px; padding:2px 3px; }
-  html.pwa-keyboard-open .reference-home .candidate-set-values b { overflow:visible; white-space:nowrap; }
 }
+
+/* Recognition cards reserve exactly the measured latest record. Older formal
+   history remains in the same scroll surface instead of being removed. */
+.reference-home .candidate-overlay { padding:6px 7px 7px; }
+.reference-home .candidate-overlay .candidate-head { min-height:14px; font-size:9px; }
+.reference-home .candidate-overlay .candidate-head button { font-size:9px; }
+.reference-home .candidate-overlay .candidate { margin-top:3px; padding:7px 8px; }
+.reference-home .candidate-overlay .candidate-main > b { font-size:16px; line-height:1.15; }
+.reference-home .candidate-overlay .candidate-main > small { margin-top:1px; font-size:9px; line-height:1.2; }
+.reference-home .candidate-overlay .candidate-meta { min-width:44px; }
+.reference-home .candidate-overlay .candidate .candidate-history-list { margin-top:4px; }
+.reference-home .candidate-history { padding:5px 0; }
+.reference-home .candidate-history-head b { font-size:12px; }
+.reference-home .candidate-sets { grid-template-columns:1fr; gap:4px; margin-top:5px; }
+.reference-home .candidate-set { grid-template-columns:25px minmax(0,1fr); min-height:27px; padding:4px 6px; }
+.reference-home .candidate-set span { width:25px; font-size:10px; }
+.reference-home .candidate-set-values { grid-template-columns:minmax(72px,1.2fr) minmax(58px,.9fr) minmax(52px,.8fr); gap:8px; }
+.reference-home .candidate-set-values b { overflow:visible; overflow-wrap:normal; font-size:11px; line-height:1.25; white-space:nowrap; }
+.reference-home .candidate-set--complex { grid-template-columns:25px minmax(0,1fr); }
+.reference-home .candidate-set-line { color:#4c463d; font-size:11px; font-weight:400; line-height:1.35; white-space:normal; }
+
+/* Movement performance uses two equal dated snapshots; peak weight is a
+   separate metric and no longer competes with one training record. */
+.reference-home .movement-performance-head { display:flex; align-items:flex-end; justify-content:space-between; gap:10px; margin-top:9px; padding-top:8px; border-top:1px solid rgba(23,23,20,.12); color:#817b72; font-size:9px; letter-spacing:.08em; }
+.reference-home .movement-performance-head > div { display:flex; align-items:baseline; gap:6px; }
+.reference-home .movement-performance-head small { font-size:9px; }
+.reference-home .movement-performance-head b { color:#26352d; font-size:14px; font-weight:500; letter-spacing:0; }
+.reference-home .training-snapshot-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin-top:6px; }
+.reference-home .training-snapshot { min-width:0; padding:8px; border-radius:8px; background:#f0eadf; }
+.reference-home .training-snapshot span { display:block; color:#746f66; font-size:9px; line-height:1.3; }
+.reference-home .training-snapshot b { display:block; margin-top:5px; color:#263129; font-size:12px; font-weight:400; line-height:1.45; overflow-wrap:anywhere; }
+.reference-home .theme-archive .movement-card { padding:10px 11px; }
+.reference-home .theme-archive .movement-head { align-items:flex-start; }
+.reference-home .theme-archive .movement-en { margin-top:2px; }
+.reference-home .theme-archive .movement-action { margin-top:8px; }
