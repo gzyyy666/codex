@@ -20,7 +20,7 @@ const DEFAULT_ACTIVE_BODY_PART_IDS = new Set(["chest", "shoulders", "back", "leg
 const DEFAULT_BODY_PART_ORDER = ["chest", "shoulders", "back", "legs", "arms", "glutes", "core", "cardio"];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.19 · build 2026.09.13.16";
+const BUILD_VERSION = "PWA v1.1.20 · build 2026.09.13.17";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -44,7 +44,7 @@ const state = {
   noteDetailOpen: false, noteDetailLoading: false, noteDetailError: "",
   noteDetailMovement: null, noteDetailHistory: [], noteDetailRequest: 0, showAliases: false,
   expanded: {}, candidatesRequest: 0, noteComposing: false, noteCatalog: null,
-  noteHistoryCache: new Map(), candidateAnchorTop: null, deferredRender: false, noteCopyStatus: "",
+  noteHistoryCache: new Map(), candidateAnchorTop: null, expandedHomeLockScrollY: null, deferredRender: false, noteCopyStatus: "",
   authRequired: false, authBusy: false, authMessage: "",
   shareDraft: "", shareTitle: "", shareOpen: false, shareBusy: false, shareSent: false, shareError: "", shareNotice: "",
   phoneInboxItems: [], phoneInboxLoaded: false
@@ -220,6 +220,7 @@ function toneForArea(item) {
 function isTopRoute() { return ["reference", "training", "status"].includes(state.route.name); }
 function resetViewport() {
   document.activeElement?.blur?.();
+  state.expandedHomeLockScrollY = null;
   window.scrollTo(0, 0);
   window.requestAnimationFrame(() => window.scrollTo(0, 0));
 }
@@ -562,16 +563,34 @@ function positionExpandedHome() {
 function syncExpandedScrollLock() {
   const home = document.querySelector('.reference-home .home-shell[data-home-state="selected-expanded"]');
   const noteSheet = home?.querySelector('.note-sheet');
-  if (!home || !noteSheet) return;
+  if (!home || !noteSheet) {
+    state.expandedHomeLockScrollY = null;
+    return;
+  }
   const locked = home.classList.contains('expanded-scroll-locked');
+  if (document.documentElement.classList.contains("pwa-note-focused")) {
+    if (locked) home.classList.remove("expanded-scroll-locked");
+    state.expandedHomeLockScrollY = null;
+    return;
+  }
   const noteTop = noteSheet.getBoundingClientRect().top;
   // Keep a small hysteresis band so the height change caused by opening the
   // nested list cannot immediately undo the lock at the same scroll offset.
   const shouldLock = locked ? noteTop <= 12 : noteTop <= 4;
-  if (shouldLock === locked) return;
+  if (shouldLock === locked) {
+    if (locked && !Number.isFinite(state.expandedHomeLockScrollY)) state.expandedHomeLockScrollY = window.scrollY;
+    return;
+  }
   const scrollY = window.scrollY;
   home.classList.toggle('expanded-scroll-locked', shouldLock);
-  if (shouldLock) window.requestAnimationFrame(() => window.scrollTo(0, scrollY));
+  state.expandedHomeLockScrollY = shouldLock ? scrollY : null;
+  if (shouldLock) window.requestAnimationFrame(() => window.scrollTo({ top: scrollY, behavior: "auto" }));
+}
+function enforceExpandedHomeScrollLock() {
+  const home = document.querySelector('.reference-home .home-shell[data-home-state="selected-expanded"].expanded-scroll-locked');
+  const target = state.expandedHomeLockScrollY;
+  if (!home || !Number.isFinite(target) || document.documentElement.classList.contains("pwa-note-focused")) return;
+  if (Math.abs(window.scrollY - target) > 1) window.scrollTo({ top: target, behavior: "auto" });
 }
 function scheduleExpandedHomeLayout() {
   if (expandedHomeLayoutFrame) return;
@@ -793,6 +812,7 @@ function render() {
 async function selectMovementModule(partId) {
   const id = String(partId || "").trim();
   if (!id) return;
+  state.expandedHomeLockScrollY = null;
   if (String(state.selectedPartId || "") === id) {
     state.selectedPartId = null;
     state.archiveExpanded = false;
@@ -913,7 +933,15 @@ document.addEventListener("focusout", event => {
     restoreNoteFocusViewport();
   }, 50);
 });
-window.visualViewport?.addEventListener("resize", stabilizeNoteFocusViewport, { passive: true });
+function syncVisualViewportMetrics() {
+  const viewport = window.visualViewport;
+  if (!viewport) return;
+  document.documentElement.style.setProperty("--pwa-visual-height", `${Math.round(viewport.height)}px`);
+  document.documentElement.style.setProperty("--pwa-visual-top", `${Math.round(viewport.offsetTop)}px`);
+  scheduleExpandedHomeLayout();
+}
+window.visualViewport?.addEventListener("resize", syncVisualViewportMetrics, { passive: true });
+syncVisualViewportMetrics();
 
 function loadNoteCatalog() {
   if (Array.isArray(state.noteCatalog)) return Promise.resolve(state.noteCatalog);
@@ -1036,10 +1064,10 @@ document.addEventListener("click", event => {
   if (action === "close-note-detail") { state.noteDetailRequest += 1; state.noteDetailOpen = false; state.noteDetailLoading = false; render(); }
   if (action === "noop") return;
 });
-window.addEventListener("scroll", () => { scheduleDockCheck(); positionCandidateOverlay(); scheduleExpandedHomeLayout(); }, { passive: true });
-window.addEventListener("resize", scheduleExpandedHomeLayout, { passive: true });
+window.addEventListener("scroll", () => { enforceExpandedHomeScrollLock(); scheduleDockCheck(); positionCandidateOverlay(); scheduleExpandedHomeLayout(); }, { passive: true });
+window.addEventListener("resize", () => { syncVisualViewportMetrics(); scheduleExpandedHomeLayout(); }, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260913-16", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260913-17", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

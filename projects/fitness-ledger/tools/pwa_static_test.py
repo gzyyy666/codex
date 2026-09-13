@@ -54,7 +54,7 @@ def main() -> None:
     assert "refreshCandidateOverlay" in app_source
     assert "noteHistoryCache" in app_source
     assert 'data-candidate-region' in app_source
-    assert 'PWA v1.1.19' in app_source
+    assert 'PWA v1.1.20' in app_source
     assert 'data-action="expand-note">发送到电脑</button>' in app_source
     assert 'if (action === "expand-note") { state.noteExpanded = true; state.shareDraft = state.note; state.shareTitle = "手机训练记录"; state.shareSent = false;' in app_source
     assert '确认发送' in app_source and 'PHONE_INBOX_TIMEOUT_MS = 15000' in app_source
@@ -104,19 +104,23 @@ def main() -> None:
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'includes("/api/")' in service_worker
-    assert 'fitness-ledger-pwa-v55' in service_worker
-    assert '"./data-modules.js?v=20260913-16"' in service_worker
-    assert 'register("./sw.js?v=20260913-16", { updateViaCache: "none" })' in app_source
+    assert 'fitness-ledger-pwa-v56' in service_worker
+    assert '"./data-modules.js?v=20260913-17"' in service_worker
+    assert 'register("./sw.js?v=20260913-17", { updateViaCache: "none" })' in app_source
     assert '.reference-page.reference-home { overflow: visible; }' in css_source
     assert '.reference-home .note-stack:not(.note-stack--compact) .note-sheet { min-height:440px; }' in css_source
     assert 'html.pwa-note-focused .reference-home .note-stack:not(.note-stack--compact) .note-editor { min-height:180px;' in css_source
     assert 'document.documentElement.classList.add("pwa-note-focused")' in app_source
     assert 'restoreNoteFocusViewport' in app_source
-    assert 'visualViewport?.addEventListener("resize", stabilizeNoteFocusViewport' in app_source
+    assert 'visualViewport?.addEventListener("resize", syncVisualViewportMetrics' in app_source
     assert "Let iOS place the focused editor inside the visual viewport" in app_source
+    assert "enforceExpandedHomeScrollLock" in app_source
+    assert "--pwa-visual-height" in app_source
     assert ".reference-home .candidate-overlay {\n  position: relative;" in css_source
     assert ".reference-home .candidate-overlay .candidate-scroll {" in css_source
     assert "max-height: min(34dvh, 320px);" in css_source
+    assert "archive parent in normal flow" in css_source
+    assert "html.pwa-note-focused .reference-home .home-header { display:none; }" in css_source
     assert 'cache: "no-store"' in api_source
     assert 'READ_TIMEOUT_MS' in api_source and 'READ_ATTEMPTS' in api_source
     assert 'Promise.allSettled' in app_source

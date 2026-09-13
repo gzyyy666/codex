@@ -112,12 +112,17 @@ def main() -> None:
         evaluate(browser, f"new Promise(resolve => setTimeout(() => {{ window.scrollTo(0, {scroll_target}); resolve(true); }}, 100))")
         evaluate(browser, "window.scrollTo(0, document.querySelector('.theme-archive-head').offsetTop + 180); window.dispatchEvent(new Event('scroll')); true")
         wait_for(browser, "document.querySelector('.home-shell').classList.contains('expanded-scroll-locked')")
-        after_scroll = evaluate(browser, "new Promise(resolve => setTimeout(() => { const note=document.querySelector('.note-sheet').getBoundingClientRect(); const stack=document.querySelector('.note-stack').getBoundingClientRect(); const strip=document.querySelector('.theme-strip').getBoundingClientRect(); const head=document.querySelector('.theme-archive-head').getBoundingClientRect(); const list=document.querySelector('.theme-archive-list').getBoundingClientRect(); const home=document.querySelector('.home-shell'); resolve({noteTop:note.top, stackTop:stack.top, stripTop:strip.top, headTop:head.top, listTop:list.top, listClientHeight:document.querySelector('.theme-archive-list').clientHeight, listScrollHeight:document.querySelector('.theme-archive-list').scrollHeight, listOverflow:getComputedStyle(document.querySelector('.theme-archive-list')).overflowY, scrollY:scrollY, locked:home.classList.contains('expanded-scroll-locked'), position:getComputedStyle(document.querySelector('.note-stack')).position}); }, 80))")
+        after_scroll = evaluate(browser, "new Promise(resolve => setTimeout(() => { const note=document.querySelector('.note-sheet').getBoundingClientRect(); const stack=document.querySelector('.note-stack').getBoundingClientRect(); const strip=document.querySelector('.theme-strip').getBoundingClientRect(); const head=document.querySelector('.theme-archive-head').getBoundingClientRect(); const list=document.querySelector('.theme-archive-list').getBoundingClientRect(); const home=document.querySelector('.home-shell'); resolve({noteTop:note.top, stackTop:stack.top, stripTop:strip.top, headTop:head.top, listTop:list.top, listClientHeight:document.querySelector('.theme-archive-list').clientHeight, listScrollHeight:document.querySelector('.theme-archive-list').scrollHeight, listOverflow:getComputedStyle(document.querySelector('.theme-archive-list')).overflowY, scrollY:scrollY, locked:home.classList.contains('expanded-scroll-locked'), position:getComputedStyle(document.querySelector('.note-stack')).position, archivePosition:getComputedStyle(document.querySelector('.theme-archive')).position}); }, 80))")
         assert after_scroll["noteTop"] <= 2, after_scroll
         assert after_scroll["stripTop"] >= after_scroll["noteTop"] + sticky_layout["note"] - 3, after_scroll
         assert after_scroll["headTop"] >= after_scroll["stripTop"] + sticky_layout["strip"] - 3, after_scroll
         assert after_scroll["locked"] is True and after_scroll["listOverflow"] in ("auto", "scroll"), after_scroll
         assert after_scroll["listScrollHeight"] > after_scroll["listClientHeight"], after_scroll
+        assert after_scroll["archivePosition"] == "relative", after_scroll
+        lock_scroll_y = after_scroll["scrollY"]
+        evaluate(browser, f"window.scrollTo(0, {lock_scroll_y + 500}); true")
+        locked_scroll = evaluate(browser, "new Promise(resolve => setTimeout(() => resolve(scrollY), 80))")
+        assert abs(locked_scroll - lock_scroll_y) <= 1, {"lock_scroll_y": lock_scroll_y, "locked_scroll": locked_scroll}
         list_top = after_scroll["listTop"]
         evaluate(browser, "document.querySelector('.theme-archive-list').scrollTo(0, 220)")
         nested_scroll = evaluate(browser, "new Promise(resolve => setTimeout(() => { const list=document.querySelector('.theme-archive-list'); const note=document.querySelector('.note-sheet').getBoundingClientRect(); resolve({scrollTop:list.scrollTop, listTop:list.getBoundingClientRect().top, noteTop:note.top}); }, 80))")
@@ -131,11 +136,12 @@ def main() -> None:
         assert focused == 8, focused
         evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.value='器械三头下压'; note.dispatchEvent(new Event('input', {bubbles:true})); return true; })()")
         wait_for(browser, "!!document.querySelector('.candidate-overlay:not(.collapsed) .candidate b')")
-        candidate_layout = evaluate(browser, "(() => { const candidate=document.querySelector('.candidate-overlay'); const note=document.querySelector('.note-sheet').getBoundingClientRect(); const rail=document.querySelector('.theme-strip').getBoundingClientRect(); const archive=document.querySelector('.theme-archive-head').getBoundingClientRect(); return {position:getComputedStyle(candidate).position, top:candidate.getBoundingClientRect().top, bottom:candidate.getBoundingClientRect().bottom, noteBottom:note.bottom, railTop:rail.top, archiveTop:archive.top, candidateName:document.querySelector('.candidate b')?.textContent}; })()")
+        candidate_layout = evaluate(browser, "(() => { const candidate=document.querySelector('.candidate-overlay'); const note=document.querySelector('.note-sheet').getBoundingClientRect(); const rail=document.querySelector('.theme-strip').getBoundingClientRect(); const archive=document.querySelector('.theme-archive-head').getBoundingClientRect(); return {position:getComputedStyle(candidate).position, top:candidate.getBoundingClientRect().top, bottom:candidate.getBoundingClientRect().bottom, noteBottom:note.bottom, railTop:rail.top, archiveTop:archive.top, headerDisplay:getComputedStyle(document.querySelector('.home-header')).display, candidateName:document.querySelector('.candidate b')?.textContent}; })()")
         assert candidate_layout["position"] == "relative", candidate_layout
         assert candidate_layout["top"] >= candidate_layout["noteBottom"] - 1, candidate_layout
         assert candidate_layout["bottom"] <= candidate_layout["railTop"] + 1, candidate_layout
         assert candidate_layout["bottom"] <= candidate_layout["archiveTop"] + 1, candidate_layout
+        assert candidate_layout["headerDisplay"] == "none", candidate_layout
         assert candidate_layout["candidateName"] == "器械三头下压", candidate_layout
         print("PWA_HOME_RENDER_STABILITY: PASS")
     finally:
