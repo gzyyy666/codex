@@ -90,7 +90,7 @@ button { color: inherit; cursor: pointer; }
 .theme-archive .sort-rail > button { flex:1; min-width:0; padding:8px 3px; border:0; border-radius:8px; background:transparent; color:#77736b; font-size:10px; white-space:nowrap; }
 .theme-archive .sort-rail > button.is-active { background:var(--decorative-accent); color:#fffdf7; box-shadow:0 4px 9px color-mix(in srgb,var(--decorative-accent) 20%,transparent); }
 .note-stack--compact .note-sheet { min-height:185px; }
-.note-stack--compact .note-editor { min-height:66px; margin:12px 0 10px; font-size:15px; }
+.note-stack--compact .note-editor { min-height:66px; margin:12px 0 10px; font-size:16px; }
 .note-stack--compact .note-decoration { display:none; }
 .theme-session-secondary { margin-top:22px; border-top:1px solid color-mix(in srgb,var(--decorative-accent) 18%,transparent); }
 .theme-session-secondary > summary { padding:13px 2px; color:#67756d; font-size:12px; cursor:pointer; }
@@ -123,7 +123,7 @@ button { color: inherit; cursor: pointer; }
 .reference-home .note-stack--compact .note-editor { min-height:120px; margin:13px 0 8px; }
 .reference-home .theme-archive { margin-top:8px; }
 .reference-home .note-stack--compact .note-sheet { min-height:185px; }
-.reference-home .note-stack--compact .note-editor { min-height:66px; margin:12px 0 10px; font-size:15px; }
+.reference-home .note-stack--compact .note-editor { min-height:66px; margin:12px 0 10px; font-size:16px; }
 .reference-home .note-stack--compact .note-decoration { display:none; }
 .reference-home .note-sheet::after { position:absolute; top:-7px; left:50%; width:27px; height:16px; content:""; border:2px solid color-mix(in srgb,var(--decorative-accent) 55%,white); border-bottom:0; border-radius:10px 10px 3px 3px; opacity:.6; transform:translateX(-50%); pointer-events:none; }
 @media (max-width: 699px) {
@@ -540,7 +540,7 @@ button { color: inherit; cursor: pointer; }
 .reference-home .theme-archive .sort-rail { margin-top:4px; }
 .reference-home .theme-archive .sort-rail > button { padding-top:6px; padding-bottom:6px; }
 .reference-home .note-stack--compact .note-sheet { min-height:330px; }
-.reference-home .note-stack--compact .note-editor { min-height:132px; margin:11px 0 8px; font-size:15px; }
+.reference-home .note-stack--compact .note-editor { min-height:132px; margin:11px 0 8px; font-size:16px; }
 .reference-home .note-stack--compact .note-decoration { display:block; }
 
 /* Homepage entries are Movement Modules; Session Theme is record metadata only. */
@@ -766,6 +766,7 @@ button { color: inherit; cursor: pointer; }
     margin-top:0;
     padding-top:max(44px, env(safe-area-inset-top));
   }
+  html.pwa-note-focused .reference-home .note-editor { font-size:16px; }
   html.pwa-note-focused .reference-home .theme-strip,
   html.pwa-note-focused .reference-home .movement-preview,
   html.pwa-note-focused .reference-home .theme-archive {
