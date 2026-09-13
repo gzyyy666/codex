@@ -136,13 +136,23 @@ def main() -> None:
         assert focused == 8, focused
         evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.value='器械三头下压'; note.dispatchEvent(new Event('input', {bubbles:true})); return true; })()")
         wait_for(browser, "!!document.querySelector('.candidate-overlay:not(.collapsed) .candidate b')")
-        candidate_layout = evaluate(browser, "(() => { const candidate=document.querySelector('.candidate-overlay'); const note=document.querySelector('.note-sheet').getBoundingClientRect(); const rail=document.querySelector('.theme-strip').getBoundingClientRect(); const archive=document.querySelector('.theme-archive-head').getBoundingClientRect(); return {position:getComputedStyle(candidate).position, top:candidate.getBoundingClientRect().top, bottom:candidate.getBoundingClientRect().bottom, noteBottom:note.bottom, railTop:rail.top, archiveTop:archive.top, headerDisplay:getComputedStyle(document.querySelector('.home-header')).display, candidateName:document.querySelector('.candidate b')?.textContent}; })()")
+        candidate_layout = evaluate(browser, "(() => { const candidate=document.querySelector('.candidate-overlay'); const note=document.querySelector('.note-sheet').getBoundingClientRect(); const rail=document.querySelector('.theme-strip'); const archive=document.querySelector('.theme-archive'); return {position:getComputedStyle(candidate).position, top:candidate.getBoundingClientRect().top, bottom:candidate.getBoundingClientRect().bottom, noteBottom:note.bottom, headerDisplay:getComputedStyle(document.querySelector('.home-header')).display, railDisplay:getComputedStyle(rail).display, archiveDisplay:getComputedStyle(archive).display, viewport:innerHeight, candidateName:document.querySelector('.candidate b')?.textContent}; })()")
         assert candidate_layout["position"] == "relative", candidate_layout
         assert candidate_layout["top"] >= candidate_layout["noteBottom"] - 1, candidate_layout
-        assert candidate_layout["bottom"] <= candidate_layout["railTop"] + 1, candidate_layout
-        assert candidate_layout["bottom"] <= candidate_layout["archiveTop"] + 1, candidate_layout
         assert candidate_layout["headerDisplay"] == "none", candidate_layout
+        assert candidate_layout["railDisplay"] == "none" and candidate_layout["archiveDisplay"] == "none", candidate_layout
+        assert candidate_layout["bottom"] <= candidate_layout["viewport"] + 1, candidate_layout
         assert candidate_layout["candidateName"] == "器械三头下压", candidate_layout
+        evaluate(browser, "document.querySelector('[data-note]').blur(); true")
+        wait_for(browser, "!document.documentElement.classList.contains('pwa-note-focused')")
+        restored = evaluate(browser, "({rail:getComputedStyle(document.querySelector('.theme-strip')).display, archive:getComputedStyle(document.querySelector('.theme-archive')).display})")
+        assert restored["rail"] != "none" and restored["archive"] != "none", restored
+        evaluate(browser, "document.querySelector('.archive-collapse').click(); true")
+        wait_for(browser, "document.querySelector('[data-home-state]').dataset.homeState === 'selected-collapsed'")
+        evaluate(browser, "document.querySelector('[data-note]').focus(); true")
+        wait_for(browser, "document.documentElement.classList.contains('pwa-note-focused')")
+        collapsed_focus = evaluate(browser, "({header:getComputedStyle(document.querySelector('.home-header')).display, rail:getComputedStyle(document.querySelector('.theme-strip')).display, preview:getComputedStyle(document.querySelector('.movement-preview')).display})")
+        assert collapsed_focus == {"header": "none", "rail": "none", "preview": "none"}, collapsed_focus
         print("PWA_HOME_RENDER_STABILITY: PASS")
     finally:
         if browser is not None:

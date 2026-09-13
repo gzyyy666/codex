@@ -20,7 +20,7 @@ const DEFAULT_ACTIVE_BODY_PART_IDS = new Set(["chest", "shoulders", "back", "leg
 const DEFAULT_BODY_PART_ORDER = ["chest", "shoulders", "back", "legs", "arms", "glutes", "core", "cardio"];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.20 · build 2026.09.13.17";
+const BUILD_VERSION = "PWA v1.1.21 · build 2026.09.13.18";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -923,6 +923,8 @@ document.addEventListener("focusin", event => {
   if (!event.target.matches("[data-note]")) return;
   noteFocusScrollTop = window.scrollY;
   document.documentElement.classList.add("pwa-note-focused");
+  state.expandedHomeLockScrollY = null;
+  scheduleExpandedHomeLayout();
   stabilizeNoteFocusViewport();
 });
 document.addEventListener("focusout", event => {
@@ -930,6 +932,7 @@ document.addEventListener("focusout", event => {
   window.setTimeout(() => {
     if (document.activeElement?.matches?.("[data-note]")) return;
     document.documentElement.classList.remove("pwa-note-focused");
+    scheduleExpandedHomeLayout();
     restoreNoteFocusViewport();
   }, 50);
 });
@@ -1067,7 +1070,7 @@ document.addEventListener("click", event => {
 window.addEventListener("scroll", () => { enforceExpandedHomeScrollLock(); scheduleDockCheck(); positionCandidateOverlay(); scheduleExpandedHomeLayout(); }, { passive: true });
 window.addEventListener("resize", () => { syncVisualViewportMetrics(); scheduleExpandedHomeLayout(); }, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260913-17", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260913-18", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();
