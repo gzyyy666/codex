@@ -608,6 +608,22 @@ button { color: inherit; cursor: pointer; }
   -webkit-overflow-scrolling:touch;
   scrollbar-width:thin;
 }
+.reference-home .home-shell[data-home-state="selected-expanded"].expanded-scroll-locked .theme-archive {
+  min-height:calc(100dvh + var(--expanded-archive-head-height, 92px));
+}
+.reference-home .home-shell[data-home-state="selected-expanded"].expanded-scroll-locked {
+  padding-bottom:calc(100dvh + var(--expanded-archive-head-height, 92px));
+}
+.reference-home .home-shell[data-home-state="selected-expanded"].expanded-scroll-locked .theme-archive {
+  position:sticky;
+  top:calc(env(safe-area-inset-top) + var(--expanded-note-height, 280px) + var(--expanded-strip-height, 52px));
+  z-index:39;
+  background:var(--page-bg);
+}
+.reference-home .home-shell[data-home-state="selected-expanded"].expanded-scroll-locked .theme-archive-head {
+  position:relative;
+  top:auto;
+}
 .reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive .movement-card { margin-top:7px; padding:11px; }
 .reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive .movement-name { font-size:19px; }
 @media (max-width:699px) {
@@ -621,3 +637,91 @@ button { color: inherit; cursor: pointer; }
    of .app padding plus .page padding added that reserve twice, leaving a large
    blank strip after the movement archive on phones. */
 .app:has(.tabbar) .page{padding-bottom:calc(78px + env(safe-area-inset-bottom))}
+
+/* 2026-09-13 phone stability pass.
+   Candidate history belongs immediately after the Training Note. Keeping it
+   in document flow prevents a fixed panel from covering the archive heading
+   when the iOS keyboard changes the visual viewport. */
+.reference-home .candidate-overlay {
+  position: relative;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  width: auto;
+  height: auto;
+  max-height: none;
+  margin: 8px 0 0;
+  transform: none;
+  overflow: visible;
+}
+.reference-home .candidate-overlay .candidate-scroll {
+  height: auto;
+  max-height: min(34dvh, 320px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.reference-home .candidate-overlay.collapsed {
+  width: 23px;
+  height: 23px;
+  margin-left: 0;
+  padding: 0;
+}
+.reference-home .theme-strip--loading {
+  min-height: 52px;
+  display: grid;
+  align-items: center;
+  pointer-events: none;
+}
+.reference-home .module-rail-status {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px dashed color-mix(in srgb, var(--decorative-accent) 28%, rgba(35,64,49,.12));
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--theme-accent) 70%, #68776f);
+  font-size: 11px;
+}
+.reference-home .module-rail-status span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--decorative-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--decorative-accent) 14%, transparent);
+}
+@media (max-width: 699px) {
+  .reference-home .candidate-overlay {
+    margin-top: 7px;
+    border-radius: 18px 5px 18px 18px;
+  }
+  html.pwa-note-focused .reference-home {
+    min-height: auto;
+    scroll-padding-bottom: calc(28dvh + env(safe-area-inset-bottom));
+  }
+  html.pwa-note-focused .reference-home .note-stack:not(.note-stack--compact) .note-sheet {
+    min-height: 270px;
+  }
+  html.pwa-note-focused .reference-home .note-stack:not(.note-stack--compact) .note-editor {
+    min-height: 150px;
+    max-height: 28dvh;
+    overflow-y: auto;
+    margin: 8px 0 6px;
+  }
+  /* A focused note may reveal candidate history. Let the whole lower stack
+     return to normal flow so the sticky desktop archive stack cannot slide
+     underneath that history while the visual viewport is keyboard-short. */
+  html.pwa-note-focused .reference-home .home-shell[data-home-state="selected-expanded"] .note-stack,
+  html.pwa-note-focused .reference-home .home-shell[data-home-state="selected-expanded"] .theme-strip,
+  html.pwa-note-focused .reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive,
+  html.pwa-note-focused .reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive-head {
+    position: relative;
+    top: auto;
+    z-index: auto;
+  }
+  html.pwa-note-focused .reference-home .candidate-overlay .candidate-scroll {
+    max-height: min(30dvh, 260px);
+  }
+}

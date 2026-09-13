@@ -41,6 +41,9 @@ def main() -> None:
     assert "NOTE_KEY" in app_source
     assert "toneForArea" in app_source
     assert "DEFAULT_ACTIVE_BODY_PART_IDS" in app_source
+    assert "DEFAULT_BODY_PART_ORDER" in app_source
+    assert "const modulesReady = !state.loading && state.organization !== null;" in app_source
+    assert 'theme-strip--loading' in app_source
     assert 'freeform-notepad:v2:current-training' in app_source
     assert "findLastCandidate" in app_source
     assert "previewHistory" in app_source
@@ -110,6 +113,10 @@ def main() -> None:
     assert 'document.documentElement.classList.add("pwa-note-focused")' in app_source
     assert 'restoreNoteFocusViewport' in app_source
     assert 'visualViewport?.addEventListener("resize", stabilizeNoteFocusViewport' in app_source
+    assert "Let iOS place the focused editor inside the visual viewport" in app_source
+    assert ".reference-home .candidate-overlay {\n  position: relative;" in css_source
+    assert ".reference-home .candidate-overlay .candidate-scroll {" in css_source
+    assert "max-height: min(34dvh, 320px);" in css_source
     assert 'cache: "no-store"' in api_source
     assert 'READ_TIMEOUT_MS' in api_source and 'READ_ATTEMPTS' in api_source
     assert 'Promise.allSettled' in app_source

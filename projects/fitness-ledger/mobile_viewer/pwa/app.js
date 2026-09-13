@@ -17,6 +17,7 @@ const MOVEMENT_MODULE_TONES = Object.freeze({
   arms: "blue", glutes: "rose", core: "white", cardio: "blue"
 });
 const DEFAULT_ACTIVE_BODY_PART_IDS = new Set(["chest", "shoulders", "back", "legs", "arms", "core"]);
+const DEFAULT_BODY_PART_ORDER = ["chest", "shoulders", "back", "legs", "arms", "glutes", "core", "cardio"];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
 const BUILD_VERSION = "PWA v1.1.18 · build 2026.09.11.14";
@@ -169,20 +170,26 @@ function loadIncomingShareIntent() {
 function bodyPart(id) { return BODY_PARTS.find(item => item.id === id) || BODY_PARTS[0]; }
 function activeBodyParts() {
   const categories = state.organization?.movement_categories;
-  if (!Array.isArray(categories) || !categories.length) return BODY_PARTS.filter(item => DEFAULT_ACTIVE_BODY_PART_IDS.has(item.id));
+  if (!Array.isArray(categories) || !categories.length) {
+    return BODY_PARTS.filter(item => DEFAULT_ACTIVE_BODY_PART_IDS.has(item.id))
+      .sort((a, b) => DEFAULT_BODY_PART_ORDER.indexOf(a.id) - DEFAULT_BODY_PART_ORDER.indexOf(b.id));
+  }
   const known = new Map(BODY_PARTS.map(item => [item.id, item]));
-  return categories.filter(item => item && item.active !== false).map(item => {
+  return categories.map((item, index) => {
     const base = known.get(String(item.category_id));
     if (!base) return null;
+    const configuredOrder = Number(item.sort_order);
     return {
       ...base,
       cn: String(item.label_zh || item.display_name_zh || base.cn),
       en: String(item.display_name || item.display_name_en || item.labelEn || item.label_en || base.en),
+      sort_order: Number.isFinite(configuredOrder) ? configuredOrder : 10000 + index,
       // Movement module appearance follows its module id. Do not reuse the
       // Session Theme color_key returned in the same organization payload.
       tone: MOVEMENT_MODULE_TONES[base.id] || base.tone
-    };
-  }).filter(Boolean);
+      };
+  }).filter(item => item && item.active !== false)
+    .sort((a, b) => a.sort_order - b.sort_order || DEFAULT_BODY_PART_ORDER.indexOf(a.id) - DEFAULT_BODY_PART_ORDER.indexOf(b.id));
 }
 function activeMovementModules() {
   const areas = new Map((Array.isArray(state.areas) ? state.areas : []).map(item => [String(item.id || ""), item]));
@@ -515,6 +522,14 @@ function positionCandidateOverlay() {
   const overlay = region?.querySelector(".candidate-overlay");
   const themeStrip = document.querySelector(".reference-home .theme-strip");
   if (!overlay || !themeStrip) return;
+  // Homepage candidates are part of the document flow. A fixed candidate
+  // panel covered the archive heading as soon as the iOS keyboard reduced the
+  // visual viewport, even though the note itself stayed in flow.
+  if (overlay.closest(".reference-home")) {
+    overlay.style.removeProperty("--candidate-top");
+    state.candidateAnchorTop = null;
+    return;
+  }
   const strip = themeStrip.getBoundingClientRect();
   const note = document.querySelector(".reference-home .note-sheet")?.getBoundingClientRect();
   const height = overlay.classList.contains("collapsed") ? 23 : 166;
@@ -592,9 +607,12 @@ function renderReference() {
   const palette = `theme-color-${colorKey}`;
   const stateName = selected ? (state.archiveExpanded ? "selected-expanded" : "selected-collapsed") : "neutral";
   const note = `<section class="note-stack ${state.archiveExpanded ? "note-stack--compact" : ""}" aria-label="Training Note"><div class="note-sheet"><div class="note-head"><div class="note-eyebrow">TRAINING NOTE / 训练记录</div></div><textarea class="note-editor" data-note data-note-surface="home" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="enter" aria-label="训练记录备忘录" placeholder="今天做了什么，就先记什么……">${esc(state.note)}</textarea><div class="note-footer"><div class="notepad-actions"><button data-action="copy-note">COPY</button><button class="danger-link" data-action="clear-note">CLEAR</button><button data-action="expand-note">发送到电脑</button></div><div class="notepad-status" data-note-status>${esc(state.noteCopyStatus || "已自动保存")}</div></div><div class="note-decoration" aria-hidden="true">Good<br>Progress!</div></div></section>`;
-  const pills = `<section class="theme-strip" aria-label="Movement Modules"><div class="theme-strip-scroll" role="listbox">${modules.map(module => `<button class="home-module-pill ${String(module.id) === String(state.selectedPartId) ? "is-active" : ""} color-${esc(String(module.tone || "neutral"))}" data-action="select-module" data-part-id="${esc(module.id)}" role="option" aria-selected="${String(module.id) === String(state.selectedPartId)}" title="${esc(module.en)}"><span aria-hidden="true">✣</span>${esc(module.cn)}</button>`).join("")}</div></section>`;
+  const modulesReady = !state.loading && state.organization !== null;
+  const pills = modulesReady
+    ? `<section class="theme-strip" aria-label="Movement Modules"><div class="theme-strip-scroll" role="listbox">${modules.map(module => `<button class="home-module-pill ${String(module.id) === String(state.selectedPartId) ? "is-active" : ""} color-${esc(String(module.tone || "neutral"))}" data-action="select-module" data-part-id="${esc(module.id)}" role="option" aria-selected="${String(module.id) === String(state.selectedPartId)}" title="${esc(module.en)}"><span aria-hidden="true">✣</span>${esc(module.cn)}</button>`).join("")}</div></section>`
+    : state.loading ? `<section class="theme-strip theme-strip--loading" aria-label="Movement Modules" aria-busy="true"><div class="module-rail-status" role="status"><span aria-hidden="true"></span>正在整理训练模块…</div></section>` : "";
   const selectedArea = state.area || selected?.area || null;
-  const archive = !selected ? "" : !state.archiveExpanded ? `<section class="movement-preview"><div class="eyebrow">MOVEMENTS / 最近表现</div><button class="movement-summary" data-action="toggle-archive"><div class="movement-placeholder-icon" aria-hidden="true">▥</div><div><strong>${esc(selected.cn)} · ${Number(selectedArea?.movement_count || 0)} 个动作</strong><span>${selectedArea?.latest_date ? `最近训练 ${esc(selectedArea.latest_date)}` : "暂无动作历史"}</span></div><b aria-hidden="true">展开⌄</b></button></section>` : renderMovementModuleArchive(selectedArea);
+  const archive = !modulesReady || !selected ? "" : !state.archiveExpanded ? `<section class="movement-preview"><div class="eyebrow">MOVEMENTS / 最近表现</div><button class="movement-summary" data-action="toggle-archive"><div class="movement-placeholder-icon" aria-hidden="true">▥</div><div><strong>${esc(selected.cn)} · ${Number(selectedArea?.movement_count || 0)} 个动作</strong><span>${selectedArea?.latest_date ? `最近训练 ${esc(selectedArea.latest_date)}` : "暂无动作历史"}</span></div><b aria-hidden="true">展开⌄</b></button></section>` : renderMovementModuleArchive(selectedArea);
   const header = `<header class="home-header"><div class="home-header-top"><div class="eyebrow">LOCAL ONLY / TRAINING NOTE</div><div class="home-motif" aria-hidden="true">A<br>STRONGER<br>YOU<br>EVERYDAY<br><i></i></div></div><h1 class="home-title">训练首页。</h1>${fresh ? `<div class="home-meta freshness ${fresh.stale ? "stale" : ""}">${esc(fresh.text)}</div>` : ""}</header>`;
   const candidateStable = state.noteDetailOpen || state.noteCandidatesLoading || state.noteCandidates.length || state.noteCandidatesCollapsed ? " reference-home--stable" : "";
   return renderShell(`${pageStart(`reference-page reference-home ${palette}${candidateStable}`)}<div class="home-shell" data-home-state="${stateName}" data-theme-color="${colorKey}">${header}${note}<div data-candidate-region>${renderCandidateOverlay()}</div>${pills}${state.loading ? stateMessage("正在整理训练档案…") : state.error ? stateMessage(state.error, true) : archive}</div>${state.noteDetailOpen ? renderNoteDetail() : ""}${pageEnd()}`);
@@ -875,11 +893,10 @@ function restoreNoteFocusViewport() {
 
 function stabilizeNoteFocusViewport() {
   if (state.route.name !== "reference" || noteFocusScrollTop === null) return;
-  window.requestAnimationFrame(() => {
-    if (document.activeElement?.matches?.("[data-note]")) {
-      window.scrollTo({ top: noteFocusScrollTop, behavior: "auto" });
-    }
-  });
+  // Let iOS place the focused editor inside the visual viewport. Repeatedly
+  // forcing layout-viewport scroll here makes the keyboard fight the browser
+  // and can pull the document under fixed UI. We restore the pre-focus page
+  // position once focus leaves the editor instead.
 }
 
 document.addEventListener("focusin", event => {

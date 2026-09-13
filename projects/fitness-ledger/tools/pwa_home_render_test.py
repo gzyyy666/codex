@@ -65,7 +65,7 @@ def main() -> None:
     service = None
     edge = None
     browser = None
-    profile = tempfile.TemporaryDirectory(prefix="fitness-ledger-pwa-home-edge-")
+    profile = tempfile.TemporaryDirectory(prefix="fitness-ledger-pwa-home-edge-", ignore_cleanup_errors=True)
     try:
         service = subprocess.Popen(
             [sys.executable, "-u", str(LAUNCHER), "--port", str(port)],
@@ -85,10 +85,14 @@ def main() -> None:
             "screenWidth": 390, "screenHeight": 844,
         })
         command(browser, "Page.reload", {"ignoreCache": True})
+        initial = evaluate(browser, "({ pills: document.querySelectorAll('.home-module-pill').length, loading: !!document.querySelector('.theme-strip--loading') })")
+        assert initial["pills"] == 0, initial
         wait_for(browser, "document.querySelectorAll('.home-module-pill').length >= 6")
         first = evaluate(browser, "document.querySelectorAll('.home-module-pill').length")
         stable = evaluate(browser, "new Promise(resolve => setTimeout(() => resolve(document.querySelectorAll('.home-module-pill').length), 800))")
-        assert first == stable == 6, {"first": first, "stable": stable}
+        order = evaluate(browser, "Array.from(document.querySelectorAll('.home-module-pill'), item => item.dataset.partId)")
+        assert first == stable == 8, {"first": first, "stable": stable, "order": order}
+        assert order == ["chest", "shoulders", "back", "legs", "glutes", "arms", "core", "cardio"], order
         assert evaluate(browser, "document.querySelector('[data-part-id=core]').className.includes('color-white')") is True
         evaluate(browser, "document.querySelector('.home-module-pill').click()")
         wait_for(browser, "!!document.querySelector('.movement-preview')")
@@ -103,8 +107,10 @@ def main() -> None:
         wait_for(browser, "getComputedStyle(document.querySelector('.home-shell')).getPropertyValue('--expanded-note-height').trim() !== ''")
         sticky_layout = evaluate(browser, "(() => { const home=document.querySelector('.home-shell'); return {note:Number.parseFloat(getComputedStyle(home).getPropertyValue('--expanded-note-height')), strip:Number.parseFloat(getComputedStyle(home).getPropertyValue('--expanded-strip-height'))}; })()")
         assert sticky_layout["note"] > 0 and sticky_layout["strip"] > 0, sticky_layout
-        evaluate(browser, "(() => { const list=document.querySelector('.theme-archive-list'); list.style.minHeight='0'; list.style.height='1200px'; list.insertAdjacentHTML('beforeend', '<div data-test-scroll-content style=\"height:1200px\"></div>'); })()")
-        evaluate(browser, "window.scrollTo(0, document.querySelector('.theme-archive-head').offsetTop + 180)")
+        scroll_target = evaluate(browser, "document.querySelector('.theme-archive-head').getBoundingClientRect().top + scrollY + 180")
+        evaluate(browser, "(() => { const list=document.querySelector('.theme-archive-list'); list.style.minHeight='0'; list.style.height='1200px'; list.insertAdjacentHTML('beforeend', '<div data-test-scroll-content style=\"height:1200px\"></div>'); document.querySelector('.home-shell').insertAdjacentHTML('beforeend', '<div data-test-page-spacer style=\"height:1200px\"></div>'); })()")
+        evaluate(browser, f"new Promise(resolve => setTimeout(() => {{ window.scrollTo(0, {scroll_target}); resolve(true); }}, 100))")
+        evaluate(browser, "window.scrollTo(0, document.querySelector('.theme-archive-head').offsetTop + 180); window.dispatchEvent(new Event('scroll')); true")
         wait_for(browser, "document.querySelector('.home-shell').classList.contains('expanded-scroll-locked')")
         after_scroll = evaluate(browser, "new Promise(resolve => setTimeout(() => { const note=document.querySelector('.note-sheet').getBoundingClientRect(); const stack=document.querySelector('.note-stack').getBoundingClientRect(); const strip=document.querySelector('.theme-strip').getBoundingClientRect(); const head=document.querySelector('.theme-archive-head').getBoundingClientRect(); const list=document.querySelector('.theme-archive-list').getBoundingClientRect(); const home=document.querySelector('.home-shell'); resolve({noteTop:note.top, stackTop:stack.top, stripTop:strip.top, headTop:head.top, listTop:list.top, listClientHeight:document.querySelector('.theme-archive-list').clientHeight, listScrollHeight:document.querySelector('.theme-archive-list').scrollHeight, listOverflow:getComputedStyle(document.querySelector('.theme-archive-list')).overflowY, scrollY:scrollY, locked:home.classList.contains('expanded-scroll-locked'), position:getComputedStyle(document.querySelector('.note-stack')).position}); }, 80))")
         assert after_scroll["noteTop"] <= 2, after_scroll
@@ -118,11 +124,19 @@ def main() -> None:
         assert nested_scroll["scrollTop"] > 0 and abs(nested_scroll["listTop"] - list_top) <= 1 and nested_scroll["noteTop"] <= 2, nested_scroll
         first_module = evaluate(browser, "document.querySelector('[data-part-id]').dataset.partId")
         evaluate(browser, "document.querySelectorAll('.home-module-pill')[1].click()")
-        wait_for(browser, "document.querySelector('[data-home-state]').dataset.homeState === 'selected-expanded' && document.querySelector('[data-part-id].is-active').dataset.partId !== arguments[0]".replace("arguments[0]", repr(first_module)))
+        wait_for(browser, "document.querySelector('[data-home-state]')?.dataset.homeState === 'selected-expanded' && !!document.querySelector('.home-module-pill.is-active')?.dataset.partId && document.querySelector('.home-module-pill.is-active').dataset.partId !== arguments[0]".replace("arguments[0]", repr(first_module)))
         assert evaluate(browser, "document.querySelector('[data-home-state]').dataset.homeState") == "selected-expanded"
         evaluate(browser, "document.querySelector('[data-note]').focus()")
         focused = evaluate(browser, "new Promise(resolve => setTimeout(() => resolve(document.querySelectorAll('.home-module-pill').length), 500))")
-        assert focused == 6, focused
+        assert focused == 8, focused
+        evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.value='器械三头下压'; note.dispatchEvent(new Event('input', {bubbles:true})); return true; })()")
+        wait_for(browser, "!!document.querySelector('.candidate-overlay:not(.collapsed) .candidate b')")
+        candidate_layout = evaluate(browser, "(() => { const candidate=document.querySelector('.candidate-overlay'); const note=document.querySelector('.note-sheet').getBoundingClientRect(); const rail=document.querySelector('.theme-strip').getBoundingClientRect(); const archive=document.querySelector('.theme-archive-head').getBoundingClientRect(); return {position:getComputedStyle(candidate).position, top:candidate.getBoundingClientRect().top, bottom:candidate.getBoundingClientRect().bottom, noteBottom:note.bottom, railTop:rail.top, archiveTop:archive.top, candidateName:document.querySelector('.candidate b')?.textContent}; })()")
+        assert candidate_layout["position"] == "relative", candidate_layout
+        assert candidate_layout["top"] >= candidate_layout["noteBottom"] - 1, candidate_layout
+        assert candidate_layout["bottom"] <= candidate_layout["railTop"] + 1, candidate_layout
+        assert candidate_layout["bottom"] <= candidate_layout["archiveTop"] + 1, candidate_layout
+        assert candidate_layout["candidateName"] == "器械三头下压", candidate_layout
         print("PWA_HOME_RENDER_STABILITY: PASS")
     finally:
         if browser is not None:
