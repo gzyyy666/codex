@@ -14,6 +14,7 @@ import { presentationForSemanticEvent } from './motion-lab/guardian/guardian-int
 
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const finePointer = window.matchMedia?.('(pointer: coarse)').matches !== true;
+const archiveEffectEnabled = name => document.documentElement.dataset[name] !== 'off';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -568,7 +569,7 @@ function mountMousePet() {
   body.appendChild(guardian);
   const presentationSurface = createGuardianPresentationSurface(body);
   presentationSurface.setRegions(window.__fitnessLedgerGuardianBodyRegions || []);
-  document.body.appendChild(body);
+  if (archiveEffectEnabled('flGuardianPet')) document.body.appendChild(body);
   const cursorMode = window.__fitnessLedgerPetCursor || new URLSearchParams(window.location.search).get('petCursor') || 'trophy';
   // The supplied recording is the default; an injected URL or query parameter can replace it for review.
   const championAudioOverride = window.__fitnessLedgerChampionAudioUrl || new URLSearchParams(window.location.search).get('championAudio');
@@ -605,11 +606,11 @@ function mountMousePet() {
     cursorTrail.appendChild(dot);
     return dot;
   });
-  document.body.appendChild(cursorTrail);
+  if (archiveEffectEnabled('flTrophyCursor')) document.body.appendChild(cursorTrail);
   const navigator = createTrophyNavigator();
   navigator.hidden = cursorMode === 'trophy';
   Object.assign(navigator.style, { top: '0px', left: '0px' });
-  document.body.appendChild(navigator);
+  if (archiveEffectEnabled('flTrophyCursor')) document.body.appendChild(navigator);
 
   const clearChampionCueWatch = () => {
     if (!championCueFrame) return;
@@ -825,7 +826,8 @@ function mountMousePet() {
 
   const petQuery = new URLSearchParams(window.location.search);
   const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v94';
-  import(petController).then(({ mountGuardianPet }) => {
+  const guardianModule = archiveEffectEnabled('flGuardianPet') ? import(petController) : null;
+  guardianModule?.then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
       petMode: true,
@@ -876,6 +878,10 @@ function mountMousePet() {
     body.dataset.petStatus = error?.message || 'Guardian Pet module error';
     presentationSurface.setFallback('The 3D module is unavailable. Archive controls remain available.');
   });
+  if (!guardianModule) {
+    presentationSurface.setLoading(false);
+    body.dataset.ready = 'disabled';
+  }
 
   const onPetWheel = event => {
     event.preventDefault();
@@ -1076,8 +1082,13 @@ function mountMousePet() {
   if (archivePetLease.cleanup && archivePetLease.id !== instanceId) archivePetLease.cleanup();
   archivePetLease.id = instanceId;
   archivePetLease.cleanup = cleanup;
-  document.documentElement.dataset.petCursorOwner = instanceId;
-  document.documentElement.dataset.petCursor = cursorMode;
+  if (archiveEffectEnabled('flTrophyCursor')) {
+    document.documentElement.dataset.petCursorOwner = instanceId;
+    document.documentElement.dataset.petCursor = cursorMode;
+  } else {
+    delete document.documentElement.dataset.petCursorOwner;
+    delete document.documentElement.dataset.petCursor;
+  }
   return cleanup;
 }
 
@@ -1102,10 +1113,12 @@ const disposeArchivePetInstances = () => {
 
 const syncGlobalArchivePet = () => {
   const cleanup = window.__fitnessLedgerArchivePetCleanup;
+  const guardianEnabled = archiveEffectEnabled('flGuardianPet');
+  const trophyCursorEnabled = archiveEffectEnabled('flTrophyCursor');
   const floatingCount = document.querySelectorAll('.tools-pet-floating').length;
   const navigatorCount = document.querySelectorAll('.tools-pet-navigator').length;
   const legacyPetCount = document.querySelectorAll('.tools-pet-nav').length;
-  if (isGuardianRoute()) {
+  if (isGuardianRoute() || (!guardianEnabled && !trophyCursorEnabled)) {
     releaseArchivePetCrossTab();
     disposeArchivePetInstances();
     return null;
@@ -1117,8 +1130,8 @@ const syncGlobalArchivePet = () => {
   }
   window.__fitnessLedgerGuardianPageCleanup?.();
   const hasSingleLiveInstance = archivePetRegistry.size === 1
-    && floatingCount === 1
-    && navigatorCount === 1
+    && floatingCount === (guardianEnabled ? 1 : 0)
+    && navigatorCount === (trophyCursorEnabled ? 1 : 0)
     && legacyPetCount === 0
     && typeof cleanup === 'function';
   if (!hasSingleLiveInstance) {
@@ -1134,6 +1147,10 @@ export function mountGlobalArchivePet() { return syncGlobalArchivePet() || (() =
 
 window.addEventListener('hashchange', syncGlobalArchivePet);
 window.addEventListener('fitness-ledger-pet:route-change', syncGlobalArchivePet);
+window.addEventListener('fitness-ledger-effects:change', () => {
+  disposeArchivePetInstances();
+  syncGlobalArchivePet();
+});
 let archivePetMutationScheduled = false;
 const archivePetDomObserver = typeof MutationObserver === 'function' && document.body ? new MutationObserver(() => {
   if (archivePetMutationScheduled) return;

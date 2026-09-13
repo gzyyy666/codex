@@ -20,6 +20,9 @@ def main() -> None:
     assert "latestStatus.sync_status==='SYNCED'" in source
     assert "reconciled:true" in source
     assert "reconciled:!['SYNCED','NO_CHANGES'].includes(result.status)" in source
+    assert "CLOUD_SYNC_TIMEOUT_MS=60000" in source
+    assert "for(let attempt=0;attempt<4;attempt++)" in source
+    assert "showAutoSyncReceipt(outcome)" in source
     assert "const headerHint=main.querySelector('.admin-page-header p')" in source
     assert "headerHint.textContent=syncHint" in source
 
