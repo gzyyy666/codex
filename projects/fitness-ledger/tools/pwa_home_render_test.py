@@ -147,6 +147,14 @@ def main() -> None:
         assert abs(candidate_layout["sheetHeight"] - expanded_before_focus["sheetHeight"]) <= 2, (expanded_before_focus, candidate_layout)
         assert abs(candidate_layout["editorHeight"] - expanded_before_focus["editorHeight"]) <= 2, (expanded_before_focus, candidate_layout)
         assert candidate_layout["candidateName"] == "器械三头下压", candidate_layout
+        evaluate(browser, "document.documentElement.classList.add('pwa-keyboard-open'); true")
+        keyboard_layout = evaluate(browser, "new Promise(resolve => requestAnimationFrame(() => { const editor=document.querySelector('[data-note]').getBoundingClientRect(); const candidate=document.querySelector('.candidate-overlay').getBoundingClientRect(); resolve({editorHeight:editor.height, editorBottom:editor.bottom, candidateTop:candidate.top, candidateHistories:[...document.querySelectorAll('.candidate-history')].filter(item => getComputedStyle(item).display !== 'none').length, columns:getComputedStyle(document.querySelector('.candidate-sets')).gridTemplateColumns, header:getComputedStyle(document.querySelector('.home-header')).display, rail:getComputedStyle(document.querySelector('.theme-strip')).display, archive:getComputedStyle(document.querySelector('.theme-archive')).display}); }))")
+        assert 160 <= keyboard_layout["editorHeight"] <= 170, keyboard_layout
+        assert keyboard_layout["candidateTop"] > keyboard_layout["editorBottom"], keyboard_layout
+        assert keyboard_layout["candidateHistories"] == 1, keyboard_layout
+        assert len(keyboard_layout["columns"].split()) == 3, keyboard_layout
+        assert keyboard_layout["header"] != "none" and keyboard_layout["rail"] != "none" and keyboard_layout["archive"] != "none", keyboard_layout
+        evaluate(browser, "document.documentElement.classList.remove('pwa-keyboard-open'); true")
         evaluate(browser, "document.querySelector('[data-note]').blur(); true")
         wait_for(browser, "!document.documentElement.classList.contains('pwa-note-focused')")
         restored = evaluate(browser, "({rail:getComputedStyle(document.querySelector('.theme-strip')).display, archive:getComputedStyle(document.querySelector('.theme-archive')).display})")

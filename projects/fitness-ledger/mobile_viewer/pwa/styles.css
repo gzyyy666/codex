@@ -722,4 +722,54 @@ button { color: inherit; cursor: pointer; }
   /* Keep focus layout-neutral. iOS may resize/pan the visual viewport for its
      keyboard, but focusing the note must not hide or resize homepage modules. */
   html.pwa-note-focused .reference-home .note-editor { font-size:16px; }
+
+  /* Keyboard workspace: six readable lines plus one complete latest movement
+     record. This mode is enabled only after visualViewport confirms that a
+     software keyboard is consuming the screen, never from focus alone. */
+  html.pwa-keyboard-open .reference-home .note-stack,
+  html.pwa-keyboard-open .reference-home .home-shell[data-home-state="selected-expanded"] .note-stack {
+    position:relative;
+    top:auto;
+    z-index:auto;
+    padding-top:0;
+    padding-bottom:0;
+    background:transparent;
+  }
+  html.pwa-keyboard-open .reference-home .note-sheet,
+  html.pwa-keyboard-open .reference-home .note-stack--compact .note-sheet,
+  html.pwa-keyboard-open .reference-home .home-shell[data-home-state="selected-collapsed"] .note-sheet,
+  html.pwa-keyboard-open .reference-home .home-shell[data-home-state="selected-expanded"] .note-stack--compact .note-sheet {
+    min-height:0;
+    padding:14px 20px 11px;
+  }
+  html.pwa-keyboard-open .reference-home .note-editor,
+  html.pwa-keyboard-open .reference-home .note-stack--compact .note-editor,
+  html.pwa-keyboard-open .reference-home .home-shell[data-home-state="selected-collapsed"] .note-editor,
+  html.pwa-keyboard-open .reference-home .home-shell[data-home-state="selected-expanded"] .note-stack--compact .note-editor {
+    flex:none;
+    height:calc(6 * 1.55em + 18px);
+    min-height:calc(6 * 1.55em + 18px);
+    max-height:calc(6 * 1.55em + 18px);
+    margin:7px 0 5px;
+    padding:8px 0;
+    overflow-y:auto;
+  }
+  html.pwa-keyboard-open .reference-home .note-decoration { display:none; }
+  html.pwa-keyboard-open .reference-home .note-footer { padding-top:2px; }
+  html.pwa-keyboard-open .reference-home .candidate-overlay {
+    margin-top:calc(2 * 1.55em);
+    padding:7px;
+    border-radius:14px 5px 14px 14px;
+  }
+  html.pwa-keyboard-open .reference-home .candidate-overlay .candidate-head { min-height:16px; }
+  html.pwa-keyboard-open .reference-home .candidate-overlay .candidate-scroll {
+    max-height:none;
+    overflow:visible;
+    margin-top:3px;
+  }
+  html.pwa-keyboard-open .reference-home .candidate-overlay .candidate { margin-top:3px; padding:7px; }
+  html.pwa-keyboard-open .reference-home .candidate-history-list .candidate-history:not(:first-child) { display:none; }
+  html.pwa-keyboard-open .reference-home .candidate-history { padding:4px 0 0; }
+  html.pwa-keyboard-open .reference-home .candidate-sets { grid-template-columns:repeat(3,minmax(0,1fr)); gap:3px; margin-top:4px; }
+  html.pwa-keyboard-open .reference-home .candidate-set { min-height:20px; padding:2px 3px; }
 }

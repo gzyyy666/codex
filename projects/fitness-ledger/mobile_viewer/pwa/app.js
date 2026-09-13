@@ -20,7 +20,7 @@ const DEFAULT_ACTIVE_BODY_PART_IDS = new Set(["chest", "shoulders", "back", "leg
 const DEFAULT_BODY_PART_ORDER = ["chest", "shoulders", "back", "legs", "arms", "glutes", "core", "cardio"];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.23 · build 2026.09.13.20";
+const BUILD_VERSION = "PWA v1.1.24 · build 2026.09.13.21";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -612,6 +612,7 @@ function refreshCandidateOverlay(animateCollapse = false) {
   region.innerHTML = renderCandidateOverlay();
   if (!region.querySelector(".candidate-overlay")) state.candidateAnchorTop = null;
   positionCandidateOverlay();
+  if (document.documentElement.classList.contains("pwa-keyboard-open")) scheduleKeyboardWorkspaceAlignment();
 }
 function updateNoteStatus(message = "已自动保存") {
   document.querySelectorAll("[data-note-status]").forEach(element => { element.textContent = message; });
@@ -903,6 +904,8 @@ let noteCatalogPromise;
 let dataModulePromise;
 let routeRequest = 0;
 let noteFocusScrollTop = null;
+let visualViewportBaselineHeight = window.visualViewport?.height || window.innerHeight;
+let keyboardAlignmentFrame = 0;
 
 function restoreNoteFocusViewport() {
   if (state.route.name !== "reference" || noteFocusScrollTop === null) return;
@@ -919,6 +922,19 @@ function stabilizeNoteFocusViewport() {
   // position once focus leaves the editor instead.
 }
 
+function scheduleKeyboardWorkspaceAlignment() {
+  if (keyboardAlignmentFrame) window.cancelAnimationFrame(keyboardAlignmentFrame);
+  keyboardAlignmentFrame = window.requestAnimationFrame(() => {
+    keyboardAlignmentFrame = 0;
+    if (!document.documentElement.classList.contains("pwa-keyboard-open")) return;
+    const note = document.querySelector(".reference-home .note-stack");
+    const viewport = window.visualViewport;
+    if (!note || !viewport) return;
+    const top = window.scrollY + note.getBoundingClientRect().top - viewport.offsetTop - 6;
+    window.scrollTo({ top: Math.max(0, top), behavior: "auto" });
+  });
+}
+
 document.addEventListener("focusin", event => {
   if (!event.target.matches("[data-note]")) return;
   noteFocusScrollTop = window.scrollY;
@@ -926,12 +942,14 @@ document.addEventListener("focusin", event => {
   state.expandedHomeLockScrollY = null;
   scheduleExpandedHomeLayout();
   stabilizeNoteFocusViewport();
+  syncVisualViewportMetrics();
 });
 document.addEventListener("focusout", event => {
   if (!event.target.matches("[data-note]")) return;
   window.setTimeout(() => {
     if (document.activeElement?.matches?.("[data-note]")) return;
     document.documentElement.classList.remove("pwa-note-focused");
+    document.documentElement.classList.remove("pwa-keyboard-open");
     scheduleExpandedHomeLayout();
     restoreNoteFocusViewport();
   }, 50);
@@ -941,6 +959,12 @@ function syncVisualViewportMetrics() {
   if (!viewport) return;
   document.documentElement.style.setProperty("--pwa-visual-height", `${Math.round(viewport.height)}px`);
   document.documentElement.style.setProperty("--pwa-visual-top", `${Math.round(viewport.offsetTop)}px`);
+  const noteFocused = document.documentElement.classList.contains("pwa-note-focused");
+  if (!noteFocused) visualViewportBaselineHeight = Math.max(viewport.height, window.innerHeight);
+  const keyboardOpen = noteFocused && visualViewportBaselineHeight - viewport.height >= Math.max(120, visualViewportBaselineHeight * .18);
+  const wasOpen = document.documentElement.classList.contains("pwa-keyboard-open");
+  document.documentElement.classList.toggle("pwa-keyboard-open", keyboardOpen);
+  if (keyboardOpen && !wasOpen) scheduleKeyboardWorkspaceAlignment();
   scheduleExpandedHomeLayout();
 }
 window.visualViewport?.addEventListener("resize", syncVisualViewportMetrics, { passive: true });
@@ -1070,7 +1094,7 @@ document.addEventListener("click", event => {
 window.addEventListener("scroll", () => { enforceExpandedHomeScrollLock(); scheduleDockCheck(); positionCandidateOverlay(); scheduleExpandedHomeLayout(); }, { passive: true });
 window.addEventListener("resize", () => { syncVisualViewportMetrics(); scheduleExpandedHomeLayout(); }, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260913-20", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260913-21", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();
