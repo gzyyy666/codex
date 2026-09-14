@@ -1,4 +1,7 @@
 /* Final signed-off cascade loaded after the historical stylesheet. */
+.entry-workbench .capture h2{font-family:var(--font-editorial),"Noto Serif SC","Songti SC","STSong",serif}
+html[data-fl-ui-language="zh"] .entry-workbench .capture h2 em{font-family:var(--font-editorial),"Noto Serif SC","Songti SC","STSong",serif;font-style:italic;letter-spacing:-.035em}
+html[data-fl-ui-language="zh"] .entry-workbench .capture h2{letter-spacing:-.045em}
 .body-toolbar{width:min(100%,860px);grid-template-columns:minmax(280px,1fr) minmax(145px,auto) minmax(145px,auto)}
 .diet-toolbar{width:min(100%,720px);grid-template-columns:minmax(300px,1fr) minmax(160px,auto)}
 .movement-index-hero{grid-template-columns:minmax(300px,1fr) minmax(380px,.72fr) 228px;grid-template-areas:"label toolbar dictionary" "title toolbar dictionary" "copy toolbar dictionary";column-gap:24px;row-gap:4px;align-items:center;margin-bottom:18px}

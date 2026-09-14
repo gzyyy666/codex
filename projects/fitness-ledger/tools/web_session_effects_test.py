@@ -84,7 +84,7 @@ def main() -> None:
     assert "data-fl-trophy-cursor=\"off\"" in css
     assert "app.js?v=20260914-web-controls-r8" in index
     assert "formal-mirror-data-modules.js?v=20260914-v42" in index
-    assert "final-pass.css?v=20260914-web-controls-r7" in index
+    assert "final-pass.css?v=20260914-web-controls-r8" in index
     assert "搜索备注、饮食内容或日期…" in app
     assert "饮食摘要" in app
     assert "查看详情" in app
@@ -96,6 +96,10 @@ def main() -> None:
     assert "搜索备注或日期…" in app
     assert "全部时间" in app
     assert "打开记录" in app
+    assert "先记录。 <em>再整理。</em>" in app
+    assert "Raw first. <em>Structure second.</em>" in app
+    assert "按住 · 查看最近训练" in app
+    assert "movement-group header p" not in app
     assert "shellLocaleObserver" not in app
     assert "document.documentElement.dataset.flUiLanguage==='en'" in mirror
     browser_contract(app)
