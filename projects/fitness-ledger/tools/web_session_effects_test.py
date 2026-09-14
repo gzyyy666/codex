@@ -81,11 +81,15 @@ def main() -> None:
     assert "fitness-ledger-effects:change" in pet
     assert "data-fl-guardian-pet=\"off\"" in css
     assert "data-fl-trophy-cursor=\"off\"" in css
-    assert "app.js?v=20260914-web-controls-r5" in index
-    assert "final-pass.css?v=20260914-web-controls-r5" in index
+    assert "app.js?v=20260914-web-controls-r7" in index
+    assert "final-pass.css?v=20260914-web-controls-r7" in index
     assert "搜索备注、饮食内容或日期…" in app
     assert "饮食摘要" in app
     assert "查看详情" in app
+    assert "data-ui-language-toggle" in app
+    assert "UI_LANGUAGE_PREF" in app
+    assert ".collectiveos-dashboard{min-height:0!important;align-content:start!important}" in css
+    assert "archive-title-cn" in app
     assert "tools-css3d-panels.js?v=20260913-web-controls-r1" in app
     assert "搜索备注或日期…" in app
     assert "全部时间" in app
