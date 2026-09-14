@@ -1478,3 +1478,74 @@ const archiveBodyRenderer=renderBodyRows;renderBodyRows=function(...args){archiv
 const archiveTrainingRenderer=renderTraining;renderTraining=function(...args){archiveTrainingRenderer(...args);localizeTrainingArchive()};
 const archiveBodyPage=bodyPage;bodyPage=function(...args){archiveBodyPage(...args);localizeBodyArchive()};
 const archiveTrainingPage=trainingPage;trainingPage=function(...args){archiveTrainingPage(...args);localizeTrainingArchive()};
+function localizeDietArchive(){
+  const page=document.querySelector('.diet-archive');if(!page)return;
+  const title=page.querySelector('.archive-heading .page-title');
+  if(title&&!title.querySelector('.archive-title-cn')&&title.textContent.trim()==='Diet Records')title.insertAdjacentHTML('beforeend','<small class="archive-title-cn">饮食记录</small>');
+  const subtitle=page.querySelector('.archive-heading .page-subtitle');if(subtitle)subtitle.textContent='按日期查看热量、三大营养素与饮食内容。';
+  const search=page.querySelector('#diet-search');if(search)search.placeholder='搜索备注、饮食内容或日期…';
+  page.querySelectorAll('.diet-toolbar select option').forEach(option=>{const map={'All Meals':'全部饮食记录','Newest first':'最新记录在前','Oldest first':'最早记录在前'};if(map[option.textContent.trim()])option.textContent=map[option.textContent.trim()]});
+  page.querySelectorAll('.diet-toolbar input[readonly]').forEach(input=>{if(input.value==='Recent records')input.value='最近记录'});
+  page.querySelectorAll('.diet-summary > span').forEach(node=>{if(node.textContent.trim()==='MEAL INDEX')node.textContent='饮食摘要'});
+  page.querySelectorAll('.macro-line > span').forEach(node=>{const key=node.textContent.trim().charAt(0);const map={P:'蛋白质',C:'碳水',F:'脂肪'};if(map[key])node.title=map[key]});
+  page.querySelectorAll('.record-open').forEach(node=>{if(node.textContent.trim().startsWith('Read detail'))node.textContent='查看详情'});
+  page.querySelectorAll('.records-status span').forEach(node=>{if(node.textContent.includes('Showing local records'))node.textContent='正在显示本地记录'});
+  page.querySelectorAll('.empty-note').forEach(node=>{if(node.textContent.includes('No diet records'))node.textContent='暂无符合条件的饮食记录'});
+}
+const archiveDietRenderer=renderDietRows;renderDietRows=function(...args){archiveDietRenderer(...args);localizeDietArchive()};
+const archiveDietPage=dietPage;dietPage=function(...args){archiveDietPage(...args);localizeDietArchive()};
+
+// Keep the editorial English lockups, but make operational copy readable for
+// Chinese users across the remaining archives and transient surfaces.
+function localizeSharedSurface(){
+  const scope=document.querySelector('main');if(!scope)return;
+  const exact=(selector,map)=>scope.querySelectorAll(selector).forEach(node=>{const raw=node.textContent.trim();if(map[raw])node.textContent=map[raw]});
+  const buttonLabel=(selector,label)=>scope.querySelectorAll(selector).forEach(node=>{const text=[...node.childNodes].find(item=>item.nodeType===Node.TEXT_NODE);if(text)text.textContent=`${label} `;else if(!node.children.length)node.textContent=label;else node.insertAdjacentText('afterbegin',`${label} `)});
+  exact('button',{ 'View all ->':'查看全部记录 →','Open detail':'查看详情','Open record →':'打开记录','Read detail →':'查看详情','Open structured detail':'查看结构化详情','Open trajectory →':'查看动作轨迹 →','Open editor preview':'打开编辑预览','Close':'关闭','Edit':'编辑','Cancel':'取消','Confirm & Save':'确认并保存','Back to edit':'返回编辑','Undo last save':'撤销上次保存','No history yet':'暂无历史记录','History unavailable':'暂时无法读取历史','No matching movements.':'没有匹配的动作。','No structured history found.':'暂无结构化历史记录。','Reading movement index…':'正在读取动作索引…','Loading recorded history…':'正在读取历史记录…','Reading movement dictionary…':'正在读取动作词典…','No matching issues':'没有匹配的问题','View all records':'查看全部记录'});
+  exact('.loading-page p',{'Reading movement index…':'正在读取动作索引…','Loading recorded history…':'正在读取历史记录…','Reading movement dictionary…':'正在读取动作词典…'});
+  exact('[data-go="training"]',{'Training':'训练'});exact('[data-go="diet"]',{'Diet':'饮食'});
+  exact('.movement-dictionary-entry span',{'CONTROLLED VOCABULARY':'动作词典'});exact('.movement-dictionary-entry strong',{'Manage Dictionary':'管理动作词典'});
+  exact('.movement-tile em',{'Open trajectory →':'查看动作轨迹 →'});
+  scope.querySelectorAll('.tile-count').forEach(node=>{node.textContent=node.textContent.replace(/(\d+) sessions?/i,'$1 次训练')});
+  scope.querySelectorAll('.movement-group header p').forEach(node=>{const parts=node.textContent.split(' · ');if(parts.length>1)node.textContent=`${groupLabel(parts[0])} · ${parts[1].replace(/movements?/i,'个动作')}`});
+  buttonLabel('[data-tools-panel="health"]','数据检查 →');buttonLabel('[data-tools-panel="sync"]','云端同步 →');
+  buttonLabel('.session-themes-tool-trigger','训练次主题');
+  buttonLabel('[data-dictionary-new]','+ 新建动作');
+  buttonLabel('[data-movement-categories-tool]','动作模块 ↗');
+  buttonLabel('[data-intelligent-review]','预览解析结果 →');
+  buttonLabel('[data-back]','返回编辑');
+  buttonLabel('[data-duplicate]','确认并保存');
+  buttonLabel('[data-raw-preview]','生成差异');
+  buttonLabel('[data-raw-confirm]','确认并保存');
+  scope.querySelectorAll('input[placeholder]').forEach(node=>{const map={'Search notes or food…':'搜索备注、饮食内容或日期…','Search movement, English name or alias…':'搜索动作、英文名或别名…','Search notes…':'搜索备注或日期…','Search training theme or date...':'搜索训练主题或日期…'};if(map[node.placeholder])node.placeholder=map[node.placeholder]});
+  scope.querySelectorAll('select option').forEach(node=>{const map={'All time':'全部时间','Newest first':'最新记录在前','Oldest first':'最早记录在前','All Meals':'全部饮食记录'};if(map[node.textContent.trim()])node.textContent=map[node.textContent.trim()]});
+  scope.querySelectorAll('.result-count').forEach(node=>{node.textContent=node.textContent.replace(/(\d+) movements?/i,'$1 个动作').replace(/(\d+) sessions?/i,'$1 次训练')});
+  exact('th',{'SEVERITY':'级别','DATE':'日期','AREA':'区域','ISSUE':'问题','SUGGESTED ACTION':'建议处理','OPEN':'操作'});
+  exact('.admin-panel-header h2',{'Issues requiring attention':'需要处理的问题','Data Check':'数据检查','Verification summary':'校验摘要'});
+  exact('.admin-panel-header p',{'Sync 和 Data Check 共享本地上下文，但各自只做一件事。':'同步与数据检查共用本地档案状态，但操作彼此独立。'});
+  exact('.admin-panel-meta',{'ALL CHECKS PASSED':'全部检查通过','WAITING FOR SYNC':'等待同步'});
+  exact('.admin-status-badge',{'NEEDS REVIEW':'需要处理','ARCHIVE CLEAR':'当前无需处理'});
+  exact('.admin-kicker',{'SCAN RESULT':'扫描结果','REVIEW QUEUE':'待处理列表','ARCHIVE HEALTH':'档案状态','REFERENCE / CONTROLLED VOCABULARY':'参考 / 动作词典'});
+  exact('.admin-workspace-brand strong',{'Archive desk':'档案工作台'});
+  exact('.admin-workspace-label',{'MAIN':'主要功能','REFERENCE':'参考工具','DISPLAY':'显示效果'});
+  exact('.tools-template-v6 .admin-kicker',{'LOCAL LATEST':'本地最新记录','CLOUD REPLICA':'云端副本','DATA CHECK':'数据检查','ARCHIVE HEALTH':'档案状态'});
+  exact('.admin-kpi-label',{'ARCHIVE HEALTH':'档案状态','LOCAL LATEST':'本地最新记录','CLOUD REPLICA':'云端副本','DATA CHECK':'数据检查'});
+  exact('.admin-export-card h2',{'Export the archive.':'整理档案。'});exact('.admin-health-card h2',{'Keep the archive in order.':'保持档案清晰。'});
+  exact('.admin-health-card .admin-panel-header p',{'Sync 和 Data Check 共享本地上下文，但各自只做一件事。':'同步与数据检查共用本地档案状态，但操作彼此独立。'});
+  buttonLabel('.admin-export-card .admin-card-footer strong','打开导出');buttonLabel('.admin-health-card .admin-card-footer strong','打开档案状态');
+  exact('.admin-stat-grid dt',{'UNRESOLVED':'待处理','ACKNOWLEDGED':'已确认','GENERATED':'生成时间'});
+  scope.querySelectorAll('.admin-check-aside h2').forEach(node=>{if(node.textContent.includes('One local source'))node.innerHTML='一个本地来源。<br>两项安全操作。'});
+  scope.querySelectorAll('.admin-panel-count').forEach(node=>{node.textContent=node.textContent.replace(/(\d+) issues?/i,'$1 项待处理').replace(/(\d+) sessions?/i,'$1 次训练')});
+  exact('.severity',{'High':'高','Medium':'中','Low':'低'});
+  exact('.admin-header-actions button',{'Cloud Sync →':'云端同步 →','Movement Dictionary →':'动作词典 →'});
+  exact('.dictionary-sheet-head span',{'历史':'历史','操作':'操作'});
+  exact('.empty-copy h3',{'No history yet':'暂无历史记录','History unavailable':'暂时无法读取历史'});
+  exact('.empty-copy p',{'This movement exists in the dictionary but has no recorded sessions.':'动作词典中已有此动作，但目前没有训练记录。','The local read-only service could not load this movement.':'本地只读服务暂时无法读取该动作。'});
+  exact('.review-section h3',{'BODY 身体':'身体','DIET 饮食':'饮食','TRAINING 训练':'训练','MOVEMENTS 动作识别':'动作识别','WARNINGS 警告':'提示'});
+  exact('.review-section p',{'Duplicate date · New movement · Unrecognized sets':'日期重复 · 新动作 · 组数未识别'});
+  exact('.modal-actions button',{'Edit':'编辑','Close':'关闭','Cancel':'取消','Open editor preview':'打开编辑预览'});
+}
+let sharedLocaleFrame=0;
+const sharedLocaleObserver=new MutationObserver(()=>{if(sharedLocaleFrame)return;sharedLocaleFrame=requestAnimationFrame(()=>{sharedLocaleFrame=0;localizeSharedSurface()})});
+sharedLocaleObserver.observe(main,{childList:true,subtree:true});
+localizeSharedSurface();
