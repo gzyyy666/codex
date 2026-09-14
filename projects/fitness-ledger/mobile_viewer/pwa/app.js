@@ -19,7 +19,7 @@ const MOVEMENT_MODULE_TONES = Object.freeze({
 const DEFAULT_ACTIVE_BODY_PART_IDS = new Set(["chest", "shoulders", "back", "legs", "arms", "core"]);
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.19 · build 2026.09.14.01";
+const BUILD_VERSION = "PWA v1.1.20 · build 2026.09.14.02";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -521,13 +521,13 @@ function positionCandidateOverlay() {
   const themeStrip = document.querySelector(".reference-home .theme-strip");
   if (!overlay || !themeStrip) return;
   const viewport = keyboardViewport();
-  const strip = themeStrip.getBoundingClientRect();
   const note = document.querySelector(".reference-home .note-sheet")?.getBoundingClientRect();
-  const height = overlay.classList.contains("collapsed") ? 23 : Math.min(166, Math.max(116, viewport.height - 24));
-  const gap = 8;
+  const height = overlay.classList.contains("collapsed") ? 23 : Math.min(166, Math.max(104, viewport.height - 24));
+  const gap = viewport.keyboardOpen ? 4 : 8;
   const minTop = viewport.top + 8;
   const maxTop = Math.max(minTop, viewport.bottom - height - 8);
-  const belowContent = Math.max(strip.bottom + gap, note?.bottom ? note.bottom + gap : 0);
+  const strip = themeStrip.getBoundingClientRect();
+  const belowContent = viewport.keyboardOpen && note ? note.bottom + gap : Math.max(strip.bottom + gap, note?.bottom ? note.bottom + gap : 0);
   const aboveNote = note ? note.top - height - gap : NaN;
   let top = belowContent;
   // Prefer the gap below the input board. If the board fills the viewport,
@@ -886,6 +886,15 @@ function keyboardViewport() {
   return { top, height, bottom, keyboardOpen };
 }
 
+function keyboardLayout(viewport, candidateHeight) {
+  const safeTop = viewport.top + 6;
+  const top = safeTop;
+  const gap = candidateHeight ? 4 : 0;
+  const bottomGap = 8;
+  const available = Math.max(176, viewport.bottom - top - candidateHeight - gap - bottomGap);
+  return { top, noteHeight: available, candidateTop: top + available + gap };
+}
+
 function syncKeyboardViewport() {
   if (state.route.name !== "reference") return;
   const viewport = keyboardViewport();
@@ -896,25 +905,23 @@ function syncKeyboardViewport() {
   root.style.setProperty("--pwa-visual-height", `${Math.round(viewport.height)}px`);
   root.style.setProperty("--pwa-visual-bottom", `${Math.round(viewport.bottom)}px`);
   root.style.setProperty("--pwa-keyboard-inset", `${Math.round(Math.max(0, window.innerHeight - viewport.bottom))}px`);
-  const home = document.querySelector(".reference-home .home-shell");
-  if (!viewport.keyboardOpen) {
-    root.style.setProperty("--pwa-home-shift", "0px");
-    return;
-  }
   const note = document.querySelector(".reference-home .note-sheet");
-  const overlay = document.querySelector(".reference-home .candidate-overlay:not(.collapsed)");
-  if (!note || !overlay) {
-    root.style.setProperty("--pwa-home-shift", "0px");
+  if (!viewport.keyboardOpen) {
+    root.style.removeProperty("--pwa-note-height");
+    root.style.removeProperty("--pwa-editor-scroll-height");
+    positionCandidateOverlay();
     return;
   }
-  const overlayHeight = Math.min(166, Math.max(116, viewport.height - 24));
-  const requiredBottom = viewport.bottom - overlayHeight - 8;
-  const delta = note.getBoundingClientRect().bottom - requiredBottom;
-  if (delta > 2 && home) {
-    const currentShift = Number.parseFloat(root.style.getPropertyValue("--pwa-home-shift")) || 0;
-    root.style.setProperty("--pwa-home-shift", `${Math.round(currentShift - delta)}px`);
+  const overlay = document.querySelector(".reference-home .candidate-overlay:not(.collapsed)");
+  if (!note) return;
+
+  const overlayHeight = overlay ? Math.min(166, Math.max(104, viewport.height - 24)) : 0;
+  const layout = keyboardLayout(viewport, overlayHeight);
+  root.style.setProperty("--pwa-note-height", `${Math.round(layout.noteHeight)}px`);
+  if (overlay) {
+    overlay.style.setProperty("--candidate-height", `${Math.round(overlayHeight)}px`);
+    overlay.style.setProperty("--candidate-top", `${Math.round(layout.candidateTop)}px`);
   }
-  positionCandidateOverlay();
 }
 
 function scheduleKeyboardViewportSync() {
@@ -1076,7 +1083,7 @@ document.addEventListener("click", event => {
 window.addEventListener("scroll", () => { scheduleDockCheck(); positionCandidateOverlay(); scheduleExpandedHomeLayout(); }, { passive: true });
 window.addEventListener("resize", scheduleExpandedHomeLayout, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260914-01", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260914-02", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

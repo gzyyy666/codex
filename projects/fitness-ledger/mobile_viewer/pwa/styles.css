@@ -613,10 +613,9 @@ button { color: inherit; cursor: pointer; }
    blank strip after the movement archive on phones. */
 .app:has(.tabbar) .page{padding-bottom:calc(78px + env(safe-area-inset-bottom))}
 
-/* Keyboard viewport contract: the note keeps its normal writing height; the
-   app scrolls the board upward and places the read-only recognition panel in
-   the remaining visual-viewport gap. This avoids shrinking the editor and
-   avoids positioning the panel against the hidden layout viewport. */
+/* Keyboard viewport contract: keep the board's upper edge stable and resize
+   only its lower edge. The editor owns overflow, while the recognition panel
+   occupies a separate slot immediately below the board. */
 .reference-home .candidate-overlay {
   top: var(--candidate-top, calc(env(safe-area-inset-top) + 182px));
   height: var(--candidate-height, 166px);
@@ -640,15 +639,30 @@ button { color: inherit; cursor: pointer; }
   overflow: auto;
 }
 @media (max-width: 699px) {
-  html[data-pwa-keyboard="open"] .reference-home .home-shell {
-    position: relative;
-    top: var(--pwa-home-shift, 0px);
+  html[data-pwa-keyboard="open"] .reference-home .note-stack,
+  html[data-pwa-keyboard="open"] .reference-home .home-shell[data-home-state="selected-expanded"] .note-stack {
+    position: fixed;
+    z-index: 50;
+    top: calc(var(--pwa-visual-top, 0px) + 6px);
+    right: max(7px, calc((100vw - 560px) / 2));
+    left: max(7px, calc((100vw - 560px) / 2));
+    width: auto;
+    margin: 0;
+    padding: 0;
   }
+  html[data-pwa-keyboard="open"] .reference-home .note-sheet,
+  html[data-pwa-keyboard="open"] .reference-home .note-stack--compact .note-sheet,
   html[data-pwa-keyboard="open"] .reference-home .note-stack:not(.note-stack--compact) .note-sheet {
-    min-height: 440px;
+    height: var(--pwa-note-height, 320px);
+    min-height: 0;
+    max-height: var(--pwa-note-height, 320px);
   }
+  html[data-pwa-keyboard="open"] .reference-home .note-editor,
+  html[data-pwa-keyboard="open"] .reference-home .note-stack--compact .note-editor,
   html[data-pwa-keyboard="open"] .reference-home .note-stack:not(.note-stack--compact) .note-editor {
-    min-height: 320px;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     margin: 10px 0 7px;
     font-size: 16px;
   }
@@ -657,5 +671,20 @@ button { color: inherit; cursor: pointer; }
   }
   html[data-pwa-keyboard="open"] .reference-home .candidate-overlay {
     max-height: calc(var(--pwa-visual-height, 100vh) - 16px);
+    margin: 0;
+  }
+  html[data-pwa-keyboard="open"] .reference-home .candidate-overlay.collapsed {
+    top: calc(var(--pwa-visual-top, 0px) + 52px);
+    right: auto;
+    left: 0;
+  }
+  html[data-pwa-keyboard="open"] .reference-home .theme-strip,
+  html[data-pwa-keyboard="open"] .reference-home .movement-preview,
+  html[data-pwa-keyboard="open"] .reference-home .theme-archive {
+    visibility: hidden;
+    pointer-events: none;
+  }
+  html[data-pwa-keyboard="open"] .reference-home .home-header {
+    visibility: hidden;
   }
 }
