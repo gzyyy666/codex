@@ -19,7 +19,7 @@ const MOVEMENT_MODULE_TONES = Object.freeze({
 const DEFAULT_ACTIVE_BODY_PART_IDS = new Set(["chest", "shoulders", "back", "legs", "arms", "core"]);
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.20 · build 2026.09.14.02";
+const BUILD_VERSION = "PWA v1.1.21 · build 2026.09.14.03";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -521,6 +521,12 @@ function positionCandidateOverlay() {
   const themeStrip = document.querySelector(".reference-home .theme-strip");
   if (!overlay || !themeStrip) return;
   const viewport = keyboardViewport();
+  // While the keyboard owns the visual viewport, syncKeyboardViewport is the
+  // single writer for the panel slot. Scroll events from iOS can arrive
+  // between the editor resize and the next animation frame; letting this
+  // legacy placement routine run here would move the panel back over the
+  // note using stale layout-viewport coordinates.
+  if (viewport.keyboardOpen) return;
   const note = document.querySelector(".reference-home .note-sheet")?.getBoundingClientRect();
   const height = overlay.classList.contains("collapsed") ? 23 : Math.min(166, Math.max(104, viewport.height - 24));
   const gap = viewport.keyboardOpen ? 4 : 8;
@@ -886,9 +892,9 @@ function keyboardViewport() {
   return { top, height, bottom, keyboardOpen };
 }
 
-function keyboardLayout(viewport, candidateHeight) {
+function keyboardLayout(viewport, candidateHeight, noteTop = viewport.top + 6) {
   const safeTop = viewport.top + 6;
-  const top = safeTop;
+  const top = Math.max(safeTop, noteTop);
   const gap = candidateHeight ? 4 : 0;
   const bottomGap = 8;
   const available = Math.max(176, viewport.bottom - top - candidateHeight - gap - bottomGap);
@@ -916,11 +922,12 @@ function syncKeyboardViewport() {
   if (!note) return;
 
   const overlayHeight = overlay ? Math.min(166, Math.max(104, viewport.height - 24)) : 0;
-  const layout = keyboardLayout(viewport, overlayHeight);
+  const layout = keyboardLayout(viewport, overlayHeight, note.getBoundingClientRect().top);
   root.style.setProperty("--pwa-note-height", `${Math.round(layout.noteHeight)}px`);
   if (overlay) {
     overlay.style.setProperty("--candidate-height", `${Math.round(overlayHeight)}px`);
     overlay.style.setProperty("--candidate-top", `${Math.round(layout.candidateTop)}px`);
+    window.requestAnimationFrame(positionCandidateOverlay);
   }
 }
 
@@ -1083,7 +1090,7 @@ document.addEventListener("click", event => {
 window.addEventListener("scroll", () => { scheduleDockCheck(); positionCandidateOverlay(); scheduleExpandedHomeLayout(); }, { passive: true });
 window.addEventListener("resize", scheduleExpandedHomeLayout, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260914-02", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260914-03", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

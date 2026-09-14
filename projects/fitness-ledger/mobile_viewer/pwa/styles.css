@@ -641,14 +641,9 @@ button { color: inherit; cursor: pointer; }
 @media (max-width: 699px) {
   html[data-pwa-keyboard="open"] .reference-home .note-stack,
   html[data-pwa-keyboard="open"] .reference-home .home-shell[data-home-state="selected-expanded"] .note-stack {
-    position: fixed;
+    position: sticky;
     z-index: 50;
     top: calc(var(--pwa-visual-top, 0px) + 6px);
-    right: max(7px, calc((100vw - 560px) / 2));
-    left: max(7px, calc((100vw - 560px) / 2));
-    width: auto;
-    margin: 0;
-    padding: 0;
   }
   html[data-pwa-keyboard="open"] .reference-home .note-sheet,
   html[data-pwa-keyboard="open"] .reference-home .note-stack--compact .note-sheet,

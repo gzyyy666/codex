@@ -80,9 +80,11 @@ def main() -> None:
         wait_for(browser, "!!document.querySelector('[data-note]')")
         evaluate(browser, """(() => {
           const input = document.querySelector('[data-note]');
-          input.value = Array.from({length: 24}, (_, i) => `动作 ${i + 1} 30-12-1`).join('\\n');
-          input.dispatchEvent(new Event('input', {bubbles:true}));
+          input.value = Array.from({length: 24}, (_, i) => `训练记录 ${i + 1} 30-12-1`).join('\\n');
+          document.body.style.minHeight = '1600px';
+          document.querySelector('.reference-home').classList.add('reference-home--stable');
           document.querySelector('[data-candidate-region]').innerHTML = `<section class="candidates candidate-overlay"><div class="candidate-head"><span>可能相关动作 · 最近记录</span><button>收起</button></div><div class="candidate-scroll"><button class="candidate"><span class="candidate-main"><b>卧推</b><span class="candidate-history-list"><article class="candidate-history"><div class="candidate-history-head"><b>2026-09-11 · 第 1 个动作</b></div><div class="candidate-sets"><span>60 kg 8 次 1 组</span><span>50 kg 12 次 2 组</span></div></article></span></span></button></div></section>`;
+          window.scrollTo(0, 180);
           input.focus();
           Object.defineProperty(window, 'visualViewport', { configurable:true, value:{offsetTop:0,height:430} });
           window.dispatchEvent(new Event('resize'));
@@ -92,17 +94,19 @@ def main() -> None:
           const note=document.querySelector('.note-sheet').getBoundingClientRect();
           const editor=document.querySelector('.note-editor');
           const panel=document.querySelector('.candidate-overlay').getBoundingClientRect();
-          return {noteTop:note.top,noteBottom:note.bottom,noteHeight:note.height,panelTop:panel.top,panelBottom:panel.bottom,
+          return {noteTop:note.top,noteBottom:note.bottom,noteHeight:note.height,noteWidth:note.width,panelTop:panel.top,panelBottom:panel.bottom,
             editorOverflow:getComputedStyle(editor).overflowY,editorFont:getComputedStyle(editor).fontSize,
             editorScrollable:editor.scrollHeight>editor.clientHeight,stackPosition:getComputedStyle(document.querySelector('.note-stack')).position,
-            homeShift:document.documentElement.style.getPropertyValue('--pwa-home-shift')};
+            homeShift:document.documentElement.style.getPropertyValue('--pwa-home-shift'),candidateTopVar:document.querySelector('.candidate-overlay').style.getPropertyValue('--candidate-top'),
+            visualBottom:document.documentElement.style.getPropertyValue('--pwa-visual-bottom')};
         })()""")
-        assert -1 <= result["noteTop"] <= 12, result
+        assert -1 <= result["noteTop"] <= 24, result
+        assert 340 <= result["noteWidth"] <= 358, result
         assert 175 <= result["noteHeight"] <= 260, result
         assert result["noteBottom"] <= result["panelTop"] + 1, result
         assert result["panelBottom"] <= 430, result
         assert result["editorOverflow"] == "auto" and result["editorScrollable"], result
-        assert result["editorFont"] == "16px" and result["stackPosition"] == "fixed", result
+        assert result["editorFont"] == "16px" and result["stackPosition"] == "sticky", result
         assert result["homeShift"] == "", result
 
         evaluate(browser, "document.querySelector('[data-candidate-region]').innerHTML=''; window.dispatchEvent(new Event('resize'))")
