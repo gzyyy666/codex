@@ -2271,9 +2271,9 @@ table{border-collapse:collapse}thead{background:rgba(18,17,15,.035)}th{font-size
 .training-movement-order{padding-top:2px;color:var(--graphite);font-size:9px;font-variant-numeric:tabular-nums;letter-spacing:.08em}
 .training-movement-copy{display:grid;gap:3px;min-width:0}.training-movement-copy strong{font-size:13px;font-weight:600}.training-movement-copy small{color:var(--graphite);font-size:10px;font-variant-numeric:tabular-nums;line-height:1.45}.training-movement-copy em{color:var(--graphite);font-size:9px;font-style:normal;line-height:1.4}
 .training-movement-direction{color:var(--training-accent-deep);font-size:11px;opacity:.45;transition:opacity .18s,transform .18s}.training-movement-row:hover .training-movement-direction{opacity:.9;transform:translate(1px,-1px)}
-.previous-preview{position:absolute;z-index:12;left:0;top:calc(100% + 10px);display:grid;gap:6px;min-width:154px;padding:12px 14px;border:1px solid rgba(24,21,16,.2);border-radius:4px 14px 8px 10px;background:rgba(255,252,244,.97);box-shadow:0 12px 26px rgba(35,29,18,.14),inset 0 1px rgba(255,255,255,.8);color:var(--ink);font-size:11px;line-height:1.35;pointer-events:none;white-space:nowrap}
+.previous-preview{position:absolute;z-index:12;left:0;top:calc(100% + 10px);display:grid;gap:6px;min-width:154px;max-width:min(360px,calc(100vw - 32px));padding:12px 14px;border:1px solid rgba(24,21,16,.2);border-radius:4px 14px 8px 10px;background:rgba(255,252,244,.97);box-shadow:0 12px 26px rgba(35,29,18,.14),inset 0 1px rgba(255,255,255,.8);color:var(--ink);font-size:11px;line-height:1.35;pointer-events:none;white-space:normal}
 .previous-preview .eyebrow{font-size:8px;letter-spacing:.16em;color:var(--graphite)}
-.previous-preview strong{font-variant-numeric:tabular-nums;font-weight:600}
+.previous-preview strong{display:block;max-height:240px;overflow:auto;font-variant-numeric:tabular-nums;font-weight:600;white-space:pre-wrap}
 .previous-preview small{color:var(--graphite);font-size:9px}
 .is-context-focus{animation:context-focus .9s ease-out}
 @keyframes context-focus{0%{box-shadow:0 0 0 4px rgba(255,216,110,.62),var(--z-shadow-raised)}100%{box-shadow:inset 0 1px var(--z-edge),var(--z-shadow-contact),0 14px 34px rgba(45,35,20,.075)}}

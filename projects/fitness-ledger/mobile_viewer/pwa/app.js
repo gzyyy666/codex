@@ -19,7 +19,7 @@ const MOVEMENT_MODULE_TONES = Object.freeze({
 const DEFAULT_ACTIVE_BODY_PART_IDS = new Set(["chest", "shoulders", "back", "legs", "arms", "core"]);
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.18 · build 2026.09.11.14";
+const BUILD_VERSION = "PWA v1.1.19 · build 2026.09.14.01";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -247,11 +247,12 @@ function setLine(item) {
         : (/^\s*\d+(?:\.\d+)?\s*$/.test(String(rawWeight)) ? `${Number(rawWeight)}kg` : String(rawWeight));
       return `${weight} × ${segment?.reps ?? "-"}`;
     }).join(" + ");
-    const count = Number(item.sets || 1);
+    const count = Number(item.set_count ?? item.sets ?? 1);
     return `${segments}${count !== 1 ? ` × ${count}组` : ""}`;
   }
   const weight = item.weight_text || item.weightText || (item.weight ? `${item.weight} kg` : "自重");
-  return `${weight} ${item.reps ? `${item.reps} 次` : ""} ${item.sets ? `× ${item.sets} 组` : ""}`.trim();
+  const setCount = item.set_count ?? item.sets;
+  return `${weight} ${item.reps ? `${item.reps} 次` : ""} ${setCount ? `× ${setCount} 组` : ""}`.trim();
 }
 function previewSetParts(item) {
   const rawWeight = item?.weight_text ?? item?.weightText ?? item?.weight;
@@ -260,7 +261,8 @@ function previewSetParts(item) {
     ? "自重"
     : (numericWeight ? `${Number(rawWeight)} kg` : String(rawWeight));
   const repsLabel = item?.reps === undefined || item?.reps === null || item?.reps === "" ? "-" : `${String(item.reps).trim()} 次`;
-  const setsLabel = item?.sets === undefined || item?.sets === null || item?.sets === "" ? "-" : `${String(item.sets).trim()} 组`;
+  const setCount = item?.set_count ?? item?.sets;
+  const setsLabel = Array.isArray(setCount) || setCount === undefined || setCount === null || setCount === "" ? "-" : `${String(setCount).trim()} 组`;
   return [weightLabel, repsLabel, setsLabel];
 }
 function previewSetLine(item) {
@@ -268,6 +270,9 @@ function previewSetLine(item) {
   return previewSetParts(item).filter(value => value !== "-").join(" / ");
 }
 function renderCandidateSet(item, index) {
+  if (Array.isArray(item?.segments) && item.segments.length) {
+    return `<div class="candidate-set candidate-set--complex"><span>${String(index + 1).padStart(2, "0")}</span><b>${esc(setLine(item))}</b></div>`;
+  }
   const [weight, reps, sets] = previewSetParts(item);
   return `<div class="candidate-set"><span>${String(index + 1).padStart(2, "0")}</span><div class="candidate-set-values"><b>${esc(weight)}</b><b>${esc(reps)}</b><b>${esc(sets)}</b></div></div>`;
 }
@@ -515,21 +520,24 @@ function positionCandidateOverlay() {
   const overlay = region?.querySelector(".candidate-overlay");
   const themeStrip = document.querySelector(".reference-home .theme-strip");
   if (!overlay || !themeStrip) return;
+  const viewport = keyboardViewport();
   const strip = themeStrip.getBoundingClientRect();
   const note = document.querySelector(".reference-home .note-sheet")?.getBoundingClientRect();
-  const height = overlay.classList.contains("collapsed") ? 23 : 166;
+  const height = overlay.classList.contains("collapsed") ? 23 : Math.min(166, Math.max(116, viewport.height - 24));
   const gap = 8;
-  const maxTop = Math.max(8, window.innerHeight - height - 8);
+  const minTop = viewport.top + 8;
+  const maxTop = Math.max(minTop, viewport.bottom - height - 8);
   const belowContent = Math.max(strip.bottom + gap, note?.bottom ? note.bottom + gap : 0);
   const aboveNote = note ? note.top - height - gap : NaN;
   let top = belowContent;
   // Prefer the gap below the input board. If the board fills the viewport,
   // use the space above it instead; never deliberately cover the note sheet.
-  if (note && top < note.bottom && Number.isFinite(aboveNote) && aboveNote >= 8) top = aboveNote;
-  if (note && top < note.bottom && aboveNote < 8) top = Math.max(8, Math.min(belowContent, maxTop));
-  top = Math.min(Math.max(8, top), maxTop);
-  if (note && top < note.bottom && top + height > note.top && Number.isFinite(aboveNote) && aboveNote >= 8) top = aboveNote;
+  if (note && top < note.bottom && Number.isFinite(aboveNote) && aboveNote >= minTop) top = aboveNote;
+  if (note && top < note.bottom && aboveNote < minTop) top = Math.max(minTop, Math.min(belowContent, maxTop));
+  top = Math.min(Math.max(minTop, top), maxTop);
+  if (note && top < note.bottom && top + height > note.top && Number.isFinite(aboveNote) && aboveNote >= minTop) top = aboveNote;
   state.candidateAnchorTop = top;
+  overlay.style.setProperty("--candidate-height", `${Math.round(height)}px`);
   overlay.style.setProperty("--candidate-top", `${top}px`);
 }
 let expandedHomeLayoutFrame = 0;
@@ -572,12 +580,13 @@ function refreshCandidateOverlay(animateCollapse = false) {
   const current = region.querySelector(".candidate-overlay:not(.collapsed)");
   if (animateCollapse && current) {
     current.classList.add("is-collapsing");
-    window.setTimeout(() => { region.innerHTML = renderCandidateOverlay(); positionCandidateOverlay(); }, 220);
+    window.setTimeout(() => { region.innerHTML = renderCandidateOverlay(); positionCandidateOverlay(); scheduleKeyboardViewportSync(); }, 220);
     return;
   }
   region.innerHTML = renderCandidateOverlay();
   if (!region.querySelector(".candidate-overlay")) state.candidateAnchorTop = null;
   positionCandidateOverlay();
+  scheduleKeyboardViewportSync();
 }
 function updateNoteStatus(message = "已自动保存") {
   document.querySelectorAll("[data-note-status]").forEach(element => { element.textContent = message; });
@@ -756,6 +765,7 @@ function render() {
   // Re-apply the anchored candidate position after that DOM replacement so it
   // cannot fall back to the legacy top position.
   positionCandidateOverlay();
+  scheduleKeyboardViewportSync();
   scheduleExpandedHomeLayout();
   const shareDialog = document.querySelector("#share-confirm-dialog");
   if (shareDialog && !shareDialog.open) shareDialog.showModal();
@@ -865,6 +875,55 @@ let noteCatalogPromise;
 let dataModulePromise;
 let routeRequest = 0;
 let noteFocusScrollTop = null;
+let keyboardViewportFrame = 0;
+
+function keyboardViewport() {
+  const viewport = window.visualViewport;
+  const top = Math.max(0, Number(viewport?.offsetTop || 0));
+  const height = Math.max(1, Number(viewport?.height || window.innerHeight));
+  const bottom = top + height;
+  const keyboardOpen = Boolean(document.activeElement?.matches?.("[data-note]") && window.innerHeight - height > 80);
+  return { top, height, bottom, keyboardOpen };
+}
+
+function syncKeyboardViewport() {
+  if (state.route.name !== "reference") return;
+  const viewport = keyboardViewport();
+  const root = document.documentElement;
+  root.dataset.pwaKeyboard = viewport.keyboardOpen ? "open" : "closed";
+  root.dataset.pwaInputEmpty = state.note.trim() ? "false" : "true";
+  root.style.setProperty("--pwa-visual-top", `${Math.round(viewport.top)}px`);
+  root.style.setProperty("--pwa-visual-height", `${Math.round(viewport.height)}px`);
+  root.style.setProperty("--pwa-visual-bottom", `${Math.round(viewport.bottom)}px`);
+  root.style.setProperty("--pwa-keyboard-inset", `${Math.round(Math.max(0, window.innerHeight - viewport.bottom))}px`);
+  const home = document.querySelector(".reference-home .home-shell");
+  if (!viewport.keyboardOpen) {
+    root.style.setProperty("--pwa-home-shift", "0px");
+    return;
+  }
+  const note = document.querySelector(".reference-home .note-sheet");
+  const overlay = document.querySelector(".reference-home .candidate-overlay:not(.collapsed)");
+  if (!note || !overlay) {
+    root.style.setProperty("--pwa-home-shift", "0px");
+    return;
+  }
+  const overlayHeight = Math.min(166, Math.max(116, viewport.height - 24));
+  const requiredBottom = viewport.bottom - overlayHeight - 8;
+  const delta = note.getBoundingClientRect().bottom - requiredBottom;
+  if (delta > 2 && home) {
+    const currentShift = Number.parseFloat(root.style.getPropertyValue("--pwa-home-shift")) || 0;
+    root.style.setProperty("--pwa-home-shift", `${Math.round(currentShift - delta)}px`);
+  }
+  positionCandidateOverlay();
+}
+
+function scheduleKeyboardViewportSync() {
+  if (keyboardViewportFrame) return;
+  keyboardViewportFrame = window.requestAnimationFrame(() => {
+    keyboardViewportFrame = 0;
+    syncKeyboardViewport();
+  });
+}
 
 function restoreNoteFocusViewport() {
   if (state.route.name !== "reference" || noteFocusScrollTop === null) return;
@@ -873,30 +932,25 @@ function restoreNoteFocusViewport() {
   window.requestAnimationFrame(() => window.scrollTo({ top: target, behavior: "auto" }));
 }
 
-function stabilizeNoteFocusViewport() {
-  if (state.route.name !== "reference" || noteFocusScrollTop === null) return;
-  window.requestAnimationFrame(() => {
-    if (document.activeElement?.matches?.("[data-note]")) {
-      window.scrollTo({ top: noteFocusScrollTop, behavior: "auto" });
-    }
-  });
-}
-
 document.addEventListener("focusin", event => {
   if (!event.target.matches("[data-note]")) return;
   noteFocusScrollTop = window.scrollY;
   document.documentElement.classList.add("pwa-note-focused");
-  stabilizeNoteFocusViewport();
+  scheduleKeyboardViewportSync();
 });
 document.addEventListener("focusout", event => {
   if (!event.target.matches("[data-note]")) return;
   window.setTimeout(() => {
     if (document.activeElement?.matches?.("[data-note]")) return;
     document.documentElement.classList.remove("pwa-note-focused");
+    document.documentElement.dataset.pwaKeyboard = "closed";
     restoreNoteFocusViewport();
+    scheduleKeyboardViewportSync();
   }, 50);
 });
-window.visualViewport?.addEventListener("resize", stabilizeNoteFocusViewport, { passive: true });
+window.visualViewport?.addEventListener("resize", scheduleKeyboardViewportSync, { passive: true });
+window.visualViewport?.addEventListener("scroll", scheduleKeyboardViewportSync, { passive: true });
+window.addEventListener("resize", scheduleKeyboardViewportSync, { passive: true });
 
 function loadNoteCatalog() {
   if (Array.isArray(state.noteCatalog)) return Promise.resolve(state.noteCatalog);
@@ -1022,7 +1076,7 @@ document.addEventListener("click", event => {
 window.addEventListener("scroll", () => { scheduleDockCheck(); positionCandidateOverlay(); scheduleExpandedHomeLayout(); }, { passive: true });
 window.addEventListener("resize", scheduleExpandedHomeLayout, { passive: true });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260911-14", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260914-01", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();
