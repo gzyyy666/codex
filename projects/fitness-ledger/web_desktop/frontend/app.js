@@ -1433,8 +1433,7 @@ cloudSyncPage=async function(){
 // English typography that carries the existing visual hierarchy.
 const archiveNameZh=name=>({
   'Full Body':'全身','FULL BODY':'全身','Chest':'胸','CHEST':'胸','Back':'背','BACK':'背',
-  'Legs':'腿','LEGS':'腿','Shoulders':'肩','SHOULDERS':'肩','Arms':'手臂','ARMS':'手臂',
-  'Push':'推','PUSH':'推','Pull':'拉','PULL':'拉'
+  'Legs':'腿','LEGS':'腿','Shoulders':'肩','SHOULDERS':'肩','Arms':'手臂','ARMS':'手臂'
 }[String(name||'').trim()]||String(name||''));
 function localizeBodyArchive(){
   const page=document.querySelector('.body-archive');if(!page)return;
