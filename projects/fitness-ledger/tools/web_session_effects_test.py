@@ -70,6 +70,7 @@ def main() -> None:
     pet = (PROJECT / "web_desktop/frontend/tools-css3d-panels.js").read_text(encoding="utf-8")
     css = (PROJECT / "web_desktop/frontend/final-pass.css").read_text(encoding="utf-8")
     index = (PROJECT / "web_desktop/frontend/index.html").read_text(encoding="utf-8")
+    mirror = (PROJECT / "web_desktop/frontend/formal-mirror-data-modules.js").read_text(encoding="utf-8")
 
     active_ids = app.split("trainingThemeIds=function()", 1)[1].split("sessionThemeRows=function", 1)[0]
     assert "ids.push('__unthemed__')" not in active_ids
@@ -81,7 +82,8 @@ def main() -> None:
     assert "fitness-ledger-effects:change" in pet
     assert "data-fl-guardian-pet=\"off\"" in css
     assert "data-fl-trophy-cursor=\"off\"" in css
-    assert "app.js?v=20260914-web-controls-r7" in index
+    assert "app.js?v=20260914-web-controls-r8" in index
+    assert "formal-mirror-data-modules.js?v=20260914-v42" in index
     assert "final-pass.css?v=20260914-web-controls-r7" in index
     assert "搜索备注、饮食内容或日期…" in app
     assert "饮食摘要" in app
@@ -94,6 +96,8 @@ def main() -> None:
     assert "搜索备注或日期…" in app
     assert "全部时间" in app
     assert "打开记录" in app
+    assert "shellLocaleObserver" not in app
+    assert "document.documentElement.dataset.flUiLanguage==='en'" in mirror
     browser_contract(app)
     print("FITNESS_LEDGER_WEB_SESSION_EFFECTS_OK")
 

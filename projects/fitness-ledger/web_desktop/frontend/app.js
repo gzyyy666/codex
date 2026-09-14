@@ -1588,7 +1588,5 @@ let sharedLocaleFrame=0;
 setUiLanguage(uiLanguage());
 const sharedLocaleObserver=new MutationObserver(()=>{if(sharedLocaleFrame)return;sharedLocaleFrame=requestAnimationFrame(()=>{sharedLocaleFrame=0;localizeSharedSurface()})});
 sharedLocaleObserver.observe(main,{childList:true,subtree:true});
-const shellLocaleObserver=new MutationObserver(()=>{if(uiLanguage()!=='en')return;const back=document.querySelector('.dm-route-back-button');if(back&&back.textContent.includes('返回首页')){back.textContent='← Back home';back.setAttribute('aria-label','Back home')}});
-shellLocaleObserver.observe(document.body,{childList:true,subtree:true});
 localizeSharedSurface();
 document.addEventListener('click',event=>{const toggle=event.target.closest?.('[data-ui-language-toggle]');if(!toggle)return;event.preventDefault();event.stopImmediatePropagation();setUiLanguage(uiLanguage()==='zh'?'en':'zh');root.innerHTML='';renderRoute(parseRoute(),history.state||{})},true);
