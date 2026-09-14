@@ -335,13 +335,13 @@ function ensureReviewHub(){return}
   function routeBackDescriptor(route){
     const panel=routePanel(route);
     if(route.view==='home')return null;
-    if(route.view==='tools')return panel&&panel!=='overview'?{label:'返回 Tools',view:'tools',params:{}}:{label:'返回 Home',view:'home',params:{}};
-    if(route.view==='training'&&document.querySelector('.training-theme-page')?.dataset.trainingTheme&&document.querySelector('.training-theme-page')?.dataset.trainingTheme!=='overview')return {label:'返回 Training',view:'training',params:{}};
-    if(route.view==='movements'&&route.params?.get?.('movement_id'))return {label:'返回 Movement',view:'movements',params:{}};
+    if(route.view==='tools')return panel&&panel!=='overview'?{label:'返回工具',view:'tools',params:{}}:{label:'返回首页',view:'home',params:{}};
+    if(route.view==='training'&&document.querySelector('.training-theme-page')?.dataset.trainingTheme&&document.querySelector('.training-theme-page')?.dataset.trainingTheme!=='overview')return {label:'返回训练',view:'training',params:{}};
+    if(route.view==='movements'&&route.params?.get?.('movement_id'))return {label:'返回动作表现',view:'movements',params:{}};
     if(route.view==='dictionary')return {label:'返回上一层',mode:'history',fallback:'tools'};
-    if(route.view==='guardian')return {label:'返回 Tools',view:'tools',params:{}};
-    if(route.view==='review')return {label:'返回 Daily Entry',view:'quick',params:{}};
-    return {label:'返回 Home',view:'home',params:{}};
+    if(route.view==='guardian')return {label:'返回工具',view:'tools',params:{}};
+    if(route.view==='review')return {label:'返回每日录入',view:'quick',params:{}};
+    return {label:'返回首页',view:'home',params:{}};
   }
   function syncRouteBackButton(){
     const existing=$('[data-dm-route-back]'),route=bridge.currentRoute(),descriptor=routeBackDescriptor(route);
