@@ -49,8 +49,10 @@ const cursor=switches.find(node=>node.dataset.webEffect==='trophyCursor');cursor
 testSync=true;syncStatusReads=0;const syncOutcome=await autoSyncAfterSave(),autoSyncStatusReads=syncStatusReads;
 navigate('home');await wait(80);const homeText=document.querySelector('.home-page')?.innerText||'';
 navigate('quick');await wait(80);const quickText=document.querySelector('.entry-page')?.innerText||'';
+navigate('training');await wait(80);const trainingText=document.querySelector('.training-theme-page')?.innerText||'';
+navigate('body');await wait(80);const bodyText=document.querySelector('.body-archive')?.innerText||'';
 navigate('tools',{panel:'sync'});await wait(120);const cloud=document.querySelector('.cloud-sync-business'),cloudText=cloud?.innerText||'';
-const result={themeLabels,switchCount:switches.length,switchesInRail,cursorStored:localStorage.getItem('fitness-ledger.web-effect.trophy-cursor.v1'),cursorDataset:document.documentElement.dataset.flTrophyCursor,syncStatus:syncOutcome.status,reconciled:syncOutcome.reconciled,autoSyncStatusReads,homeBilingual:homeText.includes('LOCAL FITNESS JOURNAL')&&homeText.includes('记录今天')&&homeText.includes('查看动作档案'),quickBilingual:quickText.includes('Write the day.')&&quickText.includes('识别并复核')&&quickText.includes('撤销上次保存'),cloudBusiness:Boolean(cloud),cloudHasUserStatus:Boolean(cloud?.querySelector('.cloud-sync-user-grid')),cloudHidesRoute:Boolean(!cloud?.querySelector('.admin-route-track')&&!cloud?.querySelector('.admin-verification-panel')),cloudAdvancedClosed:Boolean(cloud?.querySelector('.cloud-sync-advanced:not([open])')),cloudBilingual:cloudText.includes('Cloud Sync')&&cloudText.includes('本地记录')&&cloudText.includes('云端副本')&&cloudText.includes('手机端读取')};
+const result={themeLabels,switchCount:switches.length,switchesInRail,cursorStored:localStorage.getItem('fitness-ledger.web-effect.trophy-cursor.v1'),cursorDataset:document.documentElement.dataset.flTrophyCursor,syncStatus:syncOutcome.status,reconciled:syncOutcome.reconciled,autoSyncStatusReads,homeBilingual:homeText.includes('LOCAL FITNESS JOURNAL')&&homeText.includes('记录今天')&&homeText.includes('查看动作档案'),quickBilingual:quickText.includes('Write the day.')&&quickText.includes('识别并复核')&&quickText.includes('撤销上次保存'),trainingChinese:trainingText.includes('训练记录')&&trainingText.includes('全身')&&trainingText.includes('最新训练在前'),bodyChinese:bodyText.includes('身体记录')&&bodyText.includes('全部时间')&&bodyText.includes('打开记录'),cloudBusiness:Boolean(cloud),cloudHasUserStatus:Boolean(cloud?.querySelector('.cloud-sync-user-grid')),cloudHidesRoute:Boolean(!cloud?.querySelector('.admin-route-track')&&!cloud?.querySelector('.admin-verification-panel')),cloudAdvancedClosed:Boolean(cloud?.querySelector('.cloud-sync-advanced:not([open])')),cloudBilingual:cloudText.includes('Cloud Sync')&&cloudText.includes('本地记录')&&cloudText.includes('云端副本')&&cloudText.includes('手机端读取')};
 const report=document.createElement('div');report.id='web-session-effects-report';report.dataset.value=encodeURIComponent(JSON.stringify(result));document.body.appendChild(report);
 """
     with tempfile.TemporaryDirectory(prefix="fitness-ledger-web-effects-") as temp:
@@ -60,7 +62,7 @@ const report=document.createElement('div');report.id='web-session-effects-report
     match = re.search(r'id="web-session-effects-report" data-value="([^"]+)"', output)
     assert match, "Web effects report was not rendered"
     result = json.loads(unquote(match.group(1)))
-    assert result == {"themeLabels": ["Push"], "switchCount": 2, "switchesInRail": True, "cursorStored": "off", "cursorDataset": "off", "syncStatus": "SYNCED", "reconciled": True, "autoSyncStatusReads": 3, "homeBilingual": True, "quickBilingual": True, "cloudBusiness": True, "cloudHasUserStatus": True, "cloudHidesRoute": True, "cloudAdvancedClosed": True, "cloudBilingual": True}, result
+    assert result == {"themeLabels": ["Push"], "switchCount": 2, "switchesInRail": True, "cursorStored": "off", "cursorDataset": "off", "syncStatus": "SYNCED", "reconciled": True, "autoSyncStatusReads": 3, "homeBilingual": True, "quickBilingual": True, "trainingChinese": True, "bodyChinese": True, "cloudBusiness": True, "cloudHasUserStatus": True, "cloudHidesRoute": True, "cloudAdvancedClosed": True, "cloudBilingual": True}, result
 
 
 def main() -> None:
@@ -79,7 +81,7 @@ def main() -> None:
     assert "fitness-ledger-effects:change" in pet
     assert "data-fl-guardian-pet=\"off\"" in css
     assert "data-fl-trophy-cursor=\"off\"" in css
-    assert "app.js?v=20260914-web-controls-r4" in index
+    assert "app.js?v=20260914-web-controls-r5" in index
     assert "final-pass.css?v=20260914-web-controls-r4" in index
     assert "tools-css3d-panels.js?v=20260913-web-controls-r1" in app
     browser_contract(app)
