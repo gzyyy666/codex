@@ -112,6 +112,65 @@ def main() -> None:
                 page.wait_for_url("**/#movements")
                 assert "movement_id=" not in page.url
 
+                # English localization must not overwrite the route-aware global
+                # back label or churn the button while the page is settling.
+                english_page = browser.new_page(viewport={"width": 1440, "height": 900})
+                english_page.add_init_script(
+                    "localStorage.setItem('fitness-ledger.ui-language.v1', 'en')"
+                )
+                english_page.goto(base + "#movements", wait_until="domcontentloaded")
+                english_tile = english_page.locator(
+                    '[data-select-movement-id="REVIEW_INCLINE_PRESS"]'
+                ).first
+                english_tile.wait_for()
+                english_tile.click()
+                english_page.locator(".movement-detail-page").wait_for()
+                english_back = english_page.locator("[data-dm-route-back]")
+                english_back.wait_for(state="visible")
+                assert english_back.get_attribute("aria-label") == "Back to previous page"
+                english_handle = english_back.element_handle()
+                english_page.wait_for_timeout(400)
+                assert english_handle.evaluate("element => element.isConnected"), (
+                    "English localization replaced the route-back control"
+                )
+                assert english_back.inner_text() == "← Back to previous page"
+                english_back.click()
+                english_page.wait_for_url("**/#movements")
+                assert "movement_id=" not in english_page.url
+
+                english_page.goto(base + "#training", wait_until="domcontentloaded")
+                english_training_row = english_page.locator(
+                    '[data-movement-source="training"][data-select-movement-id="REVIEW_INCLINE_PRESS"]'
+                ).last
+                english_training_row.wait_for()
+                english_training_url = english_page.url
+                english_training_row.click()
+                english_page.locator(".movement-detail-page").wait_for()
+                english_back = english_page.locator("[data-dm-route-back]")
+                english_back.wait_for(state="visible")
+                assert english_back.get_attribute("aria-label") == "Back to previous page"
+                english_handle = english_back.element_handle()
+                english_page.wait_for_timeout(400)
+                assert english_handle.evaluate("element => element.isConnected"), (
+                    "English localization replaced the training-origin back control"
+                )
+                english_back.click()
+                english_page.wait_for_url(english_training_url)
+                assert english_page.url == english_training_url
+
+                # A direct deep link has a different, explicit English fallback.
+                english_page.goto(
+                    base + "#movements?movement_id=REVIEW_INCLINE_PRESS",
+                    wait_until="domcontentloaded",
+                )
+                english_back = english_page.locator("[data-dm-route-back]")
+                english_back.wait_for(state="visible")
+                assert english_back.get_attribute("aria-label") == "Back to Movement Progress"
+                english_back.click()
+                english_page.wait_for_url("**/#movements")
+                assert "movement_id=" not in english_page.url
+                english_page.close()
+
                 browser.close()
         finally:
             server.shutdown()

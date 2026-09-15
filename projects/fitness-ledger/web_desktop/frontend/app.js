@@ -1688,7 +1688,6 @@ function localizeEnglishSurface(scope){
   exact('.admin-action-row[data-tools-panel="sync"] small',{'同步本地记录，并确认云端副本。':'Sync local records and confirm the cloud copy.','生成、上传并校验只读 Payload。':'Generate, upload, and verify the read-only payload.'});exact('.admin-action-row[data-tools-panel="health"] small',{'检查并定位需要处理的记录问题。':'Scan and locate record issues that need attention.','扫描、定位并确认本地结构问题。':'Scan, locate, and confirm local structure issues.'});
   exact('.admin-reference-card>p',{'动作定义独立存在，不参与同步或检查流程。':'Movement definitions stay independent from sync and checks.'});exact('.dm-tools-entry .admin-kicker',{'03 / 数据模块':'03 / DATA MODULE'});exact('.dm-tools-entry h2',{'编辑新增记录项。':'Edit added record fields.'});exact('.dm-tools-entry>p',{'把腰围、肌酸等新数据接入现有记录、历史和导出流程。':'Bring new data such as waist and creatine into existing records, history, and exports.'});buttonLabel('.dm-tools-entry .admin-card-footer strong','Open Data Modules');
   document.querySelectorAll('.sidebar .nav-item').forEach(node=>{const text=[...node.childNodes].find(item=>item.nodeType===Node.TEXT_NODE),map={'主页':'Home','每日录入':'Daily Entry','身体':'Body','饮食':'Diet','训练':'Training','动作表现':'Movement Progress','工具':'Tools'};if(text&&map[text.textContent.trim()])text.textContent=`${map[text.textContent.trim()]} `});
-  const backHome=document.querySelector('.dm-route-back-button');if(backHome){backHome.textContent='← Back home';backHome.setAttribute('aria-label','Back home')}
 }
 function localizeSharedSurface(){
   const scope=document.querySelector('main');if(!scope)return;

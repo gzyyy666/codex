@@ -7,6 +7,8 @@
   movement recorded as part of a superset from both chart metrics.
 - Restore working movement-detail chart/timeline interactions and return to the
   actual originating page, including the Training filters and scroll position.
+- Keep the route-aware back control stable in English mode; localization no
+  longer replaces the control with a generic home destination.
 - Updated the desktop Web source only; no PWA static upload, Cloud mutation, or
   personal-record write was part of this release.
 
