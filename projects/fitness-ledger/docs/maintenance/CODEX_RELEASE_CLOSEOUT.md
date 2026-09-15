@@ -13,10 +13,63 @@ Classify the task before acting:
   a reviewable commit or explicit diff. Do not merge, push, tag, deploy, or
   write the formal directory.
 - **Seal / finalise:** continue only after explicit user authorization for
-  formal release. Complete every gate below; do not infer authorization from
-  “完成”“finish” or a review URL alone.
+  formal release. Select Quick Seal only when every eligibility condition below
+  is satisfied; otherwise complete the Full Seal gates. Do not infer
+  authorization from “完成”“finish” or a review URL alone.
 
-## Mandatory seal sequence
+## Quick Seal for source-clear, low-risk changes
+
+Quick Seal is intended for small fixes whose source, behavior, and deployment
+scope are already clear (for example, a localized UI interaction or copy fix).
+It avoids repeating broad audits that cannot change the release decision.
+
+Every condition must be true:
+
+- The live baseline is understood, `main` and the intended remote baseline have
+  no unexplained divergence, and the task Worktree is clean apart from this
+  reviewed change.
+- The diff is small, isolated, and limited to a known UI/client behavior,
+  wording, test, or documentation scope. The exact source-to-formal file map is
+  known before writeback.
+- No protected data, data model/schema, API contract, parser/save boundary,
+  migration, import/export/recovery behavior, security/auth, Cloud Sync,
+  provider, PWA/mobile viewport/service worker, or cross-surface contract is
+  changed.
+- Focused automated/browser tests and relevant syntax checks pass; the diff is
+  reviewed and `git diff --check` passes.
+
+Quick Seal still requires explicit release authorization. Its sequence is:
+
+1. Run `python tools/project_status.py --write --json`; confirm live Git,
+   formal deployment, protected-data fingerprints, and service state. Stop on
+   unexplained drift.
+2. Review `git diff --name-status` and the full diff. Confirm no data, PWA,
+   Cloud, or unrelated files are included. This scoped proof replaces an
+   exhaustive comparison of unrelated Worktrees; do not merge, clean, or stop
+   their work.
+3. Run only the focused tests, syntax checks, and `git diff --check` relevant
+   to this change. Record the results.
+4. After explicit authorization, commit and integrate the reviewed change
+   using the least invasive operation. Push only when authorized. Create a
+   release tag only when required by the runtime identity or explicitly
+   requested; the commit remains the source of truth either way.
+5. If the change is source-only (docs/tests), do not write to the formal app.
+   Otherwise create a recoverable backup of only the changed deployed files,
+   then deploy only those files. Restart only the affected service when needed.
+6. Verify formal health and the changed behavior on the formal entry point;
+   confirm deployment status and protected-data fingerprints are unchanged.
+   Do not perform Cloud or PWA uploads unless they are explicitly in scope and
+   separately authorized.
+7. Run `python tools/project_status.py --write --handoff --json`, confirm the
+   task Worktree is clean and `HEAD/main/origin/main` are understood, then
+   report the commit, exact scope, focused test results, rollback point,
+   protected-data result, and handoff path.
+
+If any eligibility condition fails or new risk appears, stop the Quick Seal
+route and use Full Seal. Quick Seal must not be used to shorten verification
+for a change that touches the excluded boundaries above.
+
+## Full Seal: mandatory sequence
 
 1. Confirm the live baseline with `python tools/project_status.py --write --json`.
    Record `HEAD`, local `main`, `origin/main`, all Worktrees, and the formal

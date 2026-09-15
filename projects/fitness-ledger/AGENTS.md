@@ -63,20 +63,23 @@ Return the handoff path and full Commit SHA. In Development / review mode, do no
 
 ## Closure levels
 
-For the complete, executable sealing checklist—including formal fingerprints,
-PWA/parallel-Worktree comparison, rollback, tagging, and final reporting—read
+For the executable sealing checklist, read
 `docs/maintenance/CODEX_RELEASE_CLOSEOUT.md` before any Seal / finalise action.
+Use its **Quick Seal** only when every low-risk eligibility condition is met;
+otherwise use the **Full Seal** checklist. Quick Seal is a shorter evidence
+path, not a relaxation of explicit authorization, source review, rollback, or
+formal verification.
 
 Every task conversation must identify its closure level from the user's wording:
 
 - **Development / review**: work only in the task Worktree; run the relevant tests and leave a clean, reviewable task commit or an explicit uncommitted diff. Do not merge, Push, create Tags, or write to the formal directory.
-- **Seal / finalise / 封板**: after review and all required tests pass, the same task conversation may complete the full closeout: Commit the task branch, integrate into `main` using the least invasive allowed Git operation, Push only when authorized, derive the deployment list from Git, precisely write back the formal directory, restart affected local services, re-run formal regression, verify protected data hashes, and run `python tools/project_status.py --write --handoff --json`.
+- **Seal / finalise / 封板**: after review and required tests pass, the same task conversation may complete the applicable closeout route. Quick Seal is available only for a source-clear, isolated, low-risk change; all other releases use Full Seal. Commit/integrate into `main`, Push only when authorized, derive any deployment list from Git, write back only reviewed files, restart affected services, run formal checks, protect data, and generate the handoff as required by that route.
 
 The task does not need to be handed back to a central Git conversation. A specialist Worktree conversation may seal its own work when the user explicitly authorizes sealing. The central conversation remains the preferred place for cross-Worktree integration, unexplained conflicts, broad architecture changes, or a final multi-task audit.
 
 If the user only asks to modify, fix, develop, or prepare a review, treat it as **Development / review**. Do not infer Push or formal writeback. Stop before any closure action when the user has not authorized that level.
 
-Before claiming a sealed task, confirm in the final report: full Commit SHA, `HEAD/main/origin/main`, clean Worktrees, exact deployment files, formal data SHA/size/mtime before and after, test results, and the handoff path.
+Before claiming a sealed task, report the full Commit SHA, `HEAD/main/origin/main`, clean task Worktree, exact deployment scope, relevant formal/data verification, test results, and handoff path. Quick Seal may use the shorter report defined in the closeout guide; Full Seal retains the complete evidence report.
 
 ## Worktree lifecycle
 
