@@ -233,8 +233,69 @@ renderMovementDirectory=function(q=''){
 }
 loadMovementFocus=async function(movementId){state.movementSelection=String(movementId||'');main.innerHTML=`<section class="page movement-detail-page"><button class="movement-back" data-movement-index>← Movement Index</button><div id="movement-focus"><div class="loading-page"><i></i><p>Loading recorded history…</p></div></div></section>`;const focus=$('#movement-focus');try{let payload=state.movementUsage[String(movementId)]?.payload;if(!payload)payload=await api(`/api/movement-history?movement_id=${encodeURIComponent(movementId)}&limit=50`);state.movementHistory=payload;if(!payload.movement){navigate('movements',{}, {replace:true,context:null});return}const movement=payload.movement||{},history=payload.progress_history||payload.history||[],latest=history[0],earliest=history[history.length-1],art=movementArtFor(movement.muscle_group);focus.innerHTML=`<div class="movement-detail-compact"><img src="assets/${art}" alt="" aria-hidden="true"><div><span class="eyebrow">RECORDED TRAJECTORY</span><h1>${esc(movement.display_name||movementId)}</h1><p>${esc(movement.english_name||movement.muscle_group||'Recorded movement')}</p></div><div class="movement-detail-stats"><span><b>${history.length}</b> sessions</span><span><b>${esc(latest?.date||'—')}</b> latest</span><span><b>${esc(earliest?.date||'—')}</b> first</span></div></div><div class="trajectory-heading"><span class="eyebrow">PROGRESSION / NEWEST FIRST</span><h2>Training trajectory</h2><p>每次训练的负重、次数、组数和备注按时间展开。</p></div><div class="trajectory"><div class="trajectory-line"></div>${history.map((r,i)=>`<article class="trajectory-entry ${i===0?'is-latest':''}"><div class="trajectory-marker">${String(i+1).padStart(2,'0')}</div><button class="history-date history-date-link" data-training-date="${esc(r.date||'')}" data-training-movement-id="${esc(movement.movement_id||movementId)}"><strong>${esc(r.date||'?')}</strong><small>Day ${esc(r.training_day??'?')} ? Ex ${esc(r.order??'?')}</small></button><div class="history-content"><h3>${esc((r.sets_lines||[]).join(' · ')||'Recorded without structured sets')}</h3>${r.notes?`<p>${esc(r.notes)}</p>`:''}</div></article>`).join('')||'<div class="empty-copy"><h3>No history yet</h3><p>This movement exists in the dictionary but has no recorded sessions.</p></div>'}</div>`}catch{focus.innerHTML='<div class="empty-copy"><h3>History unavailable</h3><p>The local read-only service could not load this movement.</p></div>'}}
 
-function movementRecordMetrics(record){if(record?.metrics)return {maxLoad:Number(record.metrics.max_weight||0),volume:Number(record.metrics.volume||0),totalReps:Number(record.metrics.total_reps||0),comparable:Boolean(record.metrics.has_structured_sets&&!record.metrics.has_complex_sets),complex:Boolean(record.metrics.has_complex_sets)};let maxLoad=0,volume=0,totalReps=0,comparable=false,complex=false;for(const line of record.sets_lines||[]){const groupMatch=line.match(/[×x*]\s*(\d+)\s*组?\s*$/i),groupCount=groupMatch?Number(groupMatch[1]):1;if(/\+/.test(line)){complex=true;const pattern=/(\d+(?:\.\d+)?)\s*(?:kg)?\s*[×x*]\s*(\d+)/gi;let match,segmentHits=0;while((match=pattern.exec(line))){const load=Number(match[1]),reps=Number(match[2]);if(reps<=0||groupCount<=0)continue;segmentHits++;maxLoad=Math.max(maxLoad,load);volume+=load*reps*groupCount;totalReps+=reps*groupCount}continue}const pattern=/(\d+(?:\.\d+)?)\s*(?:kg)?\s*[×x*]\s*(\d+)\s*[×x*]\s*(\d+)/gi;let match;while((match=pattern.exec(line))){const load=Number(match[1]),reps=Number(match[2]),sets=Number(match[3]);if(reps<=0||sets<=0)continue;comparable=true;maxLoad=Math.max(maxLoad,load);volume+=load*reps*sets;totalReps+=reps*sets}if(/自重|body\s*weight|\bbw\b/i.test(line)){const body=line.match(/[×x*]\s*(\d+)\s*[×x*]\s*(\d+)/i);if(body){const reps=Number(body[1]),sets=Number(body[2]);if(reps>0&&sets>0){comparable=true;totalReps+=reps*sets;volume+=reps*sets}}}}return {maxLoad,volume,totalReps,comparable,complex}}
-function movementProgressChart(history){const all=history.slice(0,8).reverse().map(record=>({...record,...movementRecordMetrics(record)})),available=all.filter(record=>record.comparable);if(!available.length){const complex=all.filter(record=>record.complex&&record.volume>0),latest=complex.at(-1);return `<section class="movement-progress-panel is-empty"><div class="progress-copy"><span class="eyebrow">RECENT 8 / VISUAL SUMMARY</span><h2>复杂组已保留</h2><p>复杂组的 segment 与容量继续保留；本页不把某一个 segment 的重量当作可比较的进步指标。</p></div>${latest?`<div class="progress-signal"><span>Latest volume</span><strong>${latest.volume} kg·reps</strong></div>`:'<p class="progress-empty-copy">No comparable scalar data yet</p>'}</section>`}const latestRecord=available.at(-1),useLoad=latestRecord.maxLoad>0,records=available.filter(record=>useLoad?record.maxLoad>0:record.maxLoad===0),values=records.map(record=>useLoad?record.maxLoad:record.totalReps),volumes=records.map(record=>record.volume),maxValue=Math.max(...values,1),maxVolume=Math.max(...volumes,1),left=48,right=682,width=right-left,step=records.length>1?width/(records.length-1):0;const points=records.map((record,index)=>`${left+index*step},${145-(values[index]/maxValue)*92}`).join(' '),bars=records.map((record,index)=>{const height=(volumes[index]/maxVolume)*70,x=left+index*step-12;return `<rect x="${x}" y="${160-height}" width="24" height="${height}" rx="4"></rect>`}).join(''),dots=records.map((record,index)=>`<circle cx="${left+index*step}" cy="${145-(values[index]/maxValue)*92}" r="5"></circle>`).join(''),labels=records.map((record,index)=>`<text x="${left+index*step}" y="194" text-anchor="middle">${esc(String(record.date||'').slice(5))}</text>`).join(''),latest=values.at(-1),previous=values.length>1?values.at(-2):null,delta=previous===null?null:Math.round((latest-previous)*10)/10;return `<section class="movement-progress-panel"><div class="progress-copy"><span class="eyebrow">RECENT 8 / VISUAL SUMMARY</span><h2>Recent change</h2><p>${useLoad?'折线为最高负重，柱形为估算训练容量。':'自重动作以总次数趋势显示，柱形同步表达训练工作量。'}</p></div><div class="progress-signal"><span>Latest</span><strong>${latest}${useLoad?' kg':' reps'}</strong>${delta===null?'':`<small class="${delta>0?'up':delta<0?'down':''}">${delta>0?'+':''}${delta} vs previous</small>`}</div><svg class="progress-chart" viewBox="0 0 730 220" role="img" aria-label="Recent movement progression"><g class="chart-grid"><line x1="48" y1="53" x2="682" y2="53"></line><line x1="48" y1="99" x2="682" y2="99"></line><line x1="48" y1="145" x2="682" y2="145"></line></g><g class="volume-bars">${bars}</g><polyline class="load-line" points="${points}"></polyline><g class="load-dots">${dots}</g><g class="chart-labels">${labels}</g></svg></section>`}
+function movementRecordMetrics(record){
+  const superset=Array.isArray(record?.organization_relations)&&record.organization_relations.some(relation=>String(relation?.type||'').toLowerCase()==='superset');
+  if(record?.metrics){
+    const metrics=record.metrics;
+    return {
+      maxLoad:Number(metrics.max_weight||0),
+      volume:Number(metrics.volume||0),
+      totalReps:Number(metrics.total_reps||0),
+      comparable:Boolean(metrics.has_structured_sets),
+      complex:Boolean(metrics.has_complex_sets),
+      structured:Boolean(metrics.has_structured_sets),
+      superset
+    };
+  }
+  let maxLoad=0,volume=0,totalReps=0,comparable=false,complex=false,structured=false;
+  for(const line of record.sets_lines||[]){
+    const groupMatch=line.match(/[×x*]\s*(\d+)\s*组?\s*$/i),groupCount=groupMatch?Number(groupMatch[1]):1;
+    if(/\+/.test(line)){
+      complex=true;
+      const pattern=/(\d+(?:\.\d+)?)\s*(?:kg)?\s*[×x*]\s*(\d+)/gi;
+      let match,segmentHits=0;
+      while((match=pattern.exec(line))){
+        const load=Number(match[1]),reps=Number(match[2]);
+        if(reps<=0||groupCount<=0)continue;
+        segmentHits++;maxLoad=Math.max(maxLoad,load);volume+=load*reps*groupCount;totalReps+=reps*groupCount;
+      }
+      structured=structured||segmentHits>0;comparable=comparable||segmentHits>0;
+      continue;
+    }
+    const pattern=/(\d+(?:\.\d+)?)\s*(?:kg)?\s*[×x*]\s*(\d+)\s*[×x*]\s*(\d+)/gi;
+    let match;
+    while((match=pattern.exec(line))){
+      const load=Number(match[1]),reps=Number(match[2]),sets=Number(match[3]);
+      if(reps<=0||sets<=0)continue;
+      structured=true;comparable=true;maxLoad=Math.max(maxLoad,load);volume+=load*reps*sets;totalReps+=reps*sets;
+    }
+    if(/自重|body\s*weight|\bbw\b/i.test(line)){
+      const body=line.match(/[×x*]\s*(\d+)\s*[×x*]\s*(\d+)/i);
+      if(body){
+        const reps=Number(body[1]),sets=Number(body[2]);
+        if(reps>0&&sets>0){structured=true;comparable=true;totalReps+=reps*sets;volume+=reps*sets;}
+      }
+    }
+  }
+  return {maxLoad,volume,totalReps,comparable,complex,structured,superset};
+}
+function movementProgressChart(history){
+  const available=history.map(record=>({...record,...movementRecordMetrics(record)})).filter(record=>!record.superset&&record.structured&&(record.volume>0||(record.maxLoad===0&&record.totalReps>0))).slice(0,8).reverse();
+  if(!available.length){
+    return `<section class="movement-progress-panel is-empty"><div class="progress-copy"><span class="eyebrow">RECENT 8 / VISUAL SUMMARY</span><h2>暂无可统计的训练数据</h2><p>复杂组会按重量与对应次数计算容量；超级组记录不计入图表。</p></div><p class="progress-empty-copy">No eligible training data yet</p></section>`;
+  }
+  const useLoad=available.at(-1).maxLoad>0;
+  const records=available.filter(record=>useLoad?record.maxLoad>0:record.maxLoad===0);
+  const values=records.map(record=>useLoad?record.maxLoad:record.totalReps);
+  const volumes=records.map(record=>record.volume),maxValue=Math.max(...values,1),maxVolume=Math.max(...volumes,1),left=48,right=682,width=right-left,step=records.length>1?width/(records.length-1):0;
+  const points=records.map((record,index)=>`${left+index*step},${145-(values[index]/maxValue)*92}`).join(' ');
+  const bars=records.map((record,index)=>{const height=(volumes[index]/maxVolume)*70,x=left+index*step-12;return `<rect data-chart-value="${volumes[index]}" x="${x}" y="${160-height}" width="24" height="${height}" rx="4"></rect>`}).join('');
+  const dots=records.map((record,index)=>`<circle data-chart-value="${values[index]}" data-chart-capacity="${volumes[index]}" cx="${left+index*step}" cy="${145-(values[index]/maxValue)*92}" r="5"></circle>`).join('');
+  const labels=records.map((record,index)=>`<text x="${left+index*step}" y="194" text-anchor="middle">${esc(String(record.date||'').slice(5))}</text>`).join('');
+  const latest=values.at(-1),previous=values.length>1?values.at(-2):null,delta=previous===null?null:Math.round((latest-previous)*10)/10,unit=useLoad?'kg':'reps';
+  const description=useLoad?'折线表示每次训练的最大重量；柱形表示该动作本次训练容量。复杂组按各重量 × 对应次数 × 组数累加，超级组记录不计入。':'自重动作以总次数显示折线、以训练容量显示柱形；超级组记录不计入。';
+  return `<section class="movement-progress-panel"><div class="progress-copy"><span class="eyebrow">RECENT 8 / VISUAL SUMMARY</span><h2>Recent change</h2><p>${description}</p></div><div class="progress-signal"><span>Latest max</span><strong>${latest} ${unit}</strong>${delta===null?'':`<small class="${delta>0?'up':delta<0?'down':''}">${delta>0?'+':''}${delta} vs previous</small>`}</div><svg class="progress-chart" data-chart-metric="${useLoad?'load':'reps'}" viewBox="0 0 730 220" role="img" aria-label="Recent movement maximum and capacity progression"><g class="chart-grid"><line x1="48" y1="53" x2="682" y2="53"></line><line x1="48" y1="99" x2="682" y2="99"></line><line x1="48" y1="145" x2="682" y2="145"></line></g><g class="volume-bars">${bars}</g><polyline class="load-line" points="${points}"></polyline><g class="load-dots">${dots}</g><g class="chart-labels">${labels}</g></svg></section>`;
+}
 loadMovementFocus=async function(movementId){state.movementSelection=String(movementId||'');main.innerHTML=`<section class="page movement-detail-page"><button class="movement-back" data-movement-index>← Movement Index</button><div id="movement-focus"><div class="loading-page"><i></i><p>Loading recorded history…</p></div></div></section>`;const focus=$('#movement-focus');try{let payload=state.movementUsage[String(movementId)]?.payload;if(!payload)payload=await api(`/api/movement-history?movement_id=${encodeURIComponent(movementId)}&limit=50`);state.movementHistory=payload;if(!payload.movement){navigate('movements',{}, {replace:true});return}const movement=payload.movement||{},progressHistory=Array.isArray(payload.progress_history)?payload.progress_history:[],history=Array.isArray(payload.history)?payload.history:[],latest=progressHistory[0],earliest=progressHistory[progressHistory.length-1],art=movementArtFor(movement.muscle_group),groupClass=movementGroupClass(movement.muscle_group),display=movement.display_name||movementId,longClass=String(display).length>5?'is-long':'';focus.innerHTML=`<div class="movement-detail-compact ${groupClass} ${longClass}"><img class="movement-detail-art" src="assets/${art}" alt="" aria-hidden="true"><div class="movement-detail-title"><span class="eyebrow">RECORDED TRAJECTORY</span><h1>${esc(display)}</h1><p>${esc(movement.english_name||movement.muscle_group||'Recorded movement')}</p></div><div class="movement-detail-stats"><span><b>${progressHistory.length}</b> effective sessions</span><span><b>${esc(latest?.date||'—')}</b> latest</span><span><b>${esc(earliest?.date||'—')}</b> first</span></div></div>${movementProgressChart(progressHistory)}<div class="trajectory-heading"><span class="eyebrow">FULL HISTORY / NEWEST FIRST</span><h2>Training history</h2><p>完整动作历史保留所有实例；成长图表只读取有效轨迹。</p></div><div class="trajectory">${history.map((r,i)=>{const sets=(r.sets_lines||[]).filter(Boolean);return `<article class="trajectory-entry ${i===0?'is-latest':''} ${r.exclude_from_progress?'is-progress-excluded':''}"><button class="history-date history-date-link" data-training-date="${esc(r.date||'')}" data-training-movement-id="${esc(movement.movement_id||movementId)}"><strong>${esc(r.date||'?')}</strong>${r.exclude_from_progress?'<small>不计入成长轨迹</small>':''}</button><div class="history-content">${sets.length?`<h3>${esc(sets.join(' · '))}</h3>`:''}${r.notes?`<p>${esc(r.notes)}</p>`:''}</div></article>`}).join('')||'<div class="empty-copy"><h3>No history yet</h3><p>This movement exists in the dictionary but has no recorded sessions.</p></div>'}</div>`}catch{focus.innerHTML='<div class="empty-copy"><h3>History unavailable</h3><p>The local read-only service could not load this movement.</p></div>'}}
 
 async function postApi(path,payload,timeout=API_TIMEOUT_MS){const response=await fetchWithTimeout(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)},timeout);const data=await response.json().catch(()=>({error:'Invalid local service response.'}));if(!response.ok){const error=Error(data.error||`Request failed (${response.status})`);error.status=response.status;error.payload=data;throw error}return data}
@@ -418,12 +479,62 @@ renderDictionary=function(){
 function parseRoute(){const raw=location.hash.slice(1)||'home',separator=raw.indexOf('?'),view=separator<0?raw:raw.slice(0,separator);return {view:view||'home',params:new URLSearchParams(separator<0?'':raw.slice(separator+1))}}
 function routeHash(view,params={}){const query=new URLSearchParams(Object.entries(params).filter(([,value])=>value!==undefined&&value!==null&&value!==''));const suffix=query.toString();return `#${view}${suffix?`?${suffix}`:''}`}
 function resetRouteUiState(){state.selectedBodyPart=null;state.trainingQuery='';state.trainingOrder='recent';state.movementSelection='';state.movementQuery=''}
-function renderRoute(route=parseRoute(),entryState=history.state||{}){if(route.view!=='guardian'){window.__fitnessLedgerGuardianPageCleanup?.();document.body.classList.remove('guardian-route')}const legacy=route.view==='checks'?'health':route.view==='export'?'export':route.view==='cloud-sync'?'sync':'';if(legacy)route={view:'tools',params:new URLSearchParams({panel:legacy})};state.view=route.view;state.routeParams=Object.fromEntries(route.params);state.routeState=entryState;resetRouteUiState();if(state.view==='training'){state.selectedBodyPart=state.routeParams.theme||null;state.trainingQuery=state.routeParams.query||'';state.trainingOrder=state.routeParams.order||'recent'}$$('.nav-item').forEach(b=>b.classList.toggle('is-active',b.dataset.view===state.view));const activeNav=document.querySelector('.nav-item.is-active');const navRail=activeNav?.parentElement;if(activeNav&&navRail&&navRail.scrollWidth>navRail.clientWidth)activeNav.scrollIntoView({block:'nearest',inline:'center'});window.scrollTo(0,0);({home:homePage,quick:quickPage,body:bodyPage,diet:dietPage,training:trainingPage,movements:movementPage,checks:checksPage,dictionary:dictionaryPage,tools:toolsPage,guardian:guardianPetPage}[state.view]||homePage)();localizeSharedSurface();setTimeout(localizeSharedSurface,0);window.dispatchEvent(new CustomEvent('fitness-ledger-pet:route-change',{detail:{view:state.view,panel:state.routeParams?.panel||null}}));queueMicrotask(emitGuardianRouteSummary);if(legacy==='health')queueMicrotask(openDataCheckOverlay)}
+function renderRoute(route=parseRoute(),entryState=history.state||{},options={}){
+  if(route.view!=='guardian'){window.__fitnessLedgerGuardianPageCleanup?.();document.body.classList.remove('guardian-route')}
+  const legacy=route.view==='checks'?'health':route.view==='export'?'export':route.view==='cloud-sync'?'sync':'';
+  if(legacy)route={view:'tools',params:new URLSearchParams({panel:legacy})};
+  state.view=route.view;state.routeParams=Object.fromEntries(route.params);state.routeState=entryState;resetRouteUiState();
+  if(state.view==='training'){state.selectedBodyPart=state.routeParams.theme||null;state.trainingQuery=state.routeParams.query||'';state.trainingOrder=state.routeParams.order||'recent'}
+  const restore=options.restoreMovementParent?entryState?.movementReturnSnapshot:null;
+  state.restoringMovementParent=Boolean(restore&&restore.view===state.view);
+  if(restore&&restore.view===state.view){
+    state.selectedBodyPart=restore.selectedBodyPart||state.selectedBodyPart;
+    state.trainingQuery=restore.trainingQuery??state.trainingQuery;
+    state.trainingOrder=restore.trainingOrder||state.trainingOrder;
+    state.movementQuery=restore.movementQuery||'';
+  }
+  $$('.nav-item').forEach(b=>b.classList.toggle('is-active',b.dataset.view===state.view));
+  const activeNav=document.querySelector('.nav-item.is-active'),navRail=activeNav?.parentElement;
+  if(activeNav&&navRail&&navRail.scrollWidth>navRail.clientWidth)activeNav.scrollIntoView({block:'nearest',inline:'center'});
+  window.scrollTo(0,0);
+  ({home:homePage,quick:quickPage,body:bodyPage,diet:dietPage,training:trainingPage,movements:movementPage,checks:checksPage,dictionary:dictionaryPage,tools:toolsPage,guardian:guardianPetPage}[state.view]||homePage)();
+  if(restore&&restore.view===state.view){
+    if(state.view==='training'){
+      const search=$('#training-search'),order=$('#training-order');
+      if(search)search.value=state.trainingQuery;
+      if(order)order.value=state.trainingOrder;
+      renderTraining(state.trainingQuery);
+    }else if(state.view==='movements'){
+      const search=$('#movement-search');
+      if(search)search.value=state.movementQuery;
+      if(state.usageLoaded)renderMovementDirectory(state.movementQuery);
+    }
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{window.scrollTo(restore.scrollX||0,restore.scrollY||0);state.restoringMovementParent=false}));
+  }
+  localizeSharedSurface();setTimeout(localizeSharedSurface,0);
+  window.dispatchEvent(new CustomEvent('fitness-ledger-pet:route-change',{detail:{view:state.view,panel:state.routeParams?.panel||null}}));
+  queueMicrotask(emitGuardianRouteSummary);
+  if(legacy==='health')queueMicrotask(openDataCheckOverlay);
+}
 async function load(){const loadingId=emitGuardianIntent('page-loading',{stage:'Reading local archive'},{id:'app-load'});try{await refreshWebState();const route=parseRoute();history.replaceState({view:route.view},'',location.href);renderRoute(route,history.state||{});finishGuardianIntent(loadingId);void loadArchiveHealth()}catch(e){finishGuardianIntent(loadingId,'error');emitGuardianIntent('fatal-error',{message:e.message},{id:'app-load-error',request:{id:'app-load-error',kind:'fatal_error',poseId:'standing',cameraPreset:'idle',restore:'none',overlay:{title:'LOCAL SERVICE UNAVAILABLE',lines:[e.message]}}});main.innerHTML=`<div class="loading-page"><h2>Local data service unavailable</h2><p>${esc(e.message)}</p></div>`}}
-function navigate(v,params={},options={}){const legacy=v==='checks'?'health':v==='export'?'export':v==='cloud-sync'?'sync':'';if(legacy){v='tools';params={...params,panel:legacy}}const entry={view:v},hash=routeHash(v,params);if(options.replace)history.replaceState(entry,'',hash);else history.pushState(entry,'',hash);renderRoute({view:v,params:new URLSearchParams(Object.entries(params))},entry)}
+function captureMovementReturnSnapshot(){return{view:state.view,selectedBodyPart:state.selectedBodyPart,trainingQuery:$('#training-search')?.value??state.trainingQuery,trainingOrder:$('#training-order')?.value??state.trainingOrder,movementQuery:$('#movement-search')?.value??state.movementQuery,scrollX:window.scrollX,scrollY:window.scrollY}}
+function navigate(v,params={},options={}){
+  const legacy=v==='checks'?'health':v==='export'?'export':v==='cloud-sync'?'sync':'';
+  if(legacy){v='tools';params={...params,panel:legacy}}
+  const movementDetail=v==='movements'&&String(params.movement_id||'').trim()&&!options.replace;
+  let entry={view:v};
+  if(movementDetail){
+    const snapshot=captureMovementReturnSnapshot();
+    history.replaceState({...history.state,view:state.view,movementReturnSnapshot:snapshot},'',location.href);
+    entry={...entry,movementDetailParent:true};
+  }
+  const hash=routeHash(v,params);
+  if(options.replace)history.replaceState(entry,'',hash);else history.pushState(entry,'',hash);
+  renderRoute({view:v,params:new URLSearchParams(Object.entries(params))},entry);
+}
 function openMovementFromSource(movementId,sourceNode){const id=String(movementId||'').trim();if(!id)return;const source=sourceNode?.dataset?.movementSource||'movements';if(source==='training'){navigate('movements',{movement_id:id,from:'training',from_date:sourceNode.dataset.currentDate||'',from_theme:state.selectedBodyPart||'',from_query:state.trainingQuery||'',from_order:state.trainingOrder||'recent'})}else navigate('movements',{movement_id:id})}
 function openMovementFromTraining(movementId){openMovementFromSource(movementId,null)}
-function returnFromMovementDetail(){const params=state.routeParams||{};if(params.from==='training'){navigate('training',{date:params.from_date||'',movement_id:params.movement_id||'',theme:params.from_theme||'',query:params.from_query||'',order:params.from_order||'recent'});return}navigate('movements',{}, {})}
+function returnFromMovementDetail(){const params=state.routeParams||{};if(history.state?.movementDetailParent&&history.length>1){history.back();return}if(params.from==='training'){navigate('training',{date:params.from_date||'',movement_id:params.movement_id||'',theme:params.from_theme||'',query:params.from_query||'',order:params.from_order||'recent'},{replace:true});return}navigate('movements',{}, {replace:true})}
 document.addEventListener('click',event=>{const target=event.target.closest('button,[data-select-movement-id]');if(!target)return;if(target.dataset.movementIndex!==undefined){event.preventDefault();event.stopImmediatePropagation();returnFromMovementDetail();return}if(target.dataset.movementSource==='training'&&target.dataset.selectMovementId){event.preventDefault();event.stopImmediatePropagation();openMovementFromSource(target.dataset.selectMovementId,target)}},true);
 function openTrainingFromMovement(entryDate,movementId){const date=String(entryDate||'').slice(0,10),id=String(movementId||'').trim();if(!date)return;navigate('training',{date,movement_id:id})}
 document.addEventListener('click',event=>{const target=event.target.closest('button,a');if(!target)return;if(target.id==='parse'){event.preventDefault();event.stopImmediatePropagation();parseWebEntry();return}if(target.dataset.reviewSave!==undefined){event.preventDefault();event.stopImmediatePropagation();saveWebReview();return}if(target.dataset.reviewBack!==undefined){event.preventDefault();event.stopImmediatePropagation();returnToEntryEditor();return}if(target.dataset.reviewCancel!==undefined){event.preventDefault();event.stopImmediatePropagation();state.reviewPayload=null;state.draftRaw='';state.reviewSource='';navigate('quick');return}if(target.matches('.review-index a')){event.preventDefault();event.stopImmediatePropagation();document.querySelector(target.getAttribute('href'))?.scrollIntoView({behavior:'smooth',block:'start'})}},true);
@@ -576,6 +687,7 @@ function bodyPartThemeControls(){return `<section class="body-theme-deck materia
 function trainingSidePanel(theme){if(!theme){const index=buildTrainingIndex(state.training);return `<aside class="training-index material-frosted"><span class="eyebrow">TRAINING INDEX</span><h2>${state.training.length}<small> 次训练记录</small></h2><p>按维护中的动作词典分组。</p><div class="split-index">${index.map((item,position)=>`<button data-training-theme="${item.id}"><span>0${position+1}</span><strong>${item.theme.labelCn}</strong><b>${item.count}</b></button>`).join('')}</div><div class="training-index-note">选择一个训练主题</div></aside>`}const stats=bodyPartStats(theme),latest=stats.last,recentNote=latest?themeMovementData(latest,theme).notes.join('；'):'';return `<aside class="training-index training-focus-panel material-frosted"><span class="eyebrow">${theme.labelEn} / FOCUS PANEL</span><h2>${stats.count}<small> 次相关训练</small></h2><div class="focus-metrics"><span><small>最近一次训练</small><strong>${esc(latest?dateOf(latest):'—')}</strong></span><span><small>动作数</small><strong>${stats.movementCount}</strong></span></div><div class="focus-movements"><span class="eyebrow">常见动作</span>${stats.movements.map(([name,count],index)=>`<div><span>0${index+1}</span><strong>${esc(name)}</strong><b>${count}</b></div>`).join('')||'<p>尚无结构化动作摘要。</p>'}</div><div class="focus-note"><span class="eyebrow">RECENT NOTE</span><p>${esc(short(recentNote||'最近一次相关动作没有附加备注。',120))}</p></div>${latest?`<button class="focus-open" data-detail="training" data-index="${state.training.indexOf(latest)}">查看最近详情 <span>→</span></button>`:''}</aside>`}
 
 function focusTrainingRoute(){
+  if(state.restoringMovementParent)return;
   const date=state.routeParams?.date||'',movementId=String(state.routeParams?.movement_id||'');if(!date&&!movementId)return;const card=[...$$('#session-grid [data-training-date]')].find(row=>!date||row.dataset.trainingDate===date);if(!card){window.scrollTo(0,0);return}const movement=movementId?[...card.querySelectorAll('[data-training-movement-id]')].find(row=>row.dataset.trainingMovementId===movementId):null,target=movement||card;target.scrollIntoView({behavior:'smooth',block:movement?'center':'start'});if(movement){movement.classList.add('is-context-focus');movement.addEventListener('animationend',()=>movement.classList.remove('is-context-focus'),{once:true})}
 }
 function trainingPage(){const theme=bodyPartThemes[state.selectedBodyPart]||null,query=state.trainingQuery||'',order=state.trainingOrder||'recent',toolbar=`<div class="toolbar training-theme-toolbar"><input class="control search" id="training-search" value="${esc(query)}" autocomplete="off" spellcheck="false" placeholder="Search training theme or date..."><select class="control" id="training-order"><option value="recent" ${order==='recent'?'selected':''}>Newest first</option><option value="oldest" ${order==='oldest'?'selected':''}>Oldest first</option></select></div>`;main.innerHTML=`<section class="page training-archive training-theme-page" data-training-theme="${theme?.id||'overview'}" style="${trainingThemeStyle(theme)}"><div class="training-atmosphere" aria-hidden="true"></div><div class="training-theme-header"><div><span class="eyebrow">04 / ${theme?`${theme.labelEn} ARCHIVE`:'TRAINING ARCHIVE'}</span><h1>${esc(theme?.displayTitle||'Training Records')}</h1><p>${esc(theme?.subtitle||'Complete movement and set records, with structured detail available for editing.')}</p></div>${theme?`<div class="training-header-tools">${toolbar}</div>`:''}</div>${bodyPartThemeControls()}<div class="training-stage"><div class="training-main">${theme?'':toolbar}<div id="session-grid" class="session-grid"></div>${pager()}</div>${trainingSidePanel(theme)}</div></section>`;bindTrainingControls();renderTraining(query);requestAnimationFrame(()=>$('.training-theme-page')?.classList.add('is-entered'))}
@@ -1049,9 +1161,9 @@ function enhanceOfficialMovementChart(movementId){
   const chart=$('.movement-progress-panel .progress-chart');
   if(!chart)return;
   const history=Array.isArray(state.movementHistory?.progress_history)?state.movementHistory.progress_history:[];
-  const available=history.slice(0,8).reverse().map(record=>({...record,...movementRecordMetrics(record)})).filter(record=>record.comparable);
+  const available=history.map(record=>({...record,...movementRecordMetrics(record)})).filter(record=>!record.superset&&record.structured&&(record.volume>0||(record.maxLoad===0&&record.totalReps>0))).slice(0,8).reverse();
   if(!available.length)return;
-  const useLoad=available.at(-1).maxLoad>0;
+  const useLoad=chart.dataset.chartMetric==='load';
   const records=available.filter(record=>useLoad?record.maxLoad>0:record.maxLoad===0);
   const bars=$$('.volume-bars rect',chart),dots=$$('.load-dots circle',chart);
   const panel=chart.closest('.movement-progress-panel'),tooltip=document.createElement('div');
@@ -1067,11 +1179,11 @@ function enhanceOfficialMovementChart(movementId){
       mark.dataset.trainingMovementId=String(movementId||'');
       mark.setAttribute('role','button');
       mark.setAttribute('tabindex','0');
-      mark.setAttribute('aria-label',`打开 ${record.date||''} 训练记录`);
+      mark.setAttribute('aria-label',`${uiLanguage()==='en'?'Open':'打开'} ${record.date||''} ${uiLanguage()==='en'?'training record':'训练记录'}`);
       mark.style.setProperty('--interaction-index',index);
       mark.dataset.chartIndex=String(index);
     });
-    const dot=dots[index],bar=bars[index],sets=(record.sets_lines||[]).filter(Boolean),tip=`${record.date} · ${sets.length?sets.join(' / '):useLoad?`${record.maxLoad} kg · ${record.totalReps} reps`:`${record.totalReps} reps`}`;
+    const dot=dots[index],bar=bars[index],sets=(record.sets_lines||[]).filter(Boolean),english=uiLanguage()==='en',lineValue=useLoad?(english?`Max weight ${record.maxLoad} kg`:`最大重量 ${record.maxLoad} kg`):(english?`${record.totalReps} reps`:`总次数 ${record.totalReps} 次`),capacityValue=english?`Volume ${record.volume} kg·reps`:`容量 ${record.volume} kg·次`,tip=`${record.date} · ${lineValue} · ${capacityValue}${sets.length?` · ${sets.join(' / ')}`:''}`;
     const targets=[];
     if(dot){
       const circle=document.createElementNS('http://www.w3.org/2000/svg','circle');
@@ -1113,10 +1225,12 @@ function enhanceOfficialMovementChart(movementId){
       target.dataset.trainingDate=String(record.date||'').slice(0,10);
       target.dataset.trainingMovementId=String(movementId||'');
       target.dataset.chartIndex=String(index);
+      target.dataset.chartValue=String(useLoad?record.maxLoad:record.totalReps);
+      target.dataset.chartCapacity=String(record.volume);
       target.dataset.chartTip=tip;
       target.setAttribute('role','button');
       target.setAttribute('tabindex',targetIndex===0?'0':'-1');
-      target.setAttribute('aria-label',`${tip}，点击打开训练记录`);
+      target.setAttribute('aria-label',`${tip}${english?', open training record':'，点击打开训练记录'}`);
       const showTarget=()=>show(target);
       target.addEventListener('mouseenter',showTarget);
       target.addEventListener('mouseleave',hide);
@@ -1157,7 +1271,7 @@ const trainingPageWithOptionalFocusPanel=trainingPage;
 trainingPage=function(...args){trainingPageWithOptionalFocusPanel(...args);if(!state.selectedBodyPart)$('.training-index')?.remove()};
 
 document.addEventListener('click',event=>{const target=event.target.closest('[data-build-identity],[data-build-copy-sha]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();if(target.dataset.buildIdentity!==undefined){openBuildIdentity();return}if(target.dataset.buildCopySha!==undefined){const sha=state.buildInfo?.commit_sha||'';if(!sha)return;const copy=navigator.clipboard?.writeText?navigator.clipboard.writeText(sha):Promise.reject(new Error('clipboard unavailable'));copy.then(()=>showToast('完整 Commit SHA 已复制。')).catch(()=>showToast('当前环境无法访问剪贴板。'))}},true);
-window.addEventListener('popstate',()=>renderRoute(parseRoute(),history.state||{}));window.addEventListener('hashchange',()=>{const route=parseRoute();if(route.view!==state.view||route.params.toString()!==new URLSearchParams(state.routeParams||{}).toString())renderRoute(route,history.state||{})});load();
+window.addEventListener('popstate',()=>renderRoute(parseRoute(),history.state||{},{restoreMovementParent:true}));window.addEventListener('hashchange',()=>{const route=parseRoute();if(route.view!==state.view||route.params.toString()!==new URLSearchParams(state.routeParams||{}).toString())renderRoute(route,history.state||{})});load();
 // 启动即后台同步手机发送记录（静默），之后每 10 分钟自动刷新一次本地保留的最近 7 次。
 syncPhoneInboxBackground();window.setInterval(syncPhoneInboxBackground,10*60*1000);
 loadBuildInfo();
@@ -1330,6 +1444,7 @@ window.__fitnessLedgerFormalMirrorBridge={
   navigate,
   refreshWebState,
   renderRoute,
+  returnFromMovementDetail,
   reviewPage:payload=>reviewPage(payload),
   recordDetail,
   currentRoute:()=>parseRoute(),
@@ -1531,7 +1646,22 @@ const archiveDietPage=dietPage;dietPage=function(...args){archiveDietPage(...arg
 const UI_LANGUAGE_PREF='fitness-ledger.ui-language.v1';
 function uiLanguage(){try{return localStorage.getItem(UI_LANGUAGE_PREF)==='en'?'en':'zh'}catch{return'zh'}}
 function setUiLanguage(language){const next=language==='en'?'en':'zh';try{localStorage.setItem(UI_LANGUAGE_PREF,next)}catch{}document.documentElement.lang=next==='en'?'en':'zh-CN';document.documentElement.dataset.flUiLanguage=next}
+function localizeMovementProgressCopy(scope,language){
+  const english=language==='en',exact=(selector,map)=>scope.querySelectorAll(selector).forEach(node=>{const raw=node.textContent.trim();if(map[raw])node.textContent=map[raw]});
+  if(english){
+    exact('.movement-progress-panel .progress-copy h2',{'暂无可统计的训练数据':'No eligible training data yet'});
+    exact('.movement-progress-panel .progress-copy p',{'折线表示每次训练的最大重量；柱形表示该动作本次训练容量。复杂组按各重量 × 对应次数 × 组数累加，超级组记录不计入。':'The line shows each session’s maximum weight; bars show movement capacity. Complex sets sum each weight × its reps × set count; superset records are excluded.','自重动作以总次数显示折线、以训练容量显示柱形；超级组记录不计入。':'Bodyweight movements show a total-rep line and capacity bars; superset records are excluded.','复杂组会按重量与对应次数计算容量；超级组记录不计入图表。':'Complex-set capacity uses each weight and its corresponding reps; superset records are excluded.'});
+    exact('.movement-progress-panel .progress-signal>span',{'最大重量':'Latest max'});
+    exact('.progress-empty-copy',{'暂无可统计的训练数据':'No eligible training data yet'});
+    return;
+  }
+  exact('.movement-progress-panel .progress-copy h2',{'No eligible training data yet':'暂无可统计的训练数据'});
+  exact('.movement-progress-panel .progress-copy p',{'The line shows each session’s maximum weight; bars show movement capacity. Complex sets sum each weight × its reps × set count; superset records are excluded.':'折线表示每次训练的最大重量；柱形表示该动作本次训练容量。复杂组按各重量 × 对应次数 × 组数累加，超级组记录不计入。','Bodyweight movements show a total-rep line and capacity bars; superset records are excluded.':'自重动作以总次数显示折线、以训练容量显示柱形；超级组记录不计入。','Complex-set capacity uses each weight and its corresponding reps; superset records are excluded.':'复杂组会按重量与对应次数计算容量；超级组记录不计入图表。'});
+  exact('.movement-progress-panel .progress-signal>span',{'Latest max':'最大重量'});
+  exact('.progress-empty-copy',{'No eligible training data yet':'暂无可统计的训练数据'});
+}
 function localizeEnglishSurface(scope){
+  localizeMovementProgressCopy(scope,'en');
   const exact=(selector,map)=>scope.querySelectorAll(selector).forEach(node=>{const raw=node.textContent.trim();if(map[raw])node.textContent=map[raw]});
   const buttonLabel=(selector,label)=>scope.querySelectorAll(selector).forEach(node=>{const text=[...node.childNodes].find(item=>item.nodeType===Node.TEXT_NODE),desired=`${label} `;if(text){if(text.textContent!==desired)text.textContent=desired}else if(!node.children.length){if(node.textContent!==label)node.textContent=label}else if(!node.textContent.trim().startsWith(label))node.insertAdjacentText('afterbegin',desired)});
   const statusLabel=(selector,map)=>scope.querySelectorAll(selector).forEach(node=>{const raw=node.textContent.trim(),text=[...node.childNodes].find(item=>item.nodeType===Node.TEXT_NODE);if(!map[raw])return;if(text)text.textContent=map[raw];else node.insertAdjacentText('beforeend',map[raw])});
@@ -1563,6 +1693,7 @@ function localizeEnglishSurface(scope){
 function localizeSharedSurface(){
   const scope=document.querySelector('main');if(!scope)return;
   if(uiLanguage()==='en'){localizeEnglishSurface(scope);return}
+  localizeMovementProgressCopy(scope,'zh');
   const exact=(selector,map)=>scope.querySelectorAll(selector).forEach(node=>{const raw=node.textContent.trim();if(map[raw])node.textContent=map[raw]});
   const buttonLabel=(selector,label)=>scope.querySelectorAll(selector).forEach(node=>{const text=[...node.childNodes].find(item=>item.nodeType===Node.TEXT_NODE),desired=`${label} `;if(text){if(text.textContent!==desired)text.textContent=desired}else if(!node.children.length){if(node.textContent!==label)node.textContent=label}else if(!node.textContent.trim().startsWith(label))node.insertAdjacentText('afterbegin',desired)});
   exact('button',{ 'View all ->':'查看全部记录 →','Open detail':'查看详情','Open record →':'打开记录','Read detail →':'查看详情','Open structured detail':'查看结构化详情','Open trajectory →':'查看动作轨迹 →','Open editor preview':'打开编辑预览','Close':'关闭','Edit':'编辑','Cancel':'取消','Confirm & Save':'确认并保存','Back to edit':'返回编辑','Undo last save':'撤销上次保存','No history yet':'暂无历史记录','History unavailable':'暂时无法读取历史','No matching movements.':'没有匹配的动作。','No structured history found.':'暂无结构化历史记录。','Reading movement index…':'正在读取动作索引…','Loading recorded history…':'正在读取历史记录…','Reading movement dictionary…':'正在读取动作词典…','No matching issues':'没有匹配的问题','View all records':'查看全部记录','← Movement Index':'← 动作索引'});

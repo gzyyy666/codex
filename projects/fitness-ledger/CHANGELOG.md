@@ -1,5 +1,15 @@
 # Fitness Ledger Changelog
 
+## 2026-09-15 - Movement Progress chart and detail navigation
+
+- Count complex-set capacity by summing each segment's weight × repetitions ×
+  set count while preserving the maximum-weight metric; exclude any session
+  movement recorded as part of a superset from both chart metrics.
+- Restore working movement-detail chart/timeline interactions and return to the
+  actual originating page, including the Training filters and scroll position.
+- Updated the desktop Web source only; no PWA static upload, Cloud mutation, or
+  personal-record write was part of this release.
+
 ## 2026-09-11 - PWA complex-set and superset display parity release
 
 - Released PWA movement-card formatting for segmented Complex Sets and

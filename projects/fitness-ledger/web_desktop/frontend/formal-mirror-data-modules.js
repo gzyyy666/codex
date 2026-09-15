@@ -339,7 +339,7 @@ function ensureReviewHub(){return}
     if(route.view==='home')return null;
     if(route.view==='tools')return panel&&panel!=='overview'?{label:label('返回工具','Back to Tools'),view:'tools',params:{}}:{label:label('返回首页','Back home'),view:'home',params:{}};
     if(route.view==='training'&&document.querySelector('.training-theme-page')?.dataset.trainingTheme&&document.querySelector('.training-theme-page')?.dataset.trainingTheme!=='overview')return {label:label('返回训练','Back to Training'),view:'training',params:{}};
-    if(route.view==='movements'&&route.params?.get?.('movement_id'))return {label:label('返回动作表现','Back to Movement Progress'),view:'movements',params:{}};
+    if(route.view==='movements'&&route.params?.get?.('movement_id'))return {label:history.state?.movementDetailParent?label('返回上一步','Back to previous page'):route.params?.get?.('from')==='training'?label('返回训练记录','Back to Training'):label('返回动作表现','Back to Movement Progress'),mode:'movement',fallback:'movements'};
     if(route.view==='dictionary')return {label:label('返回上一层','Back'),mode:'history',fallback:'tools'};
     if(route.view==='guardian')return {label:label('返回工具','Back to Tools'),view:'tools',params:{}};
     if(route.view==='review')return {label:label('返回每日录入','Back to Daily Entry'),view:'quick',params:{}};
@@ -353,12 +353,12 @@ function ensureReviewHub(){return}
     const expectedMode=descriptor.mode||'',expectedView=descriptor.view||'',expectedFallback=descriptor.fallback||'',expectedText=`← ${descriptor.label}`;
     if(existing&&existing.textContent.trim()===expectedText&&(existing.dataset.dmBackMode||'')===expectedMode&&(existing.dataset.dmBackView||'')===expectedView&&(existing.dataset.dmBackFallback||'')===expectedFallback&&existing.classList.contains('dm-back-tools-button')===isToolsChild)return;
     existing?.remove();
-    const mode=descriptor.mode==='history'?` data-dm-back-mode="history" data-dm-back-fallback="${esc(descriptor.fallback||'tools')}"`:` data-dm-back-view="${esc(descriptor.view)}"`;
+    const mode=descriptor.mode?` data-dm-back-mode="${esc(descriptor.mode)}" data-dm-back-fallback="${esc(descriptor.fallback||'tools')}"`:` data-dm-back-view="${esc(descriptor.view)}"`;
     const legacy=isToolsChild?' data-dm-back-tools="true"':'';
     document.body.insertAdjacentHTML('beforeend',`<button type="button" class="dm-route-back-button${isToolsChild?' dm-back-tools-button':''}" data-dm-route-back${legacy}${mode} aria-label="${esc(descriptor.label)}">← ${esc(descriptor.label)}</button>`);
   }
   new MutationObserver(()=>{removeLegacyCategoryDecorations();syncRouteBackButton()}).observe(document.body,{childList:true,subtree:true});
-  document.addEventListener('click',event=>{const target=event.target.closest?.('[data-dm-route-back]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();if(target.dataset.dmBackMode==='history'&&history.length>1){history.back();return}bridge.navigate(target.dataset.dmBackView||target.dataset.dmBackFallback||'home',{})},true);
+  document.addEventListener('click',event=>{const target=event.target.closest?.('[data-dm-route-back]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();if(target.dataset.dmBackMode==='movement'){bridge.returnFromMovementDetail();return}if(target.dataset.dmBackMode==='history'&&history.length>1){history.back();return}bridge.navigate(target.dataset.dmBackView||target.dataset.dmBackFallback||'home',{})},true);
   document.addEventListener('click',event=>{const target=event.target.closest?.('[data-dm-open-day]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();bridge.recordDetail(target.dataset.dmOpenDay)},true);
   const surfaceControlIds=new Set(['body-search','diet-search','training-search','body-time','body-order','diet-order','training-order']);
   let finalSurfaceRunning=false;
