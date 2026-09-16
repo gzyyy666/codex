@@ -124,12 +124,12 @@ def main() -> None:
         wait_for(browser, "document.querySelector('.candidate-scroll').scrollHeight > document.querySelector('.candidate-scroll').clientHeight")
         nested = evaluate(browser, "(() => { const scroll=document.querySelector('.candidate-scroll'); scroll.scrollTop=80; const background=document.querySelector('.theme-archive'); const bgEvent=new WheelEvent('wheel',{bubbles:true,cancelable:true,deltaY:100}); background.dispatchEvent(bgEvent); const popupEvent=new WheelEvent('wheel',{bubbles:true,cancelable:true,deltaY:100}); scroll.dispatchEvent(popupEvent); return new Promise(resolve => setTimeout(() => resolve({scrollTop:scroll.scrollTop, page:scrollY, active:document.activeElement.matches('[data-note]'), backgroundPrevented:bgEvent.defaultPrevented, popupPrevented:popupEvent.defaultPrevented}), 80)); })()")
         assert nested["scrollTop"] > 0 and abs(nested["page"] - locked_y) <= 1 and nested["active"] and nested["backgroundPrevented"] and not nested["popupPrevented"], nested
-        evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.value='器械三头下压\\n器械三头下压'; note.setSelectionRange('器械三头下压'.length,'器械三头下压'.length); note.dispatchEvent(new Event('select',{bubbles:true})); return true; })()")
+        evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.value='器械三头下压\\n悍马拉背二'; note.setSelectionRange('器械三头下压'.length,'器械三头下压'.length); note.dispatchEvent(new Event('input',{bubbles:true})); return true; })()")
         wait_for(browser, "document.querySelector('.candidate b')?.textContent === '器械三头下压'")
         evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.setSelectionRange(note.value.length,note.value.length); note.dispatchEvent(new Event('select',{bubbles:true})); return true; })()")
-        wait_for(browser, "document.querySelector('.candidate b')?.textContent === '器械三头下压'")
+        wait_for(browser, "document.querySelector('.candidate b')?.textContent === '悍马拉背二'")
         switched = evaluate(browser, "({scrollTop:document.querySelector('.candidate-scroll').scrollTop, page:scrollY})")
-        assert switched["scrollTop"] > 0 and abs(switched["page"] - locked_y) <= 1, switched
+        assert switched["scrollTop"] == 0 and abs(switched["page"] - locked_y) <= 1, switched
         evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.setSelectionRange(0,0); note.dispatchEvent(new Event('select',{bubbles:true})); return true; })()")
         wait_for(browser, "!document.querySelector('.candidate-overlay')")
         before_blur = evaluate(browser, "scrollY")
