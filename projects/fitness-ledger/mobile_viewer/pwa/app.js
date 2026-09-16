@@ -40,11 +40,11 @@ const state = {
   record: null, trainingDay: null, movement: null, movementHistory: [],
   sortBy: "frequency", order: "newest", query: "", note: loadNote(),
   noteExpanded: false, noteCandidates: [], noteCandidatesLoading: false,
-  noteCandidatesCollapsed: false, dockVisible: false, dockOpen: false,
+  dockVisible: false, dockOpen: false,
   noteDetailOpen: false, noteDetailLoading: false, noteDetailError: "",
   noteDetailMovement: null, noteDetailHistory: [], noteDetailRequest: 0, showAliases: false,
   expanded: {}, candidatesRequest: 0, noteComposing: false, noteCatalog: null,
-  noteHistoryCache: new Map(), candidateAnchorTop: null, expandedHomeLockScrollY: null, deferredRender: false, noteCopyStatus: "",
+  noteHistoryCache: new Map(), expandedHomeLockScrollY: null, deferredRender: false, noteCopyStatus: "",
   authRequired: false, authBusy: false, authMessage: "",
   shareDraft: "", shareTitle: "", shareOpen: false, shareBusy: false, shareSent: false, shareError: "", shareNotice: "",
   phoneInboxItems: [], phoneInboxLoaded: false
@@ -490,8 +490,9 @@ function candidateTermMatches(source, term) {
   }
   return matches;
 }
-function findLastCandidate(note, catalog) {
-  const source = normalizeCandidateText(note);
+function findLastCandidate(note, catalog, caretPosition = String(note || "").length) {
+  const rawNote = String(note || "");
+  const source = normalizeCandidateText(rawNote.slice(0, Math.max(0, Math.min(caretPosition, rawNote.length))));
   if (!source) return null;
   const matches = (catalog || []).map(item => {
     const terms = [item.display_name, item.english_name, ...(item.aliases || [])].map(usableCandidateTerm).filter(Boolean);
@@ -516,53 +517,85 @@ function renderNoteCandidate(candidate) {
   const partLabel = (candidate.body_parts || []).map(id => bodyPart(id).cn).join(" / ") || candidate.body_part_label || "跨部位";
   return `<button class="candidate" data-action="candidate" data-id="${esc(candidate.movement_id)}"><span class="candidate-main"><b>${esc(candidate.display_name)}</b>${candidate.english_name ? `<small>${esc(candidate.english_name)}</small>` : ""}<span class="candidate-history-list">${renderCandidateHistory(candidate.previewHistory)}</span></span><span class="candidate-meta"><small>${esc(partLabel)}</small><strong>详情 →</strong></span></button>`;
 }
-function sizeCandidateHistoryWindow(overlay) {
+function sizeCandidateHistoryWindow(overlay, resetScroll = false) {
   window.requestAnimationFrame(() => {
-    if (!overlay?.isConnected || overlay.classList.contains("collapsed")) return;
+    if (!overlay?.isConnected) return;
     const scroll = overlay.querySelector(".candidate-scroll");
     const firstHistory = scroll?.querySelector(".candidate-history");
     if (!scroll || !firstHistory) return;
     const scrollTop = scroll.getBoundingClientRect().top;
     const latestBottom = firstHistory.getBoundingClientRect().bottom;
     scroll.style.setProperty("--candidate-latest-height", `${Math.ceil(latestBottom - scrollTop + 8)}px`);
-    scroll.scrollTop = 0;
+    if (resetScroll) scroll.scrollTop = 0;
+    positionCandidateOverlay();
+    if (document.documentElement.classList.contains("pwa-keyboard-open")) scheduleKeyboardWorkspaceAlignment();
   });
 }
 function renderCandidateOverlay() {
-  if (!state.noteCandidatesLoading && !state.noteCandidates.length && !state.noteCandidatesCollapsed) return "";
-  if (state.noteCandidatesCollapsed) return `<section class="candidates candidate-overlay collapsed"><button class="candidate-edge" data-action="toggle-candidates" aria-label="展开动作候选"><span class="candidate-edge-dot"></span></button></section>`;
-  return `<section class="candidates candidate-overlay"><div class="candidate-head"><span>可能相关动作 · 最近记录</span><button data-action="toggle-candidates">收起</button></div>${state.noteCandidatesLoading ? `<div class="candidate-loading">正在识别动作库…</div>` : `<div class="candidate-scroll">${state.noteCandidates.map(renderNoteCandidate).join("")}</div>`}</section>`;
+  if (!state.noteCandidatesLoading && !state.noteCandidates.length) return "";
+  const movementId = state.noteCandidates[0]?.movement_id || "";
+  return `<section class="candidates candidate-overlay" data-movement-id="${esc(movementId)}"><div class="candidate-head"><span>可能相关动作 · 最近记录</span></div>${state.noteCandidatesLoading ? `<div class="candidate-loading">正在识别动作库…</div>` : `<div class="candidate-scroll">${state.noteCandidates.map(renderNoteCandidate).join("")}</div>`}</section>`;
 }
 function positionCandidateOverlay() {
   const region = document.querySelector("[data-candidate-region]");
   const overlay = region?.querySelector(".candidate-overlay");
-  const themeStrip = document.querySelector(".reference-home .theme-strip");
-  if (!overlay || !themeStrip) return;
-  // Homepage candidates are part of the document flow. A fixed candidate
-  // panel covered the archive heading as soon as the iOS keyboard reduced the
-  // visual viewport, even though the note itself stayed in flow.
-  if (overlay.closest(".reference-home")) {
-    overlay.style.removeProperty("--candidate-top");
-    state.candidateAnchorTop = null;
-    sizeCandidateHistoryWindow(overlay);
-    return;
-  }
-  const strip = themeStrip.getBoundingClientRect();
-  const note = document.querySelector(".reference-home .note-sheet")?.getBoundingClientRect();
-  const height = overlay.classList.contains("collapsed") ? 23 : 166;
-  const gap = 8;
-  const maxTop = Math.max(8, window.innerHeight - height - 8);
-  const belowContent = Math.max(strip.bottom + gap, note?.bottom ? note.bottom + gap : 0);
-  const aboveNote = note ? note.top - height - gap : NaN;
-  let top = belowContent;
-  // Prefer the gap below the input board. If the board fills the viewport,
-  // use the space above it instead; never deliberately cover the note sheet.
-  if (note && top < note.bottom && Number.isFinite(aboveNote) && aboveNote >= 8) top = aboveNote;
-  if (note && top < note.bottom && aboveNote < 8) top = Math.max(8, Math.min(belowContent, maxTop));
-  top = Math.min(Math.max(8, top), maxTop);
-  if (note && top < note.bottom && top + height > note.top && Number.isFinite(aboveNote) && aboveNote >= 8) top = aboveNote;
-  state.candidateAnchorTop = top;
-  overlay.style.setProperty("--candidate-top", `${top}px`);
+  const home = overlay?.closest(".reference-home")?.querySelector(".home-shell");
+  const noteSheet = home?.querySelector(".note-sheet");
+  const editor = home?.querySelector("[data-note]");
+  if (!overlay || !home || !noteSheet || !editor) return;
+  const caret = noteCaretRect(editor);
+  if (!caret) return;
+  const homeRect = home.getBoundingClientRect();
+  const sheetRect = noteSheet.getBoundingClientRect();
+  overlay.style.left = `${Math.round(sheetRect.left - homeRect.left)}px`;
+  overlay.style.width = `${Math.round(sheetRect.width)}px`;
+  overlay.style.setProperty("--candidate-top", `${Math.round(caret.bottom + caret.lineHeight - homeRect.top)}px`);
+}
+function noteCaretRect(editor) {
+  const start = Number(editor?.selectionStart);
+  const end = Number(editor?.selectionEnd);
+  if (!editor || !Number.isFinite(start) || start !== end) return null;
+  const editorRect = editor.getBoundingClientRect();
+  const style = getComputedStyle(editor);
+  const mirror = document.createElement("div");
+  const copyProperties = [
+    "boxSizing", "fontFamily", "fontSize", "fontWeight", "fontStyle", "fontVariant", "lineHeight",
+    "letterSpacing", "wordSpacing", "textTransform", "textAlign", "textIndent", "direction", "tabSize",
+    "whiteSpace", "wordBreak", "overflowWrap", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+    "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth", "borderTopStyle",
+    "borderRightStyle", "borderBottomStyle", "borderLeftStyle"
+  ];
+  mirror.setAttribute("aria-hidden", "true");
+  mirror.style.position = "fixed";
+  mirror.style.visibility = "hidden";
+  mirror.style.pointerEvents = "none";
+  mirror.style.zIndex = "-1";
+  mirror.style.top = `${editorRect.top}px`;
+  mirror.style.left = `${editorRect.left}px`;
+  mirror.style.width = `${editorRect.width}px`;
+  mirror.style.minHeight = "0";
+  mirror.style.height = "auto";
+  mirror.style.margin = "0";
+  copyProperties.forEach(property => { mirror.style[property] = style[property]; });
+  mirror.style.overflow = "visible";
+  mirror.style.resize = "none";
+  const marker = document.createElement("span");
+  marker.textContent = "\u200b";
+  marker.style.display = "inline-block";
+  marker.style.width = "1px";
+  marker.style.height = `${parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.55}px`;
+  marker.style.verticalAlign = "top";
+  mirror.append(document.createTextNode(editor.value.slice(0, start)), marker);
+  document.body.appendChild(mirror);
+  const markerRect = marker.getBoundingClientRect();
+  const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.55;
+  const result = {
+    top: markerRect.top - editor.scrollTop,
+    bottom: markerRect.top + lineHeight - editor.scrollTop,
+    lineHeight
+  };
+  mirror.remove();
+  return result;
 }
 let expandedHomeLayoutFrame = 0;
 function positionExpandedHome() {
@@ -616,18 +649,21 @@ function scheduleExpandedHomeLayout() {
     syncExpandedScrollLock();
   });
 }
-function refreshCandidateOverlay(animateCollapse = false) {
+function refreshCandidateOverlay(resetScroll = false) {
   const region = document.querySelector("[data-candidate-region]");
   if (!region) return;
-  const current = region.querySelector(".candidate-overlay:not(.collapsed)");
-  if (animateCollapse && current) {
-    current.classList.add("is-collapsing");
-    window.setTimeout(() => { region.innerHTML = renderCandidateOverlay(); positionCandidateOverlay(); }, 220);
-    return;
-  }
+  const current = region.querySelector(".candidate-overlay");
+  const previousMovementId = current?.dataset.movementId || "";
+  const previousScrollTop = current?.querySelector(".candidate-scroll")?.scrollTop || 0;
   region.innerHTML = renderCandidateOverlay();
-  if (!region.querySelector(".candidate-overlay")) state.candidateAnchorTop = null;
+  const nextMovementId = region.querySelector(".candidate-overlay")?.dataset.movementId || "";
   positionCandidateOverlay();
+  const nextScroll = region.querySelector(".candidate-scroll");
+  if (nextScroll) {
+    const shouldReset = resetScroll || previousMovementId !== nextMovementId;
+    window.requestAnimationFrame(() => { nextScroll.scrollTop = shouldReset ? 0 : previousScrollTop; });
+  }
+  sizeCandidateHistoryWindow(region.querySelector(".candidate-overlay"), resetScroll || previousMovementId !== nextMovementId);
   if (document.documentElement.classList.contains("pwa-keyboard-open")) scheduleKeyboardWorkspaceAlignment();
 }
 function updateNoteStatus(message = "已自动保存") {
@@ -650,7 +686,7 @@ function renderReference() {
   const selectedArea = state.area || selected?.area || null;
   const archive = !modulesReady || !selected ? "" : !state.archiveExpanded ? `<section class="movement-preview"><div class="eyebrow">MOVEMENTS / 最近表现</div><button class="movement-summary" data-action="toggle-archive"><div class="movement-placeholder-icon" aria-hidden="true">▥</div><div><strong>${esc(selected.cn)} · ${Number(selectedArea?.movement_count || 0)} 个动作</strong><span>${selectedArea?.latest_date ? `最近训练 ${esc(selectedArea.latest_date)}` : "暂无动作历史"}</span></div><b aria-hidden="true">展开⌄</b></button></section>` : renderMovementModuleArchive(selectedArea);
   const header = `<header class="home-header"><div class="home-header-top"><div class="eyebrow">LOCAL ONLY / TRAINING NOTE</div><div class="home-motif" aria-hidden="true">A<br>STRONGER<br>YOU<br>EVERYDAY<br><i></i></div></div><h1 class="home-title">训练首页。</h1>${fresh ? `<div class="home-meta freshness ${fresh.stale ? "stale" : ""}">${esc(fresh.text)}</div>` : ""}</header>`;
-  const candidateStable = state.noteDetailOpen || state.noteCandidatesLoading || state.noteCandidates.length || state.noteCandidatesCollapsed ? " reference-home--stable" : "";
+  const candidateStable = state.noteDetailOpen || state.noteCandidatesLoading || state.noteCandidates.length ? " reference-home--stable" : "";
   return renderShell(`${pageStart(`reference-page reference-home ${palette}${candidateStable}`)}<div class="home-shell" data-home-state="${stateName}" data-theme-color="${colorKey}">${header}${note}<div data-candidate-region>${renderCandidateOverlay()}</div>${pills}${state.loading ? stateMessage("正在整理训练档案…") : state.error ? stateMessage(state.error, true) : archive}</div>${state.noteDetailOpen ? renderNoteDetail() : ""}${pageEnd()}`);
 }
 
@@ -921,61 +957,42 @@ let noteTimer;
 let noteCatalogPromise;
 let dataModulePromise;
 let routeRequest = 0;
-let noteFocusScrollTop = null;
 let visualViewportBaselineHeight = window.visualViewport?.height || window.innerHeight;
 let keyboardAlignmentFrame = 0;
 
-function restoreNoteFocusViewport() {
-  if (state.route.name !== "reference" || noteFocusScrollTop === null) return;
-  const target = noteFocusScrollTop;
-  noteFocusScrollTop = null;
-  window.requestAnimationFrame(() => window.scrollTo({ top: target, behavior: "auto" }));
-}
-
-function stabilizeNoteFocusViewport() {
-  if (state.route.name !== "reference" || noteFocusScrollTop === null) return;
-  // Let iOS place the focused editor inside the visual viewport. Repeatedly
-  // forcing layout-viewport scroll here makes the keyboard fight the browser
-  // and can pull the document under fixed UI. We restore the pre-focus page
-  // position once focus leaves the editor instead.
-}
-
-function scheduleKeyboardWorkspaceAlignment() {
+function scheduleKeyboardWorkspaceAlignment(forceCaretAlignment = false) {
   if (keyboardAlignmentFrame) window.cancelAnimationFrame(keyboardAlignmentFrame);
   keyboardAlignmentFrame = window.requestAnimationFrame(() => {
     keyboardAlignmentFrame = 0;
     if (!document.documentElement.classList.contains("pwa-keyboard-open")) return;
-    const note = document.querySelector(".reference-home .note-stack");
     const home = document.querySelector(".reference-home .home-shell");
-    const editor = note?.querySelector("[data-note]");
-    const candidate = home?.querySelector(".candidate-overlay:not(.collapsed)");
+    const editor = home?.querySelector("[data-note]");
+    const candidate = home?.querySelector(".candidate-overlay");
     const viewport = window.visualViewport;
-    if (!note || !home || !editor || !viewport) return;
-    if (candidate) {
-      sizeCandidateHistoryWindow(candidate);
-      const homeRect = home.getBoundingClientRect();
-      const editorRect = editor.getBoundingClientRect();
-      candidate.style.setProperty("--keyboard-candidate-top", `${Math.round(editorRect.bottom - homeRect.top - 1)}px`);
-    }
-    if (editor.selectionStart === editor.value.length) editor.scrollTop = editor.scrollHeight;
-    window.requestAnimationFrame(() => {
-      if (!document.documentElement.classList.contains("pwa-keyboard-open")) return;
-      const workspaceBottom = (candidate || editor).getBoundingClientRect().bottom;
-      const visibleBottom = viewport.offsetTop + viewport.height - 8;
-      const upwardShift = Math.max(0, workspaceBottom - visibleBottom);
-      if (upwardShift > 1) window.scrollBy({ top: upwardShift, behavior: "auto" });
-    });
+    if (!home || !editor || !viewport) return;
+    positionCandidateOverlay();
+    const caret = noteCaretRect(editor);
+    if (!caret) return;
+    const visibleTop = viewport.offsetTop + 8;
+    const visibleBottom = viewport.offsetTop + viewport.height - 8;
+    const targetLineTop = viewport.offsetTop + viewport.height * .22;
+    const caretOutOfBand = caret.top < visibleTop || caret.top > viewport.offsetTop + viewport.height * .34;
+    let upwardShift = 0;
+    if (forceCaretAlignment || caretOutOfBand) upwardShift = caret.top - targetLineTop;
+    if (candidate) upwardShift = Math.max(upwardShift, candidate.getBoundingClientRect().bottom - visibleBottom);
+    else upwardShift = Math.max(upwardShift, caret.bottom - visibleBottom);
+    if (upwardShift > 1 || upwardShift < -1) window.scrollBy({ top: upwardShift, behavior: "smooth" });
   });
 }
 
 document.addEventListener("focusin", event => {
   if (!event.target.matches("[data-note]")) return;
-  noteFocusScrollTop = window.scrollY;
   document.documentElement.classList.add("pwa-note-focused");
   state.expandedHomeLockScrollY = null;
   scheduleExpandedHomeLayout();
-  stabilizeNoteFocusViewport();
   syncVisualViewportMetrics();
+  updateCandidates();
+  scheduleKeyboardWorkspaceAlignment(true);
 });
 document.addEventListener("focusout", event => {
   if (!event.target.matches("[data-note]")) return;
@@ -983,8 +1000,11 @@ document.addEventListener("focusout", event => {
     if (document.activeElement?.matches?.("[data-note]")) return;
     document.documentElement.classList.remove("pwa-note-focused");
     document.documentElement.classList.remove("pwa-keyboard-open");
+    state.candidatesRequest += 1;
+    state.noteCandidates = [];
+    state.noteCandidatesLoading = false;
+    refreshCandidateOverlay();
     scheduleExpandedHomeLayout();
-    restoreNoteFocusViewport();
   }, 50);
 });
 function syncVisualViewportMetrics() {
@@ -997,7 +1017,7 @@ function syncVisualViewportMetrics() {
   const keyboardOpen = noteFocused && visualViewportBaselineHeight - viewport.height >= Math.max(120, visualViewportBaselineHeight * .18);
   const wasOpen = document.documentElement.classList.contains("pwa-keyboard-open");
   document.documentElement.classList.toggle("pwa-keyboard-open", keyboardOpen);
-  if (keyboardOpen && !wasOpen) scheduleKeyboardWorkspaceAlignment();
+  if (keyboardOpen) scheduleKeyboardWorkspaceAlignment(!wasOpen);
   scheduleExpandedHomeLayout();
 }
 window.visualViewport?.addEventListener("resize", syncVisualViewportMetrics, { passive: true });
@@ -1017,30 +1037,36 @@ function loadNoteCatalog() {
   return noteCatalogPromise;
 }
 async function updateCandidates() {
-  clearTimeout(noteTimer); const request = ++state.candidatesRequest; const noteSnapshot = state.note;
-  if (!noteSnapshot.trim()) { state.noteCandidates = []; state.noteCandidatesLoading = false; state.noteCandidatesCollapsed = false; refreshCandidateOverlay(); return; }
+  clearTimeout(noteTimer);
+  const editor = document.querySelector("[data-note]");
+  const selectionStart = editor && editor.selectionStart === editor.selectionEnd ? editor.selectionStart : null;
+  const request = ++state.candidatesRequest;
+  const noteSnapshot = state.note;
+  if (!noteSnapshot.trim() || selectionStart === null) { state.noteCandidates = []; state.noteCandidatesLoading = false; refreshCandidateOverlay(); return; }
   noteTimer = setTimeout(async () => {
     if (state.noteComposing || request !== state.candidatesRequest || state.note !== noteSnapshot) return;
     try {
       const catalog = await loadNoteCatalog();
-      if (request !== state.candidatesRequest || state.note !== noteSnapshot) return;
-      const match = findLastCandidate(noteSnapshot, catalog);
-      if (!match) { state.noteCandidates = []; state.noteCandidatesLoading = false; state.noteCandidatesCollapsed = false; refreshCandidateOverlay(); return; }
+      if (request !== state.candidatesRequest || state.note !== noteSnapshot || document.querySelector("[data-note]")?.selectionStart !== selectionStart) return;
+      const match = findLastCandidate(noteSnapshot, catalog, selectionStart);
+      if (!match) { state.noteCandidates = []; state.noteCandidatesLoading = false; refreshCandidateOverlay(); return; }
       const movementId = String(match.movement_id || "");
-      if (!state.noteCandidatesLoading && state.noteCandidates[0]?.movement_id === movementId) return;
+      if (!state.noteCandidatesLoading && state.noteCandidates[0]?.movement_id === movementId && state.noteCandidates[0]?.matched_position === match.matched_position) return;
       const hasCachedHistory = state.noteHistoryCache.has(movementId);
-      state.noteCandidatesCollapsed = false;
-      if (!hasCachedHistory) { state.noteCandidatesLoading = true; refreshCandidateOverlay(); }
+      const sameMovement = state.noteCandidates[0]?.movement_id === movementId;
+      if (!sameMovement) state.noteCandidates = [];
+      state.noteCandidatesLoading = !hasCachedHistory;
+      if (!hasCachedHistory || !sameMovement) refreshCandidateOverlay();
       let history = state.noteHistoryCache.get(movementId) || [];
       if (!hasCachedHistory) {
         let historyLoaded = false;
         try { history = await call("movementHistory", { movementId, limit: 20 }); historyLoaded = true; } catch (_) { history = []; }
         if (historyLoaded) state.noteHistoryCache.set(movementId, Array.isArray(history) ? history : []);
       }
-      if (request !== state.candidatesRequest || state.note !== noteSnapshot) return;
+      if (request !== state.candidatesRequest || state.note !== noteSnapshot || document.querySelector("[data-note]")?.selectionStart !== selectionStart) return;
       state.noteCandidates = [{ ...match, body_part_label: (match.body_parts || []).map(id => bodyPart(id).cn).join(" / "), previewHistory: Array.isArray(history) ? history.slice(0, 3) : [] }];
       state.noteCandidatesLoading = false;
-      refreshCandidateOverlay();
+      refreshCandidateOverlay(!sameMovement);
     } catch (_) { if (request !== state.candidatesRequest) return; state.noteCandidates = []; state.noteCandidatesLoading = false; refreshCandidateOverlay(); }
   }, 260);
 }
@@ -1078,6 +1104,8 @@ document.addEventListener("input", event => {
   if (event.target.matches("[data-share-draft]")) { state.shareDraft = event.target.value; }
 });
 document.addEventListener("change", event => { if (event.target.matches("[data-note]")) { saveNote(event.target.value); updateNoteStatus(); } });
+document.addEventListener("select", event => { if (event.target.matches("[data-note]")) { updateCandidates(); scheduleKeyboardWorkspaceAlignment(true); } });
+document.addEventListener("pointerup", event => { if (event.target.matches("[data-note]")) { updateCandidates(); scheduleKeyboardWorkspaceAlignment(true); } });
 document.addEventListener("focusout", event => {
   if (!event.target.matches("[data-note]")) return;
   window.setTimeout(() => { if (state.deferredRender && !document.activeElement?.matches?.("[data-note]")) { state.deferredRender = false; render(); } }, 0);
@@ -1108,7 +1136,6 @@ document.addEventListener("click", event => {
   if (action === "toggle-order") { state.order = state.order === "newest" ? "oldest" : "newest"; render(); }
   if (action === "expand-note") { state.noteExpanded = true; state.shareDraft = state.note; state.shareTitle = "手机训练记录"; state.shareSent = false; state.shareError = ""; state.shareNotice = ""; state.shareOpen = true; render(); }
   if (action === "toggle-dock") { state.dockOpen = !state.dockOpen; render(); }
-  if (action === "toggle-candidates") { if (state.noteCandidatesCollapsed) { state.noteCandidatesCollapsed = false; refreshCandidateOverlay(); } else { state.noteCandidatesCollapsed = true; refreshCandidateOverlay(true); } }
   if (action === "copy-note") { void copyNoteToClipboard(); }
   if (action === "send-training-note") { void sendTrainingNote(); }
   if (action === "close-share-panel") { state.shareOpen = false; state.shareBusy = false; state.shareSent = false; state.noteExpanded = false; state.shareError = ""; state.shareNotice = ""; render(); }

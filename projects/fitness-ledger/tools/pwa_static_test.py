@@ -86,7 +86,7 @@ def main() -> None:
     assert '.auth()' in api_source, "Web login must use the verified CloudBase auth initialization"
     assert "resetViewport" in app_source and "window.scrollTo(0, 0)" in app_source
     assert ".auth-card input { font-size: 16px; }" in css_source, "iOS login input must not trigger page zoom"
-    for marker in ("renderNoteDock", "candidate-overlay", "candidate-edge-dot", "可能相关动作 · 最近记录", "previewSetLine", "note-detail-backdrop", "data-note-surface", "scheduleDockCheck"):
+    for marker in ("renderNoteDock", "candidate-overlay", "可能相关动作 · 最近记录", "previewSetLine", "note-detail-backdrop", "data-note-surface", "scheduleDockCheck"):
         assert marker in source, f"missing sealed Mini Program parity marker: {marker}"
     for marker in (
         ".reference-page .candidate-overlay { position: fixed; z-index: 55;",
@@ -110,12 +110,14 @@ def main() -> None:
     assert '.reference-page.reference-home { overflow: visible; }' in css_source
     assert '.reference-home .note-stack:not(.note-stack--compact) .note-sheet { min-height:440px; }' in css_source
     assert 'document.documentElement.classList.add("pwa-note-focused")' in app_source
-    assert 'restoreNoteFocusViewport' in app_source
+    assert 'restoreNoteFocusViewport' not in app_source
     assert 'visualViewport?.addEventListener("resize", syncVisualViewportMetrics' in app_source
-    assert "Let iOS place the focused editor inside the visual viewport" in app_source
+    assert "function noteCaretRect(editor)" in app_source
+    assert "selectionStart" in app_source and "selectionEnd" in app_source
+    assert "rawNote.slice(0, Math.max(0, Math.min(caretPosition, rawNote.length)))" in app_source
     assert "enforceExpandedHomeScrollLock" in app_source
     assert "--pwa-visual-height" in app_source
-    assert ".reference-home .candidate-overlay {\n  position: relative;" in css_source
+    assert ".reference-home .candidate-overlay {\n  position: absolute;" in css_source
     assert ".reference-home .candidate-overlay .candidate-scroll {" in css_source
     assert "max-height: var(--candidate-latest-height, 240px);" in css_source
     assert "html.pwa-note-focused .reference-home .note-editor { font-size:16px; }" in css_source
@@ -124,10 +126,13 @@ def main() -> None:
     assert "height:calc(5 * 1.55em + 16px)!important;" not in css_source
     assert "height:calc(4 * 1.55em + 16px)!important;" not in css_source
     assert "html:not(.pwa-keyboard-open) .reference-home .candidate-overlay { display:none; }" in css_source
-    assert "editor.scrollTop = editor.scrollHeight" in app_source
-    assert "workspaceBottom" in app_source and "window.scrollBy({ top: upwardShift" in app_source
+    assert "editor.scrollTop = editor.scrollHeight" not in app_source
+    assert "targetLineTop" in app_source and "window.scrollBy({ top: upwardShift" in app_source
     assert "grid-template-columns:1fr" in css_source
-    assert 'candidate.style.setProperty("--keyboard-candidate-top"' in app_source
+    assert 'candidate.style.setProperty("--keyboard-candidate-top"' not in app_source
+    assert 'style.setProperty("--candidate-top"' in app_source
+    assert 'data-movement-id' in app_source
+    assert 'toggle-candidates' not in app_source
     assert "html.pwa-keyboard-open .reference-home .home-header" in css_source
     assert "--candidate-latest-height" in app_source and "--candidate-latest-height" in css_source
     assert "candidate-set--complex" in app_source

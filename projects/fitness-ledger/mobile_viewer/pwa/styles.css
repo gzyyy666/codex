@@ -224,12 +224,6 @@ button { color: inherit; cursor: pointer; }
 .candidate-set-values b { min-width: 0; overflow-wrap: anywhere; color: #4c463d; font-variant-numeric: tabular-nums; font-size: 9px; font-weight: 400; line-height: 1.2; white-space: normal; }
 .candidate-summary, .candidate-history p { margin: 5px 0 0; color: #625b51; font-size: 10px; line-height: 1.4; }
 .candidate-empty, .candidate-loading { padding: 12px 4px; color: #81796e; font-size: 10px; }
-.candidate-overlay.collapsed { right: auto; left: 2px; width: 23px; height: 23px; padding: 0; border-radius: 0 7px 7px 0; }
-.reference-page .candidate-overlay.collapsed { left: max(2px, calc((100vw - 560px) / 2 + 2px)); width: 23px; transform: none; }
-.candidate-edge { display: grid; grid-template-columns: 1fr; justify-items: center; width: 100%; height: 100%; padding: 3px 0; border: 0; background: transparent; color: #6d5a28; font-size: 9px; }
-.candidate-edge span { writing-mode: vertical-rl; letter-spacing: 1px; }
-.candidate-edge-dot { display: block; width: 13px; height: 13px; border-radius: 50%; background: #6b665d; }
-.candidate-edge b { font-size: 14px; font-weight: 400; line-height: 1; }
 .note-detail-backdrop { position: fixed; z-index: 60; inset: 0; display: flex; align-items: stretch; justify-content: center; padding: calc(env(safe-area-inset-top) + 57px) 9px 22px; background: rgba(28,25,20,.38); }
 .reference-page .note-detail-backdrop { position: fixed; z-index: 60; }
 .note-detail-sheet { width: 100%; max-height: 82vh; overflow: hidden; padding: 14px; border-radius: 15px; background: #fdfaf3; box-shadow: 0 20px 48px rgba(0,0,0,.22); }
@@ -407,11 +401,8 @@ button { color: inherit; cursor: pointer; }
 .reference-home .theme-archive .archive-heading h2 { margin-top: 2px; font-size: clamp(24px, 6.2vw, 34px); line-height: 1.02; }
 .reference-home .theme-archive .archive-heading-actions { gap: 8px; }
 .reference-home .theme-archive .sort-rail { margin-top: 5px; }
-.reference-home .candidate-overlay { top: var(--candidate-top, calc(env(safe-area-inset-top) + 182px)); }
+.reference-home .candidate-overlay { top: var(--candidate-top, 0); }
 .reference-home.reference-home--stable { animation: none; }
-.reference-home .candidate-overlay.is-collapsing { right: auto; left: max(2px, calc((100vw - 560px) / 2 + 2px)); width: 23px; height: 23px; padding: 0; border-radius: 0 7px 7px 0; transform: none; opacity: .96; transition: top .22s cubic-bezier(.22,.8,.25,1), width .22s ease, height .22s ease, left .22s ease, right .22s ease, transform .22s ease, opacity .22s ease; }
-.reference-home .candidate-overlay.collapsed { animation: candidate-anchor-pulse 1.8s ease-in-out infinite; }
-@keyframes candidate-anchor-pulse { 0%, 100% { box-shadow: 0 4px 12px rgba(53,44,29,.12); } 50% { box-shadow: 0 4px 18px rgba(44,114,82,.32); } }
 .auth-submit { width: 100%; min-height: 46px; border: 0; border-radius: 10px; background: #28251f; color: #fffdfa; font: inherit; cursor: pointer; }
 .auth-submit:disabled { opacity: .55; cursor: wait; }
 .auth-error { margin: 14px 0 0; color: #a44c3d; font-size: 13px; }
@@ -631,35 +622,31 @@ button { color: inherit; cursor: pointer; }
    blank strip after the movement archive on phones. */
 .app:has(.tabbar) .page{padding-bottom:calc(78px + env(safe-area-inset-bottom))}
 
-/* 2026-09-13 phone stability pass.
-   Candidate history belongs immediately after the Training Note. Keeping it
-   in document flow prevents a fixed panel from covering the archive heading
-   when the iOS keyboard changes the visual viewport. */
+/* Recognition history is an editing-context overlay. The note remains the
+   layout anchor; only the overlay's own scroll surface is allowed to scroll. */
 .reference-home .candidate-overlay {
-  position: relative;
-  top: auto;
+  position: absolute;
+  top: var(--candidate-top, 0);
   right: auto;
   bottom: auto;
-  left: auto;
-  width: auto;
+  left: 0;
+  width: 100%;
   height: auto;
   max-height: none;
-  margin: 8px 0 0;
+  box-sizing: border-box;
+  margin: 0;
   transform: none;
-  overflow: visible;
+  overflow: hidden;
+  z-index: 52;
+  animation: candidate-overlay-in .16s ease-out both;
 }
+@keyframes candidate-overlay-in { from { opacity: 0; transform:translateY(-3px); } to { opacity:1; transform:none; } }
 .reference-home .candidate-overlay .candidate-scroll {
   height: auto;
   max-height: var(--candidate-latest-height, 240px);
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-}
-.reference-home .candidate-overlay.collapsed {
-  width: 23px;
-  height: 23px;
-  margin-left: 0;
-  padding: 0;
 }
 html:not(.pwa-keyboard-open) .reference-home .candidate-overlay { display:none; }
 .reference-home .theme-strip--loading {
@@ -725,8 +712,8 @@ html:not(.pwa-keyboard-open) .reference-home .candidate-overlay { display:none; 
   html.pwa-note-focused .reference-home .note-editor { font-size:16px; }
 
   /* Keyboard workspace keeps the note's intrinsic dimensions. The document
-     scrolls upward to fit the recognition card; the editor itself is never
-     shortened merely because the software keyboard opened. */
+     may move just enough to keep the caret and its overlay in the viewport;
+     the editor itself is never shortened merely because the keyboard opened. */
   html.pwa-keyboard-open .reference-home .note-stack,
   html.pwa-keyboard-open .reference-home .home-shell[data-home-state="selected-expanded"] .note-stack {
     position:relative;
@@ -747,11 +734,10 @@ html:not(.pwa-keyboard-open) .reference-home .candidate-overlay { display:none; 
   }
   html.pwa-keyboard-open .reference-home .candidate-overlay {
     position:absolute;
-    z-index:52;
-    top:var(--keyboard-candidate-top);
-    right:0;
-    left:0;
-    width:auto;
+    top:var(--candidate-top, 0);
+    right:auto;
+    left:var(--candidate-left, 0);
+    width:var(--candidate-width, 100%);
     margin:0;
     padding:7px;
     border-radius:14px 5px 14px 14px;
