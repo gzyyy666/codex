@@ -20,7 +20,7 @@ const DEFAULT_ACTIVE_BODY_PART_IDS = new Set(["chest", "shoulders", "back", "leg
 const DEFAULT_BODY_PART_ORDER = ["chest", "shoulders", "back", "legs", "arms", "glutes", "core", "cardio"];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.28 · build 2026.09.13.25";
+const BUILD_VERSION = "PWA v1.1.29 · build 2026.09.17.01";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -35,7 +35,7 @@ const moduleTools = window.FLDataModules || {
 const app = document.querySelector("#app");
 const state = {
   route: parseRoute(), loading: true, error: "", status: null, identity: null,
-  areas: [], area: null, organization: null, selectedPartId: null, archiveExpanded: false, trainingRecords: [], bodyRecords: [], dietRecords: [],
+  areas: [], area: null, organization: null, selectedPartId: null, trainingRecords: [], bodyRecords: [], dietRecords: [],
   dataModuleContract: moduleTools.normalizeContract({ modules: [] }), dataModuleError: "",
   record: null, trainingDay: null, movement: null, movementHistory: [],
   sortBy: "frequency", order: "newest", query: "", note: loadNote(),
@@ -44,7 +44,7 @@ const state = {
   noteDetailOpen: false, noteDetailLoading: false, noteDetailError: "",
   noteDetailMovement: null, noteDetailHistory: [], noteDetailRequest: 0, showAliases: false,
   expanded: {}, candidatesRequest: 0, noteComposing: false, noteCatalog: null,
-  noteHistoryCache: new Map(), expandedHomeLockScrollY: null, deferredRender: false, noteCopyStatus: "",
+  noteHistoryCache: new Map(), deferredRender: false, noteCopyStatus: "",
   authRequired: false, authBusy: false, authMessage: "",
   shareDraft: "", shareTitle: "", shareOpen: false, shareBusy: false, shareSent: false, shareError: "", shareNotice: "",
   phoneInboxItems: [], phoneInboxLoaded: false
@@ -220,7 +220,6 @@ function toneForArea(item) {
 function isTopRoute() { return ["reference", "training", "status"].includes(state.route.name); }
 function resetViewport() {
   document.activeElement?.blur?.();
-  state.expandedHomeLockScrollY = null;
   window.scrollTo(0, 0);
   window.requestAnimationFrame(() => window.scrollTo(0, 0));
 }
@@ -597,58 +596,6 @@ function noteCaretRect(editor) {
   mirror.remove();
   return result;
 }
-let expandedHomeLayoutFrame = 0;
-function positionExpandedHome() {
-  const home = document.querySelector('.reference-home .home-shell[data-home-state="selected-expanded"]');
-  if (!home) return;
-  const note = home.querySelector('.note-stack');
-  const strip = home.querySelector('.theme-strip');
-  const archiveHead = home.querySelector('.theme-archive-head');
-  if (!note || !strip || !archiveHead) return;
-  home.style.setProperty('--expanded-note-height', `${Math.ceil(note.getBoundingClientRect().height)}px`);
-  home.style.setProperty('--expanded-strip-height', `${Math.ceil(strip.getBoundingClientRect().height)}px`);
-  home.style.setProperty('--expanded-archive-head-height', `${Math.ceil(archiveHead.getBoundingClientRect().height)}px`);
-}
-function syncExpandedScrollLock() {
-  const home = document.querySelector('.reference-home .home-shell[data-home-state="selected-expanded"]');
-  const noteSheet = home?.querySelector('.note-sheet');
-  if (!home || !noteSheet) {
-    state.expandedHomeLockScrollY = null;
-    return;
-  }
-  const locked = home.classList.contains('expanded-scroll-locked');
-  if (document.documentElement.classList.contains("pwa-note-focused")) {
-    if (locked) home.classList.remove("expanded-scroll-locked");
-    state.expandedHomeLockScrollY = null;
-    return;
-  }
-  const noteTop = noteSheet.getBoundingClientRect().top;
-  // Keep a small hysteresis band so the height change caused by opening the
-  // nested list cannot immediately undo the lock at the same scroll offset.
-  const shouldLock = locked ? noteTop <= 12 : noteTop <= 4;
-  if (shouldLock === locked) {
-    if (locked && !Number.isFinite(state.expandedHomeLockScrollY)) state.expandedHomeLockScrollY = window.scrollY;
-    return;
-  }
-  const scrollY = window.scrollY;
-  home.classList.toggle('expanded-scroll-locked', shouldLock);
-  state.expandedHomeLockScrollY = shouldLock ? scrollY : null;
-  if (shouldLock) window.requestAnimationFrame(() => window.scrollTo({ top: scrollY, behavior: "auto" }));
-}
-function enforceExpandedHomeScrollLock() {
-  const home = document.querySelector('.reference-home .home-shell[data-home-state="selected-expanded"].expanded-scroll-locked');
-  const target = state.expandedHomeLockScrollY;
-  if (!home || !Number.isFinite(target) || document.documentElement.classList.contains("pwa-note-focused")) return;
-  if (Math.abs(window.scrollY - target) > 1) window.scrollTo({ top: target, behavior: "auto" });
-}
-function scheduleExpandedHomeLayout() {
-  if (expandedHomeLayoutFrame) return;
-  expandedHomeLayoutFrame = window.requestAnimationFrame(() => {
-    expandedHomeLayoutFrame = 0;
-    positionExpandedHome();
-    syncExpandedScrollLock();
-  });
-}
 function refreshCandidateOverlay(resetScroll = false) {
   const region = document.querySelector("[data-candidate-region]");
   if (!region) return;
@@ -677,14 +624,14 @@ function renderReference() {
   const allowedColors = new Set(["neutral", "violet", "amber", "ember", "teal", "rose", "blue"]);
   const colorKey = selected && allowedColors.has(String(selected.tone)) ? String(selected.tone) : "neutral";
   const palette = `theme-color-${colorKey}`;
-  const stateName = selected ? (state.archiveExpanded ? "selected-expanded" : "selected-collapsed") : "neutral";
-  const note = `<section class="note-stack ${state.archiveExpanded ? "note-stack--compact" : ""}" aria-label="Training Note"><div class="note-sheet"><div class="note-head"><div class="note-eyebrow">TRAINING NOTE / 训练记录</div></div><textarea class="note-editor" data-note data-note-surface="home" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="enter" aria-label="训练记录备忘录" placeholder="今天做了什么，就先记什么……">${esc(state.note)}</textarea><div class="note-footer"><div class="notepad-actions"><button data-action="copy-note">COPY</button><button class="danger-link" data-action="clear-note">CLEAR</button><button data-action="expand-note">发送到电脑</button></div><div class="notepad-status" data-note-status>${esc(state.noteCopyStatus || "已自动保存")}</div></div><div class="note-decoration" aria-hidden="true">Good<br>Progress!</div></div></section>`;
+  const stateName = selected ? "selected-expanded" : "neutral";
+  const note = `<section class="note-stack" aria-label="Training Note"><div class="note-sheet"><div class="note-head"><div class="note-eyebrow">TRAINING NOTE / 训练记录</div></div><textarea class="note-editor" data-note data-note-surface="home" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="enter" aria-label="训练记录备忘录" placeholder="今天做了什么，就先记什么……">${esc(state.note)}</textarea><div class="note-footer"><div class="notepad-actions"><button data-action="copy-note">COPY</button><button class="danger-link" data-action="clear-note">CLEAR</button><button data-action="expand-note">发送到电脑</button></div><div class="notepad-status" data-note-status>${esc(state.noteCopyStatus || "已自动保存")}</div></div><div class="note-decoration" aria-hidden="true">Good<br>Progress!</div></div></section>`;
   const modulesReady = !state.loading && state.organization !== null;
   const pills = modulesReady
     ? `<section class="theme-strip" aria-label="Movement Modules"><div class="theme-strip-scroll" role="listbox">${modules.map(module => `<button class="home-module-pill ${String(module.id) === String(state.selectedPartId) ? "is-active" : ""} color-${esc(String(module.tone || "neutral"))}" data-action="select-module" data-part-id="${esc(module.id)}" role="option" aria-selected="${String(module.id) === String(state.selectedPartId)}" title="${esc(module.en)}"><span aria-hidden="true">✣</span>${esc(module.cn)}</button>`).join("")}</div></section>`
     : state.loading ? `<section class="theme-strip theme-strip--loading" aria-label="Movement Modules" aria-busy="true"><div class="module-rail-status" role="status"><span aria-hidden="true"></span>正在整理训练模块…</div></section>` : "";
   const selectedArea = state.area || selected?.area || null;
-  const archive = !modulesReady || !selected ? "" : !state.archiveExpanded ? `<section class="movement-preview"><div class="eyebrow">MOVEMENTS / 最近表现</div><button class="movement-summary" data-action="toggle-archive"><div class="movement-placeholder-icon" aria-hidden="true">▥</div><div><strong>${esc(selected.cn)} · ${Number(selectedArea?.movement_count || 0)} 个动作</strong><span>${selectedArea?.latest_date ? `最近训练 ${esc(selectedArea.latest_date)}` : "暂无动作历史"}</span></div><b aria-hidden="true">展开⌄</b></button></section>` : renderMovementModuleArchive(selectedArea);
+  const archive = !modulesReady || !selected ? "" : renderMovementModuleArchive(selectedArea);
   const header = `<header class="home-header"><div class="home-header-top"><div class="eyebrow">LOCAL ONLY / TRAINING NOTE</div><div class="home-motif" aria-hidden="true">A<br>STRONGER<br>YOU<br>EVERYDAY<br><i></i></div></div><h1 class="home-title">训练首页。</h1>${fresh ? `<div class="home-meta freshness ${fresh.stale ? "stale" : ""}">${esc(fresh.text)}</div>` : ""}</header>`;
   const candidateStable = state.noteDetailOpen || state.noteCandidatesLoading || state.noteCandidates.length ? " reference-home--stable" : "";
   return renderShell(`${pageStart(`reference-page reference-home ${palette}${candidateStable}`)}<div class="home-shell" data-home-state="${stateName}" data-theme-color="${colorKey}">${header}${note}<div data-candidate-region>${renderCandidateOverlay()}</div>${pills}${state.loading ? stateMessage("正在整理训练档案…") : state.error ? stateMessage(state.error, true) : archive}</div>${state.noteDetailOpen ? renderNoteDetail() : ""}${pageEnd()}`);
@@ -695,7 +642,7 @@ function renderMovementModuleArchive(area) {
   const movements = [...(area.movements || [])].sort((a, b) => state.sortBy === "recent" ? String(b.latest?.date || "").localeCompare(String(a.latest?.date || "")) : Number(b.sessions || 0) - Number(a.sessions || 0));
   const sessions = Array.isArray(area.sessions) ? area.sessions : [];
   const sessionHistory = sessions.length ? `<div class="theme-session-list"><div class="eyebrow">SESSION HISTORY / ${sessions.length}</div>${sessions.map(item => `<div class="theme-session-row"><b>${esc(item.date)}</b><span>${esc(item.title || item.split || "训练主题")}</span><small>${item.related_count || 0} 个动作</small></div>`).join("")}</div>` : "";
-  return `<section class="theme-archive"><div class="theme-archive-head"><div class="archive-heading"><div><div class="eyebrow">MOVEMENTS / FREQUENCY</div><h2>动作与最近表现</h2></div><div class="archive-heading-actions"><strong>${movements.length}</strong><button class="archive-collapse" data-action="toggle-archive">收起</button></div></div><div class="sort-rail"><span>排序</span><button class="${state.sortBy === "frequency" ? "is-active" : ""}" data-sort="frequency">训练频率</button><button class="${state.sortBy === "recent" ? "is-active" : ""}" data-sort="recent">最近训练</button><button class="${state.sortBy === "session" ? "is-active" : ""}" data-sort="session">按训练日</button></div></div><div class="theme-archive-list">${movements.length ? movements.map(renderMovementCard).join("") : stateMessage("该主题暂时没有动作历史。")}<details class="theme-session-secondary"><summary>相关训练 session（${sessions.length}）</summary>${sessionHistory}</details></div></section>`;
+  return `<section class="theme-archive"><div class="theme-archive-head"><div class="archive-heading"><div><div class="eyebrow">MOVEMENTS / FREQUENCY</div><h2>动作与最近表现</h2></div><div class="archive-heading-actions"><strong>${movements.length}</strong></div></div><div class="sort-rail"><span>排序</span><button class="${state.sortBy === "frequency" ? "is-active" : ""}" data-sort="frequency">训练频率</button><button class="${state.sortBy === "recent" ? "is-active" : ""}" data-sort="recent">最近训练</button><button class="${state.sortBy === "session" ? "is-active" : ""}" data-sort="session">按训练日</button></div></div><div class="theme-archive-list">${movements.length ? movements.map(renderMovementCard).join("") : stateMessage("该主题暂时没有动作历史。")}<details class="theme-session-secondary"><summary>相关训练 session（${sessions.length}）</summary>${sessionHistory}</details></div></section>`;
 }
 
 function renderMovementCard(item) {
@@ -848,7 +795,6 @@ function render() {
   // Re-apply the anchored candidate position after that DOM replacement so it
   // cannot fall back to the legacy top position.
   positionCandidateOverlay();
-  scheduleExpandedHomeLayout();
   const shareDialog = document.querySelector("#share-confirm-dialog");
   if (shareDialog && !shareDialog.open) shareDialog.showModal();
   enhanceDataModuleSurface();
@@ -867,10 +813,8 @@ function render() {
 async function selectMovementModule(partId) {
   const id = String(partId || "").trim();
   if (!id) return;
-  state.expandedHomeLockScrollY = null;
   if (String(state.selectedPartId || "") === id) {
     state.selectedPartId = null;
-    state.archiveExpanded = false;
     state.area = null;
     state.loading = false;
     state.error = "";
@@ -878,10 +822,7 @@ async function selectMovementModule(partId) {
     render();
     return;
   }
-  const wasExpanded = state.archiveExpanded;
   state.selectedPartId = id;
-  // Expanded is a homepage viewing mode, not a property of one module.
-  state.archiveExpanded = wasExpanded;
   state.area = null;
   state.loading = true;
   state.error = "";
@@ -909,7 +850,6 @@ async function loadRoute() {
       if (requestId !== routeRequest) return;
       state.organization = organizationResult.value || null;
       state.selectedPartId = null;
-      state.archiveExpanded = false;
       state.area = null;
       state.areas = areasResult.status === "fulfilled" && Array.isArray(areasResult.value) ? areasResult.value : [];
       state.status = statusResult.status === "fulfilled" ? statusResult.value : null;
@@ -959,6 +899,68 @@ let dataModulePromise;
 let routeRequest = 0;
 let visualViewportBaselineHeight = window.visualViewport?.height || window.innerHeight;
 let keyboardAlignmentFrame = 0;
+let notePageScrollLockY = null;
+let notePageScrollAdjusting = false;
+let notePageScrollSettleFrame = 0;
+let notePageScrollLastY = null;
+let editViewportClearancePx = null;
+
+function cssLengthPx(value) {
+  const probe = document.createElement("div");
+  probe.style.cssText = `position:absolute;visibility:hidden;width:${value};height:0;pointer-events:none`;
+  document.body.appendChild(probe);
+  const pixels = probe.getBoundingClientRect().width;
+  probe.remove();
+  return pixels;
+}
+function editViewportClearance() {
+  if (!Number.isFinite(editViewportClearancePx)) editViewportClearancePx = cssLengthPx("2.5cm");
+  return editViewportClearancePx;
+}
+let notePageScrollStableFrames = 0;
+
+function isNoteScrollableTarget(target) {
+  return Boolean(target?.closest?.("[data-note], .candidate-scroll"));
+}
+function setNotePageScrollLock(locked) {
+  if (locked) {
+    notePageScrollLockY = window.scrollY;
+    document.documentElement.classList.add("pwa-note-scroll-locked");
+    return;
+  }
+  notePageScrollLockY = null;
+  notePageScrollAdjusting = false;
+  notePageScrollLastY = null;
+  notePageScrollStableFrames = 0;
+  if (notePageScrollSettleFrame) window.cancelAnimationFrame(notePageScrollSettleFrame);
+  notePageScrollSettleFrame = 0;
+  document.documentElement.classList.remove("pwa-note-scroll-locked");
+}
+function settleNotePageScrollLock() {
+  notePageScrollSettleFrame = 0;
+  if (!notePageScrollAdjusting) return;
+  const currentY = window.scrollY;
+  if (notePageScrollLastY === null || Math.abs(currentY - notePageScrollLastY) > 0.5) {
+    notePageScrollLastY = currentY;
+    notePageScrollStableFrames = 0;
+    notePageScrollSettleFrame = window.requestAnimationFrame(settleNotePageScrollLock);
+    return;
+  }
+  notePageScrollStableFrames += 1;
+  if (notePageScrollStableFrames < 4) {
+    notePageScrollSettleFrame = window.requestAnimationFrame(settleNotePageScrollLock);
+    return;
+  }
+  notePageScrollAdjusting = false;
+  notePageScrollLockY = currentY;
+  setNotePageScrollLock(true);
+}
+function beginNotePageScrollAdjustment() {
+  notePageScrollAdjusting = true;
+  notePageScrollLastY = window.scrollY;
+  notePageScrollStableFrames = 0;
+  if (!notePageScrollSettleFrame) notePageScrollSettleFrame = window.requestAnimationFrame(settleNotePageScrollLock);
+}
 
 function scheduleKeyboardWorkspaceAlignment(forceCaretAlignment = false) {
   if (keyboardAlignmentFrame) window.cancelAnimationFrame(keyboardAlignmentFrame);
@@ -975,21 +977,28 @@ function scheduleKeyboardWorkspaceAlignment(forceCaretAlignment = false) {
     if (!caret) return;
     const visibleTop = viewport.offsetTop + 8;
     const visibleBottom = viewport.offsetTop + viewport.height - 8;
-    const targetLineTop = viewport.offsetTop + viewport.height * .22;
-    const caretOutOfBand = caret.top < visibleTop || caret.top > viewport.offsetTop + viewport.height * .34;
+    const bottomClearance = editViewportClearance();
+    const targetLineTop = visibleBottom - bottomClearance - caret.lineHeight;
+    const caretOutOfBand = caret.top < visibleTop || Math.abs(caret.top - targetLineTop) > caret.lineHeight * .5;
     let upwardShift = 0;
     if (forceCaretAlignment || caretOutOfBand) upwardShift = caret.top - targetLineTop;
     if (candidate) upwardShift = Math.max(upwardShift, candidate.getBoundingClientRect().bottom - visibleBottom);
     else upwardShift = Math.max(upwardShift, caret.bottom - visibleBottom);
-    if (upwardShift > 1 || upwardShift < -1) window.scrollBy({ top: upwardShift, behavior: "smooth" });
+    if (upwardShift > 1 || upwardShift < -1) {
+      beginNotePageScrollAdjustment();
+      window.scrollBy({ top: upwardShift, behavior: "smooth" });
+    } else {
+      notePageScrollAdjusting = false;
+      notePageScrollLockY = window.scrollY;
+      setNotePageScrollLock(true);
+    }
   });
 }
 
 document.addEventListener("focusin", event => {
   if (!event.target.matches("[data-note]")) return;
   document.documentElement.classList.add("pwa-note-focused");
-  state.expandedHomeLockScrollY = null;
-  scheduleExpandedHomeLayout();
+  setNotePageScrollLock(true);
   syncVisualViewportMetrics();
   updateCandidates();
   scheduleKeyboardWorkspaceAlignment(true);
@@ -1000,11 +1009,11 @@ document.addEventListener("focusout", event => {
     if (document.activeElement?.matches?.("[data-note]")) return;
     document.documentElement.classList.remove("pwa-note-focused");
     document.documentElement.classList.remove("pwa-keyboard-open");
+    setNotePageScrollLock(false);
     state.candidatesRequest += 1;
     state.noteCandidates = [];
     state.noteCandidatesLoading = false;
     refreshCandidateOverlay();
-    scheduleExpandedHomeLayout();
   }, 50);
 });
 function syncVisualViewportMetrics() {
@@ -1018,7 +1027,6 @@ function syncVisualViewportMetrics() {
   const wasOpen = document.documentElement.classList.contains("pwa-keyboard-open");
   document.documentElement.classList.toggle("pwa-keyboard-open", keyboardOpen);
   if (keyboardOpen) scheduleKeyboardWorkspaceAlignment(!wasOpen);
-  scheduleExpandedHomeLayout();
 }
 window.visualViewport?.addEventListener("resize", syncVisualViewportMetrics, { passive: true });
 syncVisualViewportMetrics();
@@ -1132,7 +1140,6 @@ document.addEventListener("click", event => {
   const sort = event.target.closest("[data-sort]")?.dataset.sort; if (sort) { state.sortBy = sort; render(); return; }
   const action = event.target.closest("[data-action]")?.dataset.action; if (!action) return;
   if (action === "select-module") { void selectMovementModule(event.target.closest("[data-part-id]")?.dataset.partId); return; }
-  if (action === "toggle-archive") { if (state.selectedPartId) { state.archiveExpanded = !state.archiveExpanded; resetViewport(); render(); } return; }
   if (action === "toggle-order") { state.order = state.order === "newest" ? "oldest" : "newest"; render(); }
   if (action === "expand-note") { state.noteExpanded = true; state.shareDraft = state.note; state.shareTitle = "手机训练记录"; state.shareSent = false; state.shareError = ""; state.shareNotice = ""; state.shareOpen = true; render(); }
   if (action === "toggle-dock") { state.dockOpen = !state.dockOpen; render(); }
@@ -1151,10 +1158,22 @@ document.addEventListener("click", event => {
   if (action === "close-note-detail") { state.noteDetailRequest += 1; state.noteDetailOpen = false; state.noteDetailLoading = false; render(); }
   if (action === "noop") return;
 });
-window.addEventListener("scroll", () => { enforceExpandedHomeScrollLock(); scheduleDockCheck(); positionCandidateOverlay(); scheduleExpandedHomeLayout(); }, { passive: true });
-window.addEventListener("resize", () => { syncVisualViewportMetrics(); scheduleExpandedHomeLayout(); }, { passive: true });
+window.addEventListener("scroll", () => {
+  if (document.documentElement.classList.contains("pwa-note-scroll-locked") && !notePageScrollAdjusting && Number.isFinite(notePageScrollLockY) && Math.abs(window.scrollY - notePageScrollLockY) > 1) {
+    window.scrollTo({ top: notePageScrollLockY, behavior: "auto" });
+  }
+  scheduleDockCheck();
+  positionCandidateOverlay();
+}, { passive: true });
+window.addEventListener("resize", () => { syncVisualViewportMetrics(); }, { passive: true });
+document.addEventListener("touchmove", event => {
+  if (document.documentElement.classList.contains("pwa-note-scroll-locked") && !isNoteScrollableTarget(event.target)) event.preventDefault();
+}, { passive: false });
+document.addEventListener("wheel", event => {
+  if (document.documentElement.classList.contains("pwa-note-scroll-locked") && !isNoteScrollableTarget(event.target)) event.preventDefault();
+}, { passive: false });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260913-25", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260917-01", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

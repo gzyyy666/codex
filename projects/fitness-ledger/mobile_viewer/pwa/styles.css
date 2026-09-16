@@ -9,6 +9,7 @@
 * { box-sizing: border-box; }
 html { min-height: 100%; overflow-x: clip; background: var(--paper); }
 body { min-height: 100%; margin: 0; overflow-x: clip; color: var(--ink); background: var(--paper); font-family: "PingFang SC", "Microsoft YaHei UI", sans-serif; }
+html.pwa-note-scroll-locked, html.pwa-note-scroll-locked body { overflow: hidden; overscroll-behavior: none; }
 button, input, textarea { font: inherit; }
 button { color: inherit; cursor: pointer; }
 .app { min-height: 100dvh; padding-bottom: 0; }
@@ -647,6 +648,7 @@ button { color: inherit; cursor: pointer; }
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 html:not(.pwa-keyboard-open) .reference-home .candidate-overlay { display:none; }
 .reference-home .theme-strip--loading {
@@ -710,6 +712,12 @@ html:not(.pwa-keyboard-open) .reference-home .candidate-overlay { display:none; 
   /* Keep focus layout-neutral. iOS may resize/pan the visual viewport for its
      keyboard, but focusing the note must not hide or resize homepage modules. */
   html.pwa-note-focused .reference-home .note-editor { font-size:16px; }
+  html.pwa-note-scroll-locked .reference-home .note-editor {
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+    touch-action:pan-y;
+  }
 
   /* Keyboard workspace keeps the note's intrinsic dimensions. The document
      may move just enough to keep the caret and its overlay in the viewport;

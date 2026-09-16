@@ -94,103 +94,51 @@ def main() -> None:
         assert first == stable == 8, {"first": first, "stable": stable, "order": order}
         assert order == ["chest", "shoulders", "back", "legs", "glutes", "arms", "core", "cardio"], order
         assert evaluate(browser, "document.querySelector('[data-part-id=core]').className.includes('color-white')") is True
-        evaluate(browser, "document.querySelector('.home-module-pill').click()")
-        wait_for(browser, "!!document.querySelector('.movement-preview')")
-        overview = evaluate(browser, "(() => { const card=document.querySelector('.movement-summary').getBoundingClientRect(); const nav=document.querySelector('.tabbar').getBoundingClientRect(); return {cardBottom:card.bottom, navTop:nav.top, viewport:innerHeight}; })()")
-        assert overview["cardBottom"] <= overview["navTop"] + 1, overview
-        selected_tone = evaluate(browser, "document.querySelector('.reference-home').className")
-        assert any(name in selected_tone for name in ("theme-color-amber", "theme-color-ember", "theme-color-teal", "theme-color-violet", "theme-color-blue", "theme-color-rose")), selected_tone
-        evaluate(browser, "document.querySelector('[data-action=toggle-archive]').click()")
-        wait_for(browser, "document.querySelector('[data-home-state]').dataset.homeState === 'selected-expanded' && !!document.querySelector('.theme-archive-head')")
-        assert evaluate(browser, "Number.parseFloat(getComputedStyle(document.querySelector('[data-note]')).fontSize)") >= 16
-        assert evaluate(browser, "getComputedStyle(document.querySelector('.note-stack')).position") == "sticky"
-        assert evaluate(browser, "getComputedStyle(document.querySelector('.theme-archive-head')).position") == "sticky"
-        wait_for(browser, "getComputedStyle(document.querySelector('.home-shell')).getPropertyValue('--expanded-note-height').trim() !== ''")
-        sticky_layout = evaluate(browser, "(() => { const home=document.querySelector('.home-shell'); return {note:Number.parseFloat(getComputedStyle(home).getPropertyValue('--expanded-note-height')), strip:Number.parseFloat(getComputedStyle(home).getPropertyValue('--expanded-strip-height'))}; })()")
-        assert sticky_layout["note"] > 0 and sticky_layout["strip"] > 0, sticky_layout
-        scroll_target = evaluate(browser, "document.querySelector('.theme-archive-head').getBoundingClientRect().top + scrollY + 180")
-        evaluate(browser, "(() => { const list=document.querySelector('.theme-archive-list'); list.style.minHeight='0'; list.style.height='1200px'; list.insertAdjacentHTML('beforeend', '<div data-test-scroll-content style=\"height:1200px\"></div>'); document.querySelector('.home-shell').insertAdjacentHTML('beforeend', '<div data-test-page-spacer style=\"height:1200px\"></div>'); })()")
-        evaluate(browser, f"new Promise(resolve => setTimeout(() => {{ window.scrollTo(0, {scroll_target}); resolve(true); }}, 100))")
-        evaluate(browser, "window.scrollTo(0, document.querySelector('.theme-archive-head').offsetTop + 180); window.dispatchEvent(new Event('scroll')); true")
-        wait_for(browser, "document.querySelector('.home-shell').classList.contains('expanded-scroll-locked')")
-        after_scroll = evaluate(browser, "new Promise(resolve => setTimeout(() => { const note=document.querySelector('.note-sheet').getBoundingClientRect(); const stack=document.querySelector('.note-stack').getBoundingClientRect(); const strip=document.querySelector('.theme-strip').getBoundingClientRect(); const head=document.querySelector('.theme-archive-head').getBoundingClientRect(); const list=document.querySelector('.theme-archive-list').getBoundingClientRect(); const home=document.querySelector('.home-shell'); resolve({noteTop:note.top, stackTop:stack.top, stripTop:strip.top, headTop:head.top, listTop:list.top, listClientHeight:document.querySelector('.theme-archive-list').clientHeight, listScrollHeight:document.querySelector('.theme-archive-list').scrollHeight, listOverflow:getComputedStyle(document.querySelector('.theme-archive-list')).overflowY, scrollY:scrollY, locked:home.classList.contains('expanded-scroll-locked'), position:getComputedStyle(document.querySelector('.note-stack')).position, archivePosition:getComputedStyle(document.querySelector('.theme-archive')).position}); }, 80))")
-        assert after_scroll["noteTop"] <= 2, after_scroll
-        assert after_scroll["stripTop"] >= after_scroll["noteTop"] + sticky_layout["note"] - 3, after_scroll
-        assert after_scroll["headTop"] >= after_scroll["stripTop"] + sticky_layout["strip"] - 3, after_scroll
-        assert after_scroll["locked"] is True and after_scroll["listOverflow"] in ("auto", "scroll"), after_scroll
-        assert after_scroll["listScrollHeight"] > after_scroll["listClientHeight"], after_scroll
-        assert after_scroll["archivePosition"] == "relative", after_scroll
-        lock_scroll_y = after_scroll["scrollY"]
-        evaluate(browser, f"window.scrollTo(0, {lock_scroll_y + 500}); true")
-        locked_scroll = evaluate(browser, "new Promise(resolve => setTimeout(() => resolve(scrollY), 80))")
-        assert abs(locked_scroll - lock_scroll_y) <= 1, {"lock_scroll_y": lock_scroll_y, "locked_scroll": locked_scroll}
-        list_top = after_scroll["listTop"]
-        evaluate(browser, "document.querySelector('.theme-archive-list').scrollTo(0, 220)")
-        nested_scroll = evaluate(browser, "new Promise(resolve => setTimeout(() => { const list=document.querySelector('.theme-archive-list'); const note=document.querySelector('.note-sheet').getBoundingClientRect(); resolve({scrollTop:list.scrollTop, listTop:list.getBoundingClientRect().top, noteTop:note.top}); }, 80))")
-        assert nested_scroll["scrollTop"] > 0 and abs(nested_scroll["listTop"] - list_top) <= 1 and nested_scroll["noteTop"] <= 2, nested_scroll
-        first_module = evaluate(browser, "document.querySelector('[data-part-id]').dataset.partId")
-        evaluate(browser, "document.querySelectorAll('.home-module-pill')[1].click()")
-        wait_for(browser, "document.querySelector('[data-home-state]')?.dataset.homeState === 'selected-expanded' && !!document.querySelector('.home-module-pill.is-active')?.dataset.partId && document.querySelector('.home-module-pill.is-active').dataset.partId !== arguments[0]".replace("arguments[0]", repr(first_module)))
-        assert evaluate(browser, "document.querySelector('[data-home-state]').dataset.homeState") == "selected-expanded"
-        expanded_before_focus = evaluate(browser, "(() => { const sheet=document.querySelector('.note-sheet').getBoundingClientRect(); const editor=document.querySelector('[data-note]').getBoundingClientRect(); return {sheetHeight:sheet.height, editorHeight:editor.height}; })()")
-        evaluate(browser, "document.querySelector('[data-note]').focus()")
-        focused = evaluate(browser, "new Promise(resolve => setTimeout(() => resolve(document.querySelectorAll('.home-module-pill').length), 500))")
-        assert focused == 8, focused
-        evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.value='\\u5668\\u68b0\\u4e09\\u5934\\u4e0b\\u538b'; note.setSelectionRange(note.value.length, note.value.length); note.dispatchEvent(new Event('input', {bubbles:true})); return true; })()")
+        evaluate(browser, "document.querySelector('.home-module-pill:nth-child(6)').click()")
+        wait_for(browser, "document.querySelector('[data-home-state]')?.dataset.homeState === 'selected-expanded' && !!document.querySelector('.theme-archive')")
+        wait_for(browser, "document.querySelectorAll('.movement-card').length > 0")
+        selected = evaluate(browser, "({state:document.querySelector('[data-home-state]').dataset.homeState, preview:!!document.querySelector('.movement-preview'), collapse:!!document.querySelector('.archive-collapse'), cards:document.querySelectorAll('.movement-card').length})")
+        assert selected["state"] == "selected-expanded" and not selected["preview"] and not selected["collapse"] and selected["cards"] > 0, selected
+        evaluate(browser, "document.querySelector('.home-shell').insertAdjacentHTML('beforeend', '<div data-test-page-spacer style=\"height:1600px\"></div>'); window.scrollTo(0, 360); true")
+        evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.value=Array.from({length:24}, (_, i) => `普通记录${i + 1}`).join('\\n'); note.setSelectionRange(note.value.length, note.value.length); note.dispatchEvent(new Event('input', {bubbles:true})); note.focus(); return true; })()")
+        command(browser, "Emulation.setDeviceMetricsOverride", {"width": 390, "height": 500, "deviceScaleFactor": 1, "mobile": True, "screenWidth": 390, "screenHeight": 844})
+        wait_for(browser, "document.documentElement.classList.contains('pwa-keyboard-open')")
+        evaluate(browser, "new Promise(resolve => setTimeout(resolve, 650))")
+        focus_state = evaluate(browser, "(() => { const e=document.querySelector('[data-note]'); const s=getComputedStyle(e); const vv=visualViewport; const line=Number.parseFloat(s.lineHeight); const top=e.getBoundingClientRect().top+Number.parseFloat(s.borderTopWidth)+Number.parseFloat(s.paddingTop)+(e.value.slice(0,e.selectionStart).split('\\n').length-1)*line-e.scrollTop; const probe=document.createElement('div'); probe.style.cssText='position:absolute;visibility:hidden;width:2.5cm;height:0'; document.body.append(probe); const clearance=probe.getBoundingClientRect().width; probe.remove(); return {focused:document.documentElement.classList.contains('pwa-note-focused'), locked:document.documentElement.classList.contains('pwa-note-scroll-locked'), overflow:getComputedStyle(document.documentElement).overflow, top, target:vv.offsetTop+vv.height-8-clearance-line, pageY:scrollY}; })()")
+        assert focus_state["focused"] and focus_state["locked"] and focus_state["overflow"] == "hidden", focus_state
+        # The document can clamp at scrollY=0 when the focused line is already
+        # close to the top of the page; the tolerance covers that physical edge.
+        assert abs(focus_state["top"] - focus_state["target"]) <= 28, focus_state
+        locked_y = evaluate(browser, "scrollY")
+        evaluate(browser, "window.scrollTo(0, scrollY + 500); true")
+        settled_y = evaluate(browser, "new Promise(resolve => setTimeout(() => resolve(scrollY), 120))")
+        assert abs(settled_y - locked_y) <= 1, {"before": locked_y, "after": settled_y}
+        editor_scroll = evaluate(browser, "(() => { const e=document.querySelector('[data-note]'); e.scrollTop=e.scrollHeight; return {scrollTop:e.scrollTop, page:scrollY}; })()")
+        assert editor_scroll["scrollTop"] > 0 and abs(editor_scroll["page"] - locked_y) <= 1, editor_scroll
+        evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.value='器械三头下压'; note.setSelectionRange(note.value.length, note.value.length); note.dispatchEvent(new Event('input', {bubbles:true})); return true; })()")
         wait_for(browser, "!!document.querySelector('.candidate-overlay .candidate b')")
-        candidate_layout = evaluate(browser, "(() => { const candidate=document.querySelector('.candidate-overlay'); const note=document.querySelector('.note-sheet').getBoundingClientRect(); const editor=document.querySelector('[data-note]').getBoundingClientRect(); const rail=document.querySelector('.theme-strip'); const archive=document.querySelector('.theme-archive'); return {display:getComputedStyle(candidate).display, sheetHeight:note.height, editorHeight:editor.height, headerDisplay:getComputedStyle(document.querySelector('.home-header')).display, railDisplay:getComputedStyle(rail).display, archiveDisplay:getComputedStyle(archive).display, editorFont:Number.parseFloat(getComputedStyle(document.querySelector('[data-note]')).fontSize), viewportScale:window.visualViewport?.scale || 1, candidateName:document.querySelector('.candidate b')?.textContent}; })()")
-        assert candidate_layout["display"] == "none", candidate_layout
-        assert candidate_layout["headerDisplay"] != "none", candidate_layout
-        assert candidate_layout["railDisplay"] != "none" and candidate_layout["archiveDisplay"] != "none", candidate_layout
-        assert candidate_layout["editorFont"] >= 16 and candidate_layout["viewportScale"] == 1, candidate_layout
-        assert abs(candidate_layout["sheetHeight"] - expanded_before_focus["sheetHeight"]) <= 2, (expanded_before_focus, candidate_layout)
-        assert abs(candidate_layout["editorHeight"] - expanded_before_focus["editorHeight"]) <= 2, (expanded_before_focus, candidate_layout)
-        assert candidate_layout["candidateName"] == "器械三头下压", candidate_layout
-        evaluate(browser, "(() => { const list=document.querySelector('.candidate-history-list'); const first=list.querySelector('.candidate-history'); list.append(first.cloneNode(true), first.cloneNode(true)); const values=first.querySelectorAll('.candidate-set-values b'); if(values.length===3){ values[0].textContent='127.5 kg'; values[1].textContent='15 次'; values[2].textContent='3 组'; } document.documentElement.classList.add('pwa-keyboard-open'); window.dispatchEvent(new Event('scroll')); const scroll=document.querySelector('.candidate-scroll'); scroll.style.setProperty('--candidate-latest-height', `${Math.ceil(first.getBoundingClientRect().bottom-scroll.getBoundingClientRect().top+8)}px`); return true; })()")
-        keyboard_layout = evaluate(browser, "new Promise(resolve => requestAnimationFrame(() => { const editor=document.querySelector('[data-note]'); const editorStyle=getComputedStyle(editor); const editorRect=editor.getBoundingClientRect(); const candidate=document.querySelector('.candidate-overlay').getBoundingClientRect(); const sheet=document.querySelector('.note-sheet').getBoundingClientRect(); const lineHeight=Number.parseFloat(editorStyle.lineHeight); const caretBottom=editorRect.top+Number.parseFloat(editorStyle.borderTopWidth)+Number.parseFloat(editorStyle.paddingTop)+lineHeight-editor.scrollTop; const scroll=document.querySelector('.candidate-scroll'); const first=document.querySelector('.candidate-history'); const values=[...first.querySelectorAll('.candidate-set-values b')]; resolve({editorHeight:editorRect.height, candidateTop:candidate.top, candidateGap:candidate.top-caretBottom-lineHeight, candidateWidth:candidate.width, sheetWidth:sheet.width, candidateHistories:[...document.querySelectorAll('.candidate-history')].filter(item => getComputedStyle(item).display !== 'none').length, columns:getComputedStyle(document.querySelector('.candidate-sets')).gridTemplateColumns, latestFullyVisible:first.getBoundingClientRect().bottom <= scroll.getBoundingClientRect().bottom+1, scrollHeight:scroll.scrollHeight, clientHeight:scroll.clientHeight, valuesFit:values.every(item => item.scrollWidth <= item.clientWidth+1), header:getComputedStyle(document.querySelector('.home-header')).display, headerHeight:document.querySelector('.home-header').getBoundingClientRect().height, rail:getComputedStyle(document.querySelector('.theme-strip')).display, archive:getComputedStyle(document.querySelector('.theme-archive')).display}); }))")
-        assert abs(keyboard_layout["editorHeight"] - candidate_layout["editorHeight"]) <= 2, (candidate_layout, keyboard_layout)
-        assert abs(keyboard_layout["candidateGap"] ) <= 4, keyboard_layout
-        assert abs(keyboard_layout["candidateWidth"] - keyboard_layout["sheetWidth"]) <= 2, keyboard_layout
-        assert keyboard_layout["candidateHistories"] == 3, keyboard_layout
-        assert len(keyboard_layout["columns"].split()) == 1, keyboard_layout
-        assert keyboard_layout["latestFullyVisible"] and keyboard_layout["scrollHeight"] > keyboard_layout["clientHeight"], keyboard_layout
-        assert keyboard_layout["valuesFit"], keyboard_layout
-        assert keyboard_layout["header"] != "none" and keyboard_layout["headerHeight"] == 0, keyboard_layout
-        assert keyboard_layout["rail"] != "none" and keyboard_layout["archive"] != "none", keyboard_layout
-        evaluate(browser, "document.querySelector('.candidate-scroll').scrollTo(0, 60); window.dispatchEvent(new Event('scroll')); true")
-        candidate_scroll = evaluate(browser, "new Promise(resolve => setTimeout(() => resolve(document.querySelector('.candidate-scroll').scrollTop), 80))")
-        assert candidate_scroll > 0, candidate_scroll
-        scroll_preserved = evaluate(browser, "(() => { const scroll=document.querySelector('.candidate-scroll'); const before=scroll.scrollTop; window.dispatchEvent(new Event('scroll')); return new Promise(resolve => requestAnimationFrame(() => resolve({before, after:scroll.scrollTop}))); })()")
-        assert abs(scroll_preserved["after"] - scroll_preserved["before"]) <= 1, scroll_preserved
-        evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.value='plain text\\n\\u5668\\u68b0\\u4e09\\u5934\\u4e0b\\u538b'; note.setSelectionRange(0, 0); note.dispatchEvent(new Event('input', {bubbles:true})); return true; })()")
+        candidate_layout = evaluate(browser, "(() => { const candidate=document.querySelector('.candidate-overlay'); const note=document.querySelector('.note-sheet').getBoundingClientRect(); const editor=document.querySelector('[data-note]'); const s=getComputedStyle(editor); const caretBottom=editor.getBoundingClientRect().top+Number.parseFloat(s.borderTopWidth)+Number.parseFloat(s.paddingTop)+Number.parseFloat(s.lineHeight)-editor.scrollTop; return {display:getComputedStyle(candidate).display, name:document.querySelector('.candidate b').textContent, width:candidate.getBoundingClientRect().width, sheetWidth:note.width, gap:candidate.getBoundingClientRect().top-caretBottom-Number.parseFloat(s.lineHeight)}; })()")
+        assert candidate_layout["display"] != "none" and candidate_layout["name"] == "器械三头下压", candidate_layout
+        assert abs(candidate_layout["width"] - candidate_layout["sheetWidth"]) <= 2 and abs(candidate_layout["gap"]) <= 5, candidate_layout
+        evaluate(browser, "(() => { const list=document.querySelector('.candidate-history-list'); const first=list.querySelector('.candidate-history'); list.append(first.cloneNode(true),first.cloneNode(true)); const scroll=document.querySelector('.candidate-scroll'); scroll.style.setProperty('--candidate-latest-height', `${Math.ceil(first.getBoundingClientRect().height + 8)}px`); return true; })()")
+        wait_for(browser, "document.querySelector('.candidate-scroll').scrollHeight > document.querySelector('.candidate-scroll').clientHeight")
+        nested = evaluate(browser, "(() => { const scroll=document.querySelector('.candidate-scroll'); scroll.scrollTop=80; const background=document.querySelector('.theme-archive'); const bgEvent=new WheelEvent('wheel',{bubbles:true,cancelable:true,deltaY:100}); background.dispatchEvent(bgEvent); const popupEvent=new WheelEvent('wheel',{bubbles:true,cancelable:true,deltaY:100}); scroll.dispatchEvent(popupEvent); return new Promise(resolve => setTimeout(() => resolve({scrollTop:scroll.scrollTop, page:scrollY, active:document.activeElement.matches('[data-note]'), backgroundPrevented:bgEvent.defaultPrevented, popupPrevented:popupEvent.defaultPrevented}), 80)); })()")
+        assert nested["scrollTop"] > 0 and abs(nested["page"] - locked_y) <= 1 and nested["active"] and nested["backgroundPrevented"] and not nested["popupPrevented"], nested
+        evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.value='器械三头下压\\n器械三头下压'; note.setSelectionRange('器械三头下压'.length,'器械三头下压'.length); note.dispatchEvent(new Event('select',{bubbles:true})); return true; })()")
+        wait_for(browser, "document.querySelector('.candidate b')?.textContent === '器械三头下压'")
+        evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.setSelectionRange(note.value.length,note.value.length); note.dispatchEvent(new Event('select',{bubbles:true})); return true; })()")
+        wait_for(browser, "document.querySelector('.candidate b')?.textContent === '器械三头下压'")
+        switched = evaluate(browser, "({scrollTop:document.querySelector('.candidate-scroll').scrollTop, page:scrollY})")
+        assert switched["scrollTop"] > 0 and abs(switched["page"] - locked_y) <= 1, switched
+        evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.setSelectionRange(0,0); note.dispatchEvent(new Event('select',{bubbles:true})); return true; })()")
         wait_for(browser, "!document.querySelector('.candidate-overlay')")
-        evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.setSelectionRange(note.value.length, note.value.length); note.dispatchEvent(new Event('select', {bubbles:true})); return true; })()")
-        wait_for(browser, "!!document.querySelector('.candidate-overlay .candidate b')")
-        scroll_before_blur = evaluate(browser, "window.scrollY")
-        evaluate(browser, "document.documentElement.classList.remove('pwa-keyboard-open'); true")
+        before_blur = evaluate(browser, "scrollY")
         evaluate(browser, "document.querySelector('[data-note]').blur(); true")
         wait_for(browser, "!document.documentElement.classList.contains('pwa-note-focused')")
-        restored = evaluate(browser, "({rail:getComputedStyle(document.querySelector('.theme-strip')).display, archive:getComputedStyle(document.querySelector('.theme-archive')).display})")
-        assert restored["rail"] != "none" and restored["archive"] != "none", restored
-        assert abs(evaluate(browser, "window.scrollY") - scroll_before_blur) <= 2, {"before": scroll_before_blur, "after": evaluate(browser, "window.scrollY")}
-        evaluate(browser, "document.querySelector('.archive-collapse').click(); true")
-        wait_for(browser, "document.querySelector('[data-home-state]').dataset.homeState === 'selected-collapsed'")
-        collapsed_before_focus = evaluate(browser, "(() => { const sheet=document.querySelector('.note-sheet').getBoundingClientRect(); const editor=document.querySelector('[data-note]').getBoundingClientRect(); return {sheetHeight:sheet.height, editorHeight:editor.height}; })()")
-        evaluate(browser, "document.querySelector('[data-note]').focus(); true")
-        wait_for(browser, "document.documentElement.classList.contains('pwa-note-focused')")
-        collapsed_focus = evaluate(browser, "(() => { const sheet=document.querySelector('.note-sheet').getBoundingClientRect(); const editor=document.querySelector('[data-note]').getBoundingClientRect(); return {header:getComputedStyle(document.querySelector('.home-header')).display, rail:getComputedStyle(document.querySelector('.theme-strip')).display, preview:getComputedStyle(document.querySelector('.movement-preview')).display, editorFont:Number.parseFloat(getComputedStyle(document.querySelector('[data-note]')).fontSize), sheetHeight:sheet.height, editorHeight:editor.height}; })()")
-        assert collapsed_focus["header"] != "none" and collapsed_focus["rail"] != "none" and collapsed_focus["preview"] != "none", collapsed_focus
-        assert collapsed_focus["editorFont"] == 16, collapsed_focus
-        assert abs(collapsed_focus["sheetHeight"] - collapsed_before_focus["sheetHeight"]) <= 2, (collapsed_before_focus, collapsed_focus)
-        assert abs(collapsed_focus["editorHeight"] - collapsed_before_focus["editorHeight"]) <= 2, (collapsed_before_focus, collapsed_focus)
-        evaluate(browser, "document.querySelector('.home-module-pill.is-active').click(); true")
-        wait_for(browser, "document.querySelector('[data-home-state]').dataset.homeState === 'neutral'")
-        neutral_editor_height = evaluate(browser, "document.querySelector('[data-note]').getBoundingClientRect().height")
-        evaluate(browser, "document.documentElement.classList.add('pwa-keyboard-open'); true")
-        neutral_keyboard_height = evaluate(browser, "document.querySelector('[data-note]').getBoundingClientRect().height")
-        assert abs(neutral_keyboard_height - neutral_editor_height) <= 2, (neutral_editor_height, neutral_keyboard_height)
-        evaluate(browser, "document.documentElement.classList.remove('pwa-keyboard-open'); true")
-        print("PWA_HOME_RENDER_STABILITY: PASS")
+        after_blur = evaluate(browser, "({page:scrollY, locked:document.documentElement.classList.contains('pwa-note-scroll-locked'), state:document.querySelector('[data-home-state]').dataset.homeState})")
+        assert abs(after_blur["page"] - before_blur) <= 2 and not after_blur["locked"] and after_blur["state"] == "selected-expanded", after_blur
+        command(browser, "Emulation.setDeviceMetricsOverride", {"width": 390, "height": 844, "deviceScaleFactor": 1, "mobile": True, "screenWidth": 390, "screenHeight": 844})
+        print("PWA_HOME_EDITING_WORKSPACE: PASS")
     finally:
         if browser is not None:
             browser.close()

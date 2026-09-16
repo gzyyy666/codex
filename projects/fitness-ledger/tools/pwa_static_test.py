@@ -54,7 +54,7 @@ def main() -> None:
     assert "refreshCandidateOverlay" in app_source
     assert "noteHistoryCache" in app_source
     assert 'data-candidate-region' in app_source
-    assert 'PWA v1.1.28' in app_source
+    assert 'PWA v1.1.29 · build 2026.09.17.01' in app_source
     assert 'data-action="expand-note">发送到电脑</button>' in app_source
     assert 'if (action === "expand-note") { state.noteExpanded = true; state.shareDraft = state.note; state.shareTitle = "手机训练记录"; state.shareSent = false;' in app_source
     assert '确认发送' in app_source and 'PHONE_INBOX_TIMEOUT_MS = 15000' in app_source
@@ -104,9 +104,9 @@ def main() -> None:
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'includes("/api/")' in service_worker
-    assert 'fitness-ledger-pwa-v64' in service_worker
-    assert '"./data-modules.js?v=20260913-25"' in service_worker
-    assert 'register("./sw.js?v=20260913-25", { updateViaCache: "none" })' in app_source
+    assert 'fitness-ledger-pwa-v65' in service_worker
+    assert '"./data-modules.js?v=20260917-01"' in service_worker
+    assert 'register("./sw.js?v=20260917-01", { updateViaCache: "none" })' in app_source
     assert '.reference-page.reference-home { overflow: visible; }' in css_source
     assert '.reference-home .note-stack:not(.note-stack--compact) .note-sheet { min-height:440px; }' in css_source
     assert 'document.documentElement.classList.add("pwa-note-focused")' in app_source
@@ -115,7 +115,16 @@ def main() -> None:
     assert "function noteCaretRect(editor)" in app_source
     assert "selectionStart" in app_source and "selectionEnd" in app_source
     assert "rawNote.slice(0, Math.max(0, Math.min(caretPosition, rawNote.length)))" in app_source
-    assert "enforceExpandedHomeScrollLock" in app_source
+    assert 'function setNotePageScrollLock(locked)' in app_source
+    assert 'isNoteScrollableTarget' in app_source
+    assert 'document.addEventListener("touchmove"' in app_source
+    assert 'document.addEventListener("wheel"' in app_source
+    assert 'cssLengthPx("2.5cm")' in app_source
+    assert 'const targetLineTop = visibleBottom - bottomClearance - caret.lineHeight;' in app_source
+    assert "enforceExpandedHomeScrollLock" not in app_source
+    assert "scheduleExpandedHomeLayout" not in app_source
+    assert "archiveExpanded" not in app_source
+    assert "toggle-archive" not in app_source
     assert "--pwa-visual-height" in app_source
     assert ".reference-home .candidate-overlay {\n  position: absolute;" in css_source
     assert ".reference-home .candidate-overlay .candidate-scroll {" in css_source
