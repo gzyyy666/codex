@@ -374,17 +374,22 @@ function ensureReviewHub(){return}
   let finalSurfaceRunning=false;
   const ensureEmptyModuleSlots=()=>{
     $$('.dm-empty-module-slot').forEach(node=>node.remove());
-    const view=bridge.currentRoute().view;
+    const rawView=bridge.currentRoute().view,view=rawView==='movements'?'movement':rawView;
     if(!['body','diet','training'].includes(view))return;
-    const modules=(state.catalog?.modules||[]).filter(item=>item.status==='active'&&item.display_surface==='category_page'&&selectableModuleCategory(item.category_id)===view&&reviewPlacementValue(item.placement)==='main');
-    const empty=modules.filter(item=>!document.querySelector(`.dm-native-field[data-dm-module-id="${CSS.escape(item.module_id)}"]`));
-    if(!empty.length)return;
-    const anchor=document.querySelector(`#${view}-rows`);
-    if(!anchor)return;
-    const slot=document.createElement('section');
-    slot.className='dm-empty-module-slot';
-    slot.innerHTML=`<span class="eyebrow">${esc(view.toUpperCase())} / EMPTY SLOT</span><h3>暂无记录项数据</h3><p>${esc(empty.map(item=>item.label||item.module_id).join(' · '))} 已创建，但当前没有可展示的值。</p>`;
-    anchor.insertAdjacentElement('afterend',slot);
+    const modules=(state.catalog?.modules||[]).filter(item=>item.status==='active'&&item.capabilities?.recordable&&item.display_surface==='category_page'&&selectableModuleCategory(item.category_id)===view&&reviewPlacementValue(item.placement)==='main');
+    if(!modules.length)return;
+    const records=bridge.state.dataModuleExport?.records||[],first=new Map();
+    records.forEach(record=>{const date=String(record.date||'');if(date&&!first.has(String(record.module_id)))first.set(String(record.module_id),date)});
+    const target=document.querySelector(`#${view}-rows`),selector=view==='training'?'[data-training-date]':'[data-record-date]';
+    target?.querySelectorAll(`:scope > ${selector}`).forEach(card=>{
+      const date=finalRecordDate(card),host=view==='body'?card.querySelector('.body-slip-meta'):view==='diet'?card.querySelector('.macro-line'):card.querySelector('.session-facts');
+      if(!date||!host)return;
+      modules.forEach(module=>{
+        const firstDate=first.get(String(module.module_id));
+        if(!firstDate||date<firstDate||host.querySelector(`[data-dm-module-id="${CSS.escape(module.module_id)}"]`))return;
+        host.insertAdjacentHTML('beforeend',genericEmptyNativeField(view,module));
+      });
+    });
   };
   const queueFinalSurface=()=>{
     if(!bridge.state.dataModulesReady||finalSurfaceRunning)return;
