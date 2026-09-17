@@ -123,6 +123,7 @@ def main() -> None:
         # pushed down just to reach the marker.
         assert abs(focus_state["top"] - focus_state["target"]) <= 14, focus_state
         assert focus_state["scrollTop"] > 0 and focus_state["maxScroll"] >= focus_state["scrollTop"], focus_state
+        assert focus_state["maxScroll"] >= 500, focus_state
         assert abs(focus_state["pageY"] - pre_focus_layout["pageY"]) <= 1, {"before": pre_focus_layout, "after": focus_state}
         assert abs(focus_state["sheetHeight"] - pre_focus_layout["sheetHeight"]) <= 1, {"before": pre_focus_layout, "after": focus_state}
         assert focus_state["fontSize"] == pre_focus_layout["fontSize"] and focus_state["lineHeight"] == pre_focus_layout["lineHeight"], {"before": pre_focus_layout, "after": focus_state}
@@ -134,7 +135,7 @@ def main() -> None:
         assert editor_scroll["scrollTop"] > 0 and abs(editor_scroll["page"] - locked_y) <= 1, editor_scroll
         evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.value='器械三头下压'; note.setSelectionRange(note.value.length, note.value.length); note.dispatchEvent(new Event('input', {bubbles:true})); return true; })()")
         wait_for(browser, "!!document.querySelector('.candidate-overlay .candidate b')")
-        candidate_layout = evaluate(browser, "(() => { const candidate=document.querySelector('.candidate-overlay'); const note=document.querySelector('.note-sheet').getBoundingClientRect(); const editor=document.querySelector('[data-note]'); const s=getComputedStyle(editor); const caretBottom=editor.getBoundingClientRect().top+Number.parseFloat(s.borderTopWidth)+Number.parseFloat(s.paddingTop)+Number.parseFloat(s.lineHeight)-editor.scrollTop; return {display:getComputedStyle(candidate).display, name:document.querySelector('.candidate b').textContent, width:candidate.getBoundingClientRect().width, sheetWidth:note.width, gap:candidate.getBoundingClientRect().top-caretBottom-Number.parseFloat(s.lineHeight)}; })()")
+        candidate_layout = evaluate(browser, "(() => { const candidate=document.querySelector('.candidate-overlay'); const note=document.querySelector('.note-sheet').getBoundingClientRect(); const editor=document.querySelector('[data-note]'); const s=getComputedStyle(editor); const caretBottom=editor.getBoundingClientRect().top+Number.parseFloat(s.borderTopWidth)+Number.parseFloat(s.paddingTop)+Number.parseFloat(s.lineHeight)-editor.scrollTop; return {display:getComputedStyle(candidate).display, name:document.querySelector('.candidate b').textContent, width:candidate.getBoundingClientRect().width, sheetWidth:note.width, gap:candidate.getBoundingClientRect().top-caretBottom-Number.parseFloat(s.lineHeight)*2}; })()")
         assert candidate_layout["display"] != "none" and candidate_layout["name"] == "器械三头下压", candidate_layout
         assert abs(candidate_layout["width"] - candidate_layout["sheetWidth"]) <= 2 and abs(candidate_layout["gap"]) <= 5, candidate_layout
         evaluate(browser, "(() => { const list=document.querySelector('.candidate-history-list'); const first=list.querySelector('.candidate-history'); list.append(first.cloneNode(true),first.cloneNode(true)); const scroll=document.querySelector('.candidate-scroll'); scroll.style.setProperty('--candidate-latest-height', `${Math.ceil(first.getBoundingClientRect().height + 8)}px`); return true; })()")

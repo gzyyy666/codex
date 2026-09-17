@@ -20,7 +20,7 @@ const DEFAULT_ACTIVE_BODY_PART_IDS = new Set(["chest", "shoulders", "back", "leg
 const DEFAULT_BODY_PART_ORDER = ["chest", "shoulders", "back", "legs", "arms", "glutes", "core", "cardio"];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.32 · build 2026.09.17.06";
+const BUILD_VERSION = "PWA v1.1.32 · build 2026.09.17.07";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -548,7 +548,10 @@ function positionCandidateOverlay() {
   const sheetRect = noteSheet.getBoundingClientRect();
   overlay.style.left = `${Math.round(sheetRect.left - homeRect.left)}px`;
   overlay.style.width = `${Math.round(sheetRect.width)}px`;
-  overlay.style.setProperty("--candidate-top", `${Math.round(caret.bottom + caret.lineHeight - homeRect.top)}px`);
+  // Keep one complete blank editor line between the caret line and the
+  // recognition card. The first line is the visual breathing room; the
+  // second line is where the overlay begins.
+  overlay.style.setProperty("--candidate-top", `${Math.round(caret.bottom + caret.lineHeight * 2 - homeRect.top)}px`);
 }
 function noteCaretRect(editor) {
   const start = Number(editor?.selectionStart);
@@ -927,13 +930,14 @@ function setNotePageScrollLock(locked, lockY = window.scrollY) {
   notePageScrollLockY = null;
   document.documentElement.classList.remove("pwa-note-scroll-locked");
 }
-function ensureNoteScrollReserve(editor, requiredScroll) {
+function ensureNoteScrollReserve(editor, requiredScroll, minimumTail = 0) {
   const maxScroll = Math.max(0, editor.scrollHeight - editor.clientHeight);
   const missingScroll = editor.scrollTop + requiredScroll - maxScroll;
-  if (missingScroll <= .5) return;
   const style = getComputedStyle(editor);
   const currentTail = Number.parseFloat(editor.style.getPropertyValue("--note-tail-space")) || Number.parseFloat(style.paddingBottom) || 0;
-  editor.style.setProperty("--note-tail-space", `${Math.ceil(currentTail + missingScroll)}px`);
+  const nextTail = Math.max(currentTail + Math.max(0, missingScroll), minimumTail);
+  if (nextTail <= currentTail + .5) return;
+  editor.style.setProperty("--note-tail-space", `${Math.ceil(nextTail)}px`);
 }
 
 function scheduleKeyboardWorkspaceAlignment(forceCaretAlignment = false) {
@@ -956,7 +960,9 @@ function scheduleKeyboardWorkspaceAlignment(forceCaretAlignment = false) {
     const candidateScroll = candidate ? Math.max(0, candidate.getBoundingClientRect().bottom - visibleBottom) : 0;
     const caretOverflow = Math.max(0, caret.bottom - visibleBottom);
     const requiredScroll = Math.max(caretScroll, candidateScroll, caretOverflow);
-    ensureNoteScrollReserve(editor, requiredScroll);
+    // Keep a full visual-viewport page of blank tail space available so the
+    // editor can continue scrolling after the final recorded line.
+    ensureNoteScrollReserve(editor, requiredScroll, Math.ceil(viewport.height));
     const maxEditorScroll = Math.max(0, editor.scrollHeight - editor.clientHeight);
     const scrollDelta = Math.min(maxEditorScroll, requiredScroll);
     if (scrollDelta > .5) {
@@ -1155,7 +1161,7 @@ document.addEventListener("wheel", event => {
   if (document.documentElement.classList.contains("pwa-note-scroll-locked") && !isNoteScrollableTarget(event.target)) event.preventDefault();
 }, { passive: false });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260917-06", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260917-07", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();
