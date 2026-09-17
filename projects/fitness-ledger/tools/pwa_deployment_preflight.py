@@ -7,6 +7,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,8 +47,16 @@ def main() -> int:
     warnings: list[str] = []
     if manifest.get("display") != "standalone":
         errors.append("manifest.display must be standalone")
-    if manifest.get("start_url") != "./" or manifest.get("scope") != "./":
-        errors.append("manifest start_url/scope must remain relative ./")
+    start_url = manifest.get("start_url")
+    start_url_parts = urlparse(start_url) if isinstance(start_url, str) else None
+    if (
+        not start_url_parts
+        or start_url_parts.scheme
+        or start_url_parts.netloc
+        or start_url_parts.path not in ("", ".", "./")
+        or manifest.get("scope") != "./"
+    ):
+        errors.append("manifest start_url/scope must remain relative ./ (query allowed)")
     if not manifest.get("icons"):
         errors.append("manifest.icons is empty")
     share_target = manifest.get("share_target") or {}
