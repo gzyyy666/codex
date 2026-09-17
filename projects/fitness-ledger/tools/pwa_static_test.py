@@ -28,7 +28,7 @@ def main() -> None:
 
     manifest = json.loads((PWA / "manifest.webmanifest").read_text(encoding="utf-8"))
     assert manifest["display"] == "standalone"
-    assert manifest["start_url"] == "./"
+    assert manifest["start_url"] == "./?v=20260917-08"
     assert manifest["scope"] == "./"
     assert manifest["icons"]
 
@@ -41,6 +41,9 @@ def main() -> None:
     assert "NOTE_KEY" in app_source
     assert "toneForArea" in app_source
     assert "DEFAULT_ACTIVE_BODY_PART_IDS" in app_source
+    assert "DEFAULT_BODY_PART_ORDER" in app_source
+    assert "const modulesReady = !state.loading && state.organization !== null;" in app_source
+    assert 'theme-strip--loading' in app_source
     assert 'freeform-notepad:v2:current-training' in app_source
     assert "findLastCandidate" in app_source
     assert "previewHistory" in app_source
@@ -51,7 +54,7 @@ def main() -> None:
     assert "refreshCandidateOverlay" in app_source
     assert "noteHistoryCache" in app_source
     assert 'data-candidate-region' in app_source
-    assert 'PWA v1.1.21' in app_source
+    assert 'PWA v1.1.32 · build 2026.09.17.08' in app_source
     assert 'data-action="expand-note">发送到电脑</button>' in app_source
     assert 'if (action === "expand-note") { state.noteExpanded = true; state.shareDraft = state.note; state.shareTitle = "手机训练记录"; state.shareSent = false;' in app_source
     assert '确认发送' in app_source and 'PHONE_INBOX_TIMEOUT_MS = 15000' in app_source
@@ -83,7 +86,7 @@ def main() -> None:
     assert '.auth()' in api_source, "Web login must use the verified CloudBase auth initialization"
     assert "resetViewport" in app_source and "window.scrollTo(0, 0)" in app_source
     assert ".auth-card input { font-size: 16px; }" in css_source, "iOS login input must not trigger page zoom"
-    for marker in ("renderNoteDock", "candidate-overlay", "candidate-edge-dot", "可能相关动作 · 最近记录", "previewSetLine", "note-detail-backdrop", "data-note-surface", "scheduleDockCheck"):
+    for marker in ("renderNoteDock", "candidate-overlay", "可能相关动作 · 最近记录", "previewSetLine", "note-detail-backdrop", "data-note-surface", "scheduleDockCheck"):
         assert marker in source, f"missing sealed Mini Program parity marker: {marker}"
     for marker in (
         ".reference-page .candidate-overlay { position: fixed; z-index: 55;",
@@ -101,18 +104,67 @@ def main() -> None:
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'includes("/api/")' in service_worker
-    assert 'fitness-ledger-pwa-v57' in service_worker
-    assert '"./data-modules.js?v=20260911-14"' in service_worker
-    assert 'register("./sw.js?v=20260914-03", { updateViaCache: "none" })' in app_source
+    assert 'fitness-ledger-pwa-v72' in service_worker
+    assert '"./data-modules.js?v=20260917-07"' in service_worker
+    assert '"./styles-caret-gap-page-blank.css"' in service_worker
+    assert 'register("./sw-caret-gap-page-blank.js", { updateViaCache: "none" })' in app_source
+    assert 'styles-caret-gap-page-blank.css' in source
+    assert 'manifest-caret-gap-page-blank.webmanifest' in source
     assert '.reference-page.reference-home { overflow: visible; }' in css_source
     assert '.reference-home .note-stack:not(.note-stack--compact) .note-sheet { min-height:440px; }' in css_source
-    assert 'height: var(--pwa-note-height, 320px);' in css_source
-    assert 'overscroll-behavior: contain;' in css_source
     assert 'document.documentElement.classList.add("pwa-note-focused")' in app_source
-    assert 'restoreNoteFocusViewport' in app_source
-    assert 'visualViewport?.addEventListener("resize", scheduleKeyboardViewportSync' in app_source
-    assert 'function keyboardViewport()' in app_source and 'function keyboardLayout(' in app_source
-    assert 'currentShift' not in app_source and '--pwa-home-shift' not in app_source
+    assert 'restoreNoteFocusViewport' not in app_source
+    assert 'visualViewport?.addEventListener("resize", syncVisualViewportMetrics' in app_source
+    assert "function noteCaretRect(editor)" in app_source
+    assert "selectionStart" in app_source and "selectionEnd" in app_source
+    assert "rawNote.slice(0, Math.max(0, Math.min(caretPosition, rawNote.length)))" in app_source
+    assert 'function setNotePageScrollLock(locked' in app_source
+    assert 'isNoteScrollableTarget' in app_source
+    assert 'document.addEventListener("touchmove"' in app_source
+    assert 'document.addEventListener("wheel"' in app_source
+    assert 'cssLengthPx("2.5cm")' in app_source
+    assert 'function ensureNoteScrollReserve' in app_source
+    assert '"--note-tail-space"' in app_source
+    assert 'const targetLineTop = visibleTop + editViewportClearance();' in app_source
+    assert "enforceExpandedHomeScrollLock" not in app_source
+    assert "scheduleExpandedHomeLayout" not in app_source
+    assert "archiveExpanded" not in app_source
+    assert "toggle-archive" not in app_source
+    assert "--pwa-visual-height" in app_source
+    assert ".reference-home .candidate-overlay {\n  position: absolute;" in css_source
+    assert ".reference-home .candidate-overlay .candidate-scroll {" in css_source
+    assert "max-height: var(--candidate-latest-height, 240px);" in css_source
+    assert "html.pwa-note-focused .reference-home .note-editor { font-size:18px; }" in css_source
+    assert 'classList.toggle("pwa-keyboard-open", keyboardOpen)' in app_source
+    assert "visualViewportBaselineHeight - viewport.height" in app_source
+    assert "height:calc(5 * 1.55em + 16px)!important;" not in css_source
+    assert "height:calc(4 * 1.55em + 16px)!important;" not in css_source
+    assert "html:not(.pwa-keyboard-open) .reference-home .candidate-overlay { display:none; }" in css_source
+    assert "editor.scrollTop = editor.scrollHeight" not in app_source
+    assert "targetLineTop" in app_source and "editor.scrollTop = Math.min(maxEditorScroll" in app_source
+    assert "window.scrollBy" not in app_source
+    assert "height:264px;" in css_source and "min-height:264px;" in css_source
+    assert "padding:14px 0 var(--note-tail-space, 14px);" in css_source
+    assert "height:38px;" in css_source and "max-height:38px;" in css_source
+    assert "padding-top:calc(4px + env(safe-area-inset-top));" in css_source
+    assert "grid-template-columns:1fr" in css_source
+    assert 'candidate.style.setProperty("--keyboard-candidate-top"' not in app_source
+    assert 'style.setProperty("--candidate-top"' in app_source
+    assert 'data-movement-id' in app_source
+    assert 'toggle-candidates' not in app_source
+    assert "html.pwa-keyboard-open .reference-home .home-header" in css_source
+    assert "--candidate-latest-height" in app_source and "--candidate-latest-height" in css_source
+    assert "candidate-set--complex" in app_source
+    assert "candidate-history:not(:first-child)" not in css_source
+    assert "最近两次训练" in app_source and "最高重量" in app_source
+    movement_card_source = app_source.split("function renderMovementCard", 1)[1].split("function renderSessions", 1)[0]
+    assert "历史最好" not in movement_card_source and ">上一次<" not in movement_card_source
+    assert "html.pwa-note-focused .reference-home .home-header { display:none; }" not in css_source
+    assert "html.pwa-note-focused .reference-home .theme-strip" not in css_source
+    assert "html.pwa-note-focused .reference-home .theme-archive" not in css_source
+    assert "max-height:calc(var(--pwa-visual-height" not in css_source
+    assert ".reference-home .note-stack--compact .note-editor { min-height:132px; margin:11px 0 8px; font-size:16px; }" in css_source
+    assert "font-size:15px" not in css_source
     assert 'cache: "no-store"' in api_source
     assert 'READ_TIMEOUT_MS' in api_source and 'READ_ATTEMPTS' in api_source
     assert 'Promise.allSettled' in app_source

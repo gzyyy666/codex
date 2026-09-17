@@ -45,7 +45,32 @@ def prepare_fixture(root: Path) -> tuple[Path, Path, Path]:
     write_json(tracker, {
         "daily_records": [{"Date": "2026-08-15", "Weight (kg)": 70.0, "Bowel Movement": "正常", "Training": "背", "Cardio": "步行 30 分钟", "Notes": "匿名展示数据"}],
         "diet_records": [{"Date": "2026-08-15", "Calories (kcal)": 2050, "Protein (g)": 150, "Carbs (g)": 220, "Fat (g)": 62, "Food Summary": "匿名饮食摘要"}],
-        "training_sessions": [{"Date": "2026-08-15", "Split": "背部训练", "Standardized Summary": "引体向上、划船", "Notes": "匿名训练摘要"}],
+        "training_sessions": [{
+            "id": "review-session-2026-08-15",
+            "Date": "2026-08-15",
+            "Split": "背部训练",
+            "Standardized Summary": "引体向上、划船",
+            "Notes": "匿名训练摘要",
+            "movement_items": [{
+                "id": "review-movement-item-1",
+                "movement_id": "review-triceps-pushdown",
+                "display_name": "器械三头下压",
+                "date": "2026-08-15",
+                "order": 5,
+                "sets": [{"weight": 120, "reps": 15, "sets": 3}],
+                "training_session_id": "review-session-2026-08-15",
+                "notes": "匿名历史记录",
+            }, {
+                "id": "review-movement-item-2",
+                "movement_id": "review-hammer-row-2",
+                "display_name": "悍马拉背二",
+                "date": "2026-08-15",
+                "order": 6,
+                "sets": [{"weight": 35, "reps": 12, "sets": 3}],
+                "training_session_id": "review-session-2026-08-15",
+                "notes": "匿名历史记录",
+            }],
+        }],
         "movements": {},
         "raw_entries": [],
         "data_module_records": [
@@ -56,7 +81,24 @@ def prepare_fixture(root: Path) -> tuple[Path, Path, Path]:
             module_record("grip_readiness", "extension", "2026-08-15", 6),
         ],
     })
-    write_json(dictionary, {"version": "1.0", "movements": []})
+    write_json(dictionary, {
+        "version": "1.0",
+        "movements": [{
+            "movement_id": "review-triceps-pushdown",
+            "display_name": "器械三头下压",
+            "english_name": "Machine Triceps Pressdown",
+            "aliases": ["三头下压", "器械下压"],
+            "muscle_group": "Arms",
+            "active": True,
+        }, {
+            "movement_id": "review-hammer-row-2",
+            "display_name": "悍马拉背二",
+            "english_name": "Hammer Row 2",
+            "aliases": ["悍马拉背", "拉背二"],
+            "muscle_group": "Back",
+            "active": True,
+        }],
+    })
     DataModuleDefinitionStore.initialize(
         registry,
         PROJECT / "tools" / "fixtures" / "data_modules" / "pwa_mobile_registry.json",
