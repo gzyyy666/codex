@@ -94,6 +94,18 @@ def main() -> None:
         assert first == stable == 8, {"first": first, "stable": stable, "order": order}
         assert order == ["chest", "shoulders", "back", "legs", "glutes", "arms", "core", "cardio"], order
         assert evaluate(browser, "document.querySelector('[data-part-id=core]').className.includes('color-white')") is True
+
+        neutral_note_height = evaluate(browser, "document.querySelector('.note-sheet').getBoundingClientRect().height")
+        evaluate(browser, "document.querySelector('[data-note]').focus(); true")
+        command(browser, "Emulation.setDeviceMetricsOverride", {"width": 390, "height": 500, "deviceScaleFactor": 1, "mobile": True, "screenWidth": 390, "screenHeight": 844})
+        wait_for(browser, "document.documentElement.classList.contains('pwa-keyboard-open')")
+        evaluate(browser, "new Promise(resolve => setTimeout(resolve, 650))")
+        neutral_focus_height = evaluate(browser, "document.querySelector('.note-sheet').getBoundingClientRect().height")
+        evaluate(browser, "document.querySelector('[data-note]').blur(); true")
+        wait_for(browser, "!document.documentElement.classList.contains('pwa-note-focused')")
+        neutral_blur = evaluate(browser, "({height:document.querySelector('.note-sheet').getBoundingClientRect().height, tail:document.querySelector('[data-note]').style.getPropertyValue('--note-tail-space')})")
+        assert abs(neutral_blur["height"] - neutral_note_height) <= 1 and neutral_blur["tail"] == "", {"before": neutral_note_height, "focused": neutral_focus_height, "after": neutral_blur}
+        command(browser, "Emulation.setDeviceMetricsOverride", {"width": 390, "height": 844, "deviceScaleFactor": 1, "mobile": True, "screenWidth": 390, "screenHeight": 844})
         evaluate(browser, "document.querySelector('.home-module-pill:nth-child(6)').click()")
         wait_for(browser, "document.querySelector('[data-home-state]')?.dataset.homeState === 'selected-expanded' && !!document.querySelector('.theme-archive')")
         wait_for(browser, "document.querySelectorAll('.movement-card').length > 0")

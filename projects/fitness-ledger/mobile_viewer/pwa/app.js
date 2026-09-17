@@ -939,6 +939,9 @@ function ensureNoteScrollReserve(editor, requiredScroll, minimumTail = 0) {
   if (nextTail <= currentTail + .5) return;
   editor.style.setProperty("--note-tail-space", `${Math.ceil(nextTail)}px`);
 }
+function clearNoteScrollReserve(editor) {
+  editor?.style.removeProperty("--note-tail-space");
+}
 
 function scheduleKeyboardWorkspaceAlignment(forceCaretAlignment = false) {
   if (keyboardAlignmentFrame) window.cancelAnimationFrame(keyboardAlignmentFrame);
@@ -991,6 +994,7 @@ document.addEventListener("focusout", event => {
   window.setTimeout(() => {
     if (document.activeElement?.matches?.("[data-note]")) return;
     const releasePageY = notePageScrollLockY;
+    clearNoteScrollReserve(event.target);
     document.documentElement.classList.remove("pwa-note-focused");
     document.documentElement.classList.remove("pwa-keyboard-open");
     setNotePageScrollLock(false);
