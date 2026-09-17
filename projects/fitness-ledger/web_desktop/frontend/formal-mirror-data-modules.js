@@ -405,10 +405,7 @@ function ensureReviewHub(){return}
       ensureEmptyModuleSlots();
     }finally{finalSurfaceRunning=false}
   };
-  let surfaceObserverTimer=0;
-  const scheduleFinalSurface=()=>{if(surfaceObserverTimer)return;surfaceObserverTimer=setTimeout(()=>{surfaceObserverTimer=0;queueFinalSurface()},0)};
-  const isSurfaceMutationNode=node=>node?.nodeType===1&&!node.closest?.('.dm-native-field,.dm-module-only-record')&&(node.matches?.('#body-rows,#diet-rows,#session-grid,.body-slip,.diet-slip,.session-slip')||node.querySelector?.('#body-rows,#diet-rows,#session-grid'));
-  new MutationObserver(mutations=>{if(mutations.some(m=>isSurfaceMutationNode(m.target)||[...m.addedNodes,...m.removedNodes].some(isSurfaceMutationNode)))scheduleFinalSurface()}).observe(bridge.main,{childList:true,subtree:true});
+  const scheduleFinalSurface=()=>setTimeout(queueFinalSurface,0);
   window.addEventListener('fitness-ledger:data-ready',scheduleFinalSurface);
   window.addEventListener('fitness-ledger-pet:route-change',scheduleFinalSurface);
   const refreshNativeSurface=event=>{if(surfaceControlIds.has(event.target?.id))queueFinalSurface()};
