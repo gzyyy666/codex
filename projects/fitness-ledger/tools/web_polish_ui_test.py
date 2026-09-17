@@ -42,7 +42,7 @@ const dietRows=[
   {Date:'2099-01-03','Calories (kcal)':2100,'Protein (g)':150,'Carbs (g)':240,'Fat (g)':70,'Food Summary':'rice beef eggs yogurt',Notes:'long stable note'}
 ];
 const movements=[
-  {movement_id:'MOV_VALID',display_name:'Valid Press',english_name:'Valid Press',muscle_group:'Chest',active:true},
+  {movement_id:'MOV_VALID',display_name:'有效推举',english_name:'Valid Press',muscle_group:'Chest',history_count:1,active:true},
   {movement_id:'MOV_EXCLUDED',display_name:'Excluded Row',english_name:'Excluded Row',muscle_group:'Back',active:true},
   {movement_id:'MOV_EMPTY',display_name:'Empty Row',english_name:'Empty Row',muscle_group:'Legs',active:true}
 ];
@@ -51,6 +51,7 @@ const historyById={
   MOV_EXCLUDED:{movement:movements[1],history:[{date:'2099-01-02',sets_lines:['40kg x 12 x 2'],exclude_from_progress:true}],progress_history:[]},
   MOV_EMPTY:{movement:movements[2],history:[],progress_history:[]}
 };
+localStorage.setItem('fitness-ledger.ui-language.v1','zh');
 function ok(value){return {ok:true,status:200,json:async()=>value};}
 window.fetch=async path=>{
   const url=String(path);
@@ -81,9 +82,15 @@ await wait(220);
 navigate('movements');
 await wait(450);
 const movementNames=[...document.querySelectorAll('.movement-tile strong')].map(node=>node.textContent.trim());
-const movementIndexFiltersEmpty=JSON.stringify(movementNames)===JSON.stringify(['Valid Press']);
+const movementBilingualLabels=movementNames.length===1&&movementNames[0]==='有效推举'&&document.querySelector('.movement-tile small')?.textContent.trim()==='胸部';
+const movementChineseFonts=[parseFloat(getComputedStyle(document.querySelector('.movement-tile strong')).fontSize),parseFloat(getComputedStyle(document.querySelector('.movement-tile small')).fontSize)];
+const movementIndexFiltersEmpty=JSON.stringify(movementNames)===JSON.stringify(['有效推举']);
 const movementCountLabel=document.querySelector('.result-count')?.textContent||'';
-const movementCountUsesProgress=movementCountLabel.includes('1 movements');
+const movementCountUsesProgress=movementCountLabel.includes('1 个动作');
+setUiLanguage('en');navigate('movements');await wait(180);
+const movementEnglishPrimary=document.querySelector('.movement-tile strong')?.textContent.trim()==='有效推举';
+const movementEnglishSecondary=document.querySelector('.movement-tile small')?.textContent.trim()==='Chest';
+const movementEnglishFonts=[parseFloat(getComputedStyle(document.querySelector('.movement-tile strong')).fontSize),parseFloat(getComputedStyle(document.querySelector('.movement-tile small')).fontSize)];const movementFontHierarchy=movementChineseFonts[0]>movementChineseFonts[1]&&movementEnglishFonts[0]>movementEnglishFonts[1];
 
 navigate('body');
 await wait(120);
@@ -115,7 +122,7 @@ const archiveHealthUsesLocalAccents=document.querySelectorAll('.admin-health-act
 
 const report=document.createElement('div');
 report.id='web-polish-report';
-report.dataset.value=encodeURIComponent(JSON.stringify({movementIndexFiltersEmpty,movementCountUsesProgress,bodyStableAfterSort,bodyStableAfterInsert,bodyUsesStableClasses,bodyUsesMultipleWarmTones,bodyAvoidsAdjacentTone,dietReturnedToSlipOffset,archiveHealthActions,archiveHealthEmbedsNoDocuments,archiveHealthUsesLocalAccents,movementNames,firstMap,secondMap,thirdMap}));
+report.dataset.value=encodeURIComponent(JSON.stringify({movementIndexFiltersEmpty,movementBilingualLabels,movementCountUsesProgress,movementEnglishPrimary,movementEnglishSecondary,movementFontHierarchy,bodyStableAfterSort,bodyStableAfterInsert,bodyUsesStableClasses,bodyUsesMultipleWarmTones,bodyAvoidsAdjacentTone,dietReturnedToSlipOffset,archiveHealthActions,archiveHealthEmbedsNoDocuments,archiveHealthUsesLocalAccents,movementNames,firstMap,secondMap,thirdMap}));
 document.body.appendChild(report);
 }catch(error){
   const report=document.createElement('div');
@@ -128,6 +135,8 @@ document.body.appendChild(report);
         page = Path(temp) / "index.html"
         (page.parent / "motion-lab" / "guardian").mkdir(parents=True)
         shutil.copy2(PROJECT / "web_desktop/frontend/motion-lab/guardian/guardian-business-adapters.js", page.parent / "motion-lab" / "guardian" / "guardian-business-adapters.js")
+        shutil.copy2(PROJECT / "web_desktop/frontend/styles.css", page.parent / "styles.css")
+        shutil.copy2(PROJECT / "web_desktop/frontend/final-pass.css", page.parent / "final-pass.css")
         page.write_text(index.replace(script, f'<script type="module">\n{harness}\n{app}\n{assertions}\n</script>'), encoding="utf-8")
         output = subprocess.run(
             [str(edge), "--headless=new", "--disable-gpu", "--virtual-time-budget=7000", "--dump-dom", page.as_uri()],
@@ -142,7 +151,11 @@ document.body.appendChild(report);
     report = json.loads(unquote(match.group(1)))
     assert all(report[key] is True for key in (
         "movementIndexFiltersEmpty",
+        "movementBilingualLabels",
         "movementCountUsesProgress",
+        "movementEnglishPrimary",
+        "movementEnglishSecondary",
+        "movementFontHierarchy",
         "bodyStableAfterSort",
         "bodyStableAfterInsert",
         "bodyUsesStableClasses",
@@ -158,6 +171,7 @@ document.body.appendChild(report);
 def main() -> None:
     app = (PROJECT / "web_desktop/frontend/app.js").read_text(encoding="utf-8")
     css = (PROJECT / "web_desktop/frontend/styles.css").read_text(encoding="utf-8")
+    mirror = (PROJECT / "web_desktop/frontend/formal-mirror-data-modules.js").read_text(encoding="utf-8")
     assert "usage(m)>0&&fuzzyMatch(m,q)" in app
     assert "payload?.history?.[0]" not in app
     assert "function bodySlipKey(record)" in app
@@ -166,6 +180,13 @@ def main() -> None:
     assert "object-fit:contain" in css
     assert ".diet-slip.diet-tone-0" not in css
     assert "body-offset-1" in css
+    assert "function movementCardMetaForUi" in app
+    assert "Search name, English label, alias, or ID…" in app
+    assert "fitness-ledger:language-change" in app
+    assert "function buildGuardianSessionThemeSummaries" in app
+    assert "#training?theme=" in (PROJECT / "web_desktop/frontend/tools-css3d-panels.js").read_text(encoding="utf-8")
+    assert "syncRouteBack=syncRouteBackButton" in mirror
+    assert "cloud-sync-page>.admin-back-link" in mirror
     browser_contract()
     print("FITNESS_LEDGER_WEB_POLISH_UI_OK")
 

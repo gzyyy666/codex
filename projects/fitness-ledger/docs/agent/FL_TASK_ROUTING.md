@@ -19,7 +19,7 @@ or a formal release.
 | **S — Small** | Text, copy, one known CSS value, a local test assertion, or a mechanical edit with no behavior/data-contract change | Worker → focused check → diff review | Skip; no web/community scan |
 | **M — Normal** | A bounded change in an existing module, page, route, or test with no schema/migration/formal-data change | Context Navigator → short plan → Worker → focused QA | Lite only when the implementation or context is unfamiliar |
 | **L — Substantial** | Parser, save boundary, movement identity/dictionary, cross-surface behavior, architecture, dependency, migration, redesign, or an expensive-to-reverse decision | Role A Operator → Role B Worker → independent review → verification | Full `two-role-community-first` |
-| **R3 — Release/Data** | Formal directory, protected data, Cloud Sync/provider, deployment, service restart, or release integration | L route plus Release Gate, protected-data checks, and handoff | Full when the change is substantial; never bypass the release gate |
+| **R3 — Release/Data** | Formal directory, protected data, Cloud Sync/provider, deployment, service restart, or release integration | L route plus the applicable Quick or Full Seal gate, protected-data checks, and handoff | Use Quick Seal only when its strict eligibility conditions pass; never bypass release authorization or verification |
 
 R3 is an escalation flag and cannot be treated as S. A task may be both L and
 R3.
@@ -73,6 +73,13 @@ Before any formal or provider action:
 - run formal regression and write the task handoff;
 - require the explicit `按规范封板` / seal instruction before merge, push,
   formal writeback, or real provider upload.
+
+For source-clear, low-risk releases, the Quick Seal route in
+`docs/maintenance/CODEX_RELEASE_CLOSEOUT.md` may narrow the checks to the
+changed surface. It does not grant additional permission or waive the live
+baseline, scoped diff review, explicit release authorization, rollback point,
+focused formal verification, or handoff. Data/API/schema/migration, security,
+Cloud Sync, PWA/mobile, or ambiguous multi-worktree changes remain Full Seal.
 
 ## Required task brief
 
