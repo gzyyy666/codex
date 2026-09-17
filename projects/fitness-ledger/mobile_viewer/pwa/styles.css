@@ -711,7 +711,7 @@ html:not(.pwa-keyboard-open) .reference-home .candidate-overlay { display:none; 
 @media (max-width:699px) {
   /* Keep focus layout-neutral. iOS may resize/pan the visual viewport for its
      keyboard, but focusing the note must not hide or resize homepage modules. */
-  html.pwa-note-focused .reference-home .note-editor { font-size:16px; }
+  html.pwa-note-focused .reference-home .note-editor { font-size:18px; }
   html.pwa-note-scroll-locked .reference-home .note-editor {
     overflow-y:auto;
     overscroll-behavior:contain;
@@ -761,6 +761,21 @@ html:not(.pwa-keyboard-open) .reference-home .candidate-overlay { display:none; 
   html.pwa-keyboard-open .reference-home .candidate-history { padding:4px 0 0; }
   html.pwa-keyboard-open .reference-home .candidate-sets { grid-template-columns:1fr; gap:3px; margin-top:4px; }
   html.pwa-keyboard-open .reference-home .candidate-set { min-height:20px; padding:2px 3px; }
+}
+
+/* Selected themes keep the note as a compact, fixed editing board. The
+   textarea owns overflow so long notes remain editable without expanding the
+   card or changing its typography during focus. */
+@media (max-width:699px) {
+  .reference-home .home-shell[data-home-state="selected-expanded"] .note-sheet {
+    height:264px;
+    min-height:264px;
+  }
+  .reference-home .home-shell[data-home-state="selected-expanded"] .note-editor {
+    min-height:0;
+    height:auto;
+    font-size:18px;
+  }
 }
 
 /* Recognition cards reserve exactly the measured latest record. Older formal

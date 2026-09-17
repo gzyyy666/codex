@@ -54,7 +54,7 @@ def main() -> None:
     assert "refreshCandidateOverlay" in app_source
     assert "noteHistoryCache" in app_source
     assert 'data-candidate-region' in app_source
-    assert 'PWA v1.1.29 · build 2026.09.17.01' in app_source
+    assert 'PWA v1.1.30 · build 2026.09.17.02' in app_source
     assert 'data-action="expand-note">发送到电脑</button>' in app_source
     assert 'if (action === "expand-note") { state.noteExpanded = true; state.shareDraft = state.note; state.shareTitle = "手机训练记录"; state.shareSent = false;' in app_source
     assert '确认发送' in app_source and 'PHONE_INBOX_TIMEOUT_MS = 15000' in app_source
@@ -104,9 +104,9 @@ def main() -> None:
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'includes("/api/")' in service_worker
-    assert 'fitness-ledger-pwa-v65' in service_worker
-    assert '"./data-modules.js?v=20260917-01"' in service_worker
-    assert 'register("./sw.js?v=20260917-01", { updateViaCache: "none" })' in app_source
+    assert 'fitness-ledger-pwa-v66' in service_worker
+    assert '"./data-modules.js?v=20260917-02"' in service_worker
+    assert 'register("./sw.js?v=20260917-02", { updateViaCache: "none" })' in app_source
     assert '.reference-page.reference-home { overflow: visible; }' in css_source
     assert '.reference-home .note-stack:not(.note-stack--compact) .note-sheet { min-height:440px; }' in css_source
     assert 'document.documentElement.classList.add("pwa-note-focused")' in app_source
@@ -115,12 +115,12 @@ def main() -> None:
     assert "function noteCaretRect(editor)" in app_source
     assert "selectionStart" in app_source and "selectionEnd" in app_source
     assert "rawNote.slice(0, Math.max(0, Math.min(caretPosition, rawNote.length)))" in app_source
-    assert 'function setNotePageScrollLock(locked)' in app_source
+    assert 'function setNotePageScrollLock(locked' in app_source
     assert 'isNoteScrollableTarget' in app_source
     assert 'document.addEventListener("touchmove"' in app_source
     assert 'document.addEventListener("wheel"' in app_source
     assert 'cssLengthPx("2.5cm")' in app_source
-    assert 'const targetLineTop = visibleBottom - bottomClearance - caret.lineHeight;' in app_source
+    assert 'const targetLineTop = visibleTop + editViewportClearance();' in app_source
     assert "enforceExpandedHomeScrollLock" not in app_source
     assert "scheduleExpandedHomeLayout" not in app_source
     assert "archiveExpanded" not in app_source
@@ -129,14 +129,16 @@ def main() -> None:
     assert ".reference-home .candidate-overlay {\n  position: absolute;" in css_source
     assert ".reference-home .candidate-overlay .candidate-scroll {" in css_source
     assert "max-height: var(--candidate-latest-height, 240px);" in css_source
-    assert "html.pwa-note-focused .reference-home .note-editor { font-size:16px; }" in css_source
+    assert "html.pwa-note-focused .reference-home .note-editor { font-size:18px; }" in css_source
     assert 'classList.toggle("pwa-keyboard-open", keyboardOpen)' in app_source
     assert "visualViewportBaselineHeight - viewport.height" in app_source
     assert "height:calc(5 * 1.55em + 16px)!important;" not in css_source
     assert "height:calc(4 * 1.55em + 16px)!important;" not in css_source
     assert "html:not(.pwa-keyboard-open) .reference-home .candidate-overlay { display:none; }" in css_source
     assert "editor.scrollTop = editor.scrollHeight" not in app_source
-    assert "targetLineTop" in app_source and "window.scrollBy({ top: upwardShift" in app_source
+    assert "targetLineTop" in app_source and "editor.scrollTop = Math.min(maxEditorScroll" in app_source
+    assert "window.scrollBy" not in app_source
+    assert "height:264px;" in css_source and "min-height:264px;" in css_source
     assert "grid-template-columns:1fr" in css_source
     assert 'candidate.style.setProperty("--keyboard-candidate-top"' not in app_source
     assert 'style.setProperty("--candidate-top"' in app_source

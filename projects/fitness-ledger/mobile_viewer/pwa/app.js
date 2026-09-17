@@ -20,7 +20,7 @@ const DEFAULT_ACTIVE_BODY_PART_IDS = new Set(["chest", "shoulders", "back", "leg
 const DEFAULT_BODY_PART_ORDER = ["chest", "shoulders", "back", "legs", "arms", "glutes", "core", "cardio"];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.29 · build 2026.09.17.01";
+const BUILD_VERSION = "PWA v1.1.30 · build 2026.09.17.02";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -900,9 +900,7 @@ let routeRequest = 0;
 let visualViewportBaselineHeight = window.visualViewport?.height || window.innerHeight;
 let keyboardAlignmentFrame = 0;
 let notePageScrollLockY = null;
-let notePageScrollAdjusting = false;
-let notePageScrollSettleFrame = 0;
-let notePageScrollLastY = null;
+let pendingNoteFocusScrollY = null;
 let editViewportClearancePx = null;
 
 function cssLengthPx(value) {
@@ -917,49 +915,17 @@ function editViewportClearance() {
   if (!Number.isFinite(editViewportClearancePx)) editViewportClearancePx = cssLengthPx("2.5cm");
   return editViewportClearancePx;
 }
-let notePageScrollStableFrames = 0;
-
 function isNoteScrollableTarget(target) {
   return Boolean(target?.closest?.("[data-note], .candidate-scroll"));
 }
-function setNotePageScrollLock(locked) {
+function setNotePageScrollLock(locked, lockY = window.scrollY) {
   if (locked) {
-    notePageScrollLockY = window.scrollY;
+    notePageScrollLockY = lockY;
     document.documentElement.classList.add("pwa-note-scroll-locked");
     return;
   }
   notePageScrollLockY = null;
-  notePageScrollAdjusting = false;
-  notePageScrollLastY = null;
-  notePageScrollStableFrames = 0;
-  if (notePageScrollSettleFrame) window.cancelAnimationFrame(notePageScrollSettleFrame);
-  notePageScrollSettleFrame = 0;
   document.documentElement.classList.remove("pwa-note-scroll-locked");
-}
-function settleNotePageScrollLock() {
-  notePageScrollSettleFrame = 0;
-  if (!notePageScrollAdjusting) return;
-  const currentY = window.scrollY;
-  if (notePageScrollLastY === null || Math.abs(currentY - notePageScrollLastY) > 0.5) {
-    notePageScrollLastY = currentY;
-    notePageScrollStableFrames = 0;
-    notePageScrollSettleFrame = window.requestAnimationFrame(settleNotePageScrollLock);
-    return;
-  }
-  notePageScrollStableFrames += 1;
-  if (notePageScrollStableFrames < 4) {
-    notePageScrollSettleFrame = window.requestAnimationFrame(settleNotePageScrollLock);
-    return;
-  }
-  notePageScrollAdjusting = false;
-  notePageScrollLockY = currentY;
-  setNotePageScrollLock(true);
-}
-function beginNotePageScrollAdjustment() {
-  notePageScrollAdjusting = true;
-  notePageScrollLastY = window.scrollY;
-  notePageScrollStableFrames = 0;
-  if (!notePageScrollSettleFrame) notePageScrollSettleFrame = window.requestAnimationFrame(settleNotePageScrollLock);
 }
 
 function scheduleKeyboardWorkspaceAlignment(forceCaretAlignment = false) {
@@ -975,30 +941,37 @@ function scheduleKeyboardWorkspaceAlignment(forceCaretAlignment = false) {
     positionCandidateOverlay();
     const caret = noteCaretRect(editor);
     if (!caret) return;
-    const visibleTop = viewport.offsetTop + 8;
-    const visibleBottom = viewport.offsetTop + viewport.height - 8;
-    const bottomClearance = editViewportClearance();
-    const targetLineTop = visibleBottom - bottomClearance - caret.lineHeight;
-    const caretOutOfBand = caret.top < visibleTop || Math.abs(caret.top - targetLineTop) > caret.lineHeight * .5;
-    let upwardShift = 0;
-    if (forceCaretAlignment || caretOutOfBand) upwardShift = caret.top - targetLineTop;
-    if (candidate) upwardShift = Math.max(upwardShift, candidate.getBoundingClientRect().bottom - visibleBottom);
-    else upwardShift = Math.max(upwardShift, caret.bottom - visibleBottom);
-    if (upwardShift > 1 || upwardShift < -1) {
-      beginNotePageScrollAdjustment();
-      window.scrollBy({ top: upwardShift, behavior: "smooth" });
-    } else {
-      notePageScrollAdjusting = false;
-      notePageScrollLockY = window.scrollY;
-      setNotePageScrollLock(true);
+    const visibleTop = viewport.offsetTop;
+    const visibleBottom = viewport.offsetTop + viewport.height;
+    const targetLineTop = visibleTop + editViewportClearance();
+    const caretBelowTarget = Math.max(0, caret.top - targetLineTop);
+    const maxEditorScroll = Math.max(0, editor.scrollHeight - editor.clientHeight);
+    if (forceCaretAlignment || caretBelowTarget > caret.lineHeight * .5) {
+      editor.scrollTop = Math.min(maxEditorScroll, editor.scrollTop + caretBelowTarget);
+      positionCandidateOverlay();
+    }
+    const nextCandidate = home.querySelector(".candidate-overlay");
+    const caretAfterScroll = noteCaretRect(editor);
+    const candidateOverflow = nextCandidate ? nextCandidate.getBoundingClientRect().bottom - visibleBottom : 0;
+    const caretOverflow = caretAfterScroll ? caretAfterScroll.bottom - visibleBottom : 0;
+    const additionalScroll = Math.max(0, candidateOverflow, caretOverflow);
+    if (additionalScroll > .5) {
+      editor.scrollTop = Math.min(maxEditorScroll, editor.scrollTop + additionalScroll);
+      positionCandidateOverlay();
     }
   });
 }
 
+document.addEventListener("pointerdown", event => {
+  if (event.target.closest?.("[data-note]")) pendingNoteFocusScrollY = window.scrollY;
+}, { capture: true });
 document.addEventListener("focusin", event => {
   if (!event.target.matches("[data-note]")) return;
   document.documentElement.classList.add("pwa-note-focused");
-  setNotePageScrollLock(true);
+  const focusPageY = Number.isFinite(pendingNoteFocusScrollY) ? pendingNoteFocusScrollY : window.scrollY;
+  pendingNoteFocusScrollY = null;
+  setNotePageScrollLock(true, focusPageY);
+  window.scrollTo({ top: focusPageY, behavior: "auto" });
   syncVisualViewportMetrics();
   updateCandidates();
   scheduleKeyboardWorkspaceAlignment(true);
@@ -1007,9 +980,14 @@ document.addEventListener("focusout", event => {
   if (!event.target.matches("[data-note]")) return;
   window.setTimeout(() => {
     if (document.activeElement?.matches?.("[data-note]")) return;
+    const releasePageY = notePageScrollLockY;
     document.documentElement.classList.remove("pwa-note-focused");
     document.documentElement.classList.remove("pwa-keyboard-open");
     setNotePageScrollLock(false);
+    if (Number.isFinite(releasePageY)) {
+      window.scrollTo({ top: releasePageY, behavior: "auto" });
+      window.requestAnimationFrame(() => window.scrollTo({ top: releasePageY, behavior: "auto" }));
+    }
     state.candidatesRequest += 1;
     state.noteCandidates = [];
     state.noteCandidatesLoading = false;
@@ -1159,7 +1137,7 @@ document.addEventListener("click", event => {
   if (action === "noop") return;
 });
 window.addEventListener("scroll", () => {
-  if (document.documentElement.classList.contains("pwa-note-scroll-locked") && !notePageScrollAdjusting && Number.isFinite(notePageScrollLockY) && Math.abs(window.scrollY - notePageScrollLockY) > 1) {
+  if (document.documentElement.classList.contains("pwa-note-scroll-locked") && Number.isFinite(notePageScrollLockY) && Math.abs(window.scrollY - notePageScrollLockY) > 1) {
     window.scrollTo({ top: notePageScrollLockY, behavior: "auto" });
   }
   scheduleDockCheck();
@@ -1173,7 +1151,7 @@ document.addEventListener("wheel", event => {
   if (document.documentElement.classList.contains("pwa-note-scroll-locked") && !isNoteScrollableTarget(event.target)) event.preventDefault();
 }, { passive: false });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260917-01", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260917-02", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();
