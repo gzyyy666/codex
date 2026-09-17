@@ -54,6 +54,19 @@ const petPoseNavigation = {
     { pose: 'crab_hands_apart', label: 'Open-hand crab', meta: '07 / POSE' }
   ]
 };
+const petLocale = () => document.documentElement.dataset.flUiLanguage === 'en' ? 'en' : 'zh';
+const petText = (key, fallback) => {
+  const zh = { ARCHIVE: '档案', 'UTILITY DESK': '工具台', 'POSE SWITCH': '姿势切换', 'PET ROUTER / LOCAL': '小人导航 / 本地', 'Find the next surface.': '寻找下一个界面。', 'Guardian Pet / LOCAL': '守护小人 / 本地', 'Choose a pose.': '选择姿势。', Home: '首页', 'Daily Entry': '每日录入', Body: '身体', Diet: '饮食', Training: '训练', 'Movement Progress': '动作表现', Tools: '工具', 'Analysis Export': '分析导出', 'Cloud Sync': '云端同步', 'Data Health': '数据健康', 'Movement Dictionary': '动作词典', 'Front standing': '正面站立', 'Front double biceps': '正面双臂屈肘', 'Side chest': '侧胸', 'Rear double biceps': '背面双臂屈肘', 'Rear lat spread': '背阔肌展开', 'Most muscular': '最强肌肉', 'Open-hand crab': '张手螃蟹式', POSITION: '位置', 'Reset corner': '重置角落', 'Guardian Pet pose menu': '守护小人姿势菜单', 'Guardian Pet': '守护小人' };
+  return petLocale() === 'en' ? fallback : (zh[key] || fallback);
+};
+const localizePetMenu = menu => {
+  if (!menu) return;
+  menu.querySelectorAll('[data-pet-key]').forEach(node => { const key = node.dataset.petKey; node.textContent = petText(key, node.textContent); });
+  menu.querySelectorAll('[data-pet-route-view]').forEach(node => { const key = node.dataset.petRouteView === 'quick' ? 'Daily Entry' : node.dataset.petRouteView === 'movements' ? 'Movement Progress' : node.querySelector('span')?.dataset.petKey || node.querySelector('span')?.textContent?.trim(); if (key) { const span = node.querySelector('span'); if (span) span.textContent = petText(key, span.textContent); } });
+  menu.querySelectorAll('[data-pet-pose]').forEach(node => { const span = node.querySelector('span'); const key = span?.dataset.petKey || span?.textContent?.trim(); if (span && key) span.textContent = petText(key, span.textContent); });
+  menu.querySelectorAll('[data-pet-group]').forEach(node => { const key = node.dataset.petGroup; node.textContent = petText(key, node.textContent); });
+  menu.querySelectorAll('[data-pet-static]').forEach(node => { const key = node.dataset.petStatic; node.textContent = petText(key, node.textContent); });
+};
 const petQuery = new URLSearchParams(window.location.search);
 const reviewPetMode = petQuery.has('guardianPet') || petQuery.get('petReview') === 'corner' || petQuery.get('petFollow') !== '1';
 const isGuardianRoute = () => (window.location.hash || '').replace(/^#/, '').split('?')[0] === 'guardian';
@@ -119,7 +132,8 @@ function mountPetMenu(body, { onPose } = {}) {
   menu.setAttribute('aria-label', 'Fitness Ledger guardian pet menu');
   menu.setAttribute('role', 'menu');
   const routeGroups = [...petNavigation, reviewPetMode ? { ...petPoseNavigation, routes: petPoseNavigation.routes.filter(route => ['side_chest', 'crab_hands_clasped'].includes(route.pose)) } : petPoseNavigation];
-  menu.innerHTML = `<header><span class="eyebrow">PET ROUTER / LOCAL</span><strong>Find the next surface.</strong></header>${routeGroups.map((group) => `<section><span class="tools-pet-menu-label">${group.label}</span>${group.routes.map((route) => route.pose ? `<button type="button" role="menuitem" class="tools-pet-menu-item" data-pet-pose="${route.pose}"><span>${route.label}</span><small>${route.meta}</small></button>` : `<button type="button" role="menuitem" class="tools-pet-menu-item" data-pet-route-view="${route.view}"${route.panel?` data-pet-route-panel="${route.panel}"`:''}><span>${route.label}</span><small>${route.meta}</small></button>`).join('')}</section>`).join('')}`;
+  menu.innerHTML = `<header><span class="eyebrow" data-pet-static="PET ROUTER / LOCAL">PET ROUTER / LOCAL</span><strong data-pet-static="Find the next surface.">Find the next surface.</strong></header>${routeGroups.map((group) => `<section><span class="tools-pet-menu-label" data-pet-group="${group.label}">${group.label}</span>${group.routes.map((route) => route.pose ? `<button type="button" role="menuitem" class="tools-pet-menu-item" data-pet-pose="${route.pose}"><span data-pet-key="${route.label}">${route.label}</span><small>${route.meta}</small></button>` : `<button type="button" role="menuitem" class="tools-pet-menu-item" data-pet-route-view="${route.view}"${route.panel?` data-pet-route-panel="${route.panel}"`:''}><span data-pet-key="${route.label}">${route.label}</span><small>${route.meta}</small></button>`).join('')}</section>`).join('')}`;
+  localizePetMenu(menu);
   document.body.appendChild(menu);
 
   const close = () => {
@@ -199,6 +213,8 @@ function mountPetMenu(body, { onPose } = {}) {
   menu.addEventListener('keydown', onMenuKeyDown);
   document.addEventListener('pointerdown', onDocumentPointerDown, { passive: true });
   document.addEventListener('keydown', onDocumentKeyDown);
+  const onLanguageChange = () => localizePetMenu(menu);
+  window.addEventListener('fitness-ledger:language-change', onLanguageChange);
 
   const cleanup = () => {
     body.removeEventListener('contextmenu', onBodyContextMenu);
@@ -207,6 +223,7 @@ function mountPetMenu(body, { onPose } = {}) {
     menu.removeEventListener('keydown', onMenuKeyDown);
     document.removeEventListener('pointerdown', onDocumentPointerDown);
     document.removeEventListener('keydown', onDocumentKeyDown);
+    window.removeEventListener('fitness-ledger:language-change', onLanguageChange);
     menu.remove();
   };
   return cleanup;
@@ -257,7 +274,8 @@ function mountFloatingPetMenu(body, { onPose, onResetPosition } = {}) {
   menu.dataset.open = 'false';
   menu.setAttribute('aria-label', 'Guardian Pet pose menu');
   menu.setAttribute('role', 'menu');
-  menu.innerHTML = `<header><span class="eyebrow">GUARDIAN PET / LOCAL</span><strong>Choose a pose.</strong></header><section><span class="tools-pet-menu-label">${petPoseNavigation.label}</span>${petPoseNavigation.routes.map(route => `<button type="button" role="menuitem" class="tools-pet-menu-item" data-pet-pose="${route.pose}"><span>${route.label}</span><small>${route.meta}</small></button>`).join('')}</section><section><span class="tools-pet-menu-label">POSITION</span><button type="button" role="menuitem" class="tools-pet-menu-item" data-pet-reset-position><span>Reset corner</span><small>DEFAULT</small></button></section>`;
+  menu.innerHTML = `<header><span class="eyebrow" data-pet-static="Guardian Pet">GUARDIAN PET / LOCAL</span><strong data-pet-static="Choose a pose.">Choose a pose.</strong></header><section><span class="tools-pet-menu-label" data-pet-group="${petPoseNavigation.label}">${petPoseNavigation.label}</span>${petPoseNavigation.routes.map(route => `<button type="button" role="menuitem" class="tools-pet-menu-item" data-pet-pose="${route.pose}"><span data-pet-key="${route.label}">${route.label}</span><small>${route.meta}</small></button>`).join('')}</section><section><span class="tools-pet-menu-label" data-pet-group="POSITION">POSITION</span><button type="button" role="menuitem" class="tools-pet-menu-item" data-pet-reset-position><span data-pet-key="Reset corner">Reset corner</span><small>DEFAULT</small></button></section>`;
+  localizePetMenu(menu);
   document.body.appendChild(menu);
 
   const close = () => {
@@ -330,6 +348,8 @@ function mountFloatingPetMenu(body, { onPose, onResetPosition } = {}) {
   menu.addEventListener('keydown', onMenuKeyDown);
   document.addEventListener('pointerdown', onDocumentPointerDown, { passive: true });
   document.addEventListener('keydown', onDocumentKeyDown);
+  const onLanguageChange = () => localizePetMenu(menu);
+  window.addEventListener('fitness-ledger:language-change', onLanguageChange);
 
   return {
     open,
@@ -339,7 +359,8 @@ function mountFloatingPetMenu(body, { onPose, onResetPosition } = {}) {
       menu.removeEventListener('click', onMenuClick);
       menu.removeEventListener('keydown', onMenuKeyDown);
       document.removeEventListener('pointerdown', onDocumentPointerDown);
-      document.removeEventListener('keydown', onDocumentKeyDown);
+    document.removeEventListener('keydown', onDocumentKeyDown);
+    window.removeEventListener('fitness-ledger:language-change', onLanguageChange);
       menu.remove();
     }
   };
@@ -359,14 +380,6 @@ function createTrophyNavigator() {
   return button;
 }
 
-const guardianHotspotDefinitions = [
-  { key: 'shoulders', label: 'Shoulders' },
-  { key: 'chest', label: 'Chest' },
-  { key: 'arms', label: 'Arms' },
-  { key: 'back', label: 'Back' },
-  { key: 'legs', label: 'Legs' }
-];
-
 function createGuardianPresentationSurface(body) {
   const overlay = document.createElement('section');
   const overlayTitle = document.createElement('strong');
@@ -377,6 +390,26 @@ function createGuardianPresentationSurface(body) {
   const hotspots = document.createElement('div');
   const summaries = new Map();
   let route = 'home';
+  const preferredHotspotSlots = {
+    shoulders: { left: '66%', top: '27%' },
+    chest: { left: '59%', top: '41%' },
+    arms: { left: '71%', top: '59%' },
+    back: { left: '20%', top: '42%' },
+    legs: { left: '50%', top: '84%' }
+  };
+  const fallbackHotspotSlots = [
+    { left: '27%', top: '16%' },
+    { left: '12%', top: '31%' },
+    { left: '88%', top: '32%' },
+    { left: '10%', top: '53%' },
+    { left: '90%', top: '52%' },
+    { left: '16%', top: '73%' },
+    { left: '86%', top: '72%' },
+    { left: '29%', top: '89%' },
+    { left: '72%', top: '89%' },
+    { left: '76%', top: '16%' },
+    { left: '50%', top: '93%' }
+  ];
 
   overlay.className = 'guardian-pet-overlay';
   overlay.hidden = true;
@@ -393,17 +426,7 @@ function createGuardianPresentationSurface(body) {
   fallback.setAttribute('role', 'status');
   fallback.innerHTML = '<span aria-hidden="true">FL</span><strong>Guardian offline</strong><small>Archive controls remain available.</small>';
   hotspots.className = 'guardian-pet-hotspots';
-  hotspots.setAttribute('aria-label', 'Body-region movement shortcuts');
-
-  guardianHotspotDefinitions.forEach(definition => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'guardian-pet-hotspot';
-    button.dataset.region = definition.key;
-    button.setAttribute('aria-label', `${definition.label}: no recorded movement yet`);
-    button.innerHTML = `<span>${definition.label}</span><small>0</small>`;
-    hotspots.appendChild(button);
-  });
+  hotspots.setAttribute('aria-label', 'Session theme archive shortcuts');
   body.append(effect, overlay, hotspots, loading, fallback);
 
   const showOverlay = (data, request = {}) => {
@@ -445,35 +468,61 @@ function createGuardianPresentationSurface(body) {
     (Array.isArray(nextSummaries) ? nextSummaries : []).forEach(summary => {
       if (summary?.key) summaries.set(summary.key, summary);
     });
-    hotspots.querySelectorAll('[data-region]').forEach(button => {
-      const definition = guardianHotspotDefinitions.find(item => item.key === button.dataset.region);
-      const summary = summaries.get(button.dataset.region) || {};
-      const count = Number(summary.count) || 0;
-      button.querySelector('small').textContent = String(count);
-      button.disabled = !summary.representativeMovementId;
-      button.setAttribute('aria-label', summary.representativeMovementId
-        ? `${definition.label}: ${count} movements. Open ${summary.representativeMovementName || 'representative movement'}.`
-        : `${definition.label}: no recorded movement yet`);
-    });
+    const items = [...summaries.values()];
+    const occupiedSlots = new Set(items
+      .map(summary => preferredHotspotSlots[String(summary.key)])
+      .filter(Boolean)
+      .map(slot => `${slot.left}|${slot.top}`));
+    let fallbackCursor = 0;
+    hotspots.replaceChildren(...items.map((summary, index) => {
+      const button = document.createElement('button');
+      const label = String(summary.label || summary.themeId || summary.key);
+      const count = Number(summary.sessionCount ?? summary.count) || 0;
+      button.type = 'button';
+      button.className = 'guardian-pet-hotspot';
+      button.dataset.region = String(summary.key);
+      button.dataset.themeId = String(summary.themeId || summary.key);
+      let slot = preferredHotspotSlots[String(summary.key)];
+      if (!slot) {
+        do {
+          slot = fallbackHotspotSlots[fallbackCursor % fallbackHotspotSlots.length];
+          fallbackCursor += 1;
+        } while (occupiedSlots.has(`${slot.left}|${slot.top}`) && fallbackCursor < fallbackHotspotSlots.length * 2);
+        occupiedSlots.add(`${slot.left}|${slot.top}`);
+      }
+      button.style.left = slot.left;
+      button.style.top = slot.top;
+      button.style.right = 'auto';
+      button.style.transform = 'translate(-50%, -50%)';
+      const labelNode = document.createElement('span');
+      const countNode = document.createElement('small');
+      labelNode.textContent = label;
+      countNode.textContent = String(count);
+      button.append(labelNode, countNode);
+      button.setAttribute('aria-label', petLocale() === 'en' ? `${label}: ${count} sessions. Open session theme archive.` : `${label}：${count} 次训练。打开训练次主题档案。`);
+      return button;
+    }));
   };
   const setRoute = nextRoute => {
     route = nextRoute || 'home';
-    hotspots.hidden = !['home', 'body'].includes(route);
+    hotspots.hidden = route !== 'home';
   };
   const onHotspotClick = event => {
     const button = event.target.closest('[data-region]');
     const summary = summaries.get(button?.dataset.region);
-    if (!summary?.representativeMovementId) return;
+    const themeId = summary?.themeId || summary?.key;
+    if (!themeId) return;
     event.preventDefault();
     event.stopPropagation();
-    location.hash = `#movements?movement_id=${encodeURIComponent(summary.representativeMovementId)}`;
+    location.hash = `#training?theme=${encodeURIComponent(themeId)}`;
   };
   const showHotspotHint = event => {
     const button = event.target.closest?.('[data-region]');
     const summary = summaries.get(button?.dataset.region);
     if (!summary || window.__fitnessLedgerGuardianPet?.getState?.().presentation?.active) return;
-    const definition = guardianHotspotDefinitions.find(item => item.key === button.dataset.region);
-    showOverlay({ title: `${definition.label.toUpperCase()} ARCHIVE`, lines: [`${Number(summary.count) || 0} movements`, summary.representativeMovementName] });
+    const label = String(summary.label || summary.themeId || summary.key);
+    const sessions = Number(summary.sessionCount ?? summary.count) || 0;
+    showOverlay({ title: `${label.toUpperCase()} ARCHIVE`, lines: [petLocale() === 'en' ? `${sessions} sessions` : `${sessions} 次训练`, petLocale() === 'en' ? 'Open the saved session theme archive' : '打开已保存的训练次主题档案'] });
   };
   const hideHotspotHint = event => {
     if (event.relatedTarget?.closest?.('[data-region]')) return;
@@ -484,6 +533,8 @@ function createGuardianPresentationSurface(body) {
   hotspots.addEventListener('pointerout', hideHotspotHint);
   hotspots.addEventListener('focusin', showHotspotHint);
   hotspots.addEventListener('focusout', hideHotspotHint);
+  const onLanguageChange = () => setRegions([...summaries.values()]);
+  window.addEventListener('fitness-ledger:language-change', onLanguageChange);
   setRoute(route);
 
   return {
@@ -501,6 +552,7 @@ function createGuardianPresentationSurface(body) {
       hotspots.removeEventListener('pointerout', hideHotspotHint);
       hotspots.removeEventListener('focusin', showHotspotHint);
       hotspots.removeEventListener('focusout', hideHotspotHint);
+      window.removeEventListener('fitness-ledger:language-change', onLanguageChange);
       overlay.remove();
       effect.remove();
       loading.remove();

@@ -46,10 +46,17 @@ const parsePayload={review_id:'review-instance-1',review:{id:'review-instance-1'
   {name:'Mystery Movement',display_name:'Mystery Movement',movement_id:'',order:3,sets:[],notes:'raw only',_review_action:'skip',exclude_from_progress:false}
 ] }},summary:{date:'2099-01-05',movement_count:3,progress_excluded_count:0},warnings:[],duplicates:{},mapping_options:[]};
 function json(value){return {ok:true,status:200,json:async()=>value};}
+function errorJson(code){return {ok:false,status:422,json:async()=>({code,error:'Data Module registry is not configured.'})};}
 window.confirm=()=>true;
 window.fetch=async (path,options={})=>{
   const method=options.method||'GET',url=String(path),state=emptyState();
   if(method==='POST'&&url.includes('/api/parse'))return json(parsePayload);
+  if(method==='POST'&&url.includes('/api/import/preview')){
+    const request=JSON.parse(options.body||'{}');
+    if(request.raw==='plain note')return json({...parsePayload,review:{...parsePayload.review,body:{},diet:{},training:{split:'',standardized_summary:'',notes:'',movements:[]},summary:{date:'2099-01-05',movement_count:0,progress_excluded_count:0}}});
+    return json(parsePayload);
+  }
+  if(method==='POST'&&url.includes('/api/data-modules/discover'))return errorJson('MODULE_REGISTRY_REQUIRED');
   if(method==='POST'&&url.includes('/api/save')){
     savedReview=JSON.parse(options.body).review;
     archiveRefs=archiveRefs.map((ref,index)=>({...ref,exclude_from_progress:Boolean(savedReview.training.movements[index]?.exclude_from_progress)}));
@@ -117,7 +124,13 @@ const editControlVisible=Boolean(editToggle);
 if(editToggle){editToggle.checked=false;await saveMovementHistory();}
 await wait(160);
 const historyEditUsesStableIds=updateRequests.some(row=>row.history_id==='history-main'&&row.values?.exclude_from_progress===true);
-const report=document.createElement('div');report.id='movement-instance-report';report.dataset.value=encodeURIComponent(JSON.stringify({reviewHasTwoIndependentToggles,unknownIsSeparated,saveCarriesInstanceState,archiveKeepsBoth,archiveEditUsesStableIds,editControlVisible,historyEditUsesStableIds,movementProgressChartFiltered,movementTrajectoryKeepsFullHistory,movementProgressChartLabelCount,updateRequests}));document.body.appendChild(report);
+navigate('quick');
+await wait(120);
+document.querySelector('#raw-entry').value='plain note';
+await parseWebEntry();
+await wait(120);
+const reviewFallsBackWhenModuleRegistryUnavailable=Boolean(document.querySelector('.review-scroll-page'));
+const report=document.createElement('div');report.id='movement-instance-report';report.dataset.value=encodeURIComponent(JSON.stringify({reviewHasTwoIndependentToggles,unknownIsSeparated,saveCarriesInstanceState,archiveKeepsBoth,archiveEditUsesStableIds,editControlVisible,historyEditUsesStableIds,movementProgressChartFiltered,movementTrajectoryKeepsFullHistory,reviewFallsBackWhenModuleRegistryUnavailable,movementProgressChartLabelCount,updateRequests}));document.body.appendChild(report);
 """
     with tempfile.TemporaryDirectory(prefix="fitness-ledger-instance-progress-browser-") as temp:
         page = Path(temp) / "index.html"
@@ -137,7 +150,7 @@ const report=document.createElement('div');report.id='movement-instance-report';
     report = json.loads(unquote(match.group(1)))
     assert all(report[key] is True for key in (
         "reviewHasTwoIndependentToggles", "unknownIsSeparated", "saveCarriesInstanceState",
-        "archiveKeepsBoth", "archiveEditUsesStableIds", "editControlVisible", "historyEditUsesStableIds", "movementProgressChartFiltered", "movementTrajectoryKeepsFullHistory",
+        "archiveKeepsBoth", "archiveEditUsesStableIds", "editControlVisible", "historyEditUsesStableIds", "movementProgressChartFiltered", "movementTrajectoryKeepsFullHistory", "reviewFallsBackWhenModuleRegistryUnavailable",
     )), report
 
 
