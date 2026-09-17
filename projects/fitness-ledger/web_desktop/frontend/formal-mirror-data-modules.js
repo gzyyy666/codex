@@ -371,7 +371,7 @@ function ensureReviewHub(){return}
   document.addEventListener('click',event=>{const target=event.target.closest?.('[data-dm-route-back]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();if(target.dataset.dmBackMode==='movement'){bridge.returnFromMovementDetail();return}if(target.dataset.dmBackMode==='history'&&history.length>1){history.back();return}bridge.navigate(target.dataset.dmBackView||target.dataset.dmBackFallback||'home',{})},true);
   document.addEventListener('click',event=>{const target=event.target.closest?.('[data-dm-open-day]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();bridge.recordDetail(target.dataset.dmOpenDay)},true);
   const surfaceControlIds=new Set(['body-search','diet-search','training-search','body-time','body-order','diet-order','training-order']);
-  let finalSurfaceRunning=false;
+  let finalSurfaceRunning=false,finalSurfaceRetryTimer=0;
   const ensureEmptyModuleSlots=()=>{
     $$('.dm-empty-module-slot').forEach(node=>node.remove());
     const rawView=bridge.currentRoute().view,view=rawView==='movements'?'movement':rawView;
@@ -392,7 +392,13 @@ function ensureReviewHub(){return}
     });
   };
   const queueFinalSurface=()=>{
-    if(!bridge.state.dataModulesReady||finalSurfaceRunning)return;
+    const rawView=bridge.currentRoute().view,view=rawView==='movements'?'movement':rawView;
+    if(!['body','diet','training'].includes(view))return;
+    const target=document.querySelector(`#${view}-rows`),ready=bridge.state.dataModulesReady;
+    if(!ready||!target||finalSurfaceRunning){
+      if(!finalSurfaceRetryTimer)finalSurfaceRetryTimer=setTimeout(()=>{finalSurfaceRetryTimer=0;queueFinalSurface()},120);
+      return;
+    }
     finalSurfaceRunning=true;
     try{
       finalNativeCategorySurface();
