@@ -163,26 +163,27 @@ button { color: inherit; cursor: pointer; }
 .reference-home .home-shell[data-home-state="selected-collapsed"] .movement-preview { margin-top:7px; }
 .reference-home .home-shell[data-home-state="selected-collapsed"] .movement-summary { min-height:82px; padding:13px 14px; }
 
-/* Expanded mode is one shared viewing state. The note and module rail form a
-   compact sticky header; only the archive below them continues to scroll. */
+/* Selected themes remain one normal document flow. The compact note, module
+   rail, archive heading and movement cards all move together when the page is
+   scrolled; only the editor and recognition history own inner scrolling. */
 .reference-home .home-shell[data-home-state="selected-expanded"] .note-stack {
-  position:sticky;
-  top:env(safe-area-inset-top);
-  z-index:31;
+  position:relative;
+  top:auto;
+  z-index:auto;
   margin-left:0;
   margin-right:0;
   padding-top:11px;
-  background:var(--page-bg);
+  background:transparent;
 }
 .reference-home .home-shell[data-home-state="selected-expanded"] .note-stack--compact .note-sheet { min-height:272px; }
 .reference-home .home-shell[data-home-state="selected-expanded"] .note-stack--compact .note-editor { min-height:106px; margin:9px 0 7px; }
 .reference-home .home-shell[data-home-state="selected-expanded"] .theme-strip {
-  position:sticky;
-  top:calc(env(safe-area-inset-top) + 283px);
-  z-index:30;
+  position:relative;
+  top:auto;
+  z-index:auto;
   margin-top:0;
   padding:7px 0 2px;
-  background:var(--page-bg);
+  background:transparent;
 }
 .reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive { margin-top:10px; }
 .reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive .archive-heading { padding-top:3px; }
@@ -548,72 +549,16 @@ button { color: inherit; cursor: pointer; }
 .reference-home .home-module-pill.color-rose { --chip-accent:#9b5967; --chip-soft:#eed2d9; }
 .reference-home .home-module-pill.color-blue { --chip-accent:#4a789e; --chip-soft:#d2e5f1; }
 
-@media (max-width: 699px) {
-  .reference-home .home-shell[data-home-state="selected-expanded"] .note-stack { top:calc(-8px - 4.533vw - env(safe-area-inset-top)); }
-}
-
-/* 2026-09-11 two-stage homepage scroll.
-   The fixed tab bar was covering the first archive card after the note board
-   grew. The collapsed state now reserves a readable overview; expanded mode
-   turns the note, module rail, archive title and sort controls into one
-   measured sticky header, leaving only movement details to continue scrolling. */
+/* The collapsed overview keeps its compact reading height. Selected themes
+   use the normal-flow rules above and do not create a second scroll stage. */
 .reference-page.reference-home { padding-bottom:calc(78px + env(safe-area-inset-bottom)); }
 .reference-home .home-shell[data-home-state="selected-collapsed"] .note-stack:not(.note-stack--compact) .note-sheet { min-height:320px; }
 .reference-home .home-shell[data-home-state="selected-collapsed"] .note-stack:not(.note-stack--compact) .note-editor { min-height:208px; margin:9px 0 7px; }
 .reference-home .home-shell[data-home-state="selected-collapsed"] .movement-preview { margin-top:6px; }
 .reference-home .home-shell[data-home-state="selected-collapsed"] .movement-summary { min-height:84px; padding:12px 13px; }
-.reference-home .home-shell[data-home-state="selected-expanded"] .note-stack {
-  top:env(safe-area-inset-top);
-  z-index:41;
-  padding-top:8px;
-  padding-bottom:6px;
-  background:var(--page-bg);
-}
-.reference-home .home-shell[data-home-state="selected-expanded"] .note-stack--compact .note-sheet { min-height:258px; }
-.reference-home .home-shell[data-home-state="selected-expanded"] .note-stack--compact .note-editor { min-height:101px; margin:9px 0 7px; }
-.reference-home .home-shell[data-home-state="selected-expanded"] .theme-strip {
-  top:calc(env(safe-area-inset-top) + var(--expanded-note-height, 280px));
-  z-index:40;
-  padding:5px 0 3px;
-  background:var(--page-bg);
-}
-.reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive { margin-top:8px; }
-.reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive-head {
-  position:sticky;
-  top:calc(env(safe-area-inset-top) + var(--expanded-note-height, 280px) + var(--expanded-strip-height, 52px));
-  z-index:39;
-  padding:4px 0 7px;
-  background:var(--page-bg);
-}
 .reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive-list { padding-bottom:calc(24px + env(safe-area-inset-bottom)); }
-.reference-home .home-shell[data-home-state="selected-expanded"].expanded-scroll-locked .theme-archive-list {
-  max-height:max(160px, calc(100dvh - env(safe-area-inset-top) - var(--expanded-note-height, 280px) - var(--expanded-strip-height, 52px) - var(--expanded-archive-head-height, 92px) - 116px));
-  overflow-y:auto;
-  overscroll-behavior-y:auto;
-  -webkit-overflow-scrolling:touch;
-  scrollbar-width:thin;
-}
-.reference-home .home-shell[data-home-state="selected-expanded"].expanded-scroll-locked .theme-archive {
-  min-height:calc(100dvh + var(--expanded-archive-head-height, 92px));
-}
-.reference-home .home-shell[data-home-state="selected-expanded"].expanded-scroll-locked {
-  padding-bottom:calc(100dvh + var(--expanded-archive-head-height, 92px));
-}
-.reference-home .home-shell[data-home-state="selected-expanded"].expanded-scroll-locked .theme-archive {
-  position:sticky;
-  top:calc(env(safe-area-inset-top) + var(--expanded-note-height, 280px) + var(--expanded-strip-height, 52px));
-  z-index:39;
-  background:var(--page-bg);
-}
-.reference-home .home-shell[data-home-state="selected-expanded"].expanded-scroll-locked .theme-archive-head {
-  position:relative;
-  top:auto;
-}
 .reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive .movement-card { margin-top:7px; padding:11px; }
 .reference-home .home-shell[data-home-state="selected-expanded"] .theme-archive .movement-name { font-size:19px; }
-@media (max-width:699px) {
-  .reference-home .home-shell[data-home-state="selected-expanded"] .note-stack { top:calc(-8px - env(safe-area-inset-top)); }
-}
 
 /* Session Superset detail: native details gives touch users a compact tap target. */
 .session-relation-detail{display:block;margin-top:8px}.session-relation-badge{display:inline-flex;align-items:center;gap:5px;min-height:32px;padding:5px 8px;border:1px solid rgba(138,91,0,.24);border-radius:999px;background:rgba(255,218,110,.2);color:#765719;font-size:10px;cursor:pointer;list-style:none}.session-relation-badge::-webkit-details-marker{display:none}.session-relation-badge::after{content:"＋";font-size:12px}.session-relation-detail[open] .session-relation-badge::after{content:"－"}.session-relation-body{margin-top:7px;padding:8px;border-radius:8px;background:#f1ece1;color:#625c51;font-size:10px;line-height:1.5}.session-relation-body ul{margin:5px 0 0;padding:0;list-style:none}.session-relation-body li{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid rgba(23,23,20,.1)}.session-relation-body li:first-child{border-top:0}.session-relation-body li.is-current{color:#2f604d}.session-relation-body li strong{display:grid;gap:2px}.session-relation-body li small{color:#7f6841;font-size:9px}.session-relation-body li span{text-align:right}.movement-card[tabindex]:focus-visible{outline:2px solid var(--pwa-accent);outline-offset:3px}.movement-track-link{display:inline-flex;grid-column:auto;border:0;background:transparent;color:inherit;padding:0;text-align:left;cursor:pointer}
@@ -680,32 +625,6 @@ html:not(.pwa-keyboard-open) .reference-home .candidate-overlay { display:none; 
     margin-top: 7px;
     border-radius: 18px 5px 18px 18px;
   }
-}
-
-/* 2026-09-13 scroll convergence.
-   Once the compact note reaches the top, the document stays at that anchor;
-   the movement list owns the remaining vertical scroll space. Keeping the
-   archive parent in normal flow prevents a second sticky container from
-   lifting its bottom edge as the page continues to move. */
-.reference-home .home-shell[data-home-state="selected-expanded"].expanded-scroll-locked {
-  padding-bottom:calc(78px + env(safe-area-inset-bottom));
-}
-.reference-home .home-shell[data-home-state="selected-expanded"].expanded-scroll-locked .theme-archive {
-  position:relative;
-  top:auto;
-  z-index:auto;
-  min-height:0;
-  background:transparent;
-}
-.reference-home .home-shell[data-home-state="selected-expanded"].expanded-scroll-locked .theme-archive-head {
-  position:sticky;
-  top:calc(env(safe-area-inset-top) + var(--expanded-note-height, 280px) + var(--expanded-strip-height, 52px));
-  z-index:39;
-}
-.reference-home .home-shell[data-home-state="selected-expanded"].expanded-scroll-locked .theme-archive-list {
-  height:max(160px, calc(var(--pwa-visual-height, 100dvh) - env(safe-area-inset-top) - var(--expanded-note-height, 280px) - var(--expanded-strip-height, 52px) - var(--expanded-archive-head-height, 92px) - 78px - env(safe-area-inset-bottom)));
-  max-height:none;
-  box-sizing:border-box;
 }
 
 @media (max-width:699px) {

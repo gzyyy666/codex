@@ -104,6 +104,11 @@ def main() -> None:
         selected_geometry = evaluate(browser, "(() => { const pill=document.querySelector('.home-module-pill'); const card=document.querySelector('.movement-card'); const tab=document.querySelector('.tabbar'); return {pillHeight:pill.getBoundingClientRect().height, cardBottom:card.getBoundingClientRect().bottom, usableBottom:innerHeight-(tab?.getBoundingClientRect().height || 0)}; })()")
         assert 36 <= selected_geometry["pillHeight"] <= 40, selected_geometry
         assert selected_geometry["cardBottom"] <= selected_geometry["usableBottom"] + 2, selected_geometry
+        selected_scroll_model = evaluate(browser, "(() => { const note=document.querySelector('.note-stack'); const strip=document.querySelector('.theme-strip'); const head=document.querySelector('.theme-archive-head'); const list=document.querySelector('.theme-archive-list'); const style=(node)=>{ const computed=getComputedStyle(node); return {position:computed.position, overflowY:computed.overflowY}; }; return {note:style(note), strip:style(strip), head:style(head), list:style(list)}; })()")
+        assert selected_scroll_model["note"]["position"] == "relative", selected_scroll_model
+        assert selected_scroll_model["strip"]["position"] == "relative", selected_scroll_model
+        assert selected_scroll_model["head"]["position"] == "static", selected_scroll_model
+        assert selected_scroll_model["list"]["overflowY"] == "visible", selected_scroll_model
         evaluate(browser, "document.querySelector('.home-shell').insertAdjacentHTML('beforeend', '<div data-test-page-spacer style=\"height:1600px\"></div>'); window.scrollTo(0, 360); true")
         pre_focus_layout = evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.value=Array.from({length:24}, (_, i) => `普通记录${i + 1}`).join('\\n'); note.setSelectionRange(note.value.length, note.value.length); note.dispatchEvent(new Event('input', {bubbles:true})); const sheet=document.querySelector('.note-sheet').getBoundingClientRect(); const style=getComputedStyle(note); return {pageY:scrollY, sheetHeight:sheet.height, fontSize:style.fontSize, lineHeight:style.lineHeight}; })()")
         evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true})); note.focus(); return true; })()")
