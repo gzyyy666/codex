@@ -99,6 +99,8 @@ def main() -> None:
         wait_for(browser, "document.querySelectorAll('.movement-card').length > 0")
         selected = evaluate(browser, "({state:document.querySelector('[data-home-state]').dataset.homeState, preview:!!document.querySelector('.movement-preview'), collapse:!!document.querySelector('.archive-collapse'), cards:document.querySelectorAll('.movement-card').length})")
         assert selected["state"] == "selected-expanded" and not selected["preview"] and not selected["collapse"] and selected["cards"] > 0, selected
+        selected_note_height = evaluate(browser, "document.querySelector('.note-sheet').getBoundingClientRect().height")
+        assert 250 <= selected_note_height <= 270, selected_note_height
         evaluate(browser, "document.querySelector('.home-shell').insertAdjacentHTML('beforeend', '<div data-test-page-spacer style=\"height:1600px\"></div>'); window.scrollTo(0, 360); true")
         pre_focus_layout = evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.value=Array.from({length:24}, (_, i) => `普通记录${i + 1}`).join('\\n'); note.setSelectionRange(note.value.length, note.value.length); note.dispatchEvent(new Event('input', {bubbles:true})); const sheet=document.querySelector('.note-sheet').getBoundingClientRect(); const style=getComputedStyle(note); return {pageY:scrollY, sheetHeight:sheet.height, fontSize:style.fontSize, lineHeight:style.lineHeight}; })()")
         evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true})); note.focus(); return true; })()")
