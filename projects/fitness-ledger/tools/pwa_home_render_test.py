@@ -102,7 +102,7 @@ def main() -> None:
         selected_note_height = evaluate(browser, "document.querySelector('.note-sheet').getBoundingClientRect().height")
         assert 250 <= selected_note_height <= 270, selected_note_height
         selected_geometry = evaluate(browser, "(() => { const pill=document.querySelector('.home-module-pill'); const card=document.querySelector('.movement-card'); const tab=document.querySelector('.tabbar'); return {pillHeight:pill.getBoundingClientRect().height, cardBottom:card.getBoundingClientRect().bottom, usableBottom:innerHeight-(tab?.getBoundingClientRect().height || 0)}; })()")
-        assert 25 <= selected_geometry["pillHeight"] <= 29, selected_geometry
+        assert 36 <= selected_geometry["pillHeight"] <= 40, selected_geometry
         assert selected_geometry["cardBottom"] <= selected_geometry["usableBottom"] + 2, selected_geometry
         evaluate(browser, "document.querySelector('.home-shell').insertAdjacentHTML('beforeend', '<div data-test-page-spacer style=\"height:1600px\"></div>'); window.scrollTo(0, 360); true")
         pre_focus_layout = evaluate(browser, "(() => { const note=document.querySelector('[data-note]'); note.value=Array.from({length:24}, (_, i) => `普通记录${i + 1}`).join('\\n'); note.setSelectionRange(note.value.length, note.value.length); note.dispatchEvent(new Event('input', {bubbles:true})); const sheet=document.querySelector('.note-sheet').getBoundingClientRect(); const style=getComputedStyle(note); return {pageY:scrollY, sheetHeight:sheet.height, fontSize:style.fontSize, lineHeight:style.lineHeight}; })()")

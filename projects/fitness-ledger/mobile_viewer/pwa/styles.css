@@ -767,6 +767,9 @@ html:not(.pwa-keyboard-open) .reference-home .candidate-overlay { display:none; 
    textarea owns overflow so long notes remain editable without expanding the
    card or changing its typography during focus. */
 @media (max-width:699px) {
+  .reference-page.reference-home {
+    padding-top:calc(4px + env(safe-area-inset-top));
+  }
   .reference-home .home-shell[data-home-state="selected-expanded"] .note-sheet {
     height:264px;
     min-height:264px;
@@ -777,12 +780,17 @@ html:not(.pwa-keyboard-open) .reference-home .candidate-overlay { display:none; 
     font-size:18px;
   }
   .reference-home .home-shell[data-home-state="selected-expanded"] .home-module-pill {
-    height:27px;
-    min-height:27px;
-    max-height:27px;
+    height:38px;
+    min-height:38px;
+    max-height:38px;
     align-self:flex-start;
-    padding-top:4px;
-    padding-bottom:4px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    flex:0 0 auto;
+    padding-top:5px;
+    padding-bottom:5px;
+    white-space:nowrap;
   }
 }
 

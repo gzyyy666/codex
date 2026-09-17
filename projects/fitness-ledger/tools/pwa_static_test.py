@@ -54,7 +54,7 @@ def main() -> None:
     assert "refreshCandidateOverlay" in app_source
     assert "noteHistoryCache" in app_source
     assert 'data-candidate-region' in app_source
-    assert 'PWA v1.1.31 · build 2026.09.17.03' in app_source
+    assert 'PWA v1.1.32 · build 2026.09.17.04' in app_source
     assert 'data-action="expand-note">发送到电脑</button>' in app_source
     assert 'if (action === "expand-note") { state.noteExpanded = true; state.shareDraft = state.note; state.shareTitle = "手机训练记录"; state.shareSent = false;' in app_source
     assert '确认发送' in app_source and 'PHONE_INBOX_TIMEOUT_MS = 15000' in app_source
@@ -104,9 +104,9 @@ def main() -> None:
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'includes("/api/")' in service_worker
-    assert 'fitness-ledger-pwa-v67' in service_worker
-    assert '"./data-modules.js?v=20260917-03"' in service_worker
-    assert 'register("./sw.js?v=20260917-03", { updateViaCache: "none" })' in app_source
+    assert 'fitness-ledger-pwa-v68' in service_worker
+    assert '"./data-modules.js?v=20260917-04"' in service_worker
+    assert 'register("./sw.js?v=20260917-04", { updateViaCache: "none" })' in app_source
     assert '.reference-page.reference-home { overflow: visible; }' in css_source
     assert '.reference-home .note-stack:not(.note-stack--compact) .note-sheet { min-height:440px; }' in css_source
     assert 'document.documentElement.classList.add("pwa-note-focused")' in app_source
@@ -142,7 +142,8 @@ def main() -> None:
     assert "window.scrollBy" not in app_source
     assert "height:264px;" in css_source and "min-height:264px;" in css_source
     assert "padding:14px 0 var(--note-tail-space, 14px);" in css_source
-    assert "height:27px;" in css_source and "max-height:27px;" in css_source
+    assert "height:38px;" in css_source and "max-height:38px;" in css_source
+    assert "padding-top:calc(4px + env(safe-area-inset-top));" in css_source
     assert "grid-template-columns:1fr" in css_source
     assert 'candidate.style.setProperty("--keyboard-candidate-top"' not in app_source
     assert 'style.setProperty("--candidate-top"' in app_source
