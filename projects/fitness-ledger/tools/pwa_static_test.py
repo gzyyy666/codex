@@ -106,7 +106,9 @@ def main() -> None:
     assert 'includes("/api/")' in service_worker
     assert 'fitness-ledger-pwa-v70' in service_worker
     assert '"./data-modules.js?v=20260917-06"' in service_worker
+    assert '"./styles-continuous-scroll.css"' in service_worker
     assert 'register("./sw.js?v=20260917-06", { updateViaCache: "none" })' in app_source
+    assert 'styles-continuous-scroll.css' in source
     assert 'manifest.webmanifest?v=20260917-06' in source
     assert '.reference-page.reference-home { overflow: visible; }' in css_source
     assert '.reference-home .note-stack:not(.note-stack--compact) .note-sheet { min-height:440px; }' in css_source

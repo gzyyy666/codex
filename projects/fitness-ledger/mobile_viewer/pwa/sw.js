@@ -2,7 +2,7 @@ const CACHE_NAME = "fitness-ledger-pwa-v70";
 const APP_SHELL = [
   "./",
   "./index.html?v=20260917-06",
-  "./styles.css?v=20260917-06",
+  "./styles-continuous-scroll.css",
   "./config.js?v=20260820-04",
   "./app.js?v=20260917-06",
   "./data-modules.js?v=20260917-06",
