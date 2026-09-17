@@ -43,6 +43,8 @@
 .dm-native-field{display:flex!important;justify-content:space-between;align-items:baseline;gap:16px;border:0!important;padding-bottom:6px}
 .dm-native-field>span{display:inline!important;color:inherit!important;font-size:inherit!important}
 .dm-native-field>strong{color:currentColor;font-weight:500;text-align:right}
+.dm-native-field-empty>strong{font-size:12px}.dm-native-field-empty>strong::after{content:'—（无记录）'}
+html[data-fl-ui-language="en"] .dm-native-field-empty>strong::after{content:'— (No record)'}
 .macro-line .dm-native-field{display:inline!important;justify-content:initial;gap:0;padding:0;font-size:12px}
 .macro-line .dm-native-field strong{font-weight:400}
 .session-facts .dm-native-field{display:block!important;justify-content:initial;padding:0;border:0!important;font-size:12px}
