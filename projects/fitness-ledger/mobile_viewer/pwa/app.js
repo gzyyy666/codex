@@ -20,7 +20,7 @@ const DEFAULT_ACTIVE_BODY_PART_IDS = new Set(["chest", "shoulders", "back", "leg
 const DEFAULT_BODY_PART_ORDER = ["chest", "shoulders", "back", "legs", "arms", "glutes", "core", "cardio"];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.30 · build 2026.09.17.02";
+const BUILD_VERSION = "PWA v1.1.31 · build 2026.09.17.03";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -927,6 +927,14 @@ function setNotePageScrollLock(locked, lockY = window.scrollY) {
   notePageScrollLockY = null;
   document.documentElement.classList.remove("pwa-note-scroll-locked");
 }
+function ensureNoteScrollReserve(editor, requiredScroll) {
+  const maxScroll = Math.max(0, editor.scrollHeight - editor.clientHeight);
+  const missingScroll = editor.scrollTop + requiredScroll - maxScroll;
+  if (missingScroll <= .5) return;
+  const style = getComputedStyle(editor);
+  const currentTail = Number.parseFloat(editor.style.getPropertyValue("--note-tail-space")) || Number.parseFloat(style.paddingBottom) || 0;
+  editor.style.setProperty("--note-tail-space", `${Math.ceil(currentTail + missingScroll)}px`);
+}
 
 function scheduleKeyboardWorkspaceAlignment(forceCaretAlignment = false) {
   if (keyboardAlignmentFrame) window.cancelAnimationFrame(keyboardAlignmentFrame);
@@ -944,19 +952,15 @@ function scheduleKeyboardWorkspaceAlignment(forceCaretAlignment = false) {
     const visibleTop = viewport.offsetTop;
     const visibleBottom = viewport.offsetTop + viewport.height;
     const targetLineTop = visibleTop + editViewportClearance();
-    const caretBelowTarget = Math.max(0, caret.top - targetLineTop);
+    const caretScroll = Math.max(0, caret.top - targetLineTop);
+    const candidateScroll = candidate ? Math.max(0, candidate.getBoundingClientRect().bottom - visibleBottom) : 0;
+    const caretOverflow = Math.max(0, caret.bottom - visibleBottom);
+    const requiredScroll = Math.max(caretScroll, candidateScroll, caretOverflow);
+    ensureNoteScrollReserve(editor, requiredScroll);
     const maxEditorScroll = Math.max(0, editor.scrollHeight - editor.clientHeight);
-    if (forceCaretAlignment || caretBelowTarget > caret.lineHeight * .5) {
-      editor.scrollTop = Math.min(maxEditorScroll, editor.scrollTop + caretBelowTarget);
-      positionCandidateOverlay();
-    }
-    const nextCandidate = home.querySelector(".candidate-overlay");
-    const caretAfterScroll = noteCaretRect(editor);
-    const candidateOverflow = nextCandidate ? nextCandidate.getBoundingClientRect().bottom - visibleBottom : 0;
-    const caretOverflow = caretAfterScroll ? caretAfterScroll.bottom - visibleBottom : 0;
-    const additionalScroll = Math.max(0, candidateOverflow, caretOverflow);
-    if (additionalScroll > .5) {
-      editor.scrollTop = Math.min(maxEditorScroll, editor.scrollTop + additionalScroll);
+    const scrollDelta = Math.min(maxEditorScroll, requiredScroll);
+    if (scrollDelta > .5) {
+      editor.scrollTop = Math.min(maxEditorScroll, editor.scrollTop + scrollDelta);
       positionCandidateOverlay();
     }
   });
@@ -1151,7 +1155,7 @@ document.addEventListener("wheel", event => {
   if (document.documentElement.classList.contains("pwa-note-scroll-locked") && !isNoteScrollableTarget(event.target)) event.preventDefault();
 }, { passive: false });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260917-02", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js?v=20260917-03", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();
