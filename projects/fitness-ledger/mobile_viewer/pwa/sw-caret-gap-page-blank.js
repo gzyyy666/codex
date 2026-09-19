@@ -10,7 +10,7 @@ const APP_SHELL = [
   "./share.html",
   "./share.css?v=20260820-04",
   "./share.js?v=20260827-02",
-  "./manifest-caret-gap-page-blank.webmanifest",
+  "./manifest-caret-gap-page-blank.webmanifest?v=20260919-04",
   "./icons/fitness-ledger.png"
 ];
 

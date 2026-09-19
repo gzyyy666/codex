@@ -10,7 +10,7 @@ const APP_SHELL = [
   "./share.html",
   "./share.css?v=20260820-04",
   "./share.js?v=20260827-02",
-  "./manifest-blur-height-fix.webmanifest",
+  "./manifest-blur-height-fix.webmanifest?v=20260919-04",
   "./icons/fitness-ledger.png"
 ];
 
