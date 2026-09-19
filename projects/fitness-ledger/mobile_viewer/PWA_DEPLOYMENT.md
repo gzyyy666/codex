@@ -50,9 +50,10 @@ cloudbase hosting deploy .\mobile_viewer\pwa / --env-id <环境ID>
 
 这一步只上传静态页面，不会自动解决 Web 登录和数据 API。
 
-发布后不要只依据 CLI 的“上传完成”判断手机已更新。CloudBase 静态 CDN 可能继续缓存旧的
-Service Worker；应检查根入口加载的脚本查询版本、带查询版本的 Service Worker 缓存名，以及
-正式 URL 的实际响应。完整复盘与下次检索关键词见
+发布后不要只依据 CLI 的“上传完成”判断手机已更新。CloudBase 静态 CDN 可能分别缓存旧的
+Service Worker、JavaScript、CSS 或 manifest，造成页面出现混合版本；应检查根入口加载的脚本和
+CSS 查询版本、manifest 的 `start_url`、带查询版本的 Service Worker 缓存名，以及正式 URL 的
+实际响应。完整复盘与下次检索关键词见
 [`PWA_STATIC_HOSTING_CACHE_POSTMORTEM_20260919.md`](../docs/maintenance/PWA_STATIC_HOSTING_CACHE_POSTMORTEM_20260919.md)。
 
 ## 安全上线顺序

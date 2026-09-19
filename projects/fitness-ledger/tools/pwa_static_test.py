@@ -28,7 +28,7 @@ def main() -> None:
 
     manifest = json.loads((PWA / "manifest.webmanifest").read_text(encoding="utf-8"))
     assert manifest["display"] == "standalone"
-    assert manifest["start_url"] == "./?v=20260919-04"
+    assert manifest["start_url"] == "./?v=20260919-05"
     assert manifest["scope"] == "./"
     assert manifest["icons"]
 
@@ -54,7 +54,7 @@ def main() -> None:
     assert "refreshCandidateOverlay" in app_source
     assert "noteHistoryCache" in app_source
     assert 'data-candidate-region' in app_source
-    assert 'const BUILD_VERSION = "1.1.35"' in app_source
+    assert 'const BUILD_VERSION = "1.1.36"' in app_source
     assert 'pwa-version-mark' in app_source
     assert 'pwa-version-copy' in app_source
     assert 'data-action="expand-note">发送到电脑</button>' in app_source
@@ -106,10 +106,12 @@ def main() -> None:
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'includes("/api/")' in service_worker
-    assert 'fitness-ledger-pwa-v77' in service_worker
+    assert 'fitness-ledger-pwa-v78' in service_worker
     assert '"./data-modules.js?v=20260917-07"' in service_worker
-    assert '"./styles-blur-height-fix.css"' in service_worker
-    assert 'register("./sw-blur-height-fix.js?v=20260919-04", { updateViaCache: "none" })' in app_source
+    assert '"./styles-blur-height-fix.css?v=20260919-05"' in service_worker
+    assert 'register("./sw-blur-height-fix.js?v=20260919-05", { updateViaCache: "none" })' in app_source
+    assert 'styles-blur-height-fix.css?v=20260919-05' in source
+    assert 'manifest-blur-height-fix.webmanifest?v=20260919-05' in source
     assert '.pwa-version-mark' in css_source
     assert '.pwa-version-copy' in css_source
     assert 'styles-blur-height-fix.css' in source

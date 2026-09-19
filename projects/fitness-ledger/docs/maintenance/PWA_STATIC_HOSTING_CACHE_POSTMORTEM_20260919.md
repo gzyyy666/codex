@@ -28,15 +28,27 @@ Service Worker 或新缓存。
 其中 Service Worker 注册路径保持不变，CDN 又对旧路径设置了长期缓存，导致上传后的新缓存名
 无法被手机及时发现。
 
+## 追加发现：静态资源会出现“混合版本”
+
+后续验证还发现，即使入口脚本已经切换到新版本，未带查询参数的 CSS 仍可能从 CDN 或旧
+Service Worker 缓存中返回旧文件。手机上会表现为：页面功能和版本号已经更新，但版本徽章仍像
+普通文本一样没有样式。这不是 UI 结构本身失效，而是 `index.html`、JS、CSS、manifest 和
+Service Worker 没有作为同一个版本组一起切换。
+
+因此，发布时必须让入口脚本、主 CSS、manifest、manifest 的 `start_url`、Service Worker
+注册地址和 Service Worker 的 `APP_SHELL` 同时使用新的查询版本；只提升 JS 或只看到上传成功都
+不能证明手机得到的是完整的新页面。
+
 ## 当前修复
 
-PWA `1.1.35` 使用以下发布约束：
+PWA `1.1.36` 使用以下发布约束：
 
-1. 根入口加载 `app-blur-height-fix.js?v=20260919-04`。
-2. 前端注册 `sw-blur-height-fix.js?v=20260919-04`。
-3. Service Worker 缓存名提升为 `fitness-ledger-pwa-v77`。
-4. 三套 manifest 的 `start_url` 同步提升为 `./?v=20260919-04`，避免桌面图标继续启动旧入口。
-5. 状态页以产品化版本徽标显示 `1.1.35`，不展示 commit、缓存名等技术细节。
+1. 根入口加载 `app-blur-height-fix.js?v=20260919-05` 和
+   `styles-blur-height-fix.css?v=20260919-05`。
+2. 前端注册 `sw-blur-height-fix.js?v=20260919-05`。
+3. Service Worker 缓存名提升为 `fitness-ledger-pwa-v78`。
+4. 三套 manifest 的 `start_url` 同步提升为 `./?v=20260919-05`，避免桌面图标继续启动旧入口。
+5. 状态页以产品化版本徽标显示 `1.1.36`，不展示 commit、缓存名等技术细节。
 
 ## 下次发布检查清单
 

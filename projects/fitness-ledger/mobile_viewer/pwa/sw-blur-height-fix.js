@@ -1,16 +1,16 @@
-const CACHE_NAME = "fitness-ledger-pwa-v77";
+const CACHE_NAME = "fitness-ledger-pwa-v78";
 const APP_SHELL = [
   "./",
-  "./index.html?v=20260919-04",
-  "./styles-blur-height-fix.css",
+  "./index.html?v=20260919-05",
+  "./styles-blur-height-fix.css?v=20260919-05",
   "./config.js?v=20260820-04",
-  "./app-blur-height-fix.js?v=20260919-04",
+  "./app-blur-height-fix.js?v=20260919-05",
   "./data-modules.js?v=20260917-07",
   "./api.js?v=20260820-04",
   "./share.html",
   "./share.css?v=20260820-04",
   "./share.js?v=20260827-02",
-  "./manifest-blur-height-fix.webmanifest?v=20260919-04",
+  "./manifest-blur-height-fix.webmanifest?v=20260919-05",
   "./icons/fitness-ledger.png"
 ];
 
