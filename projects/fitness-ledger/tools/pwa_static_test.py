@@ -55,6 +55,8 @@ def main() -> None:
     assert "noteHistoryCache" in app_source
     assert 'data-candidate-region' in app_source
     assert 'const BUILD_VERSION = "1.1.34"' in app_source
+    assert 'pwa-version-mark' in app_source
+    assert 'pwa-version-copy' in app_source
     assert 'data-action="expand-note">发送到电脑</button>' in app_source
     assert 'if (action === "expand-note") { state.noteExpanded = true; state.shareDraft = state.note; state.shareTitle = "手机训练记录"; state.shareSent = false;' in app_source
     assert '确认发送' in app_source and 'PHONE_INBOX_TIMEOUT_MS = 15000' in app_source
@@ -108,6 +110,8 @@ def main() -> None:
     assert '"./data-modules.js?v=20260917-07"' in service_worker
     assert '"./styles-blur-height-fix.css"' in service_worker
     assert 'register("./sw-blur-height-fix.js?v=20260919-03", { updateViaCache: "none" })' in app_source
+    assert '.pwa-version-mark' in css_source
+    assert '.pwa-version-copy' in css_source
     assert 'styles-blur-height-fix.css' in source
     assert 'manifest-blur-height-fix.webmanifest' in source
     for hidden_copy in ("PRIVATE WEB ACCESS / CLOUDBASE", "ACCESS DIAGNOSTICS / NO PRIVATE DATA", "OpenID", "Environment", "CloudBase 登录方式"):

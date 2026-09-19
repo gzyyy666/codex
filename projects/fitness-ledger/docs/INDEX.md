@@ -34,6 +34,7 @@ Use this index instead of scanning the project.
 | Chronological changes | `../CHANGELOG.md` |
 | Cloud replica truth, collections, and review | `../cloud_sync/CLOUD_REVIEW.md` |
 | PWA phone-to-desktop text handoff and release gate | `maintenance/PWA_SHARE_INBOX_PHASE3.md` |
+| PWA 静态托管缓存故障复盘、缓存破坏与发布验证 | `maintenance/PWA_STATIC_HOSTING_CACHE_POSTMORTEM_20260919.md` |
 | WeChat setup, API, UI states, and preview | `../mini_program/README.md`, `../mini_program/docs/` |
 
 ## Standardization
