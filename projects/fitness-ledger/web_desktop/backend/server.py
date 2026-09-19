@@ -561,12 +561,10 @@ class LedgerWebService:
         report = read_json(report_path)
         sync_state = read_json(state_path)
         try:
-            # Compare the exact files used by build_cloud_payload. The view
-            # layer may add in-memory compatibility projections/migrations;
-            # using it here made an already-uploaded payload look stale even
-            # though the formal source files had not changed.
-            tracker = json.loads(self.data.tracker_file.read_text(encoding="utf-8"))
-            dictionary = json.loads(self.data.dictionary_file.read_text(encoding="utf-8"))
+            # Match build_cloud_payload: both sides must fingerprint the same
+            # canonical snapshot, otherwise normalization/migration fields can
+            # make a verified cloud payload appear locally newer forever.
+            tracker, dictionary = self.views.snapshot()
             current_source = source_metadata(tracker, dictionary)
         except (OSError, json.JSONDecodeError):
             current_source = {"source_fingerprint": "", "latest_record_date": ""}
