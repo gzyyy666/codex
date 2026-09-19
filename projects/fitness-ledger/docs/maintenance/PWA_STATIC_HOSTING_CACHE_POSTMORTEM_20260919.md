@@ -41,14 +41,14 @@ Service Worker 没有作为同一个版本组一起切换。
 
 ## 当前修复
 
-PWA `1.1.36` 使用以下发布约束：
+PWA `1.1.37` 使用以下发布约束：
 
-1. 根入口加载 `app-blur-height-fix.js?v=20260919-05` 和
-   `styles-blur-height-fix.css?v=20260919-05`。
-2. 前端注册 `sw-blur-height-fix.js?v=20260919-05`。
-3. Service Worker 缓存名提升为 `fitness-ledger-pwa-v78`。
-4. 三套 manifest 的 `start_url` 同步提升为 `./?v=20260919-05`，避免桌面图标继续启动旧入口。
-5. 状态页以产品化版本徽标显示 `1.1.36`，不展示 commit、缓存名等技术细节。
+1. 根入口加载 `app-blur-height-fix.js?v=20260919-06` 和
+   `styles-blur-height-fix.css?v=20260919-06`。
+2. 前端注册 `sw-blur-height-fix.js?v=20260919-06`。
+3. Service Worker 缓存名提升为 `fitness-ledger-pwa-v79`。
+4. 三套 manifest 的 `start_url` 同步提升为 `./?v=20260919-06`，避免桌面图标继续启动旧入口。
+5. 状态页仅以轻量浅色文字显示 `1.1.37`，不展示 commit、缓存名等技术细节。
 
 ## 下次发布检查清单
 

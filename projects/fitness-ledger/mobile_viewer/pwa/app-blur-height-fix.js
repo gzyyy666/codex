@@ -20,7 +20,7 @@ const DEFAULT_ACTIVE_BODY_PART_IDS = new Set(["chest", "shoulders", "back", "leg
 const DEFAULT_BODY_PART_ORDER = ["chest", "shoulders", "back", "legs", "arms", "glutes", "core", "cardio"];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "1.1.36";
+const BUILD_VERSION = "1.1.37";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -690,7 +690,7 @@ function filterRecords(records, query, order) { const needle = String(query || "
 
 function renderStatus() {
   const fresh = state.status;
-  return renderShell(`${pageStart("status-page")}${header("同步与档案", "同步与档案。")}${state.loading ? stateMessage("检查中…") : state.error ? stateMessage(state.error, true) : `<section class="status-slab"><span class="status-dot"></span><div class="eyebrow">同步状态</div><h2>记录状态正常</h2><div class="row"><span>最后同步</span><b>${esc(formatSyncTime(fresh?.generated_at))}</b></div><div class="row"><span>最新记录</span><b>${esc(fresh?.latest_record_date || "暂无")}</b></div><div class="row"><span>扩展指标</span><b>${state.dataModuleError ? "暂不可用" : `${state.dataModuleContract.modules.length} 项`}</b></div></section><button class="archive-entry" data-route="body"><span><span class="eyebrow">身体档案</span><strong>身体记录</strong><small>体重、排便、训练与有氧</small></span><b>→</b></button><button class="archive-entry diet-entry" data-route="diet"><span><span class="eyebrow">饮食档案</span><strong>饮食记录</strong><small>热量、三大营养素与餐食便签</small></span><b>→</b></button><div class="pwa-version" aria-label="当前版本 ${BUILD_VERSION}"><span class="pwa-version-mark" aria-hidden="true"></span><span class="pwa-version-copy"><small>当前版本</small><strong>${BUILD_VERSION}</strong></span></div>`}${pageEnd()}`);
+  return renderShell(`${pageStart("status-page")}${header("同步与档案", "同步与档案。")}${state.loading ? stateMessage("检查中…") : state.error ? stateMessage(state.error, true) : `<section class="status-slab"><span class="status-dot"></span><div class="eyebrow">同步状态</div><h2>记录状态正常</h2><div class="row"><span>最后同步</span><b>${esc(formatSyncTime(fresh?.generated_at))}</b></div><div class="row"><span>最新记录</span><b>${esc(fresh?.latest_record_date || "暂无")}</b></div><div class="row"><span>扩展指标</span><b>${state.dataModuleError ? "暂不可用" : `${state.dataModuleContract.modules.length} 项`}</b></div></section><button class="archive-entry" data-route="body"><span><span class="eyebrow">身体档案</span><strong>身体记录</strong><small>体重、排便、训练与有氧</small></span><b>→</b></button><button class="archive-entry diet-entry" data-route="diet"><span><span class="eyebrow">饮食档案</span><strong>饮食记录</strong><small>热量、三大营养素与餐食便签</small></span><b>→</b></button><div class="pwa-version" aria-label="当前版本 ${BUILD_VERSION}">当前版本 · ${BUILD_VERSION}</div>`}${pageEnd()}`);
 }
 
 function renderArchive(kind) {
@@ -1174,7 +1174,7 @@ document.addEventListener("wheel", event => {
   if (document.documentElement.classList.contains("pwa-note-scroll-locked") && !isNoteScrollableTarget(event.target)) event.preventDefault();
 }, { passive: false });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw-blur-height-fix.js?v=20260919-05", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw-blur-height-fix.js?v=20260919-06", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();
