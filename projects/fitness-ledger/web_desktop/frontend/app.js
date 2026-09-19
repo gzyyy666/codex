@@ -35,20 +35,20 @@ function emitGuardianWeightMilestone(){const target=state.today?.weight_target??
 const showToast=t=>{toast.textContent=translatedUiCopy(t);toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2600)};
 let phoneInboxClientPromise;
 const dateOf=r=>String(r.Date||r.date||'').slice(0,10), value=(o,...keys)=>keys.map(k=>o?.[k]).find(v=>v!==undefined&&v!==null&&v!=='')??'-';
-function buildIdentityLabel(info){const status=String(info?.status||'UNKNOWN').toUpperCase(),shortSha=info?.short_sha||'';if(status==='PUBLISHED')return `FORMAL · ${shortSha} · PUBLISHED`;if(status==='PREVIEW')return `PREVIEW · ${info?.branch||'WORKTREE'} · ${shortSha||'UNKNOWN'}${info?.dirty===true?' · DIRTY':''}`;if(status==='UNVERIFIED')return `FORMAL · ${shortSha||'UNKNOWN'} · UNVERIFIED`;return 'BUILD UNKNOWN'}
-function renderBuildIdentity(){const button=$('[data-build-identity]');if(!button)return;const info=state.buildInfo||{};button.dataset.buildStatus=String(info.status||'UNKNOWN').toLowerCase();button.querySelector('.build-identity-label').textContent=buildIdentityLabel(info);button.title=info.dirty===true?'Preview 工作区存在未提交修改':`运行版本：${String(info.status||'UNKNOWN').toUpperCase()}`}
+function buildIdentityLabel(info){const reference=String(info?.short_sha||info?.tag||'').trim();return reference?`VERSION · ${reference}`:'VERSION UNKNOWN'}
+function renderBuildIdentity(){const button=$('[data-build-identity]');if(!button)return;const info=state.buildInfo||{};button.dataset.buildStatus=String(info.status||'UNKNOWN').toLowerCase();button.querySelector('.build-identity-label').textContent=buildIdentityLabel(info);button.title='查看版本参考'}
 async function loadBuildInfo(){try{state.buildInfo=await api('/api/build-info')}catch{state.buildInfo={status:'UNKNOWN',mode:'unknown'}}renderBuildIdentity()}
-function buildIdentityDetails(){const info=state.buildInfo||{},rows=[['运行模式',info.mode||'unknown'],['状态',info.status||'UNKNOWN'],['完整 Commit SHA',info.commit_sha||'不可用'],['来源分支',info.branch||'不可用'],['部署生成时间',info.generated_at||'不可用'],['服务启动时间',info.server_started_at||'不可用'],['部署时 main SHA',info.main_sha||'不可用'],['部署时 origin/main SHA',info.origin_main_sha||'不可用'],['Push 已验证',info.push_verified===true?'是':info.push_verified===false?'否':'不可用'],['Preview 工作区',info.dirty===true?'DIRTY / 有未提交修改':info.dirty===false?'CLEAN / 干净':'不可用'],['Tag',info.tag||'无']];return `<div class="build-identity-details"><div class="build-identity-status"><span class="eyebrow">RUNTIME IDENTITY</span><h3>${esc(buildIdentityLabel(info))}</h3><p>这是当前运行服务的部署身份，不是后台实时远端监控。</p></div><dl>${rows.map(([label,value])=>`<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl>${info.commit_sha?`<button class="btn build-copy-sha" data-build-copy-sha>复制完整 SHA</button>`:''}</div>`}
-function openBuildIdentity(){const button=$('[data-build-identity]');if(button)button.setAttribute('aria-expanded','true');modal('运行版本与部署身份',buildIdentityDetails(),{light:true,actions:'<button class="btn btn-primary" data-close>关闭</button>'})}
+function buildIdentityDetails(){const info=state.buildInfo||{},rows=[['运行模式',info.mode||'unknown'],['状态',info.status||'UNKNOWN'],['完整 Commit SHA',info.commit_sha||'不可用'],['来源分支',info.branch||'不可用'],['部署生成时间',info.generated_at||'不可用'],['服务启动时间',info.server_started_at||'不可用'],['部署时 main SHA',info.main_sha||'不可用'],['部署时 origin/main SHA',info.origin_main_sha||'不可用'],['Push 已验证',info.push_verified===true?'是':info.push_verified===false?'否':'不可用'],['Preview 工作区',info.dirty===true?'DIRTY / 有未提交修改':info.dirty===false?'CLEAN / 干净':'不可用'],['Tag',info.tag||'无']];return `<div class="build-identity-details"><div class="build-identity-status"><span class="eyebrow">VERSION REFERENCE</span><h3>${esc(buildIdentityLabel(info))}</h3><p>仅用于确认当前迭代所运行的版本；详细信息不会出现在日常页面中。</p></div><dl>${rows.map(([label,value])=>`<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl>${info.commit_sha?`<button class="btn build-copy-sha" data-build-copy-sha>复制完整 SHA</button>`:''}</div>`}
+function openBuildIdentity(){const button=$('[data-build-identity]');if(button)button.setAttribute('aria-expanded','true');modal('当前版本信息',buildIdentityDetails(),{light:true,actions:'<button class="btn btn-primary" data-close>关闭</button>'})}
 
 function statusPanel(){const t=state.today,b=t.body||{},d=t.diet||{},tr=t.training||{};return `<section class="status-panel"><span class="eyebrow">TODAY / STATUS</span><h2>${esc(t.date||'No record')}</h2><div class="status-row"><span>Weight 体重</span><strong>${esc(value(b,'Weight (kg)'))} kg</strong></div><div class="status-row"><span>Calories 热量</span><strong>${esc(value(d,'Calories (kcal)'))} kcal</strong></div><div class="status-row"><span>Training 分部</span><strong>${esc(value(tr,'split','Split'))}</strong></div></section>`}
 function renderArchiveHealth(){const nav=$('[data-health-nav-entry]'),marker=nav?.querySelector('.health-nav-status'),toolsStatus=$('[data-tools-health-status]'),health=state.archiveHealth,count=Number(health?.issue_count||0),needsReview=health?.status==='NEEDS_REVIEW'&&count>0,normalLabel='查看待处理的数据问题';if(nav&&marker){nav.hidden=!needsReview;marker.hidden=!needsReview;marker.className=`health-nav-status${needsReview?' needs-review':''}`;if(!needsReview){marker.textContent='';nav.removeAttribute('title');nav.setAttribute('aria-label',normalLabel)}else{marker.textContent=String(count);nav.title=`待处理数据问题：${count} 个`;nav.setAttribute('aria-label',`待处理数据问题：${count} 个`)}}if(toolsStatus){const unavailable=health?.status==='UNAVAILABLE',loading=!health?.status;toolsStatus.dataset.status=needsReview?'review':unavailable?'unavailable':loading?'loading':'ok';toolsStatus.textContent=needsReview?`${count} 项待处理`:unavailable?'检查暂不可用':loading?'正在检查':'当前无需处理'}}
 async function loadArchiveHealth(){try{state.archiveHealth=await api('/api/archive-health')}catch{state.archiveHealth={status:'UNAVAILABLE'}}renderArchiveHealth()}
 function recentPanel(title='Unavailable'){return `<section class="rail-section"><div class="rail-head"><span class="eyebrow">${title}</span><button data-go="body">View all -></button></div>${state.recent.slice(0,4).map(r=>`<article class="record"><h3>${esc(r.date)}</h3><p>${esc(r.weight||'-')} kg / ${esc(r.calories||'-')} kcal</p><p>${esc(r.split||'Rest')}</p><div class="record-actions"><button data-record="${esc(r.date)}">Open detail</button><button data-go="training">Training</button><button data-go="diet">Diet</button></div></article>`).join('')}</section>`}
 const pageHeader=(title,sub)=>`<header><h1 class="page-title">${title}</h1><p class="page-subtitle">${sub}</p><span class="accent-line"></span></header>`;
-const pager=()=>`<div class="pagination records-status"><span>Showing local records</span></div>`;
+const pager=()=>`<div class="pagination records-status"><span>Showing recent records</span></div>`;
 
-function homePage(){const t=state.today,b=t.body||{},d=t.diet||{},tr=t.training||{};main.innerHTML=`<section class="home-page"><div class="home-stage"><div class="home-copy"><span class="home-index">01</span><span class="eyebrow">LOCAL FITNESS JOURNAL</span><h1>Daily<br>Capture</h1><p>记录身体、饮食与训练，把自由文字沉淀为可回看的个人档案。</p><div class="home-actions"><button class="btn btn-primary" data-go="quick">记录今天 <span>→</span></button><button class="home-text-link" data-go="movements">查看动作档案</button></div></div><div class="home-photo" aria-hidden="true"></div><aside class="home-slip"><span class="eyebrow">LATEST ENTRY / ${esc(t.date||'—')}</span><div class="home-slip-value">${esc(value(b,'Weight (kg)'))}<small>kg</small></div><div class="home-slip-row"><span>${esc(value(tr,'split','训练部位'))}</span><span>${esc(value(d,'Calories (kcal)'))} kcal</span></div></aside><div class="home-orbit">FREEFORM · REVIEW · STRUCTURED · PRIVATE ·</div></div><section class="home-index-strip"><div class="home-index-head"><span><b>02</b> RECENT ARCHIVE</span><button data-go="body">查看全部记录 →</button></div><div class="home-tickets">${state.recent.slice(0,3).map((r,i)=>`<button class="home-ticket" data-record="${esc(r.date)}"><span class="ticket-no">0${i+1}</span><strong>${esc(r.date)}</strong><small>${esc(r.weight||'—')} kg · ${esc(r.split||'休息')}</small><em>${esc(r.calories||'—')} kcal</em></button>`).join('')}</div></section></section>`}
+function homePage(){const t=state.today,b=t.body||{},d=t.diet||{},tr=t.training||{};main.innerHTML=`<section class="home-page"><div class="home-stage"><div class="home-copy"><span class="home-index">01</span><span class="eyebrow">FITNESS JOURNAL</span><h1>Daily<br>Capture</h1><p>记录身体、饮食与训练，把自由文字沉淀为可回看的个人档案。</p><div class="home-actions"><button class="btn btn-primary" data-go="quick">记录今天 <span>→</span></button><button class="home-text-link" data-go="movements">查看动作档案</button></div></div><div class="home-photo" aria-hidden="true"></div><aside class="home-slip"><span class="eyebrow">LATEST ENTRY / ${esc(t.date||'—')}</span><div class="home-slip-value">${esc(value(b,'Weight (kg)'))}<small>kg</small></div><div class="home-slip-row"><span>${esc(value(tr,'split','训练部位'))}</span><span>${esc(value(d,'Calories (kcal)'))} kcal</span></div></aside><div class="home-orbit">RECORD · REVIEW · GROW ·</div></div><section class="home-index-strip"><div class="home-index-head"><span><b>02</b> RECENT ARCHIVE</span><button data-go="body">查看全部记录 →</button></div><div class="home-tickets">${state.recent.slice(0,3).map((r,i)=>`<button class="home-ticket" data-record="${esc(r.date)}"><span class="ticket-no">0${i+1}</span><strong>${esc(r.date)}</strong><small>${esc(r.weight||'—')} kg · ${esc(r.split||'休息')}</small><em>${esc(r.calories||'—')} kcal</em></button>`).join('')}</div></section></section>`}
 
 function quickPage(){main.innerHTML=`<section class="page entry-page"><header class="entry-header"><div><span class="eyebrow">02 / Unavailable</span><h1 class="page-title">Unavailable</h1><p class="page-subtitle">Unavailable</p></div><button class="home-text-link" data-go="home">← Unavailable</button></header><div class="entry-spread"><article class="capture"><span class="eyebrow">FREEFORM → STRUCTURED</span><h2>Unavailable</h2><textarea id="raw-entry" placeholder="写下今天的任何内容…"></textarea><div class="actions"><button class="btn btn-primary" id="parse">Unavailable →</button><button class="btn btn-light" data-mock="Unavailable">Undo last save</button></div><p class="phase">Read-only Web preview. Formal writes remain in the stable desktop app.</p></article><aside class="entry-aside">${statusPanel()}${recentPanel()}</aside></div></section>`}
 
@@ -466,32 +466,15 @@ async function autoSyncAfterSave(){
     if(latestStatus.auto_sync_enabled===false)return {status:'AUTO_SYNC_DISABLED',syncStatus:latestStatus};
     if(!latestStatus.upload_provider_ready)return {status:'AUTO_SYNC_NOT_CONFIGURED',syncStatus:latestStatus};
     const response=await postApi('/api/cloud-sync/sync',{trigger:'auto_save'},CLOUD_SYNC_TIMEOUT_MS);
-    const result=response.sync_result||{};
-    latestStatus=await api('/api/cloud-sync/status');
-    state.syncStatus={...latestStatus,sync_result:result};
+    state.syncStatus=response;
     updateSyncNav();
-    if(latestStatus.sync_status==='SYNCED')return {status:'SYNCED',reconciled:!['SYNCED','NO_CHANGES'].includes(result.status),syncStatus:state.syncStatus};
-    if(['UPLOAD_FAILED','CLOUD_MISMATCH','NOT_CONFIGURED'].includes(result.status))return {status:result.status,syncStatus:state.syncStatus};
-    return {status:'PENDING',syncStatus:state.syncStatus};
+    return response;
   }catch(error){
-    console.warn('[Daily Entry] auto-sync response was not confirmed',error);
-    for(let attempt=0;attempt<4;attempt++){
-      if(attempt)await new Promise(resolve=>window.setTimeout(resolve,1200*attempt));
-      try{
-        latestStatus=await api('/api/cloud-sync/status');
-        state.syncStatus=latestStatus;
-        updateSyncNav();
-        if(latestStatus.sync_status==='SYNCED')return {status:'SYNCED',reconciled:true,syncStatus:latestStatus};
-        if(['UPLOAD_FAILED','CLOUD_MISMATCH','NOT_CONFIGURED'].includes(latestStatus.sync_status))return {status:latestStatus.sync_status,syncStatus:latestStatus};
-      }catch(statusError){console.warn('[Daily Entry] auto-sync status reconciliation attempt failed',attempt+1,statusError)}
-    }
-    state.syncStatus={...(state.syncStatus||{}),sync_status:'SYNC_ERROR',payload_stale:true};
-    updateSyncNav();
-    return {status:'UNKNOWN',syncStatus:state.syncStatus};
+    console.warn('[Daily Entry] auto-sync result will be available in Cloud Sync',error);
+    return null;
   }
 }
-function autoSyncOutcomeMessage(outcome){const status=String(outcome?.status||'UNKNOWN');if(status==='SYNCED')return outcome?.reconciled?'记录已保存；自动同步结果已复核为成功。':'记录已保存，并已自动同步到云端。';if(status==='AUTO_SYNC_DISABLED')return '记录已保存；自动同步未启用，云端副本等待手动同步。';if(status==='AUTO_SYNC_NOT_CONFIGURED')return '记录已保存；自动同步未配置，云端副本等待手动同步。';if(status==='PENDING')return '记录已保存；云端尚未确认同步，请在 Cloud Sync 中查看状态。';if(status==='UPLOAD_FAILED'||status==='CLOUD_MISMATCH'||status==='NOT_CONFIGURED')return `记录已保存；云端同步未完成（${status}），可在 Cloud Sync 中手动重试。`;return '记录已保存；自动同步结果暂无法确认，请在 Cloud Sync 中查看最终状态。'}
-function showAutoSyncReceipt(outcome){const receipt=$('#save-receipt');if(!receipt)return;clearTimeout(state.receiptTimer);const message=autoSyncOutcomeMessage(outcome),ok=outcome?.status==='SYNCED';receipt.dataset.syncState=ok?'synced':'attention';receipt.innerHTML=`<span>${ok?'LOCAL + CLOUD CONFIRMED':'LOCAL SAVED · CLOUD STATUS'}</span><strong>${esc(message)}</strong>`;receipt.classList.add('is-visible');state.receiptTimer=setTimeout(()=>receipt.classList.remove('is-visible'),ok?7000:10000)}
+function previousSyncWasConfirmed(status){return ['SYNCED','NO_CHANGES'].includes(String(status?.sync_status||status?.last_sync_status||'').toUpperCase())}
 function updateSyncNav(){
   const nav=$('[data-sync-nav-entry]'),marker=nav?.querySelector('.sync-nav-status');
   if(!nav||!marker)return;
@@ -516,6 +499,7 @@ async function saveWebReview(saveMode=null){
   if(!review)return;
   if(reviewDuplicateCount()&&!saveMode){openSaveModeDialog();return}
   state.saving=true;
+  const previousSyncCheck=api('/api/cloud-sync/status').catch(()=>null);
   const button=$('[data-review-save]');
   if(button){button.disabled=true;button.textContent='正在保存…'}
   try{
@@ -533,7 +517,10 @@ async function saveWebReview(saveMode=null){
     if(result.status!=='NO_CHANGES'&&(result.training_updated||Number(result.saved_movements||0)>0)){
       try{invalidateMovementUsage()}catch(error){console.warn('[Daily Entry] save committed; movement cache refresh failed',error)}
     }
-    if(result.status!=='NO_CHANGES'){void autoSyncAfterSave().then(outcome=>{if(outcome){showToast(autoSyncOutcomeMessage(outcome));showAutoSyncReceipt(outcome)}}).catch(error=>console.warn('[Daily Entry] auto-sync deferred',error))}
+    if(result.status!=='NO_CHANGES'){
+      void previousSyncCheck.then(status=>{if(previousSyncWasConfirmed(status))showToast('上次云同步已确认。')});
+      void autoSyncAfterSave();
+    }
     const refreshPromise=refreshWebState().catch(error=>{console.warn('[Daily Entry] save committed; archive refresh failed',error);showToast('记录已保存，但页面状态刷新失败，请稍后查看。');return null});
     try{navigate('quick')}catch(error){console.warn('[Daily Entry] save committed; route refresh failed',error)}
     try{showSaveReceipt(result)}catch(error){console.warn('[Daily Entry] save receipt failed',error)}
@@ -1901,3 +1888,126 @@ const sharedLocaleObserver=new MutationObserver(()=>{if(sharedLocaleFrame)return
 sharedLocaleObserver.observe(main,{childList:true,subtree:true});sharedLocaleObserver.observe(root,{childList:true,subtree:true});
 localizeSharedSurface();
 document.addEventListener('click',event=>{const toggle=event.target.closest?.('[data-ui-language-toggle]');if(!toggle)return;event.preventDefault();event.stopImmediatePropagation();setUiLanguage(uiLanguage()==='zh'?'en':'zh');root.innerHTML='';renderRoute(parseRoute(),history.state||{})},true);
+
+// Keep everyday pages focused on the user's records and decisions. Technical
+// identity remains available behind the version control; sync troubleshooting
+// remains available inside its explicit advanced section.
+function applyPlainUserCopy(){
+  const english=uiLanguage()==='en',copy=(zh,en)=>english?en:zh;
+  const setText=(selector,text,scope=document)=>scope.querySelectorAll(selector).forEach(node=>{if(node.textContent!==text)node.textContent=text});
+  const setHtml=(selector,html,scope=document)=>scope.querySelectorAll(selector).forEach(node=>{if(node.innerHTML!==html)node.innerHTML=html});
+  const remove=(selector,scope=document)=>scope.querySelectorAll(selector).forEach(node=>node.remove());
+  setHtml('.privacy > div:not(.privacy-signals)',`${copy('个人档案','PERSONAL ARCHIVE')}<small>${copy('记录只在确认后保存','Records are saved after confirmation')}</small>`);
+  setText('.home-page .home-copy > .eyebrow',copy('健身记录','FITNESS JOURNAL'));
+  setText('.home-page .home-orbit',copy('记录 · 回看 · 坚持','RECORD · REVIEW · GROW ·'));
+  setText('.body-folio',copy('身体记录','BODY / RECORDS'));
+  setText('.records-status span',copy('正在显示最近记录','Showing recent records'));
+  setText('.entry-rule span:first-of-type',copy('今日记录','TODAY'));
+  setText('.entry-rule span:last-of-type',copy('个人档案','PERSONAL ARCHIVE'));
+  setText('.capture-tab','02 / DAILY ENTRY');
+  setText('.entry-page .capture > .eyebrow',copy('先记录 · 再确认','WRITE · THEN CONFIRM'));
+  setText('.entry-page .capture h2',copy('写下今天，稍后整理。','Write today. Sort it later.'));
+  setText('.entry-page .phase',copy('确认后才会保存；每次保存都会自动保留备份。','Nothing is saved until you confirm. A backup is kept after each save.'));
+  setText('.entry-save-float span',copy('可以开始记录','READY TO WRITE'));
+  setText('.entry-save-float strong',copy('可以开始记录','Ready to write'));
+  setText('.entry-save-float small',copy('确认后才会保存。','Saved after confirmation.'));
+  setText('.body-theme-deck-head .eyebrow',copy('训练','TRAINING'));
+  setText('.body-theme-deck-head h2',copy('训练主题','TRAINING THEMES'));
+  setText('.training-index > .eyebrow',copy('训练','TRAINING'));
+  setText('.session-facts span:nth-child(2)',copy('动作与组数','MOVEMENTS AND SETS'));
+  setText('.movement-detail-title .eyebrow',copy('动作历史','MOVEMENT HISTORY'));
+  setText('.trajectory-heading .eyebrow',copy('完整历史','FULL HISTORY'));
+  setText('.movement-progress-panel .progress-copy .eyebrow',copy('最近变化','RECENT CHANGE'));
+  setText('.movement-progress-panel .progress-copy h2',copy('近期表现','RECENT PERFORMANCE'));
+  setText('.progress-signal > span',copy('最近一次','LATEST'));
+  setText('.trajectory-heading p',copy('完整保留每次训练记录，趋势图用于查看近期变化。','Every training record is kept; the chart highlights recent change.'));
+  document.querySelectorAll('.movement-detail-stats span').forEach(node=>{
+    const text=[...node.childNodes].reverse().find(item=>item.nodeType===Node.TEXT_NODE);
+    if(text){const next=english?text.textContent.replace(' 次训练',' sessions').replace(' 最近一次',' latest').replace(' 首次',' first'):text.textContent.replace(' effective sessions',' 次训练').replace(' latest',' 最近一次').replace(' first',' 首次');if(next!==text.textContent)text.textContent=next}
+  });
+  setText('.entry-title-lockup .eyebrow','02 / DAILY ENTRY');
+  setText('.entry-title-lockup .page-subtitle',copy('先记录，再确认保存。','Write first, then confirm.'));
+  setText('.entry-page > .entry-header > .home-text-link',copy('← 返回主页','← Back to Home'));
+  setText('.entry-page #parse',copy('开始整理 →','Parse & Review →'));
+  const tools=document.querySelector('.tools-page'),adminTools=document.querySelector('.tools-template-v6');
+  if(tools){
+    setText('.tools-hero p',copy('管理记录、导出和同步。','Manage records, exports, and sync.'),tools);
+    setText('.tools-ledger > .eyebrow',copy('记录工具','RECORD TOOLS'),tools);
+    setHtml('.tools-ledger h2',copy('一个档案。<br><em>三种用途。</em>','One archive.<br><em>Three ways to use it.</em>'),tools);
+    setText('.tools-ledger > p',copy('记录、导出和同步都基于同一份档案。','Records, exports, and sync all use the same archive.'),tools);
+    setText('.tools-ledger-index span:nth-child(1)',copy('06 / 导出','06 / EXPORT'),tools);
+    setText('.tools-ledger-index span:nth-child(2)',copy('07 / 同步','07 / SYNC'),tools);
+    setText('.tools-ledger-index span:nth-child(3)',copy('08 / 数据检查','08 / DATA CHECK'),tools);
+    remove('.tools-ledger dl,.tool-row-tags,.tools-footnote',tools);
+    setText('.tool-row-export .eyebrow',copy('导出记录','EXPORT RECORDS'),tools);
+    setText('.tool-row-export strong',copy('导出','EXPORT'),tools);
+    setText('.tool-row-export small',copy('生成可保存的记录文件。','Create a file you can keep or share.'),tools);
+    setText('.tool-row-export > b',copy('进入导出 →','OPEN EXPORT →'),tools);
+    setText('.tool-row-sync .eyebrow',copy('同步记录','SYNC RECORDS'),tools);
+    setText('.tool-row-sync strong',copy('同步','SYNC'),tools);
+    setText('.tool-row-sync small',copy('将最新记录同步到云端，并查看手机端是否可用。','Sync the latest records and check phone access.'),tools);
+    setText('.tool-row-sync > b',copy('打开同步 →','OPEN SYNC →'),tools);
+    setText('.tool-row-health .eyebrow',copy('数据检查','DATA CHECK'),tools);
+    setText('.tool-row-health strong',copy('数据检查','DATA CHECK'),tools);
+    setText('.tool-row-health small',copy('只在需要时查看需要处理的记录。','Review records only when something needs attention.'),tools);
+    setText('.tool-row-health > b',copy('查看数据检查 →','OPEN DATA CHECK →'),tools);
+  }
+  if(adminTools&&!adminTools.classList.contains('dm-management-page')){
+    setText('.admin-breadcrumb strong',copy('记录工具','RECORD TOOLS'),adminTools);
+    setText('.admin-page-header h1',copy('工具','TOOLS'),adminTools);
+    setText('.admin-page-header p',copy('管理记录、同步和检查。','Manage records, sync, and checks.'),adminTools);
+    setText('.admin-header-actions [data-view="dictionary"]',copy('动作词典 →','MOVEMENT DICTIONARY →'),adminTools);
+    setText('.admin-export-card .admin-kicker',copy('01 / 导出记录','01 / EXPORT'),adminTools);
+    setText('.admin-export-card h2',copy('导出记录。','Export records.'),adminTools);
+    setText('.admin-export-card > p',copy('将身体、饮食、训练和动作记录整理成可保存的文件。','Arrange body, diet, training, and movement records into a file you can keep.'),adminTools);
+    setText('.admin-export-card .admin-card-footer > span',copy('记录文件','RECORD FILE'),adminTools);
+    setText('.admin-export-card .admin-card-footer strong',copy('进入导出 →','OPEN EXPORT →'),adminTools);
+    setText('.admin-health-card .admin-kicker',copy('02 / 记录检查','02 / RECORD CHECK'),adminTools);
+    setText('.admin-health-card h2',copy('保持记录清晰。','Keep records clear.'),adminTools);
+    setText('.admin-health-card .admin-panel-header p',copy('同步和数据检查各自只做一件事。','Sync and data check each have one job.'),adminTools);
+    setText('.admin-action-row[data-tools-panel="sync"] strong',copy('同步','SYNC'),adminTools);
+    setText('.admin-action-row[data-tools-panel="sync"] small',copy('同步最新记录，并查看手机端是否可用。','Sync the latest records and check phone access.'),adminTools);
+    setText('.admin-action-row[data-tools-panel="health"] strong',copy('数据检查','DATA CHECK'),adminTools);
+    setText('.admin-action-row[data-tools-panel="health"] small',copy('查看需要处理的记录问题。','Review records that need attention.'),adminTools);
+    setText('.admin-health-card .admin-card-footer > span',copy('记录检查','RECORD CHECK'),adminTools);
+    setText('.admin-health-card .admin-card-footer strong',copy('查看数据检查 →','OPEN DATA CHECK →'),adminTools);
+    setText('.admin-reference-card .admin-kicker',copy('参考工具','REFERENCE'),adminTools);
+    setText('.admin-reference-card p',copy('管理动作名称、别名和训练部位。','Manage movement names, aliases, and training areas.'),adminTools);
+    setText('.admin-reference-card button',copy('打开动作词典 →','OPEN MOVEMENT DICTIONARY →'),adminTools);
+    setText('.admin-workspace-nav[data-tools-panel="sync"]',copy('同步','SYNC'),adminTools);
+    setText('.admin-workspace-nav[data-tools-panel="health"]',copy('数据检查','DATA CHECK'),adminTools);
+    setText('.admin-workspace-nav[data-tools-panel="export"]',copy('导出','EXPORT'),adminTools);
+    setText('.admin-workspace-nav[data-view="dictionary"]',copy('动作词典','MOVEMENT DICTIONARY'),adminTools);
+    setText('.admin-workspace-brand span',copy('记录工具','RECORD TOOLS'),adminTools);
+    setText('.admin-workspace-brand strong',copy('档案工具','Archive tools'),adminTools);
+    setText('.admin-workspace-footer .admin-status-badge',copy('个人档案','PERSONAL ARCHIVE'),adminTools);
+    setText('.admin-workspace-footer small',copy('记录以确认结果为准。','Records follow confirmed results.'),adminTools);
+    setText('.admin-kpi-card:nth-child(1) .admin-kpi-label',copy('待处理问题','OPEN ISSUES'),adminTools);
+    setText('.admin-kpi-card:nth-child(1) small',copy('需要查看','needs review'),adminTools);
+    setText('.admin-kpi-card:nth-child(2) .admin-kpi-label',copy('最近记录','LATEST RECORD'),adminTools);
+    setText('.admin-kpi-card:nth-child(2) small',copy('本地记录','record date'),adminTools);
+    setText('.admin-kpi-card:nth-child(3) .admin-kpi-label',copy('云端记录','CLOUD RECORDS'),adminTools);
+    setText('.admin-kpi-card:nth-child(3) small',copy('手机端读取','phone access'),adminTools);
+    setText('.admin-kpi-card:nth-child(4) .admin-kpi-label',copy('数据检查','DATA CHECK'),adminTools);
+    setText('.admin-kpi-card:nth-child(4) small',copy('按需查看','on demand'),adminTools);
+    remove('.admin-workspace-effects',adminTools);
+  }
+  const sync=document.querySelector('.cloud-sync-page');
+  if(sync){
+    const replaceIf=(selector,from,to)=>sync.querySelectorAll(selector).forEach(node=>{if(node.textContent.trim()===from)node.textContent=to});
+    setText('.admin-breadcrumb strong',copy('同步','SYNC'),sync);
+    setText('.cloud-sync-business-head h1',copy('同步记录','SYNC RECORDS'),sync);
+    setText('.cloud-sync-business-head p',copy('查看记录是否已同步到手机，并在需要时手动同步。','Check whether your records reached your phone, and sync manually when needed.'),sync);
+    setText('.cloud-sync-user-card.is-cloud span',copy('云端记录','CLOUD RECORDS'),sync);
+    setText('.cloud-sync-user-card.is-phone span',copy('手机端','PHONE'),sync);
+    setText('.admin-panel-header .admin-kicker',copy('同步状态','SYNC STATUS'),sync);
+    setText('.cloud-sync-business-help .admin-kicker',copy('同步结果','SYNC RESULT'),sync);
+    replaceIf('.admin-status-badge,.cloud-sync-business-primary h2','尚未配置',copy('尚未同步','NOT SYNCED'));
+    replaceIf('.admin-sync-local-state span,.admin-safety-note','当前还未完成云端配置，本地记录不会受到影响。',copy('记录仍保存在本地，完成同步后手机端即可查看。','Your records remain here until sync completes; then they will be available on your phone.'));
+    replaceIf('.admin-sync-local-state span,.admin-safety-note','本地数据不受影响；完成配置后即可启用云端同步。',copy('记录仍保存在本地，完成同步后手机端即可查看。','Your records remain here until sync completes; then they will be available on your phone.'));
+    sync.querySelectorAll('#cloud-sync-stage').forEach(node=>{if(/配置|CloudBase|configuration/i.test(node.textContent))node.textContent=copy('尚未同步；记录仍保存在本地，完成同步后手机端即可查看。','Not synced yet. Your records remain here until sync completes.');});
+  }
+}
+const localizeSharedSurfaceWithPlainCopy=localizeSharedSurface;
+localizeSharedSurface=function(...args){localizeSharedSurfaceWithPlainCopy(...args);applyPlainUserCopy()};
+applyPlainUserCopy();

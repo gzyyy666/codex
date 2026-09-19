@@ -109,7 +109,7 @@ def main() -> None:
             "screenWidth": 390, "screenHeight": 844,
         })
         command(browser, "Page.reload", {"ignoreCache": True})
-        wait(browser, "document.readyState==='complete' && !!document.querySelector('.area-list') && document.body.innerText.includes('睡眠评分')")
+        wait(browser, "document.readyState==='complete' && !!document.querySelector('.home-module-pill') && document.body.innerText.includes('睡眠评分')")
 
         widget = browser.evaluate("(() => { const x=document.querySelector('.module-page-widget'); const r=x.getBoundingClientRect(); return {text:x.innerText,width:r.width,right:innerWidth-r.right,innerWidth,clientWidth:document.documentElement.clientWidth,visualWidth:visualViewport.width}; })()")
         assert "睡眠评分" in widget["text"] and "7" in widget["text"]

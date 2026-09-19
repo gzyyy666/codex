@@ -20,7 +20,7 @@ const DEFAULT_ACTIVE_BODY_PART_IDS = new Set(["chest", "shoulders", "back", "leg
 const DEFAULT_BODY_PART_ORDER = ["chest", "shoulders", "back", "legs", "arms", "glutes", "core", "cardio"];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "PWA v1.1.32 · build 2026.09.17.09";
+const BUILD_VERSION = "1.1.32";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -139,12 +139,12 @@ async function sendTrainingNote() {
     sent = true;
   } catch (error) {
     const code = String(error?.code || error?.message || error);
-    if (code.includes("WEB_AUTH_DISABLED")) state.shareError = "当前是匿名 Review 预览，未连接真实 CloudBase；正式 PWA 登录后才能发送。";
-    else if (code.includes("AUTH_ACCOUNT_REQUIRED")) state.shareError = "当前只有匿名或临时登录态，不能归入账号收件箱。请在状态页登录与电脑端相同的 CloudBase 账号。";
-    else if (code.includes("AUTH_REQUIRED")) state.shareError = "请先登录与电脑端相同的 CloudBase 账号，再确认发送。";
-    else if (code.includes("CLOUDBASE_ENV_MISSING")) state.shareError = "当前环境没有配置 CloudBase，暂时不能发送。";
+    if (code.includes("WEB_AUTH_DISABLED")) state.shareError = "当前页面暂不支持发送，请打开正式地址并登录后重试。";
+    else if (code.includes("AUTH_ACCOUNT_REQUIRED")) state.shareError = "请先在状态页登录与电脑端相同的账号，再发送记录。";
+    else if (code.includes("AUTH_REQUIRED")) state.shareError = "请先登录账号，再确认发送。";
+    else if (code.includes("CLOUDBASE_ENV_MISSING")) state.shareError = "当前服务暂不可用，请稍后重试。";
     else if (code.includes("PHONE_INBOX_") && code.includes("TIMEOUT")) state.shareError = "发送等待超过 15 秒，未显示为成功；记事内容仍保留。请检查网络后重试。";
-    else if (code.includes("PHONE_INBOX_WRITE_VERIFY_FAILED")) state.shareError = "云端没有返回当前账号的收件记录，本次不会显示为发送成功。请确认手机打开的是正式地址，并已登录与电脑端相同的 CloudBase 账号。";
+    else if (code.includes("PHONE_INBOX_WRITE_VERIFY_FAILED")) state.shareError = "电脑端没有收到这条记录，本次不会显示为发送成功。请确认已打开正式地址，并登录相同账号。";
     else state.shareError = "发送失败，本次没有写入云端；当前记事内容仍保留在页面中。";
   }
   state.shareBusy = false;
@@ -155,7 +155,7 @@ async function sendTrainingNote() {
 function renderSharePanel() {
   if (!state.shareOpen) return "";
   const actions = `<button class="share-confirm-secondary" data-action="close-share-panel" ${state.shareBusy ? "disabled" : ""}>取消</button><button class="share-confirm-primary" data-action="send-training-note" ${state.shareBusy ? "disabled" : ""}>${state.shareBusy ? "正在发送…" : "确认发送"}</button>`;
-  return `<dialog id="share-confirm-dialog" class="share-confirm-dialog" aria-labelledby="share-confirm-title"><section class="share-confirm-sheet"><span class="share-confirm-eyebrow">LOCAL → DESKTOP</span><span class="share-confirm-mark" aria-hidden="true">↑</span><h2 id="share-confirm-title">发送到电脑？</h2><p class="share-confirm-copy">确认后，这条训练记录会发送到电脑端的「当日训练记录」。</p>${state.shareError ? `<p class="share-confirm-error" role="alert">${esc(state.shareError)}</p>` : ""}<div class="share-confirm-actions">${actions}</div></section></dialog>`;
+  return `<dialog id="share-confirm-dialog" class="share-confirm-dialog" aria-labelledby="share-confirm-title"><section class="share-confirm-sheet"><span class="share-confirm-eyebrow">电脑端</span><span class="share-confirm-mark" aria-hidden="true">↑</span><h2 id="share-confirm-title">发送到电脑？</h2><p class="share-confirm-copy">确认后，这条训练记录会发送到电脑端的「当日训练记录」。</p>${state.shareError ? `<p class="share-confirm-error" role="alert">${esc(state.shareError)}</p>` : ""}<div class="share-confirm-actions">${actions}</div></section></dialog>`;
 }
 function loadIncomingShareIntent() {
   const params = new URLSearchParams(window.location.search);
@@ -227,22 +227,27 @@ function navigate(route) { resetViewport(); window.location.hash = route; }
 function setError(error) {
   if (["AUTH_REQUIRED", "AUTH_ACCOUNT_REQUIRED", "HTTP_401", "UNAUTHORIZED"].includes(error?.message)) {
     state.authRequired = true;
-    state.authMessage = "请先登录 CloudBase 网页账号。";
+    state.authMessage = "请先登录账号。";
     return;
   }
   state.error = "读取失败，请检查网络与只读接口。";
 }
 function renderStartupError() {
   if (!app) return;
-  app.innerHTML = `<main class="page"><div class="eyebrow">STARTUP / RECOVERY</div><h1 class="title">页面正在恢复。</h1><p class="intro">工作台脚本没有正常启动。请刷新一次；如果仍为空白，请把当前页面地址发给我。</p><button class="archive-entry" onclick="location.reload()"><span><strong>重新加载</strong><small>刷新工作台</small></span><b>↻</b></button></main>`;
+  app.innerHTML = `<main class="page"><div class="eyebrow">页面恢复</div><h1 class="title">页面正在恢复。</h1><p class="intro">工作台没有正常启动。请刷新一次；如果仍为空白，请把当前页面地址发给我。</p><button class="archive-entry" onclick="location.reload()"><span><strong>重新加载</strong><small>刷新工作台</small></span><b>↻</b></button></main>`;
 }
 
+function formatSyncTime(value) {
+  const stamp = Date.parse(String(value || ""));
+  if (!Number.isFinite(stamp)) return value || "尚未同步";
+  return new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(stamp));
+}
 function freshness(meta) {
-  if (!meta) return "同步状态未知";
+  if (!meta) return { text: "最近同步：尚未同步", stale: true };
   const generated = String(meta.generated_at || "");
   const stamp = Date.parse(generated);
   const stale = Number.isFinite(stamp) && (Date.now() - stamp) > 48 * 3600000;
-  return { text: `云端更新 ${generated || "尚未同步"} · 最新记录 ${meta.latest_record_date || "暂无"}`, stale };
+  return { text: `最近同步 ${formatSyncTime(generated)} · 最新记录 ${meta.latest_record_date || "暂无"}`, stale };
 }
 
 function setLine(item) {
@@ -418,11 +423,6 @@ function enhanceDataModuleSurface() {
   if (pageName && app) app.insertAdjacentHTML("beforeend", renderPageWidgets(pageName));
   enhanceCategoryArchive();
   enhanceRecordDetail();
-  if (state.route.name === "status" && !state.loading && !state.error) {
-    const slab = document.querySelector(".status-slab");
-    const count = state.dataModuleContract.modules.length;
-    slab?.insertAdjacentHTML("beforeend", `<div class="row"><span>手机扩展指标</span><b>${state.dataModuleError ? "暂不可用" : `${count} 项`}</b></div>`);
-  }
 }
 
 function refreshDataModules() {
@@ -447,10 +447,19 @@ function renderShell(content) {
 }
 function pageStart(className = "") { return `<main class="page ${className}">`; }
 function pageEnd() { return "</main>"; }
-function header(eyebrow, title, intro = "") { return `<div class="eyebrow">${esc(eyebrow)}</div><h1 class="title">${title}</h1>${intro ? `<p class="intro">${esc(intro)}</p>` : ""}`; }
+function userFacingEyebrow(value) {
+  return {
+    "BODY ARCHIVE / READ ONLY": "身体记录",
+    "DIET ARCHIVE / READ ONLY": "饮食记录",
+    "SESSION / READ ONLY": "训练详情",
+    "DAILY ARCHIVE / READ ONLY": "记录详情",
+    "READ ONLY / MOVEMENT HISTORY": "动作历史"
+  }[String(value)] || value;
+}
+function header(eyebrow, title, intro = "") { return `<div class="eyebrow">${esc(userFacingEyebrow(eyebrow))}</div><h1 class="title">${title}</h1>${intro ? `<p class="intro">${esc(intro)}</p>` : ""}`; }
 function stateMessage(message, error = false) { return `<div class="state ${error ? "error" : ""}">${esc(message)}</div>`; }
 function renderLogin() {
-  return `<main class="page auth-page"><div class="eyebrow">PRIVATE WEB ACCESS / CLOUDBASE</div><h1 class="title">登录每日健身</h1><p class="intro">这是个人只读训练档案。登录只用于验证网页访问身份，不会修改小程序数据。</p><form class="auth-card" data-login><label>账号<input name="username" autocomplete="username" required></label><label>密码<input name="password" type="password" autocomplete="current-password" required></label><button class="auth-submit" type="submit" ${state.authBusy ? "disabled" : ""}>${state.authBusy ? "登录中…" : "登录"}</button>${state.authMessage ? `<p class="auth-error">${esc(state.authMessage)}</p>` : ""}</form></main>`;
+  return `<main class="page auth-page"><div class="eyebrow">个人训练档案</div><h1 class="title">登录每日健身</h1><p class="intro">登录后查看你的训练记录与同步状态。登录不会修改原始记录。</p><form class="auth-card" data-login><label>账号<input name="username" autocomplete="username" required></label><label>密码<input name="password" type="password" autocomplete="current-password" required></label><button class="auth-submit" type="submit" ${state.authBusy ? "disabled" : ""}>${state.authBusy ? "登录中…" : "登录"}</button>${state.authMessage ? `<p class="auth-error">${esc(state.authMessage)}</p>` : ""}</form></main>`;
 }
 
 function normalizeCandidateText(value) {
@@ -635,7 +644,7 @@ function renderReference() {
     : state.loading ? `<section class="theme-strip theme-strip--loading" aria-label="Movement Modules" aria-busy="true"><div class="module-rail-status" role="status"><span aria-hidden="true"></span>正在整理训练模块…</div></section>` : "";
   const selectedArea = state.area || selected?.area || null;
   const archive = !modulesReady || !selected ? "" : renderMovementModuleArchive(selectedArea);
-  const header = `<header class="home-header"><div class="home-header-top"><div class="eyebrow">LOCAL ONLY / TRAINING NOTE</div><div class="home-motif" aria-hidden="true">A<br>STRONGER<br>YOU<br>EVERYDAY<br><i></i></div></div><h1 class="home-title">训练首页。</h1>${fresh ? `<div class="home-meta freshness ${fresh.stale ? "stale" : ""}">${esc(fresh.text)}</div>` : ""}</header>`;
+  const header = `<header class="home-header"><div class="home-header-top"><div class="eyebrow">TRAINING NOTE / 训练记录</div><div class="home-motif" aria-hidden="true">A<br>STRONGER<br>YOU<br>EVERYDAY<br><i></i></div></div><h1 class="home-title">训练首页。</h1>${fresh ? `<div class="home-meta freshness ${fresh.stale ? "stale" : ""}">${esc(fresh.text)}</div>` : ""}</header>`;
   const candidateStable = state.noteDetailOpen || state.noteCandidatesLoading || state.noteCandidates.length ? " reference-home--stable" : "";
   return renderShell(`${pageStart(`reference-page reference-home ${palette}${candidateStable}`)}<div class="home-shell" data-home-state="${stateName}" data-theme-color="${colorKey}">${header}${note}<div data-candidate-region>${renderCandidateOverlay()}</div>${pills}${state.loading ? stateMessage("正在整理训练档案…") : state.error ? stateMessage(state.error, true) : archive}</div>${state.noteDetailOpen ? renderNoteDetail() : ""}${pageEnd()}`);
 }
@@ -675,13 +684,13 @@ function renderTraining() {
     const sessionLabel = group.items.length > 1 ? `第 ${index + 1} 次训练` : "独立 session";
     return `<button class="training-slip session-record-card slip-tone-${(groupIndex + index) % 3}" data-action="training-session" data-session-id="${esc(item.id || "")}" data-date="${esc(item.Date || item.date || "")}"><span class="training-index">${String(groupIndex + index + 1).padStart(2, "0")}</span><span class="slip-label">${esc(sessionLabel)}</span><b class="training-date">${esc(item.Date || item.date || "")}</b><div class="training-theme-chips">${themes.map(theme => `<span>${esc(theme)}</span>`).join("")}</div><strong>${esc(themes.join(" · "))}</strong><div class="session-card-facts"><span>${movementCount} 个动作</span><span>${esc(sessionLabel)}</span></div><p>${esc(item["Standardized Summary"] || item.Summary || "暂无训练摘要")}</p>${item.Notes ? `<div class="training-note">${esc(item.Notes)}</div>` : ""}<span class="training-action">查看 session 详情 →</span></button>`;
   }).join("")}</section>`).join("");
-  return renderShell(`${pageStart("training-page")}<img class="archive-art" src="./images/training-archive.webp" alt="">${header("TRAINING ARCHIVE / SESSIONS", "训练记录。", "日期只用于分组；每张卡片对应一个独立 training session。")}${fresh ? `<div class="freshness ${fresh.stale ? "stale" : ""}">${esc(fresh.text)}</div>` : ""}<div class="archive-tools"><input data-search placeholder="搜索日期，如 6-30 / 06.30" value="${esc(state.query)}"><button data-action="toggle-order">${state.order === "newest" ? "最新优先 ↓" : "最早优先 ↑"}</button></div>${state.loading ? stateMessage("正在读取训练档案…") : state.error ? stateMessage(state.error, true) : records.length ? `<section class="training-list">${cards}</section>` : stateMessage("没有匹配的训练记录。")}${pageEnd()}`);
+  return renderShell(`${pageStart("training-page")}<img class="archive-art" src="./images/training-archive.webp" alt="">${header("训练记录", "训练记录。", "按日期查看每次训练。")}${fresh ? `<div class="freshness ${fresh.stale ? "stale" : ""}">${esc(fresh.text)}</div>` : ""}<div class="archive-tools"><input data-search placeholder="搜索日期，如 6-30 / 06.30" value="${esc(state.query)}"><button data-action="toggle-order">${state.order === "newest" ? "最新优先 ↓" : "最早优先 ↑"}</button></div>${state.loading ? stateMessage("正在读取训练档案…") : state.error ? stateMessage(state.error, true) : records.length ? `<section class="training-list">${cards}</section>` : stateMessage("没有匹配的训练记录。")}${pageEnd()}`);
 }
 function filterRecords(records, query, order) { const needle = String(query || "").trim().replace(/[./]/g, "-"); return [...records].filter(item => !needle || String(item.Date || "").includes(needle)).sort((a, b) => (order === "oldest" ? 1 : -1) * String(a.Date || "").localeCompare(String(b.Date || ""))); }
 
 function renderStatus() {
   const fresh = state.status;
-  return renderShell(`${pageStart("status-page")}${header("LOCAL-FIRST / READ ONLY", "同步与档案。")}${state.loading ? stateMessage("检查中…") : state.error ? stateMessage(state.error, true) : `<section class="status-slab"><span class="status-dot"></span><div class="eyebrow">REPLICA STATUS</div><h2>只读副本已连接</h2><div class="row"><span>最后同步</span><b>${esc(fresh?.generated_at || "尚未同步")}</b></div><div class="row"><span>最新记录</span><b>${esc(fresh?.latest_record_date || "暂无")}</b></div><div class="row"><span>数据结构</span><b>${esc(fresh?.schema || "-")}</b></div></section><button class="archive-entry" data-route="body"><span><span class="eyebrow">SECONDARY ARCHIVE</span><strong>身体记录</strong><small>体重、排便、训练与有氧</small></span><b>→</b></button><button class="archive-entry diet-entry" data-route="diet"><span><span class="eyebrow">SECONDARY ARCHIVE</span><strong>饮食记录</strong><small>热量、三大营养素与餐食便签</small></span><b>→</b></button><section class="debug-card"><div class="eyebrow">ACCESS DIAGNOSTICS / NO PRIVATE DATA</div><div class="row"><span>权限</span><b>${state.identity?.openid ? "已识别账号" : "未识别 / Web 端"}</b></div><div class="row"><span>OpenID</span><b>${esc(state.identity?.openid || "未获取")}</b></div><div class="row"><span>Environment</span><b>${esc(state.identity?.env || "当前部署环境")}</b></div><div class="row"><span>前端版本</span><b>${BUILD_VERSION}</b></div></section>`}${pageEnd()}`);
+  return renderShell(`${pageStart("status-page")}${header("同步与档案", "同步与档案。")}${state.loading ? stateMessage("检查中…") : state.error ? stateMessage(state.error, true) : `<section class="status-slab"><span class="status-dot"></span><div class="eyebrow">同步状态</div><h2>记录状态正常</h2><div class="row"><span>最后同步</span><b>${esc(formatSyncTime(fresh?.generated_at))}</b></div><div class="row"><span>最新记录</span><b>${esc(fresh?.latest_record_date || "暂无")}</b></div><div class="row"><span>扩展指标</span><b>${state.dataModuleError ? "暂不可用" : `${state.dataModuleContract.modules.length} 项`}</b></div></section><button class="archive-entry" data-route="body"><span><span class="eyebrow">身体档案</span><strong>身体记录</strong><small>体重、排便、训练与有氧</small></span><b>→</b></button><button class="archive-entry diet-entry" data-route="diet"><span><span class="eyebrow">饮食档案</span><strong>饮食记录</strong><small>热量、三大营养素与餐食便签</small></span><b>→</b></button><div class="pwa-version">版本 ${BUILD_VERSION}</div>`}${pageEnd()}`);
 }
 
 function renderArchive(kind) {
@@ -1123,7 +1132,7 @@ document.addEventListener("submit", async event => {
     resetViewport();
     await loadRoute();
   } catch (_) {
-    state.authBusy = false; state.authMessage = "登录失败，请检查账号、密码和 CloudBase 登录方式。"; render();
+    state.authBusy = false; state.authMessage = "登录失败，请检查账号和密码后重试。"; render();
   }
 });
 document.addEventListener("click", event => {

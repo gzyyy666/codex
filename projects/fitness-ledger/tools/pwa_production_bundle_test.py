@@ -52,7 +52,7 @@ def main() -> None:
     assert "getLoginState" in api
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
-    assert 'fitness-ledger-pwa-v73' in service_worker
+    assert 'fitness-ledger-pwa-v74' in service_worker
     assert '"./share.html"' in service_worker
     assert '"./share.js?v=20260827-02"' in service_worker
 

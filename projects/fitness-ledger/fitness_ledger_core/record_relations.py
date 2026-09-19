@@ -227,7 +227,7 @@ def _apply_unambiguous_cardio_migration(database: dict, report: dict) -> None:
             value = next(entry["value"] for entry in row["legacy_values"] if entry["value"])
             if str(target.get("Cardio", "") or "").strip() != value:
                 target["Cardio"] = value
-                target["updated_at"] = now_iso()
+                target.setdefault("updated_at", f"{day}T00:00:00")
                 report["changed"] = True
         for session in _rows(database, "training_sessions"):
             if canonical_date(session.get("Date")) == day and "Cardio" in session:
@@ -478,6 +478,7 @@ def migrate_state(database: dict, dictionary: dict) -> tuple[dict, dict, dict]:
                     "source": "legacy movement migration",
                     "record_day_id": record_day_id(legacy_date),
                     "movement_items": [],
+                    "organization_relations": [],
                     "revision": 1,
                     "updated_at": f"{legacy_date}T00:00:00",
                 }

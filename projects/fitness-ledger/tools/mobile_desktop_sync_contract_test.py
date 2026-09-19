@@ -50,7 +50,10 @@ def main() -> None:
     assert "last_message_id" in phone_store and "deleted_ids" in phone_store and "os.replace" in phone_store
     assert "localStorage" not in phone_client
     assert 'phone-inbox-client.js?v=' in app
-    assert "autoSyncOutcomeMessage" in app and "reconciled:true" in app
+    assert "previousSyncWasConfirmed" in app
+    assert "showToast('上次云同步已确认。')" in app
+    assert "void autoSyncAfterSave();" in app
+    assert "autoSyncOutcomeMessage" not in app
     assert "notice" in share and "已复制到剪贴板" in share
     assert "pendingSend" in share and "confirm-send" in share
     assert 'state.incoming.mode === "outbound"' in share

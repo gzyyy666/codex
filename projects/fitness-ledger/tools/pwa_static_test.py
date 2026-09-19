@@ -54,7 +54,7 @@ def main() -> None:
     assert "refreshCandidateOverlay" in app_source
     assert "noteHistoryCache" in app_source
     assert 'data-candidate-region' in app_source
-    assert 'PWA v1.1.32 · build 2026.09.17.09' in app_source
+    assert 'const BUILD_VERSION = "1.1.32"' in app_source
     assert 'data-action="expand-note">发送到电脑</button>' in app_source
     assert 'if (action === "expand-note") { state.noteExpanded = true; state.shareDraft = state.note; state.shareTitle = "手机训练记录"; state.shareSent = false;' in app_source
     assert '确认发送' in app_source and 'PHONE_INBOX_TIMEOUT_MS = 15000' in app_source
@@ -75,7 +75,7 @@ def main() -> None:
         "enhanceRecordDetail",
         "renderPageWidgets",
         "route-back",
-        "手机扩展指标",
+        "扩展指标",
     ):
         assert marker in source, f"missing phone Data Module marker: {marker}"
     candidate_update = app_source.split("async function updateCandidates()", 1)[1].split("async function openNoteCandidate", 1)[0]
@@ -104,12 +104,14 @@ def main() -> None:
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'includes("/api/")' in service_worker
-    assert 'fitness-ledger-pwa-v73' in service_worker
+    assert 'fitness-ledger-pwa-v74' in service_worker
     assert '"./data-modules.js?v=20260917-07"' in service_worker
     assert '"./styles-blur-height-fix.css"' in service_worker
     assert 'register("./sw-blur-height-fix.js", { updateViaCache: "none" })' in app_source
     assert 'styles-blur-height-fix.css' in source
     assert 'manifest-blur-height-fix.webmanifest' in source
+    for hidden_copy in ("PRIVATE WEB ACCESS / CLOUDBASE", "ACCESS DIAGNOSTICS / NO PRIVATE DATA", "OpenID", "Environment", "CloudBase 登录方式"):
+        assert hidden_copy not in app_source, f"technical UI copy leaked: {hidden_copy}"
     assert '.reference-page.reference-home { overflow: visible; }' in css_source
     assert '.reference-home .note-stack:not(.note-stack--compact) .note-sheet { min-height:440px; }' in css_source
     assert 'document.documentElement.classList.add("pwa-note-focused")' in app_source

@@ -2903,6 +2903,11 @@ class LedgerCommandService:
         source_movements = training.setdefault("movements", [])
         movements = []
         for movement in source_movements:
+            movement_name = str(movement.get("display_name") or movement.get("name") or "").strip().lower()
+            if movement_name == "cardio" or movement.get("cardio") not in (None, "", {}, []):
+                if not str(body.get("cardio_summary") or "").strip():
+                    body["cardio_summary"] = str(movement.get("raw") or "").strip()
+                continue
             movements.append(movement)
         training["movements"] = movements
         summary = "；".join(

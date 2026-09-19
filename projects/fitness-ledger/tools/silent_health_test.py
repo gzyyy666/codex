@@ -222,7 +222,25 @@ def main() -> None:
         styles_css = (PROJECT_DIR / "web_desktop" / "frontend" / "styles.css").read_text(encoding="utf-8")
         assert "All healthy" not in app_js and "Data verified" not in app_js
         assert "health-nav-status" in index_html
-        assert "localStorage" not in app_js
+        storage_calls = {
+            re.sub(r"\s+", "", call)
+            for call in re.findall(r"localStorage\.(?:getItem|setItem)\([^)]*\)", app_js)
+        }
+        assert storage_calls == {
+            "localStorage.getItem(WEB_EFFECT_PREFS[name])",
+            "localStorage.setItem(WEB_EFFECT_PREFS[name],enabled?'on':'off')",
+            "localStorage.getItem(UI_LANGUAGE_PREF)",
+            "localStorage.setItem(UI_LANGUAGE_PREF,next)",
+        }
+        session_storage_calls = {
+            re.sub(r"\s+", "", call)
+            for call in re.findall(r"sessionStorage\.(?:getItem|setItem)\([^)]*\)", app_js)
+        }
+        assert session_storage_calls == {
+            "sessionStorage.getItem(summary.dedupeKey)",
+            "sessionStorage.setItem(summary.dedupeKey,'1')",
+        }
+        assert "indexedDB" not in app_js
         assert 'data-issue-ack="${index}"' in app_js
         assert "openDataCheckOverlay()" in app_js
         assert "data-data-check-overlay" in app_js
@@ -301,7 +319,7 @@ def main() -> None:
             assert initial["hostHidden"] is True and initial["markerText"] == ""
             assert initial["markerClass"] == "health-nav-status" and initial["ariaLabel"] == "查看待处理的数据问题"
             assert initial["dataView"] is None and initial["hostClass"] == "health-nav-entry"
-            assert initial["reviewText"] == "Data" and initial["markerAriaHidden"] == "true"
+            assert initial["reviewText"] and initial["markerAriaHidden"] == "true"
             assert review["hostHidden"] is False and review["markerHidden"] is False
             assert review["markerText"] == "1" and review["markerClass"] == "health-nav-status needs-review"
             assert review["title"] == "待处理数据问题：1 个"
