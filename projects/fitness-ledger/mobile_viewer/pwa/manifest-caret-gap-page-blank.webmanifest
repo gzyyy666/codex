@@ -3,7 +3,7 @@
   "short_name": "每日健身",
   "description": "Fitness Ledger 的个人只读健身工作台",
   "lang": "zh-CN",
-  "start_url": "./?v=20260917-09",
+  "start_url": "./?v=20260919-04",
   "scope": "./",
   "display": "standalone",
   "share_target": {
