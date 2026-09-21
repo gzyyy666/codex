@@ -167,7 +167,7 @@ def _start_browser(port: int) -> tuple[subprocess.Popen[bytes], DevToolsSocket, 
     )
     target = _wait_target(debug_port, target_url)
     browser = DevToolsSocket(str(target["webSocketDebuggerUrl"]))
-    _wait(browser, "document.readyState==='complete' && !!document.querySelector('.sidebar') && document.body.innerText.includes('Daily Entry') && window.__fitnessLedgerFormalMirrorReady===true")
+    _wait(browser, "document.readyState==='complete' && !!document.querySelector('.sidebar') && (document.body.innerText.includes('Daily Entry') || document.body.innerText.includes('每日录入')) && window.__fitnessLedgerFormalMirrorReady===true")
     return process, browser, user_data
 
 

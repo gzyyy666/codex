@@ -31,13 +31,13 @@ def browser_contract() -> None:
     assert script_match
     script = script_match.group(0)
     harness = r"""
-let movementHistoryCount=1;
+let movementHistoryCount=2;
 const emptyState=()=>({
   today:{date:'2099-01-01'},recent:[],body:[],diet:[],training:[],dictionary:[],
   movements:[{movement_id:'MOV_A',display_name:'Test Press',english_name:'Test Press',muscle_group:'Chest',active:true,history_count:movementHistoryCount}],
   movementGroups:['Chest'],sync:{sync_status:'SYNCED'},build:{status:'PREVIEW',short_sha:'test'}
 });
-let historyRows=[{date:'2099-01-01',id:'h1',sets_lines:['10kg x 8 x 2']}];
+let historyRows=[{date:'2099-01-01',id:'h1',sets_lines:['10kg x 8 x 2']},{date:'2098-12-25',id:'h0',sets_lines:['9kg x 8 x 2']}];
 let movementHistoryRequests=0,saveStatus='UPDATED',failSave=false,historyEditStatus='UPDATED';
 window.confirm=()=>true;
 window.fetch=async (path,options={})=>{
@@ -46,7 +46,7 @@ window.fetch=async (path,options={})=>{
   const state=emptyState();
   if(method==='POST'&&url.includes('/api/save')){
     if(failSave)return {ok:false,status:500,json:async()=>({error:'save failed'})};
-    if(saveStatus!=='NO_CHANGES'){historyRows=[{date:'2099-01-02',id:'h2',sets_lines:['12kg x 8 x 2']},...historyRows];movementHistoryCount=2;}
+    if(saveStatus!=='NO_CHANGES'){historyRows=[{date:'2099-01-02',id:'h2',sets_lines:['12kg x 8 x 2']},...historyRows];movementHistoryCount=3;}
     return {ok:true,status:200,json:async()=>({ok:true,status:saveStatus,training_updated:saveStatus!=='NO_CHANGES',saved_movements:saveStatus==='NO_CHANGES'?0:1,date:'2099-01-02'})};
   }
   if(method==='POST'&&url.includes('/api/movement-history/update')){
@@ -55,7 +55,9 @@ window.fetch=async (path,options={})=>{
   }
   if(url.includes('/api/movement-history')){
     movementHistoryRequests++;
-    return {ok:true,status:200,json:async()=>({movement:state.movements[0],history:historyRows,progress_history:historyRows})};
+    const limited=new URL(url,window.location.href).searchParams.get('limit')==='1';
+    const rows=limited?historyRows.slice(0,1):historyRows;
+    return {ok:true,status:200,json:async()=>({movement:{...state.movements[0],history_count:historyRows.length},history:rows,progress_history:rows})};
   }
   if(method==='POST'&&url.includes('/api/record/update')){
     return {ok:true,status:200,json:async()=>({ok:true,status:'UPDATED',training_updated:true})};
@@ -85,18 +87,27 @@ await wait(250);
 navigate('movements');
 await wait(350);
 const initialRequests=movementHistoryRequests;
-const initialLoaded=state.usageLoaded===true&&state.movementUsage.MOV_A.count===1;
+const initialLoaded=state.usageLoaded===true&&state.movementUsage.MOV_A.count===2;
 navigate('movements');
 await wait(120);
 const cachedBrowsing=movementHistoryRequests===initialRequests;
+
+const movementTile=document.querySelector('[data-select-movement-id="MOV_A"]');
+movementTile.dispatchEvent(new MouseEvent('mouseover',{bubbles:true,relatedTarget:null}));
+await wait(900);
+const previewLoaded=state.movementUsage.MOV_A.preview?.history?.length===1&&state.movementUsage.MOV_A.payload===null;
+movementTile.click();
+await wait(350);
+const detailKeptFullHistory=state.movementHistory?.history?.length===2;
 
 document.body.insertAdjacentHTML('beforeend','<button data-review-save>Save</button>');
 state.reviewPayload={review_id:'review-1',review:{training:{movements:[]}},duplicates:{}};
 await saveWebReview();
 const invalidatedAfterSave=state.usageLoaded===false&&Object.keys(state.movementUsage).length===0;
+const requestsBeforeReload=movementHistoryRequests;
 navigate('movements');
 await wait(350);
-const reloadedAfterSave=movementHistoryRequests===initialRequests&&state.usageLoaded===true&&state.movementUsage.MOV_A.count===2;
+const reloadedAfterSave=movementHistoryRequests===requestsBeforeReload&&state.usageLoaded===true&&state.movementUsage.MOV_A.count===3;
 
 const requestsAfterReload=movementHistoryRequests;
 state.reviewPayload={review_id:'review-2',review:{training:{movements:[]}},duplicates:{}};
@@ -124,7 +135,7 @@ const report=document.createElement('div');
 report.id='movement-cache-report';
 report.dataset.value=encodeURIComponent(JSON.stringify({
   initialLoaded,cachedBrowsing,invalidatedAfterSave,reloadedAfterSave,noChangesKeptCache,
-  failureKeptCache,historyEditReloaded,undoInvalidated,requests:movementHistoryRequests
+  failureKeptCache,previewLoaded,detailKeptFullHistory,historyEditReloaded,undoInvalidated,requests:movementHistoryRequests
 }));
 document.body.appendChild(report);
 """
@@ -152,8 +163,12 @@ def main() -> None:
     compact_js = "".join(js.split())
     assert "function invalidateMovementUsage()" in js
     assert "state.movementUsage={};state.usageLoaded=false;state.movementHistory=null" in js
+    assert "payload:null,preview:null" in compact_js
+    assert "state.movementUsage[movementId]?.preview?.progress_history?.[0]" in js
+    assert "if(!usage||usage.preview)return" in js
     assert "if(result.status!=='NO_CHANGES'&&(result.training_updated||Number(result.saved_movements||0)>0)){try{invalidateMovementUsage()" in compact_js
-    assert "if(result.status!=='NO_CHANGES'){voidautoSyncAfterSave()" in compact_js
+    assert "if(result.status!=='NO_CHANGES'){" in compact_js
+    assert "voidautoSyncAfterSave();" in compact_js
     assert "if(result.status!=='NO_CHANGES')invalidateMovementUsage();awaitrefreshWebState();awaitloadMovementFocus" in compact_js
     assert "if(form.dataset.recordType==='training'&&result.status!=='NO_CHANGES')invalidateMovementUsage()" in js
     assert "await postApi('/api/undo',{});invalidateMovementUsage();await refreshWebState()" in js

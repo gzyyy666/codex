@@ -21,8 +21,11 @@ def main() -> None:
         service = _start_service(port, sandbox.name)
         edge, browser, edge_data = _start_browser(port)
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools')")
-        _wait(browser, "!!document.querySelector('.dm-sidebar-entry')")
-        _click(browser, ".dm-sidebar-entry")
+        _wait(browser, "document.querySelectorAll('[data-web-effect]').length===2")
+        effect_controls = browser.evaluate("[...document.querySelectorAll('[data-web-effect]')].map(node=>node.dataset.webEffect).sort()")
+        assert effect_controls == ["guardian", "trophyCursor"], effect_controls
+        _wait(browser, "!!document.querySelector('.dm-tools-entry')")
+        _click(browser, ".dm-tools-entry")
         _wait(browser, "!!document.querySelector('.dm-management-page')")
 
         # Reproduce the guardian's cursor mode immediately before opening the editor.
@@ -55,8 +58,8 @@ def main() -> None:
         assert result["management_trophy_visible"], result
         assert result["management_trophy_passive"], result
         assert result["caret_color"] != "transparent", result
-        assert result["modal_cursor"] == "none", result
-        assert result["trophy_visible"] and result["trophy_passive"], result
+        assert result["modal_cursor"] == "auto", result
+        assert not result["trophy_visible"] and result["trophy_passive"], result
         assert result["focused"], result
         assert result["pet_hidden"], result
         print({"status": "PASS", **result})

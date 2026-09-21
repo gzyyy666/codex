@@ -1,5 +1,15 @@
 # Fitness Ledger Changelog
 
+## 2026-09-21 - Keep movement preview and detail history separate
+
+- Keep the one-record Movement Index preview separate from the full Movement
+  Progress detail payload, so opening a movement after preview retains all
+  recorded history.
+- Preserve the Tools switches for the 3D pet and trophy cursor after the
+  shared Chinese copy pass.
+- Added a browser regression for preview-first then full-detail navigation.
+- Development/review only; no formal data, CloudBase, or PWA upload changed.
+
 ## 2026-09-15 - Movement Progress chart and detail navigation
 
 - Count complex-set capacity by summing each segment's weight × repetitions ×
