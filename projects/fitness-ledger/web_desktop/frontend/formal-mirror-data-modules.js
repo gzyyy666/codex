@@ -10,6 +10,7 @@ const state={catalog:null,activePreview:null,lastSavedModuleId:'',entryRaw:'',fo
    binding local instead of assigning to an undeclared module variable. */
 let quickPage;
 let finalSurfaceSerial=0;
+let catalogRequestPromise=null;
 const post=(path,payload)=>bridge.postApi(path,payload);
 const get=path=>bridge.api(path);
 const CATEGORY_COPY={
@@ -30,7 +31,30 @@ const formatValue=(value,unit='')=>`${value??'暂无'}${value!==undefined&&value
 const detailMissingValue=()=>document.documentElement.dataset.flUiLanguage==='en'?'— (No record)':'—（无记录）';
 const detailValue=(row,module)=>row?formatValue(row.value,module.display_unit||module.actual_unit):detailMissingValue();
 
-async function loadCatalog(force=false){const serial=++state.catalogRequestSerial;const next=!force&&bridge.state.dataModulesReady&&bridge.state.dataModuleCatalog?bridge.state.dataModuleCatalog:await get('/api/data-modules/product-catalog');if(serial>=state.catalogAppliedSerial){state.catalog=next;state.catalogAppliedSerial=serial;bridge.state.dataModuleCatalog=next}return state.catalog}
+function waitForArchiveData(){
+  if(bridge.state.dataModulesReady)return Promise.resolve(true);
+  return new Promise(resolve=>{
+    let settled=false;
+    const finish=ready=>{if(settled)return;settled=true;window.removeEventListener('fitness-ledger:data-ready',onReady);window.clearTimeout(timeout);resolve(ready)};
+    const onReady=()=>finish(bridge.state.dataModulesReady);
+    const timeout=window.setTimeout(()=>finish(false),15000);
+    window.addEventListener('fitness-ledger:data-ready',onReady,{once:true});
+  });
+}
+async function loadCatalog(force=false){
+  const serial=++state.catalogRequestSerial;
+  if(!force&&bridge.state.dataModulesReady&&bridge.state.dataModuleCatalog){state.catalog=bridge.state.dataModuleCatalog;return state.catalog}
+  if(catalogRequestPromise)return catalogRequestPromise;
+  const request=(async()=>{
+    const waitedForArchive=await waitForArchiveData();
+    const useSharedCatalog=waitedForArchive&&bridge.state.dataModulesReady&&bridge.state.dataModuleCatalog;
+    const next=useSharedCatalog?bridge.state.dataModuleCatalog:await get('/api/data-modules/product-catalog');
+    if(serial>=state.catalogAppliedSerial){state.catalog=next;state.catalogAppliedSerial=serial;bridge.state.dataModuleCatalog=next}
+    return state.catalog;
+  })();
+  catalogRequestPromise=request;
+  try{return await request}finally{if(catalogRequestPromise===request)catalogRequestPromise=null}
+}
 function friendlyError(error){
   const payload=error?.payload||{};const code=payload.code||'';const details=payload.details||{};
   if(code==='MODULE_ALIAS_CONFLICT'||code==='MODULE_LABEL_CONFLICT')return `“${details.conflict_alias||details.alias||'这个表达'}”已经用于记录项“${details.conflict_with_label||details.conflict_with||'已有记录项'}”。请换一个表达，或编辑已有记录项。`;
