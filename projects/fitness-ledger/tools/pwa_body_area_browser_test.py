@@ -84,8 +84,6 @@ def main() -> None:
         command(browser, "Page.reload", {"ignoreCache": True})
         wait(browser, "document.readyState==='complete' && !!document.querySelector('.reference-home') && !!document.querySelector(\"[data-action='select-module']\")")
         browser.evaluate("document.querySelector(\"[data-action='select-module'][data-part-id='chest']\").click(); true")
-        wait(browser, "!!document.querySelector('.movement-summary')")
-        browser.evaluate("document.querySelector('.movement-summary').click(); true")
         wait(browser, "!!document.querySelector('.movement-card') && document.querySelector('.movement-card').innerText.includes('Incline Press')")
         body_area = browser.evaluate("document.querySelector('.reference-home').innerText")
         assert "7.5kg × 6 + 5kg × 8 × 3组" in body_area and "超级组 A" in body_area and "第 1/2 个动作" in body_area, body_area
