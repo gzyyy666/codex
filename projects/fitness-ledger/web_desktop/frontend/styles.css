@@ -3431,11 +3431,17 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
   height:var(--bar-height);
   border-radius:2px 2px 0 0;
   background:var(--bar-color);
-  transform:translateX(-50%) scaleY(0);
+  transform:translateX(-50%) scaleY(1);
   transform-origin:center bottom;
-  animation:weight-micro-enter .42s cubic-bezier(.22,.8,.32,1) forwards;
-  animation-delay:calc(var(--interaction-index) * 16ms);
   transition:width .15s ease,filter .15s ease,transform .15s ease;
+}
+.body-weight-rhythm.is-entry-animation .weight-micro-bar span{
+  transform:translateX(-50%) scaleY(0);
+  animation:weight-micro-enter .36s cubic-bezier(.22,.8,.32,1) both;
+  animation-delay:var(--entry-delay,0ms);
+}
+@media(prefers-reduced-motion:reduce){
+  .body-weight-rhythm.is-entry-animation .weight-micro-bar span{animation:none;transform:translateX(-50%) scaleY(1)}
 }
 .weight-micro-bar span::after{
   content:"";
@@ -3496,9 +3502,6 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
 }
 .body-slip.has-record-interaction{
   cursor:pointer;
-  opacity:0;
-  animation:formal-record-enter .34s cubic-bezier(.22,.8,.32,1) forwards;
-  animation-delay:calc(var(--interaction-index,0) * 28ms);
   transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;
 }
 .body-slip.has-record-interaction:hover,
@@ -3527,10 +3530,6 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
   filter:brightness(.82) saturate(1.2);
   transform:scale(1.08);
   outline:none;
-}
-@keyframes formal-record-enter{
-  from{opacity:0;transform:translateY(8px)}
-  to{opacity:1;transform:translateY(0)}
 }
 @keyframes formal-chart-enter{
   from{opacity:0;transform:scaleY(.35)}
