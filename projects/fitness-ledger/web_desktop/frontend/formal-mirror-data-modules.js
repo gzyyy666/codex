@@ -417,8 +417,8 @@ function ensureReviewHub(){return}
   };
   const queueFinalSurface=()=>{
     const rawView=bridge.currentRoute().view,view=rawView==='movements'?'movement':rawView;
-    if(!['body','diet','training'].includes(view))return;
-    const target=document.querySelector(`#${view}-rows`),ready=bridge.state.dataModulesReady;
+    if(!['home','body','diet','training','movement'].includes(view))return;
+    const target=document.querySelector(view==='training'?'#session-grid':view==='body'?'#body-rows':view==='diet'?'#diet-rows':'#main'),ready=bridge.state.dataModulesReady;
     if(!ready||!target||finalSurfaceRunning){
       if(!finalSurfaceRetryTimer)finalSurfaceRetryTimer=setTimeout(()=>{finalSurfaceRetryTimer=0;queueFinalSurface()},120);
       return;
