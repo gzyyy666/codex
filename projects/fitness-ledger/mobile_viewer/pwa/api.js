@@ -143,8 +143,12 @@ export async function call(action, params = {}) {
   } catch (_) {
     throw Object.assign(new Error("READ_INVALID_JSON"), { code: "READ_INVALID_JSON" });
   }
-  if (!payload || payload.ok !== true) throw new Error(payload?.code || "API_FAILED");
-  return payload.data;
+  if (payload && typeof payload === "object" && Object.prototype.hasOwnProperty.call(payload, "ok")) {
+    if (payload.ok !== true) throw new Error(payload.code || "API_FAILED");
+    return payload.data;
+  }
+  // PWA_DEPLOYMENT.md also permits gateways to return the action payload directly.
+  return payload;
 }
 
 export function apiDescription() {

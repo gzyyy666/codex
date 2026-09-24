@@ -1,5 +1,17 @@
 # Fitness Ledger Changelog
 
+## 2026-09-24 - PWA read response compatibility and review release
+
+- Accept both documented raw JSON read responses and the `{ok, data}` envelope;
+  rejected envelopes still surface their API error.
+- Version the active phone PWA entry, API module, manifest, and Service Worker
+  cache together (`20260924-01`, `fitness-ledger-pwa-v80`).
+- Published the 31-file static PWA bundle for phone review and verified the
+  live asset hashes. No Cloud Function, authentication rule, or personal data
+  was changed.
+- Reviewed the separate `codex/web-hide-technical` PWA variant as divergent
+  (`1.1.32`) and intentionally kept it out of this release.
+
 ## 2026-09-21 - Keep movement preview and detail history separate
 
 - Keep the one-record Movement Index preview separate from the full Movement

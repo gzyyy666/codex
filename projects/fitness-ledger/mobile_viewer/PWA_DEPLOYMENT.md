@@ -58,6 +58,16 @@ CSS 查询版本、manifest 的 `start_url`、带查询版本的 Service Worker 
 
 ## 安全上线顺序
 
+### 临时 review 发布
+
+手机端安装版或真实登录流程必须在 HTTPS 正式静态站和真实设备上才能完整
+review。用户明确要求“先发布供 review”时，可以在封板前上传临时 review
+候选，并接受后续返工。此授权只覆盖当前 PWA 静态文件：上传前保存现有线上
+资源作为回滚点，执行 `python tools/pwa_deployment_preflight.py --deployment`，
+整组更新入口、JS/CSS、manifest、Service Worker 注册 URL/缓存壳/缓存名，上传后
+逐项回读正式 URL 并验证版本。临时发布不表示用户已验收，也不授权修改 API、
+认证、正式数据、Cloud Sync 或小程序云函数；封板仍需之后单独明确授权。
+
 当前上线状态：
 
 - 静态站点：`https://cloud1-d9g35v5s1a904a8ad-1450570992.tcloudbaseapp.com`
@@ -66,6 +76,8 @@ CSS 查询版本、manifest 的 `start_url`、带查询版本的 Service Worker 
 - 安全域名：开启；静态站点域名已在安全域名列表
 - 生产 PWA：`requireWebAuth: true`
 - 匿名访问：已验证返回 `401 Unauthorized`
+- 当前静态 review/发布资源组：查询版本 `20260924-01`，Service Worker
+  `fitness-ledger-pwa-v80`；状态页产品版本文字仍为 `1.1.37`。
 
 后续仅需由实际用户在手机上验证账号登录和真实数据展示。
 
@@ -99,8 +111,8 @@ python tools/pwa_deployment_preflight.py
 
 ## 手机文字传递的额外发布步骤
 
-当前分支只准备了正式 PWA 的静态入口和客户端契约，没有创建 CloudBase 集合、
-修改安全规则或上传静态文件。正式发布前还要在同一账号下验证：
+当前 PWA review 发布只更新了只读静态资源，没有创建 CloudBase 集合、修改安全
+规则，或增加训练数据写入。以下检查仍专属于手机文字传递功能：
 
 1. 手机与电脑登录的是同一个 CloudBase Web 账号；
 2. `fl_web_share_inbox` 选择的是 `PRIVATE`，只允许当前用户访问；
@@ -108,4 +120,5 @@ python tools/pwa_deployment_preflight.py
 4. 复制/标记处理不会改动 `fl_daily_records` 或 Data Module records；
 5. 真实手机分享菜单和手动粘贴路径都能工作。
 
-完成以上验证后，才可在显式封板指令下执行集合规则、静态托管和版本发布。
+完成以上验证后，才可在显式封板指令下为手机文字传递功能执行集合规则、相关
+静态功能发布和版本封板。此前的只读 PWA Review Deployment 不包含这些权限。

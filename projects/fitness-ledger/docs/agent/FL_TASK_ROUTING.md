@@ -71,8 +71,12 @@ Before any formal or provider action:
 - preserve and compare protected data fingerprints;
 - restart affected services after deployed Python backend changes;
 - run formal regression and write the task handoff;
-- require the explicit `按规范封板` / seal instruction before merge, push,
-  formal writeback, or real provider upload.
+- distinguish Review Deployment from Seal / finalise. If the user explicitly
+  requests a formal/device review release and accepts possible rework, publish
+  only the scoped candidate to the named target before human acceptance; keep
+  a rollback point, run preflight, and verify the live result.
+- require separate explicit `按规范封板` / seal authorization before merge,
+  push, tag, final formal writeback, protected-data mutation, or provider upload.
 
 For source-clear, low-risk releases, the Quick Seal route in
 `docs/maintenance/CODEX_RELEASE_CLOSEOUT.md` may narrow the checks to the
@@ -92,7 +96,8 @@ brief:
 - data and deployment boundary;
 - required tests, screenshots, or runtime checks;
 - rollback/checkpoint plan;
-- user approval required, if any.
+- user approval required, if any; record Review Deployment permission
+  separately from Seal / finalise permission.
 
 For S tasks, the prompt itself may be the brief.
 

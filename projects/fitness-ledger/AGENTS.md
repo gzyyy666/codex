@@ -59,7 +59,7 @@ This writes the shared local handoff at:
 
 `D:\FitnessLedger\source\projects\fitness-ledger\.codex\task-handoff.json`
 
-Return the handoff path and full Commit SHA. In Development / review mode, do not merge main, Push, deploy formal files, or perform a real CloudBase upload. Seal / finalise mode is the explicit exception defined below.
+Return the handoff path and full Commit SHA. Development / review mode does not itself authorize publication. A separately authorized Review Deployment may publish a reversible candidate for human review before sealing, under the limits below.
 
 ## Closure levels
 
@@ -72,12 +72,13 @@ formal verification.
 
 Every task conversation must identify its closure level from the user's wording:
 
-- **Development / review**: work only in the task Worktree; run the relevant tests and leave a clean, reviewable task commit or an explicit uncommitted diff. Do not merge, Push, create Tags, or write to the formal directory.
+- **Development / review**: work only in the task Worktree; run the relevant tests and leave a clean, reviewable task commit or an explicit uncommitted diff. Do not merge, Push, create Tags, or write to the formal directory unless the user separately authorizes a Review Deployment.
+- **Review Deployment / temporary release**: when the user explicitly asks to publish for review, or the surface cannot be fully reviewed without the formal runtime/device (notably an installed phone PWA), publish the review candidate before final acceptance. The user accepts that review feedback may require rework. This permission covers only the named target and reviewed files. Preserve a recoverable copy/rollback point, run the scoped preflight and checks, publish with coherent asset versions, and verify the actual formal URL/device-facing resources. Do not treat this as human acceptance or Seal / finalise; do not merge, Push, Tag, alter protected data, change Cloud Sync/provider state, or deploy unrelated files unless separately authorized. After review, continue development or wait for explicit seal authorization.
 - **Seal / finalise / 封板**: after review and required tests pass, the same task conversation may complete the applicable closeout route. Quick Seal is available only for a source-clear, isolated, low-risk change; all other releases use Full Seal. Commit/integrate into `main`, Push only when authorized, derive any deployment list from Git, write back only reviewed files, restart affected services, run formal checks, protect data, and generate the handoff as required by that route.
 
 The task does not need to be handed back to a central Git conversation. A specialist Worktree conversation may seal its own work when the user explicitly authorizes sealing. The central conversation remains the preferred place for cross-Worktree integration, unexplained conflicts, broad architecture changes, or a final multi-task audit.
 
-If the user only asks to modify, fix, develop, or prepare a review, treat it as **Development / review**. Do not infer Push or formal writeback. Stop before any closure action when the user has not authorized that level.
+If the user only asks to modify, fix, develop, or prepare a review, treat it as **Development / review**. Do not infer publication. A request such as “先发布供我 review，接受返工” explicitly authorizes only a **Review Deployment**; it does not authorize Seal / finalise.
 
 Before claiming a sealed task, report the full Commit SHA, `HEAD/main/origin/main`, clean task Worktree, exact deployment scope, relevant formal/data verification, test results, and handoff path. Quick Seal may use the shorter report defined in the closeout guide; Full Seal retains the complete evidence report.
 

@@ -1,4 +1,4 @@
-import { apiDescription, call, privateAccountIdentity, privateDatabase, signIn } from "./api.js?v=20260820-04";
+import { apiDescription, call, privateAccountIdentity, privateDatabase, signIn } from "./api.js?v=20260924-01";
 
 const BODY_PARTS = [
   { id: "shoulders", cn: "肩", en: "SHOULDERS", tone: "amber" },
@@ -1174,7 +1174,7 @@ document.addEventListener("wheel", event => {
   if (document.documentElement.classList.contains("pwa-note-scroll-locked") && !isNoteScrollableTarget(event.target)) event.preventDefault();
 }, { passive: false });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw-blur-height-fix.js?v=20260919-06", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw-blur-height-fix.js?v=20260924-01", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

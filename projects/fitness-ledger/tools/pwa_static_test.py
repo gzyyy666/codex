@@ -32,10 +32,23 @@ def main() -> None:
     assert manifest["scope"] == "./"
     assert manifest["icons"]
 
+    active_manifest = json.loads((PWA / "manifest-blur-height-fix.webmanifest").read_text(encoding="utf-8"))
+    assert active_manifest["start_url"] == "./?v=20260924-01"
+    active_app = (PWA / "app-blur-height-fix.js").read_text(encoding="utf-8")
+    active_sw = (PWA / "sw-blur-height-fix.js").read_text(encoding="utf-8")
+    assert '"./api.js?v=20260924-01"' in active_app
+    assert 'register("./sw-blur-height-fix.js?v=20260924-01"' in active_app
+    assert '"./api.js?v=20260924-01"' in active_sw
+    assert 'fitness-ledger-pwa-v80' in active_sw
+    assert '"./app-blur-height-fix.js?v=20260924-01"' in active_sw
+    assert '"./styles-blur-height-fix.css?v=20260924-01"' in active_sw
+
     source = "\n".join(path.read_text(encoding="utf-8") for path in required if path.suffix in {".html", ".js", ".css"})
     app_source = (PWA / "app.js").read_text(encoding="utf-8")
     css_source = (PWA / "styles.css").read_text(encoding="utf-8")
     api_source = (PWA / "api.js").read_text(encoding="utf-8")
+    assert 'Object.prototype.hasOwnProperty.call(payload, "ok")' in api_source
+    assert '// PWA_DEPLOYMENT.md also permits gateways to return the action payload directly.' in api_source
     for route in ("reference", "training", "status", "body", "diet", "record", "movement"):
         assert f'"{route}"' in app_source, f"missing Mini Program route: {route}"
     assert "NOTE_KEY" in app_source

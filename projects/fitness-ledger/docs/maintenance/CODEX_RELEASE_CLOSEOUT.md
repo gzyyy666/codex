@@ -10,12 +10,46 @@ Cloud Sync surfaces.
 Classify the task before acting:
 
 - **Development / review:** work only in the task Worktree. Run tests and leave
-  a reviewable commit or explicit diff. Do not merge, push, tag, deploy, or
-  write the formal directory.
+  a reviewable commit or explicit diff. This does not itself authorize formal
+  publication.
+- **Review Deployment / temporary release:** after an explicit user request,
+  publish the scoped candidate to the named formal target so the user can
+  review the real runtime or device. This may happen before acceptance; the
+  user accepts possible rework. Keep a rollback point, publish only the
+  reviewed scope, run preflight, and verify the actual live resources. It is
+  not acceptance or Seal / finalise and does not authorize merge, push, tags,
+  protected-data or provider changes, or unrelated deployment.
 - **Seal / finalise:** continue only after explicit user authorization for
   formal release. Select Quick Seal only when every eligibility condition below
   is satisfied; otherwise complete the Full Seal gates. Do not infer
-  authorization from “完成”“finish” or a review URL alone.
+  authorization from “完成”“finish” or a review URL alone. A Review Deployment
+  request does not grant seal authorization.
+
+## Review Deployment sequence
+
+Use this short path only when the user explicitly requests temporary formal
+publication for review or confirms that device/runtime review requires it. It
+is separate from both Development / review and Seal / finalise.
+
+1. Confirm the live baseline, exact target, and scoped files. Derive source
+   scope from Git and record hashes/fingerprints for the current live assets.
+2. Preserve a recoverable snapshot or equivalent rollback point before upload.
+   For a PWA, run `python tools/pwa_deployment_preflight.py --deployment` and
+   update the entry, manifest, app imports, Service Worker registration/cache
+   shell, and cache name as one asset group.
+3. Upload only the files needed for the review candidate. Do not change
+   protected data, Cloud Sync/provider state, authentication rules, or APIs
+   unless the user separately authorizes that scope.
+4. Read back the formal URL resources and verify their exact version/hash,
+   authentication boundary, and changed behavior. A successful CLI upload is
+   not sufficient evidence.
+5. Report the review URL, published scope, rollback point, verification, and
+   any evidence the user must inspect. Leave final acceptance and Seal /
+   finalise pending.
+
+If review feedback requires changes, return to development, make a new
+reviewable candidate, and repeat this sequence. Do not require the user to issue
+the seal instruction merely to perform a specifically authorized review upload.
 
 ## Quick Seal for source-clear, low-risk changes
 
