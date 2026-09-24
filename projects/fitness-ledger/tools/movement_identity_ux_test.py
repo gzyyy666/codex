@@ -26,7 +26,8 @@ def test_independent_promotion() -> None:
         service, tracker_file, dictionary_file, backups = make_service(
             Path(temp), tracker_value, dictionary_value
         )
-        assert service.movement_groups() == ["Chest", "Back"]
+        groups = service.movement_groups()
+        assert {"Chest", "Back", "Glutes", "Cardio"}.issubset(groups)
         result = service.promote_custom_movement(
             SOURCE_ID,
             {
@@ -90,6 +91,12 @@ def test_group_validation_and_new_identity() -> None:
         assert result["definition"]["movement_id"] == "CHEST_002"
         assert not result["definition"]["movement_id"].startswith("CUSTOM_")
 
+        cardio = service.create_movement_definition(
+            {"display_name": "新独立有氧动作", "muscle_group": "Cardio"}
+        )
+        assert cardio["definition"]["movement_id"] == "CARDIO_001"
+        assert cardio["definition"]["muscle_group"] == "Cardio"
+
 
 def test_custom_to_canonical_rename_alias_history_progress_chain() -> None:
     tracker_value, dictionary_value = fixture_values()
@@ -145,7 +152,7 @@ def test_web_and_copy_contract() -> None:
         command_service, tracker_file, dictionary_file, backups = make_service(Path(temp))
         service = LedgerWebService(tracker_file, dictionary_file, backups)
         service.commands = command_service
-        assert service.movement_groups() == ["Chest", "Back"]
+        assert {"Chest", "Back", "Glutes", "Cardio"}.issubset(service.movement_groups())
         result = service.promote_custom_movement(
             {"source_id": SOURCE_ID, "definition": {"display_name": "独立下拉动作", "muscle_group": "Back"}}
         )

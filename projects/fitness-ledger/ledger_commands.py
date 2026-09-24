@@ -274,6 +274,7 @@ _CANONICAL_GROUP_PREFIXES = {
     "Chest": "CHEST",
     "Back": "BACK",
     "Legs": "LEG",
+    "Glutes": "GLUTE",
     "Arms": "ARM",
     "Core": "CORE",
     "Cardio": "CARDIO",
@@ -281,15 +282,16 @@ _CANONICAL_GROUP_PREFIXES = {
 
 
 def _existing_muscle_groups(dictionary: dict) -> list[str]:
-    """Return the established body-part taxonomy, excluding temporary definitions."""
-    groups = {
+    """Return canonical body parts and additional established dictionary groups."""
+    groups = set(_CANONICAL_GROUP_PREFIXES)
+    groups.update(
         str(item.get("muscle_group", "")).strip()
         for item in dictionary.get("movements", []) or []
         if isinstance(item, dict)
         and not re.fullmatch(r"CUSTOM_\d+", str(item.get("movement_id", "")).strip())
         and str(item.get("muscle_group", "")).strip()
         and str(item.get("muscle_group", "")).strip() != "Unclassified"
-    }
+    )
     order = {name: index for index, name in enumerate(_CANONICAL_GROUP_PREFIXES)}
     return sorted(groups, key=lambda name: (order.get(name, len(order)), name.casefold()))
 
