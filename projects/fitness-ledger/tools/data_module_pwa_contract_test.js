@@ -12,6 +12,11 @@ const contract = tools.normalizeContract({
       history: [{ record_id: 'waist-1', date: '2026-08-15', value: 82.5, actual_unit: 'cm' }],
     },
     {
+      module_id: 'body_aerobic_minutes', label: '有氧', category_id: 'body', status: 'active',
+      display_surface: { value: 'category_page' },
+      history: [{ record_id: 'body-aerobic-1', date: '2026-08-15', value: 30, actual_unit: 'min' }],
+    },
+    {
       module_id: 'creatine_g', label: '肌酸', category_id: 'diet', status: 'active',
       display_surface: { value: 'category_page' },
       history: [{ record_id: 'creatine-1', date: '2026-08-14', value: 5, actual_unit: 'g' }],
@@ -44,10 +49,11 @@ const contract = tools.normalizeContract({
   ],
 })
 
-assert.strictEqual(contract.modules.length, 5)
+assert.strictEqual(contract.modules.length, 6)
 assert.ok(!contract.modules.some(item => item.module_id === 'retired_metric'))
 assert.ok(!contract.modules.some(item => item.module_id === 'inactive_metric'))
 assert.strictEqual(tools.categoryEntriesForDate(contract, 'body', '2026-08-15')[0].value, '82.5 cm')
+assert.ok(tools.categoryEntriesForDate(contract, 'body', '2026-08-15').some(item => item.module.module_id === 'body_aerobic_minutes' && item.value === '30 min'))
 assert.strictEqual(tools.categoryEntriesForDate(contract, 'diet', '2026-08-14')[0].value, '5 g')
 assert.strictEqual(tools.categoryEntriesForDate(contract, 'training', '2026-08-13')[0].value, '8')
 

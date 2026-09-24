@@ -525,10 +525,10 @@ class LedgerCommandService:
         ownership_tree = []
         for item in categories:
             category_id = str(item.get("category_id", ""))
-            fields = [module for module in modules if str(module.get("category_id", "")) == category_id]
             entries = [
                 {"kind": "field", "id": module["module_id"], "label": module["label"], "status": module["status"]}
-                for module in fields
+                for module in modules
+                if str(module.get("category_id", "")) == category_id
             ]
             if category_id == "training":
                 entries.extend(

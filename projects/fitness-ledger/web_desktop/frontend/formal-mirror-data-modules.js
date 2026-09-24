@@ -43,12 +43,12 @@ function waitForArchiveData(){
   });
 }
 async function loadCatalog(force=false){
-  const serial=++state.catalogRequestSerial;
   if(!force&&bridge.state.dataModulesReady&&bridge.state.dataModuleCatalog){state.catalog=bridge.state.dataModuleCatalog;return state.catalog}
-  if(catalogRequestPromise)return catalogRequestPromise;
+  if(catalogRequestPromise){if(!force)return catalogRequestPromise;try{await catalogRequestPromise}catch(_error){}}
+  const serial=++state.catalogRequestSerial;
   const request=(async()=>{
     const waitedForArchive=await waitForArchiveData();
-    const useSharedCatalog=waitedForArchive&&bridge.state.dataModulesReady&&bridge.state.dataModuleCatalog;
+    const useSharedCatalog=!force&&waitedForArchive&&bridge.state.dataModulesReady&&bridge.state.dataModuleCatalog;
     const next=useSharedCatalog?bridge.state.dataModuleCatalog:await get('/api/data-modules/product-catalog');
     if(serial>=state.catalogAppliedSerial){state.catalog=next;state.catalogAppliedSerial=serial;bridge.state.dataModuleCatalog=next}
     return state.catalog;

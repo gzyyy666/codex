@@ -100,6 +100,21 @@ class DataModuleCandidateTests(unittest.TestCase):
             },
         })
         self.service.data_module_definition_save(preview, confirmed=True)
+        body_aerobic = self.service.data_module_definition_preview({
+            "kind": "module",
+            "action": "create",
+            "values": {
+                "module_id": "body_aerobic_minutes",
+                "label": "有氧",
+                "aliases": ["有氧"],
+                "category_id": "body",
+                "actual_unit": "min",
+                "display_unit": "min",
+                "data_type": "quantity",
+                "presentation": {"section": "body", "slot": "top"},
+            },
+        })
+        self.service.data_module_definition_save(body_aerobic, confirmed=True)
         self.service.update_session_theme({"display_name": "Review Theme"})
         catalog = self.service.data_module_product_catalog()
         self.assertEqual(catalog["schema"], "fitness-ledger-data-module-product-catalog-v1")
@@ -107,7 +122,11 @@ class DataModuleCandidateTests(unittest.TestCase):
         training = next(item for item in catalog["ownership_tree"] if item["owner_id"] == "training")
         self.assertTrue(any(item["kind"] == "field" and item["id"] == "review_aerobic_minutes" for item in training["entries"]))
         self.assertTrue(any(item["kind"] == "theme" for item in training["entries"]))
-        self.assertTrue(any(item["kind"] == "field" and item["id"] == "waist_cm" for item in next(item for item in catalog["ownership_tree"] if item["owner_id"] == "body")["entries"]))
+        body_owner = next(item for item in catalog["ownership_tree"] if item["owner_id"] == "body")
+        self.assertTrue(any(item["kind"] == "field" and item["id"] == "waist_cm" for item in body_owner["entries"]))
+        self.assertTrue(any(item["kind"] == "field" and item["id"] == "body_aerobic_minutes" and item["label"] == "有氧" for item in body_owner["entries"]))
+        movement_owner = next(item for item in catalog["ownership_tree"] if item["owner_id"] == "movement")
+        self.assertFalse(any(item["id"] == "body_aerobic_minutes" for item in movement_owner["entries"]))
         self.assertTrue(all({"module_id", "category_id", "display_surface"}.issubset(item) for item in catalog["modules"]))
         organization = self.service.training_organization()
         theme_entries = [item for item in training["entries"] if item["kind"] == "theme"]
