@@ -57,12 +57,12 @@ def main() -> None:
     active_app = (PWA / "app-blur-height-fix.js").read_text(encoding="utf-8")
     active_sw = (PWA / "sw-blur-height-fix.js").read_text(encoding="utf-8")
     active_manifest = json.loads((PWA / "manifest-blur-height-fix.webmanifest").read_text(encoding="utf-8"))
-    assert "app-blur-height-fix.js?v=20260924-01" in active_index
-    assert '"./api.js?v=20260924-01"' in active_app
-    assert 'register("./sw-blur-height-fix.js?v=20260924-01"' in active_app
-    assert active_manifest["start_url"] == "./?v=20260924-01"
-    assert 'fitness-ledger-pwa-v80' in active_sw
-    assert '"./api.js?v=20260924-01"' in active_sw
+    assert "app-blur-height-fix.js?v=20260924-02" in active_index
+    assert '"./api.js?v=20260924-02"' in active_app
+    assert 'register("./sw-blur-height-fix.js?v=20260924-02"' in active_app
+    assert active_manifest["start_url"] == "./?v=20260924-02"
+    assert 'fitness-ledger-pwa-v81' in active_sw
+    assert '"./api.js?v=20260924-02"' in active_sw
 
     service_worker = (PWA / "sw.js").read_text(encoding="utf-8")
     assert 'fitness-ledger-pwa-v79' in service_worker

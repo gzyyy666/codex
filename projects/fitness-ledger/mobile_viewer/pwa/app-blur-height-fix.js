@@ -1,4 +1,4 @@
-import { apiDescription, call, privateAccountIdentity, privateDatabase, signIn } from "./api.js?v=20260924-01";
+import { apiDescription, call, privateAccountIdentity, privateDatabase, signIn } from "./api.js?v=20260924-02";
 
 const BODY_PARTS = [
   { id: "shoulders", cn: "肩", en: "SHOULDERS", tone: "amber" },
@@ -20,7 +20,7 @@ const DEFAULT_ACTIVE_BODY_PART_IDS = new Set(["chest", "shoulders", "back", "leg
 const DEFAULT_BODY_PART_ORDER = ["chest", "shoulders", "back", "legs", "arms", "glutes", "core", "cardio"];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "1.1.37";
+const BUILD_VERSION = "1.1.38";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -175,9 +175,8 @@ function activeBodyParts() {
       .sort((a, b) => DEFAULT_BODY_PART_ORDER.indexOf(a.id) - DEFAULT_BODY_PART_ORDER.indexOf(b.id));
   }
   const known = new Map(BODY_PARTS.map(item => [item.id, item]));
-  return categories.map((item, index) => {
+  return categories.filter(item => item && item.active !== false && known.has(String(item.category_id))).map((item, index) => {
     const base = known.get(String(item.category_id));
-    if (!base) return null;
     const configuredOrder = Number(item.sort_order);
     return {
       ...base,
@@ -188,8 +187,7 @@ function activeBodyParts() {
       // Session Theme color_key returned in the same organization payload.
       tone: MOVEMENT_MODULE_TONES[base.id] || base.tone
       };
-  }).filter(item => item && item.active !== false)
-    .sort((a, b) => a.sort_order - b.sort_order || DEFAULT_BODY_PART_ORDER.indexOf(a.id) - DEFAULT_BODY_PART_ORDER.indexOf(b.id));
+  }).sort((a, b) => a.sort_order - b.sort_order || DEFAULT_BODY_PART_ORDER.indexOf(a.id) - DEFAULT_BODY_PART_ORDER.indexOf(b.id));
 }
 function activeMovementModules() {
   const areas = new Map((Array.isArray(state.areas) ? state.areas : []).map(item => [String(item.id || ""), item]));
@@ -1174,7 +1172,7 @@ document.addEventListener("wheel", event => {
   if (document.documentElement.classList.contains("pwa-note-scroll-locked") && !isNoteScrollableTarget(event.target)) event.preventDefault();
 }, { passive: false });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw-blur-height-fix.js?v=20260924-01", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw-blur-height-fix.js?v=20260924-02", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

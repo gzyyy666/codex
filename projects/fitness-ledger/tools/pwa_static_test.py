@@ -33,15 +33,15 @@ def main() -> None:
     assert manifest["icons"]
 
     active_manifest = json.loads((PWA / "manifest-blur-height-fix.webmanifest").read_text(encoding="utf-8"))
-    assert active_manifest["start_url"] == "./?v=20260924-01"
+    assert active_manifest["start_url"] == "./?v=20260924-02"
     active_app = (PWA / "app-blur-height-fix.js").read_text(encoding="utf-8")
     active_sw = (PWA / "sw-blur-height-fix.js").read_text(encoding="utf-8")
-    assert '"./api.js?v=20260924-01"' in active_app
-    assert 'register("./sw-blur-height-fix.js?v=20260924-01"' in active_app
-    assert '"./api.js?v=20260924-01"' in active_sw
-    assert 'fitness-ledger-pwa-v80' in active_sw
-    assert '"./app-blur-height-fix.js?v=20260924-01"' in active_sw
-    assert '"./styles-blur-height-fix.css?v=20260924-01"' in active_sw
+    assert '"./api.js?v=20260924-02"' in active_app
+    assert 'register("./sw-blur-height-fix.js?v=20260924-02"' in active_app
+    assert '"./api.js?v=20260924-02"' in active_sw
+    assert 'fitness-ledger-pwa-v81' in active_sw
+    assert '"./app-blur-height-fix.js?v=20260924-02"' in active_sw
+    assert '"./styles-blur-height-fix.css?v=20260924-02"' in active_sw
 
     source = "\n".join(path.read_text(encoding="utf-8") for path in required if path.suffix in {".html", ".js", ".css"})
     app_source = (PWA / "app.js").read_text(encoding="utf-8")
@@ -67,7 +67,7 @@ def main() -> None:
     assert "refreshCandidateOverlay" in app_source
     assert "noteHistoryCache" in app_source
     assert 'data-candidate-region' in app_source
-    assert 'const BUILD_VERSION = "1.1.37"' in app_source
+    assert 'const BUILD_VERSION = "1.1.38"' in active_app
     assert '当前版本 · ${BUILD_VERSION}' in app_source
     assert 'pwa-version-mark' not in app_source
     assert 'data-action="expand-note">发送到电脑</button>' in app_source
