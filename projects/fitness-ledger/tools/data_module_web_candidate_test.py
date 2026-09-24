@@ -37,6 +37,7 @@ class DataModuleWebCandidateTests(unittest.TestCase):
                 "movements": {},
                 "raw_entries": [],
                 "data_module_records": [],
+                "training_organization": {"session_themes": [{"theme_id": "theme:fixture", "display_name": "Fixture Theme", "active": True}]},
             })
             write_json(dictionary, {"version": "1.0", "movements": []})
             DataModuleDefinitionStore.initialize(definition_store, REGISTRY_FILE, backup_dir=root / "definition-backups")
@@ -87,6 +88,12 @@ class DataModuleWebCandidateTests(unittest.TestCase):
                     {row["module_id"]: row["placement"] for row in product_catalog["modules"]},
                     {"waist_cm": "main", "resting_hr": "main"},
                 )
+                training_owner = next(row for row in product_catalog["ownership_tree"] if row["owner_id"] == "training")
+                self.assertEqual(
+                    {(row["kind"], row["id"]) for row in training_owner["entries"]},
+                    {("theme", "theme:fixture")},
+                )
+                self.assertEqual(product_catalog["modules"][0]["category_id"], "body")
                 _status, preview = post("/api/data-modules/preview", {"raw": "2026-08-12 腰围 82.5 cm"})
                 self.assertFalse(preview["write_attempted"])
                 _status, saved = post("/api/data-modules/save", {"preview": preview, "confirmed": True})

@@ -520,8 +520,33 @@ class LedgerCommandService:
                     "mini_program_visible": bool((item.get("capabilities") or {}).get("mini_program_visible", False)),
                 },
             })
+        organization = self.training_organization()
+        themes = organization.get("session_themes", [])
+        ownership_tree = []
+        for item in categories:
+            category_id = str(item.get("category_id", ""))
+            fields = [module for module in modules if str(module.get("category_id", "")) == category_id]
+            entries = [
+                {"kind": "field", "id": module["module_id"], "label": module["label"], "status": module["status"]}
+                for module in fields
+            ]
+            if category_id == "training":
+                entries.extend(
+                    {"kind": "theme", "id": str(theme.get("theme_id", "")), "label": str(theme.get("display_name", "")), "status": "active" if theme.get("active", True) else "inactive"}
+                    for theme in themes
+                    if isinstance(theme, dict) and theme.get("theme_id")
+                )
+            ownership_tree.append({
+                "owner_type": "category",
+                "owner_id": category_id,
+                "label": str(item.get("label", category_id)),
+                "system": bool(item.get("system", False)),
+                "entries": entries,
+            })
         return {
             "schema": "fitness-ledger-data-module-product-catalog-v1",
+            "ownership_model": "fitness-ledger-custom-content-ownership-v1",
+            "ownership_tree": ownership_tree,
             "categories": [
                 {
                     "category_id": item.get("category_id", ""),

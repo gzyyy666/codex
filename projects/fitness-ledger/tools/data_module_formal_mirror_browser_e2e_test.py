@@ -238,8 +238,8 @@ def main() -> None:
         assert diet_discovery["status"] == 200 and diet_discovery["body"]["candidate"]["suggested_category_id"] == "diet" and diet_discovery["body"]["candidate"]["unit"] == "g", diet_discovery
 
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools')")
-        _wait(browser, "!!document.querySelector('.dm-sidebar-entry')")
-        _click(browser, ".dm-sidebar-entry")
+        _wait(browser, "!!document.querySelector('.dm-tools-entry')")
+        _click(browser, ".dm-tools-entry")
         _wait(browser, "!!document.querySelector('.dm-management-page')")
         _wait(browser, "!!document.querySelector('[data-dm-release-readiness]')")
         _click(browser, "[data-dm-release-readiness]")
@@ -529,8 +529,8 @@ def main() -> None:
             metrics = browser.evaluate("({width:document.documentElement.scrollWidth,viewport:window.innerWidth,undefinedText:document.body.innerText.includes('undefined'),jsonText:document.body.innerText.includes('MODULE_ALIAS_CONFLICT'),overflowNodes:[...document.querySelectorAll('*')].map(item=>({tag:item.tagName,cls:item.className&&String(item.className),right:Math.round(item.getBoundingClientRect().right)})).filter(item=>item.right>window.innerWidth+1).slice(0,8)})")
             assert metrics["width"] <= metrics["viewport"] + 2 and not metrics["undefinedText"] and not metrics["jsonText"], (route, metrics)
         browser.evaluate("window.__fitnessLedgerFormalMirrorBridge.navigate('tools')")
-        _wait(browser, "!!document.querySelector('.dm-sidebar-entry')")
-        _click(browser, ".dm-sidebar-entry")
+        _wait(browser, "!!document.querySelector('.dm-tools-entry')")
+        _click(browser, ".dm-tools-entry")
         _wait(browser, "!!document.querySelector('.dm-management-page') && !!document.querySelector('[data-dm-new-module]') && !!document.querySelector('.dm-module-group')")
         management_shape = browser.evaluate("({reviewHub:!!document.querySelector('.dm-review-hub'),flowGuide:!!document.querySelector('.dm-flow-bar,.dm-structure-guide'),downstream:!!document.querySelector('.dm-downstream'),moduleGroups:document.querySelectorAll('.dm-module-group').length})")
         assert not management_shape["reviewHub"] and not management_shape["flowGuide"] and not management_shape["downstream"] and management_shape["moduleGroups"] >= 1, management_shape

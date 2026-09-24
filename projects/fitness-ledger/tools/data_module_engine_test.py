@@ -84,6 +84,35 @@ class DataModuleCandidateTests(unittest.TestCase):
         DataModuleDefinitionStore.initialize_empty(empty_store_path)
         self.assertEqual(empty_store_path.read_bytes(), original)
 
+    def test_product_catalog_exposes_typed_owner_tree_without_changing_read_contracts(self) -> None:
+        preview = self.service.data_module_definition_preview({
+            "kind": "module",
+            "action": "create",
+            "values": {
+                "module_id": "review_aerobic_minutes",
+                "label": "Review Aerobic Minutes",
+                "aliases": ["Review Aerobic Minutes"],
+                "category_id": "training",
+                "actual_unit": "min",
+                "display_unit": "min",
+                "data_type": "quantity",
+                "presentation": {"section": "training", "slot": "top"},
+            },
+        })
+        self.service.data_module_definition_save(preview, confirmed=True)
+        self.service.update_session_theme({"display_name": "Review Theme"})
+        catalog = self.service.data_module_product_catalog()
+        self.assertEqual(catalog["schema"], "fitness-ledger-data-module-product-catalog-v1")
+        self.assertEqual(catalog["ownership_model"], "fitness-ledger-custom-content-ownership-v1")
+        training = next(item for item in catalog["ownership_tree"] if item["owner_id"] == "training")
+        self.assertTrue(any(item["kind"] == "field" and item["id"] == "review_aerobic_minutes" for item in training["entries"]))
+        self.assertTrue(any(item["kind"] == "theme" for item in training["entries"]))
+        self.assertTrue(any(item["kind"] == "field" and item["id"] == "waist_cm" for item in next(item for item in catalog["ownership_tree"] if item["owner_id"] == "body")["entries"]))
+        self.assertTrue(all({"module_id", "category_id", "display_surface"}.issubset(item) for item in catalog["modules"]))
+        organization = self.service.training_organization()
+        theme_entries = [item for item in training["entries"] if item["kind"] == "theme"]
+        self.assertEqual({item["id"] for item in theme_entries}, {item["theme_id"] for item in organization["session_themes"]})
+
     def test_full_numeric_lifecycle_is_registry_driven(self) -> None:
         before_tracker = self.tracker.read_bytes()
         before_dictionary = self.dictionary.read_bytes()
