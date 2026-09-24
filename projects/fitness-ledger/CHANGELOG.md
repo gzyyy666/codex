@@ -1,5 +1,16 @@
 # Fitness Ledger Changelog
 
+## 2026-09-24 - Respect inactive movement categories in mobile PWA
+
+- The active Mobile Viewer PWA now excludes movement categories disabled in
+  Training Organization settings, while retaining the default list when no
+  organization category configuration is available.
+- Published PWA version 1.1.38 with resource group `20260924-02` and Service
+  Worker cache `fitness-ledger-pwa-v81`; the deployed scope was limited to the
+  active entry, app script, manifest, and Service Worker.
+- The PWA read API, authentication, formal records, Cloud Sync, and Mini
+  Program were unchanged.
+
 ## 2026-09-24 - PWA read response compatibility and review release
 
 - Accept both documented raw JSON read responses and the `{ok, data}` envelope;

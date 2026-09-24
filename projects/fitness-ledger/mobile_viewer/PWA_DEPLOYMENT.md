@@ -76,8 +76,9 @@ review。用户明确要求“先发布供 review”时，可以在封板前上�
 - 安全域名：开启；静态站点域名已在安全域名列表
 - 生产 PWA：`requireWebAuth: true`
 - 匿名访问：已验证返回 `401 Unauthorized`
-- 当前静态 review/发布资源组：查询版本 `20260924-01`，Service Worker
-  `fitness-ledger-pwa-v80`；状态页产品版本文字仍为 `1.1.37`。
+- 当前静态 review/发布资源组：查询版本 `20260924-02`，Service Worker
+  `fitness-ledger-pwa-v81`；状态页产品版本为 `1.1.38`。停用动作分类的适配已
+  随此次发布上线；只读 API、认证配置与正式数据未更改。
 
 后续仅需由实际用户在手机上验证账号登录和真实数据展示。
 
