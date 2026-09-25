@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import json
 import re
+import threading
 from collections import Counter
 from datetime import date, timedelta
 from pathlib import Path
@@ -45,11 +46,25 @@ class LedgerViewModels:
     def __init__(self, tracker_file: Path, dictionary_file: Path) -> None:
         self.tracker_file = Path(tracker_file)
         self.dictionary_file = Path(dictionary_file)
+        self._snapshot_lock = threading.RLock()
+        self._snapshot_signature: tuple[tuple[int, int], tuple[int, int]] | None = None
+        self._snapshot_value: tuple[dict, dict] | None = None
 
     def snapshot(self) -> tuple[dict, dict]:
-        tracker = json.loads(self.tracker_file.read_text(encoding="utf-8"))
-        dictionary = json.loads(self.dictionary_file.read_text(encoding="utf-8"))
-        tracker, dictionary, _report = migrate_state(tracker, dictionary)
+        with self._snapshot_lock:
+            tracker_stat = self.tracker_file.stat()
+            dictionary_stat = self.dictionary_file.stat()
+            signature = (
+                (tracker_stat.st_mtime_ns, tracker_stat.st_size),
+                (dictionary_stat.st_mtime_ns, dictionary_stat.st_size),
+            )
+            if signature != self._snapshot_signature:
+                tracker = json.loads(self.tracker_file.read_text(encoding="utf-8"))
+                dictionary = json.loads(self.dictionary_file.read_text(encoding="utf-8"))
+                tracker, dictionary, _report = migrate_state(tracker, dictionary)
+                self._snapshot_value = (tracker, dictionary)
+                self._snapshot_signature = signature
+            tracker, dictionary = self._snapshot_value
         return copy.deepcopy(tracker), copy.deepcopy(dictionary)
 
     def dictionary_indexes(self, dictionary: dict) -> tuple[dict, dict]:
