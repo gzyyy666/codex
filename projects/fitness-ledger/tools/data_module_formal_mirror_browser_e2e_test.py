@@ -184,7 +184,7 @@ def main() -> None:
         edge, browser, edge_data = _start_browser(port)
         _command(browser, "Emulation.setDeviceMetricsOverride", {"width": 1280, "height": 900, "deviceScaleFactor": 1, "mobile": False})
         startup_api_requests = browser.evaluate("performance.getEntriesByType('resource').map(item=>item.name).filter(name=>name.includes('/api/'))")
-        assert startup_api_requests.count(f"http://127.0.0.1:{port}/api/body?limit=100") == 1
+        assert startup_api_requests.count(f"http://127.0.0.1:{port}/api/body?limit=100") == 0
         assert startup_api_requests.count(f"http://127.0.0.1:{port}/api/data-modules/product-catalog") <= 1
         assert startup_api_requests.count(f"http://127.0.0.1:{port}/api/data-modules/export") <= 1
         browser.evaluate("window.__flBodyMutationTimes=[];window.__flBodyObserver=new MutationObserver(ms=>window.__flBodyMutationTimes.push(...ms.map(()=>performance.now())));window.__flBodyObserver.observe(document.querySelector('#main'),{childList:true,subtree:true})")
