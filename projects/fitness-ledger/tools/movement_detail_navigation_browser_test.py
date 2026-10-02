@@ -49,6 +49,19 @@ def main() -> None:
                 page.goto(base + "#movements", wait_until="domcontentloaded")
                 movement_tile = page.locator('[data-select-movement-id="REVIEW_INCLINE_PRESS"]').first
                 movement_tile.wait_for()
+                page.wait_for_timeout(500)
+                page.evaluate("""() => {
+                    window.__movementCounterTextMutations = 0;
+                    new MutationObserver(records => {
+                        for (const record of records) {
+                            if (record.target.matches('.tile-count, .result-count')) {
+                                window.__movementCounterTextMutations += record.addedNodes.length + record.removedNodes.length;
+                            }
+                        }
+                    }).observe(document.querySelector('main'), { childList: true, subtree: true });
+                }""")
+                page.wait_for_timeout(500)
+                assert page.evaluate("window.__movementCounterTextMutations") == 0, "movement counter localization keeps rewriting unchanged text"
                 movement_tile.click()
                 page.locator(".movement-detail-page").wait_for()
                 hit = page.locator(".chart-hit-zone").first

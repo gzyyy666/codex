@@ -263,6 +263,17 @@ export function mountGuardianPet(canvas, options = {}) {
     return pending;
   };
 
+  const preloadRemainingPoses = async () => {
+    for (const poseId of POSE_ORDER.filter(id => id !== state.poseId)) {
+      await new Promise(resolve => {
+        if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(resolve, { timeout: 2000 });
+        else window.setTimeout(resolve, 250);
+      });
+      if (state.disposed) return;
+      try { await loadPose(poseId); } catch {}
+    }
+  };
+
   const setPose = async (input, poseOptions = {}) => {
     const token = ++poseToken;
     const poseId = resolvePoseId(input);
@@ -549,7 +560,7 @@ export function mountGuardianPet(canvas, options = {}) {
       readyNotified = true;
       const catalog = POSE_ORDER.map((id, index) => ({ id, index, name: configuration.poseConfig.poses[id].name }));
       options.onReady?.({ source: 'lowpoly-static-shader-v6.2', assets: 1, poses: POSE_ORDER.length, fallback: false, poseCatalog: catalog });
-      await Promise.allSettled(POSE_ORDER.filter(id => id !== state.poseId).map(loadPose));
+      void preloadRemainingPoses();
     } catch (error) {
       notifyFailure(error);
     }

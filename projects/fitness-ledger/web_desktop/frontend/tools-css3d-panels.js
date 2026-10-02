@@ -877,7 +877,7 @@ function mountMousePet() {
   window.addEventListener('fitness-ledger-pet:body-regions', onBodyRegions);
 
   const petQuery = new URLSearchParams(window.location.search);
-  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20260807-v94';
+  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20261003-idle-pose-preload-r1';
   const guardianModule = archiveEffectEnabled('flGuardianPet') ? import(petController) : null;
   guardianModule?.then(({ mountGuardianPet }) => {
     if (disposed) return;
