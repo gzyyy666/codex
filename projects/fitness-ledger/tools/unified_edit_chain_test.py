@@ -125,6 +125,17 @@ class UnifiedEditChainTests(unittest.TestCase):
         detail = LedgerDataAccess(self.tracker, self.dictionary).get_record_detail("2026-01-02")
         self.assertEqual(detail["training"][0]["split"], "肩")
 
+    def test_body_detail_training_edit_uses_training_session_id(self) -> None:
+        detail = LedgerDataAccess(self.tracker, self.dictionary).get_record_detail("2026-01-02")
+        training = detail["training"][0]
+        self.assertEqual(training["training_session_id"], "session-1")
+        self.assertNotIn("id", training)
+        frontend = (PROJECT / "web_desktop/frontend/app.js").read_text(encoding="utf-8")
+        self.assertIn("kind==='training'?(target?.training_session_id||target?.id):target?.id", frontend)
+        self.service.update_record("training", training["training_session_id"], {"Split": "肩"}, expected_revision=training["revision"])
+        updated, _dictionary = self.service.load_state()
+        self.assertEqual(updated["training_sessions"][0]["Split"], "肩")
+
     def test_movement_definition_and_instance_notes_are_separate(self) -> None:
         self.service.migrate_legacy_state(confirmed=True)
         self.service.update_movement_definition("M1", {"notes": "new long note"}, expected_revision=1)
