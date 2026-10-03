@@ -96,6 +96,35 @@ class UnifiedEditChainTests(unittest.TestCase):
         self.assertEqual(LedgerViewModels(self.tracker, self.dictionary).training_archive()[0]["Split"], "Pull")
         self.assertIn("data_modules", detail)
 
+    def test_training_split_edit_refreshes_saved_session_theme(self) -> None:
+        self.service.migrate_legacy_state(confirmed=True)
+        database, _dictionary = self.service.load_state()
+        database["training_organization"] = {
+            "session_themes": [
+                {"theme_id": "theme:shoulder", "display_name": "肩", "active": True},
+                {"theme_id": "theme:compound", "display_name": "肩和综合", "active": True},
+            ],
+            "session_theme_catalog_locked": True,
+        }
+        session = database["training_sessions"][0]
+        session.update({
+            "Split": "肩和综合",
+            "session_theme_name": "肩和综合",
+            "session_theme_ids": ["theme:compound"],
+            "session_theme_id": "theme:compound",
+        })
+        write_json(self.tracker, database)
+
+        self.service.update_record("training", "session-1", {"Split": "肩"}, expected_revision=1)
+
+        updated, _dictionary = self.service.load_state()
+        session = updated["training_sessions"][0]
+        self.assertEqual(session["session_theme_name"], "肩")
+        self.assertEqual(session["session_theme_ids"], ["theme:shoulder"])
+        self.assertEqual(session["session_theme_id"], "theme:shoulder")
+        detail = LedgerDataAccess(self.tracker, self.dictionary).get_record_detail("2026-01-02")
+        self.assertEqual(detail["training"][0]["split"], "肩")
+
     def test_movement_definition_and_instance_notes_are_separate(self) -> None:
         self.service.migrate_legacy_state(confirmed=True)
         self.service.update_movement_definition("M1", {"notes": "new long note"}, expected_revision=1)

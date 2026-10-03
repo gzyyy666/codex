@@ -172,18 +172,17 @@ def resolve_session_theme_ids(label: str, themes: list[dict]) -> list[str]:
     if not normalized:
         return []
 
-    # Explicit separators make the intended multi-theme boundary visible;
-    # the compact form is handled by the same full-string matcher below.
+    # Explicit separators make the intended theme boundaries visible. Keep
+    # every recognized theme chunk and ignore descriptive chunks that are not
+    # Session Themes (for example, "肩和综合" when only "肩" is configured).
     chunks = [part for part in re.split(r"[,+＋、/／&和及|｜;；]+", value) if part.strip()]
     if len(chunks) >= 2:
         resolved: list[str] = []
         for chunk in chunks:
             match = _theme_id_for_label(chunk.strip(), themes)
-            if not match:
-                resolved = []
-                break
-            resolved.append(match)
-        if resolved and len(set(resolved)) == len(resolved):
+            if match and match not in resolved:
+                resolved.append(match)
+        if resolved:
             return resolved
 
     # Dynamic programming over the complete label allows compact Chinese

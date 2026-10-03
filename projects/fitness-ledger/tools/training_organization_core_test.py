@@ -10,11 +10,16 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from fitness_ledger_core.record_relations import migrate_state
-from fitness_ledger_core.training_organization import organization_catalog
+from fitness_ledger_core.training_organization import organization_catalog, resolve_session_theme_ids
 from fitness_ledger_core.movement_target_scope import body_part_id_for_muscle_group
 
 
 def run() -> None:
+    assert resolve_session_theme_ids(
+        "肩和综合",
+        [{"theme_id": "theme:shoulder", "display_name": "肩"}],
+    ) == ["theme:shoulder"]
+
     database = {
         "training_sessions": [
             {

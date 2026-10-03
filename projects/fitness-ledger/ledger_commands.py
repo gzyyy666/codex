@@ -2577,6 +2577,18 @@ class LedgerCommandService:
             before = copy.deepcopy(record)
             old_date = canonical_date(record.get("Date"))
             record.update(updates)
+            if (
+                record_type == "training"
+                and "Split" in updates
+                and updates["Split"] != str(before.get("Split") or "").strip()
+            ):
+                # Split is the editable Session Theme label. Clear stale
+                # derived relations before resolving the new value so both
+                # Web and PWA read the updated classification immediately.
+                record["session_theme_name"] = updates["Split"]
+                record["session_theme_ids"] = []
+                record["session_theme_id"] = ""
+                normalize_training_organization(database, dictionary)
             if _same_business_content(before, record):
                 return {"status": "NO_CHANGES", "changed": False, "record_type": record_type, "record": copy.deepcopy(before)}
             record["revision"] = current_revision + 1
