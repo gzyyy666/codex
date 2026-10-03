@@ -108,7 +108,7 @@ class UnifiedEditChainTests(unittest.TestCase):
         }
         session = database["training_sessions"][0]
         session.update({
-            "Split": "肩和综合",
+            "Split": "肩",
             "session_theme_name": "肩和综合",
             "session_theme_ids": ["theme:compound"],
             "session_theme_id": "theme:compound",

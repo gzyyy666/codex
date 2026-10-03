@@ -51,6 +51,7 @@ from fitness_ledger_core.training_organization import (
     normalize_label,
     normalize_training_organization,
     organization_catalog,
+    resolve_session_theme_ids,
     theme_color_key,
 )
 
@@ -2577,10 +2578,26 @@ class LedgerCommandService:
             before = copy.deepcopy(record)
             old_date = canonical_date(record.get("Date"))
             record.update(updates)
-            if (
-                record_type == "training"
-                and "Split" in updates
-                and updates["Split"] != str(before.get("Split") or "").strip()
+            if record_type == "training" and "Split" in updates:
+                organization = database.get("training_organization") or {}
+                themes = organization.get("session_themes") or []
+                stored_ids = record.get("session_theme_ids")
+                current_theme_ids = (
+                    [str(value).strip() for value in stored_ids if str(value).strip()]
+                    if isinstance(stored_ids, list)
+                    else [str(record.get("session_theme_id") or "").strip()]
+                )
+                current_theme_ids = list(dict.fromkeys(value for value in current_theme_ids if value))
+                expected_theme_ids = resolve_session_theme_ids(updates["Split"], themes)
+                theme_relation_stale = (
+                    str(record.get("session_theme_name") or "").strip() != updates["Split"]
+                    or current_theme_ids != expected_theme_ids
+                )
+            else:
+                theme_relation_stale = False
+            if record_type == "training" and "Split" in updates and (
+                updates["Split"] != str(before.get("Split") or "").strip()
+                or theme_relation_stale
             ):
                 # Split is the editable Session Theme label. Clear stale
                 # derived relations before resolving the new value so both
