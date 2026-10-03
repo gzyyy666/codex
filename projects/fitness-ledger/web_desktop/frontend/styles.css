@@ -3931,5 +3931,10 @@ body:has(.export-page) .privacy{color:#5e5a50}body:has(.export-page) .privacy i{
     grid-template-rows:repeat(var(--theme-rest-count,4),minmax(58px,1fr));
     height:clamp(333px,calc(100px + var(--theme-rest-count,4) * 80px),420px);
   }
-  .training-theme-page:not([data-training-theme="overview"]) .body-theme-control.is-active{grid-row:1/-1;min-height:0;height:100%}
+    .training-theme-page:not([data-training-theme="overview"]) .body-theme-control.is-active{grid-row:1/-1;min-height:0;height:100%}
 }
+
+.session-edit-card{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0;padding:12px;border:1px solid rgba(35,28,19,.12);border-radius:12px;background:rgba(255,252,245,.48)}
+.session-edit-heading{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:2px 4px;color:var(--graphite)}
+.session-edit-card .record-edit-card{background:rgba(255,255,255,.64)}
+@media(max-width:760px){.session-edit-card{grid-template-columns:1fr}.session-edit-heading{grid-column:auto}}
