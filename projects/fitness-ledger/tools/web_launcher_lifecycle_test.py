@@ -52,6 +52,23 @@ class WebLauncherLifecycleTests(unittest.TestCase):
         create_server.assert_not_called()
         mutex.close.assert_called_once()
 
+    def test_old_service_port_conflict_shows_one_time_migration_guidance(self) -> None:
+        mutex = Mock()
+        mutex.acquire.return_value = True
+        messages = []
+        with (
+            patch("launcher.SingleInstanceMutex", return_value=mutex),
+            patch("launcher.configure_data_module_registry"),
+            patch("launcher.create_server", side_effect=OSError("address already in use")),
+            patch("launcher.wait_until_ready"),
+            patch("launcher.show_startup_error", side_effect=messages.append),
+        ):
+            launcher.main()
+
+        self.assertEqual(len(messages), 1)
+        self.assertIn("Restart Windows once", messages[0])
+        mutex.close.assert_called_once()
+
     @unittest.skipUnless(os.name == "nt", "Windows named mutex behavior")
     def test_secondary_launcher_does_not_acquire_existing_mutex(self) -> None:
         name = f"Local\\FitnessLedger.WebDesktop.Test.{os.getpid()}"
