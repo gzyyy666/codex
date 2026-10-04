@@ -28,8 +28,13 @@ Browser-grade UI
             |
             v
 Windows shell
-  web_desktop/launcher.pyw -> Microsoft Edge app mode
+  web_desktop/launcher.pyw -> single-instance owner -> Microsoft Edge app mode
 ```
+
+The launcher owns the local service for the lifetime of the Fitness Ledger
+Edge window. A per-session Windows mutex redirects repeated launches to the
+existing app; the service uses an exclusive port bind and shuts down after the
+last matching app window closes.
 
 ## Safety Boundary
 

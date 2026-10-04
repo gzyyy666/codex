@@ -1608,6 +1608,10 @@ class LedgerRequestHandler(BaseHTTPRequestHandler):
             )
 
 
+class ExclusiveThreadingHTTPServer(ThreadingHTTPServer):
+    allow_reuse_address = False
+
+
 def create_server(
     host: str = "127.0.0.1",
     port: int = 8766,
@@ -1615,7 +1619,7 @@ def create_server(
 ) -> ThreadingHTTPServer:
     handler = type("ConfiguredLedgerRequestHandler", (LedgerRequestHandler,), {})
     handler.service = service or LedgerWebService()
-    return ThreadingHTTPServer((host, port), handler)
+    return ExclusiveThreadingHTTPServer((host, port), handler)
 
 
 def main() -> None:

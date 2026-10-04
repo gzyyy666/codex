@@ -29,6 +29,11 @@ python -m web_desktop.backend.server
 
 Then open `http://127.0.0.1:8766`.
 
+The desktop launcher holds a per-session single-instance lock. Additional
+launches reuse the existing Edge app and do not start another HTTP listener.
+The service exits after the Fitness Ledger app window closes, releasing port
+`8766` so the next launch loads the current code.
+
 ## Do Not Do
 
 - Do not write directly to `data/tracker.json` from JavaScript.
