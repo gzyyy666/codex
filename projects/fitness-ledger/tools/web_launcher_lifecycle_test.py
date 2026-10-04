@@ -137,7 +137,14 @@ class WebLauncherLifecycleTests(unittest.TestCase):
     def test_server_is_closed_if_window_wait_fails(self) -> None:
         server = FakeServer()
 
-        self.assertFalse(run_server_until_window_closes(server, wait=lambda: False, wait_ready=lambda: None))
+        self.assertFalse(
+            run_server_until_window_closes(
+                server,
+                open_window=lambda: None,
+                wait=lambda: False,
+                wait_ready=lambda: None,
+            )
+        )
 
         self.assertTrue(server.shutdown_called)
         self.assertTrue(server.close_called)
