@@ -1226,6 +1226,7 @@ class LedgerWebService:
         return results
 
     def collection(self, name: str, limit: int = 50) -> list[dict]:
+        """Return the complete archive when limit=0; retain bounded reads otherwise."""
         if name == "training":
             return self.views.training_archive(limit)
         tracker = self.data._tracker()
@@ -1237,7 +1238,7 @@ class LedgerWebService:
         key = mapping[name]
         date_key = "Date"
         rows = sorted(tracker.get(key, []), key=lambda row: str(row.get(date_key, "")), reverse=True)
-        return rows[: max(1, min(limit, 200))]
+        return rows if limit == 0 else rows[: max(1, min(limit, 200))]
 
     def movement_index(self, query: str = "", limit: int = 80) -> list[dict]:
         cache = self.data._ensure_loaded()

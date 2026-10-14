@@ -306,7 +306,7 @@ class LedgerViewModels:
         )
 
     def training_archive(self, limit: int = 50) -> list[dict]:
-        """Add only read-only movement_id projections to Training sessions."""
+        """Project Training sessions; limit=0 returns the complete archive."""
         tracker, dictionary = self.snapshot()
         by_id, by_alias = self.dictionary_indexes(dictionary)
         legacy_session_by_key = {
@@ -370,7 +370,7 @@ class LedgerViewModels:
                 for row in movement_refs
             ]
             rows.append(projected)
-        return rows[: max(1, min(limit, 200))]
+        return rows if limit == 0 else rows[: max(1, min(limit, 200))]
 
     def workout_reference(self, split: str = "") -> dict:
         tracker, dictionary = self.snapshot()
