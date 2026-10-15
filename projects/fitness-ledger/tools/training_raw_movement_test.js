@@ -23,4 +23,8 @@ assert.match(context.trainingMovementRow(rows[0], '2026-10-04'), /Count toward p
 assert.equal(context.trainingMovementRefs({...record, movement_refs: rows}).length, 5);
 assert.equal(context.trainingMovementRefs({movement_refs: [tracked]})[0], tracked);
 assert.equal(context.trainingMovementRefs({'Standardized Summary': 'First;Second'}).length, 2);
+const decimals = context.trainingMovementRefs({'Raw Record': '1. Row\n17.5-12-2\n32.5-12\n9.5-20-1\n17.5kg x 12\n2. Fly\n9.5-15-2'});
+assert.equal(decimals.length, 2);
+assert.equal(decimals[0].sets_lines.length, 4);
+assert.equal(decimals[1].sets_lines[0], '9.5-15-2');
 console.log('PASS: mixed raw/structured sessions retain all five movements without changing tracked rows');

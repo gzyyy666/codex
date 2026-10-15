@@ -873,7 +873,7 @@ async function loadMovementIndexPreview(tile){if(tile!==state.movementIndexPrevi
 function scheduleMovementIndexPreviousPreview(tile){clearMovementIndexPreviousPreview();state.movementIndexPreviewNode=tile;state.movementIndexPreviewTimer=setTimeout(()=>loadMovementIndexPreview(tile),750)}
 function trainingMovementRefs(record){
  const refs=Array.isArray(record.movement_refs)?record.movement_refs:[],raw=String(value(record,'Raw Record','raw')||''),blocks=[];
- for(const line of raw.split(/\r?\n/)){const match=line.match(/^\s*(\d+)\s*[.、．)）]\s*(.+?)\s*$/);if(match)blocks.push({order:Number(match[1]),display_name:match[2],lines:[]});else if(blocks.length&&line.trim())blocks[blocks.length-1].lines.push(line.trim())}
+ for(const line of raw.split(/\r?\n/)){const match=line.match(/^\s*(\d+)\s*[.、．)）]\s*(.+?)\s*$/);if(match&&/\p{L}/u.test(match[2])&&!/^\d/.test(match[2]))blocks.push({order:Number(match[1]),display_name:match[2],lines:[]});else if(blocks.length&&line.trim())blocks[blocks.length-1].lines.push(line.trim())}
  const result=[...refs];
  for(const block of blocks){if(refs.some(ref=>Number(ref.order)===block.order))continue;result.push({movement_id:'',display_name:block.display_name,order:block.order,sets_lines:block.lines,notes:'',is_linkable:false,exclude_from_progress:true,raw_only:true})}
  if(result.length)return result.sort((a,b)=>(Number(a.order)||9999)-(Number(b.order)||9999));
