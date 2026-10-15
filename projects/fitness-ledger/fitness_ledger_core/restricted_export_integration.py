@@ -242,6 +242,12 @@ def compile_natural_language_export(
 ) -> dict[str, Any]:
     parser, catalog, body_part_ids = make_formal_parser(views)
     plan = parser.parse(text)
+    for intent in plan.dataset_intents:
+        scope = intent.time_scope
+        if scope.source == "default_rule":
+            label = {"body": "身体", "diet": "饮食", "training": "训练", "movement_progress": "动作成长"}[intent.domain]
+            value = f"最近{scope.days}天" if scope.days is not None else f"最近{scope.sessions}次匹配训练"
+            plan.warnings.append(f"{label}未指定时间，按{value}处理；可在输入中修改。")
     _apply_training_body_part_projection(plan, views, catalog, body_part_ids)
     selected = list(dict.fromkeys(str(item) for item in selected_movement_ids if str(item).strip()))
     if selected:
@@ -299,6 +305,7 @@ def compile_natural_language_export(
         response["status"] = "planner_required"
     elif result.get("status") == "needs_clarification":
         response["status"] = "needs_clarification"
+        response["confirmations"] = ["请说明要提取什么和时间范围，例如：提取过去一周的全部数据，或导出最近14天体重和饮食。", *plan.warnings]
     return response
 
 

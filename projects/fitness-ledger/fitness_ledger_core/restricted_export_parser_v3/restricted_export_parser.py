@@ -9,6 +9,8 @@ from copy import deepcopy
 from datetime import date, timedelta
 from typing import Any, Iterable, Literal, Mapping, Sequence
 
+from ..analysis_export_request import DATASET_FIELDS, NOTES_BY_DATASET
+
 
 Domain = Literal["body", "diet", "training", "movement_progress"]
 TimeMode = Literal[
@@ -263,6 +265,7 @@ def _alias_present(text: str, aliases: Iterable[str]) -> bool:
 
 def _has_explicit_time_expression(text: str) -> bool:
     number = _number_pattern()
+
     return bool(
         re.search(r"\d{4}年\d{1,2}月\d{1,2}日\s*(?:到|至|-)", text)
         or re.search(rf"最近\s*{number}\s*(?:天|个?月|次)", text)
@@ -288,6 +291,11 @@ def _all_available_requested(text: str, domain: Domain) -> bool:
 
     if _contains_any(text, ("从有记录以来", "有记录以来", "全部历史", "全部可用历史")):
         return True
+
+    # A quantifier over fields must not turn an unrecognized recent period
+    # into an all-history request. The visible default/clarification applies.
+    if re.search(r"过去|最近|近期|这阵子", text):
+        return False
 
     if re.search(r"(?:全部|所有)(?:的)?(?:身体|体重|饮食|训练|动作|成长)", text):
         return True
@@ -326,7 +334,7 @@ def _looks_like_global_prefix_scope(text: str) -> bool:
     number = _number_pattern()
     return bool(
         re.match(
-            rf"^(?:请|帮我|给我|把|从|导出|整理|列出|查看|看看|我|一下|一下我|我的)*"
+            rf"^(?:请|帮我|给我|把|从|导出|提取|整理|列出|查看|看看|我|一下|一下我|我的)*"
             rf"(?:\d{{4}}年\d{{1,2}}月\d{{1,2}}日\s*(?:到|至|-)|最近\s*{number}\s*(?:天|个?月|次)|从有记录以来|有记录以来|全部历史|全部可用历史|全部(?:的)?|所有(?:的)?)",
             text,
         )
@@ -470,7 +478,22 @@ def _normalize(text: str) -> str:
 
 
 def _expand_time_phrases(text: str, reference_date: date) -> str:
-    """Normalize common daily time phrases into the bounded protocol grammar."""
+    """Normalize daily time phrases, preserving calendar and rolling windows."""
+    def calendar_range(start: date, end: date) -> str:
+        return f"{start.year}年{start.month}月{start.day}日到{end.year}年{end.month}月{end.day}日"
+
+    text = re.sub(r"(上|本|这)个?(?:星期|礼拜)", r"\1周", text)
+    text = re.sub(rf"({_number_pattern()})个?(?:星期|礼拜)", r"\1周", text)
+    text = text.replace("这周", "本周")
+    monday = reference_date - timedelta(days=reference_date.weekday())
+    text = re.sub(r"(?:从)?上周(?:到今天|至今|到现在)", calendar_range(monday - timedelta(days=7), reference_date), text)
+    text = text.replace("上上周", calendar_range(monday - timedelta(days=14), monday - timedelta(days=8)))
+    text = text.replace("上周", calendar_range(monday - timedelta(days=7), monday - timedelta(days=1)))
+    text = text.replace("本周", calendar_range(monday, reference_date))
+    text = text.replace("今天", calendar_range(reference_date, reference_date))
+    yesterday = reference_date - timedelta(days=1)
+    text = text.replace("昨天", calendar_range(yesterday, yesterday))
+    text = re.sub(r"近期|最近几天|这几天", "最近7天", text)
     text = re.sub(r"(?<=\d)号", "日", text)
 
     # ISO date ranges are converted to the one canonical range grammar.
@@ -489,7 +512,6 @@ def _expand_time_phrases(text: str, reference_date: date) -> str:
         "近一周": "最近7天",
         "过去一周": "最近7天",
         "这一周": "最近7天",
-        "本周": "最近7天",
         "最近两周": "最近14天",
         "近两周": "最近14天",
         "过去两周": "最近14天",
@@ -521,7 +543,7 @@ def _expand_time_phrases(text: str, reference_date: date) -> str:
         return f"最近{count * 7}天"
 
     text = re.sub(rf"(?:最近|(?<!最)近|过去|这)(?P<n>{number})周", weeks_to_days, text)
-    text = re.sub(rf"(?:(?<!最)近|过去)(?P<n>{number})(?P<unit>天|个?月|次|场)",
+    text = re.sub(rf"(?:(?<!最)近|过去|这)(?P<n>{number})(?P<unit>天|个?月|次|场)",
                   lambda m: f"最近{m.group('n')}{'次' if m.group('unit') == '场' else m.group('unit')}", text)
     text = re.sub(rf"最近(?P<n>{number})场", lambda m: f"最近{m.group('n')}次", text)
 
@@ -668,10 +690,13 @@ def _extract_negative_constraints(text: str) -> tuple[set[Domain], set[str], lis
         domains.add("training")
     if re.search(r"(?:动作成长|成长数据|动作表现|动作数据)", joined):
         domains.add("movement_progress")
-    if re.search(r"(?:饮食数据|饮食记录)", joined) and "饮食备注" not in joined:
+    if re.search(r"饮食(?!备注)", joined):
         domains.add("diet")
-    if re.search(r"(?:身体数据|体重数据)", joined):
+    if re.search(r"身体(?!备注)|体重数据|体重记录", joined):
         domains.add("body")
+
+    if re.search(r"(?<!饮食)(?<!训练)(?<!动作)(?<!身体)(?<!每日)备注|笔记", joined):
+        fields.update(("daily_notes", "diet_notes", "training_notes", "movement_notes"))
 
     field_patterns = {
         "diet_notes": r"饮食备注",
@@ -679,6 +704,7 @@ def _extract_negative_constraints(text: str) -> tuple[set[Domain], set[str], lis
         "daily_notes": r"(?:身体备注|每日备注)",
         "training_notes": r"训练备注",
         "date": r"日期",
+        "weight_kg": r"体重",
         "weight": r"重量",
         "reps": r"次数",
         "sets": r"组数",
@@ -844,7 +870,7 @@ def _detect_domain(
     domain_aliases: Mapping[str, Sequence[str]] = DEFAULT_DATA_DOMAIN_ALIASES,
     field_aliases: Mapping[str, Mapping[str, Sequence[str]]] = DEFAULT_DATA_FIELD_ALIASES,
 ) -> Domain | Literal["all_fitness"] | None:
-    if _alias_present(clause, ("所有健身数据", "全部健身数据", "全部的健身数据")):
+    if _alias_present(clause, ("所有健身数据", "全部健身数据", "全部的健身数据", "全部数据", "全部的数据", "所有数据", "所有的数据", "全部记录", "所有记录")):
         return "all_fitness"
 
     for domain in ("body", "diet", "training", "movement_progress"):
@@ -908,6 +934,10 @@ def _intent(
     if custom_fields:
         fields = custom_fields
         profile = f"{domain.upper()}_CUSTOM_V1"
+    fields = [name for name in fields if name not in excluded_fields]
+    notes_key = {"body": "daily_notes", "diet": "diet_notes", "training": "training_notes", "movement_progress": "movement_notes"}[domain]
+    if notes_key in excluded_fields:
+        notes_scope = None
 
     constraints = [{"type": "exclude_field", "value": name} for name in sorted(excluded_fields)]
     coverage = _coverage_constraint(clause)
@@ -937,6 +967,16 @@ def _parse_relationships(
 
     number = _number_pattern()
     patterns = [
+        re.compile(
+            rf"最近(?P<sessions>{number})次(?P<parts>)训练(?:,)?"
+            rf"(?:(?:以及|并且|和|再导出))?(?:这些|每次|对应)?训练"
+            rf"(?:(?P<include>当天)(?:和|及|以及))?前(?P<days>{number})天(?:的)?饮食(?:数据|记录)?"
+        ),
+        re.compile(
+            rf"最近(?P<window>{number})天(?P<parts>)训练(?:,)?"
+            rf"(?:(?:以及|并且|和|再导出))?(?:这些|每次|对应)?训练"
+            rf"(?:(?P<include>当天)(?:和|及|以及))?前(?P<days>{number})天(?:的)?饮食(?:数据|记录)?"
+        ),
         # 最近6次背部训练，以及这些训练当天和前2天的饮食数据
         re.compile(
             rf"最近(?P<sessions>{number})次(?P<parts>(?:背|肩|胸|腿)(?:部)?"
@@ -968,7 +1008,7 @@ def _parse_relationships(
     for pattern in patterns:
         for match in pattern.finditer(text):
             spans.append(match.span())
-            sessions = chinese_number(match.group("sessions")) or 1
+            sessions = chinese_number(match.groupdict().get("sessions") or "1") or 1
             days_before = chinese_number(match.group("days")) or 1
             context = text[match.start():match.end()+16]
             explicit_exclusion = _contains_any(context, ("不包含训练当天", "不含训练当天"))
@@ -979,6 +1019,8 @@ def _parse_relationships(
                 normalized = body_part_aliases.get(raw_part)
                 if normalized and normalized not in body_parts:
                     body_parts.append(normalized)
+            if not match.group("parts"):
+                body_parts = [None]
 
             for body_part in body_parts:
                 training_id = f"intent_training_{next_intent_number}"
@@ -993,10 +1035,12 @@ def _parse_relationships(
                     source="explicit_user_input",
                     rule_id="TIME_EXPLICIT_TRAINING_SESSIONS",
                 )
+                if match.groupdict().get("window"):
+                    training_scope = TimeScope(mode="recent_days", days=chinese_number(match.group("window")), source="explicit_user_input", rule_id="TIME_EXPLICIT_TRAINING_DAYS")
                 training = _intent(
                     training_id, "training", match.group(0), excluded_fields, training_scope
                 )
-                training.filters = {"body_part": body_part}
+                training.filters = {"body_part": body_part} if body_part else {}
                 training.relationship_id = relationship_id
 
                 diet_scope = TimeScope(
@@ -1059,10 +1103,17 @@ class RestrictedExportParser:
             request_kind="direct_data_export",
             original_user_input=user_text,
         )
+        if re.search(r"近期|最近几天|这几天", user_text):
+            plan.warnings.append("未指定天数的近期/这几天按最近7天处理；可改为明确天数或起止日期。")
 
         if not text:
             plan.request_kind = "needs_clarification"
             plan.warnings.append("EMPTY_INPUT")
+            return plan
+
+        if not _has_explicit_time_expression(text) and re.search(r"(?:过去|最近|近).{0,8}(?:年|月|周|天|日|季度)", text):
+            plan.request_kind = "needs_clarification"
+            plan.warnings.append("这段时间尚未完整识别，请换成天数或起止日期，例如过去180天或2026-07-01至2026-07-31。")
             return plan
 
         if _contains_any(text, ("删除", "删掉", "修改正式数据", "写入数据库", "覆盖记录", "覆盖正式数据", "覆盖数据")):
@@ -1070,7 +1121,7 @@ class RestrictedExportParser:
             plan.rejection_reason = "WRITE_OR_DELETE_NOT_SUPPORTED"
             return plan
 
-        if _contains_any(text, ("原始数据库", "原始记录全部", "raw数据", "raw 数据")):
+        if _contains_any(_strip_negative_chunks(text), ("原始数据库", "原始记录", "原始输入", "raw数据", "raw 数据")):
             plan.request_kind = "rejected_contract"
             plan.rejection_reason = "RAW_PERMISSION_REQUIRED"
             return plan
@@ -1113,6 +1164,20 @@ class RestrictedExportParser:
         }
 
         positive_text = _strip_negative_chunks(text)
+        positive_text = positive_text.replace("训练之前", "训练前")
+        if _contains_any(positive_text, ("睡眠", "心率", "血压", "血糖", "体脂", "腰围", "自定义模块", "自定义记录")):
+            plan.request_kind = "needs_clarification"
+            plan.warnings.append("这句话包含当前导出协议没有的记录项。是否改为身体、饮食、训练与动作成长？不能自动略过你指定的项目。")
+            return plan
+        only = re.search(r"(?:只要|仅要|只提取|只导出)([^.;]+)", positive_text)
+        if only:
+            selected_domain = _detect_domain(only.group(1), self.movement_catalog, self.data_domain_aliases, self.data_field_aliases)
+            if selected_domain in DATASET_FIELDS:
+                excluded_domains.update(set(DATASET_FIELDS) - {selected_domain})
+                plan.excluded_domains = sorted(excluded_domains)
+                plan.explicit_constraints["excluded_domains"] = sorted(excluded_domains)
+                if _detect_domain(positive_text, self.movement_catalog, self.data_domain_aliases, self.data_field_aliases) == "all_fitness":
+                    positive_text = re.sub(r"(?:全部|所有)(?:的)?(?:数据|记录)|但(?:是)?|不过", "", positive_text[:only.start()]) + only.group(1)
 
         # Relationship intents are parsed before generic clauses.
         relationship_intents, relationships, relation_rules, relationship_spans = _parse_relationships(
@@ -1122,6 +1187,14 @@ class RestrictedExportParser:
         plan.dataset_intents.extend(relationship_intents)
         plan.relationship_specs.extend(relationships)
         plan.applied_rule_ids.extend(sorted(relation_rules))
+
+        relation_remainder = positive_text
+        for start, end in sorted(relationship_spans, reverse=True):
+            relation_remainder = relation_remainder[:start] + " " + relation_remainder[end:]
+        if re.search(r"训练(?:当天(?:和|及))?(?:之前|之后|前后|前|后|当天).*饮食", relation_remainder):
+            plan.request_kind = "needs_clarification"
+            plan.warnings.append("训练前饮食条件尚未完整识别，请改为：最近3次训练和每次训练前3天饮食，或最近30天训练和训练前3天饮食。")
+            return plan
 
         # Remove relationship spans from generic parsing to avoid duplicate diet/training intents.
         chars = list(positive_text)
@@ -1188,7 +1261,17 @@ class RestrictedExportParser:
 
             if domain == "all_fitness":
                 global_scope = _explicit_time(clause, "body")
-                for current_domain in ("body", "diet", "training"):
+                if global_scope.mode == "all_available" and not _has_explicit_time_expression(clause):
+                    plan.request_kind = "needs_clarification"
+                    plan.dataset_intents = []
+                    plan.warnings.append("要提取哪段时间的全部数据：过去7天、过去30天，还是明确的全部历史？")
+                    return plan
+                if global_scope.mode == "latest_matching_sessions":
+                    plan.request_kind = "needs_clarification"
+                    plan.dataset_intents = []
+                    plan.warnings.append("全部数据包含按天记录的身体和饮食，请用天数或日期范围；如需最近几次训练及关联饮食，请说明训练前后的天数。")
+                    return plan
+                for current_domain in ("body", "diet", "training", "movement_progress"):
                     if current_domain in excluded_domains:
                         continue
                     scope = _copy_time_scope(global_scope)
@@ -1202,9 +1285,15 @@ class RestrictedExportParser:
                         self.data_field_aliases,
                     )
                     intent_number += 1
-                    if current_domain == "diet" and "diet_notes" in excluded_fields:
-                        current_intent.notes_scope = None
+                    current_intent.fields = [name for name in DATASET_FIELDS[current_domain] if name not in excluded_fields]
+                    notes_key = {"body": "daily_notes", "diet": "diet_notes", "training": "training_notes", "movement_progress": "movement_notes"}[current_domain]
+                    current_intent.notes_scope = (
+                        NOTES_BY_DATASET[current_domain]
+                        if _contains_any(clause, ("备注", "笔记", "notes")) and notes_key not in excluded_fields
+                        else None
+                    )
                     plan.dataset_intents.append(current_intent)
+                plan.warnings.append("全部数据指身体、饮食、训练和动作成长的全部可导出结构化字段；默认不含额外备注、自定义模块和原始输入，明确排除项仍生效。动作成长沿用既有排除规则，训练记录仍保留。需要备注可加上“包含备注”。")
                 plan.applied_rule_ids.append("CONCEPT_ALL_FITNESS_V1")
                 if global_scope.rule_id:
                     plan.applied_rule_ids.append(global_scope.rule_id)

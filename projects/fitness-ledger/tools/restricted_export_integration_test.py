@@ -86,6 +86,41 @@ def fake_views() -> FakeViews:
 
 
 class RestrictedExportIntegrationTests(unittest.TestCase):
+    def test_conversational_all_data_and_relationship_scopes(self) -> None:
+        from fitness_ledger_core.analysis_export_request import DATASET_FIELDS
+        views = fake_views()
+        self.addCleanup(views.close)
+        result = compile_natural_language_export(views, "提取过去一周的全部数据")
+        self.assertEqual(result["status"], "ready")
+        datasets = [d for r in result["requests"] for d in r["datasets"]]
+        self.assertEqual({d["type"] for d in datasets}, set(DATASET_FIELDS))
+        for dataset in datasets:
+            self.assertEqual(set(dataset["fields"]), set(DATASET_FIELDS[dataset["type"]]))
+            self.assertEqual(dataset["time_range"], {"mode": "recent_days", "days": 7})
+        self.assertTrue(result["warnings"])
+        for text, expected in [
+            ("最近三次训练和每次训练前三天饮食", {"mode": "latest_matching_sessions", "sessions": 3}),
+            ("最近30天训练和训练前3天饮食", {"mode": "recent_days", "days": 30}),
+        ]:
+            result = compile_natural_language_export(views, text)
+            self.assertEqual(result["status"], "ready", result)
+            datasets = result["requests"][0]["datasets"]
+            self.assertEqual(datasets[0]["time_range"], expected)
+            self.assertEqual(datasets[1]["time_range"]["mode"], "days_before_target_session")
+            self.assertEqual(datasets[1]["time_range"]["days_before"], 3)
+            self.assertFalse(datasets[1]["time_range"]["include_target_session_day"])
+
+    def test_calendar_week_is_distinct_from_rolling_week(self) -> None:
+        from datetime import date
+        from fitness_ledger_core.restricted_export_parser_v3 import RestrictedExportParser
+        parser = RestrictedExportParser([], reference_date=date(2026, 10, 15))
+        for text, start, end in [("导出上周体重", "2026-10-05", "2026-10-11"), ("导出本周体重", "2026-10-12", "2026-10-15")]:
+            scope = parser.parse(text).dataset_intents[0].time_scope
+            self.assertEqual((scope.mode, scope.start, scope.end), ("explicit_range", start, end))
+        plan = parser.parse("提取这几天体重")
+        self.assertEqual(plan.dataset_intents[0].time_scope.days, 7)
+        self.assertTrue(plan.warnings)
+
     def test_formal_alias_fields_and_training_body_part_are_projected(self) -> None:
         views = fake_views()
         self.addCleanup(views.close)

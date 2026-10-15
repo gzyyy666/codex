@@ -51,6 +51,7 @@ ALLOWED_FIELDS: dict[str, set[str]] = {
         "date",
         "split",
         "standardized_summary",
+        "organization_relations",
     },
     "movement_progress": {
         "date",
@@ -60,6 +61,7 @@ ALLOWED_FIELDS: dict[str, set[str]] = {
         "variant",
         "order",
         "sets",
+        "segments", "set_count", "segment_count", "total_reps", "volume", "organization_relations",
     },
 }
 
@@ -209,7 +211,7 @@ def validate_analysis_export_request(
             errors.append(f"{path}.raw is not allowed; raw is request-level only")
 
         selector = filters.get("movement_selector") if isinstance(filters, Mapping) else None
-        if dataset_type == "movement_progress":
+        if dataset_type == "movement_progress" and "movement_selector" in filters:
             if not isinstance(selector, Mapping):
                 errors.append(f"{path}.filters.movement_selector is required")
             else:
@@ -226,7 +228,7 @@ def validate_analysis_export_request(
                     errors.append(
                         f"{path}.filters.movement_selector.value must be a non-empty string"
                     )
-        elif selector is not None:
+        elif dataset_type != "movement_progress" and selector is not None:
             errors.append(
                 f"{path}.filters.movement_selector is only valid for movement_progress"
             )
