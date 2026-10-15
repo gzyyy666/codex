@@ -430,6 +430,7 @@ export function mountGuardianPet(canvas, options = {}) {
   };
 
   const resize = () => {
+    renderActiveUntil = performance.now() + 1200;
     const width = Math.max(1, canvas.clientWidth || 360);
     const height = Math.max(1, canvas.clientHeight || 360);
     renderer.setSize(width, height, false);
@@ -437,6 +438,7 @@ export function mountGuardianPet(canvas, options = {}) {
     camera.updateProjectionMatrix();
   };
 
+  let renderActivitySignature = '', renderActiveUntil = 0, lastRenderAt = 0;
   const tick = now => {
     if (state.disposed || !activeRecord) return;
     modelRecords.forEach(record => { if (record !== activeRecord && record.group.visible) record.group.visible = false; });
@@ -490,6 +492,12 @@ export function mountGuardianPet(canvas, options = {}) {
     if (state.disposed) return;
     frame = requestAnimationFrame(animate);
     if (!visible || state.failed) return;
+    if (petMode) {
+      const signature = [state.poseId,state.cameraPreset,state.reducedMotion,state.targetX,state.targetY,state.pointerX,state.pointerY,state.targetZoom,state.offsetX,state.offsetY,state.yawOffset,state.response,state.viewRotation.x,state.viewRotation.y].join('|');
+      if (signature !== renderActivitySignature) { renderActivitySignature = signature; renderActiveUntil = now + 1200; }
+      if (now > renderActiveUntil || now - lastRenderAt < 32) return;
+      lastRenderAt = now;
+    }
     tick(now);
     controls?.update();
     try {
@@ -531,9 +539,9 @@ export function mountGuardianPet(canvas, options = {}) {
     if (event.data?.type === 'fitness-ledger-pet-set-pose') void setPose(event.data.pose ?? event.data.index, { source: 'postMessage', immediate: event.data.immediate === true });
   };
   const onPoseCommand = event => void setPose(event.detail?.pose ?? event.detail?.index, { source: event.detail?.source || 'custom-event', immediate: event.detail?.immediate === true });
-  const onVisibility = () => { visible = document.visibilityState !== 'hidden'; };
+  const onVisibility = () => { visible = document.visibilityState !== 'hidden'; renderActiveUntil = performance.now() + 1200; };
   const onMotionPreference = event => setReducedMotion(event.matches);
-  const intersectionObserver = typeof IntersectionObserver === 'function' ? new IntersectionObserver(entries => { visible = document.visibilityState !== 'hidden' && entries.some(entry => entry.isIntersecting); }) : null;
+  const intersectionObserver = typeof IntersectionObserver === 'function' ? new IntersectionObserver(entries => { visible = document.visibilityState !== 'hidden' && entries.some(entry => entry.isIntersecting); if (visible) renderActiveUntil = performance.now() + 1200; }) : null;
 
   canvas.addEventListener('pointermove', onCanvasPointerMove, { passive: true });
   canvas.addEventListener('click', onCanvasClick);
@@ -560,7 +568,7 @@ export function mountGuardianPet(canvas, options = {}) {
       readyNotified = true;
       const catalog = POSE_ORDER.map((id, index) => ({ id, index, name: configuration.poseConfig.poses[id].name }));
       options.onReady?.({ source: 'lowpoly-static-shader-v6.2', assets: 1, poses: POSE_ORDER.length, fallback: false, poseCatalog: catalog });
-      void preloadRemainingPoses();
+      if (options.preloadPoses === true) void preloadRemainingPoses();
     } catch (error) {
       notifyFailure(error);
     }

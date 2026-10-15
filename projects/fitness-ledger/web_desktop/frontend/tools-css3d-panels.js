@@ -859,7 +859,15 @@ function mountMousePet() {
     navigator.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: rect.right, clientY: rect.top }));
   };
   navigator.addEventListener('click', onNavigatorClick);
-  const onRouteChange = event => applyRoutePose(event.detail || {});
+  let routePoseTimer = 0;
+  const onRouteChange = event => {
+    const detail = { ...(event.detail || {}) };
+    window.clearTimeout(routePoseTimer);
+    routePoseTimer = window.setTimeout(() => {
+      routePoseTimer = 0;
+      if (!disposed) applyRoutePose(detail);
+    }, 500);
+  };
   const onGuardianIntent = event => {
     const detail = event.detail || {};
     if (detail.phase === 'finish') {
@@ -877,7 +885,7 @@ function mountMousePet() {
   window.addEventListener('fitness-ledger-pet:body-regions', onBodyRegions);
 
   const petQuery = new URLSearchParams(window.location.search);
-  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20261003-idle-pose-preload-r1';
+  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20261015-fluidity-r1';
   const guardianModule = archiveEffectEnabled('flGuardianPet') ? import(petController) : null;
   guardianModule?.then(({ mountGuardianPet }) => {
     if (disposed) return;
@@ -963,12 +971,16 @@ function mountMousePet() {
   const cursorTrailPoints = cursorDots.map((_, index) => ({ x: pointer.x, y: pointer.y, lag: 0.18 + index * 0.045 }));
   const navigatorFollower = { x: pointer.x + 22, y: pointer.y + 22, tx: pointer.x + 22, ty: pointer.y + 22 };
   let followFrame = 0;
+  let followUntil = performance.now() + 700;
   const onPagePointerMove = event => {
     if (event.pointerType === 'touch') return;
     pointer.x = event.clientX;
     pointer.y = event.clientY;
+    followUntil = performance.now() + 700;
   };
   const updatePointerFollow = time => {
+    followFrame = requestAnimationFrame(updatePointerFollow);
+    if (document.hidden || (!championSequenceActive && time > followUntil)) return;
     const rect = body.getBoundingClientRect();
     const centerX = rect.left + rect.width * 0.5;
     const centerY = rect.top + rect.height * 0.5;
@@ -1001,7 +1013,6 @@ function mountMousePet() {
         y: -clamp((pointer.y - centerY) / Math.max(window.innerHeight / 1.8, height * 1.6), -1, 1)
       });
     }
-    followFrame = requestAnimationFrame(updatePointerFollow);
   };
   let viewRotation = { x: 0, y: 0 };
   const onPointerDown = event => {
@@ -1091,6 +1102,7 @@ function mountMousePet() {
     if (disposed) return;
     disposed = true;
     window.removeEventListener('fitness-ledger-pet:route-change', onRouteChange);
+    window.clearTimeout(routePoseTimer);
     window.removeEventListener('fitness-ledger-pet:intent', onGuardianIntent);
     window.removeEventListener('fitness-ledger-pet:body-regions', onBodyRegions);
     window.removeEventListener('resize', onResize);
