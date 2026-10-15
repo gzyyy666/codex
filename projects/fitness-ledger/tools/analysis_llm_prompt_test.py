@@ -59,9 +59,35 @@ def test_prompt_boundaries() -> None:
     assert '不能编造 ID' in prompt
     assert '不得把关系条件简化' in prompt
     assert 'notes_scope' in prompt
+    assert 'calories_kcal、protein_g、carbs_g、fat_g' in prompt
+    assert 'notes 不是任何类型的合法 fields 项' in prompt
+    assert '先说明无法完整满足' in prompt
+    assert '需要两阶段' in prompt
+    assert '不能把多个请求塞进非法顶层包装' in prompt
+
+
+def test_failed_comparison_request_is_not_silently_accepted() -> None:
+    request = all_data_example()
+    diet = copy.deepcopy(request['datasets'][1])
+    diet.pop('filters')
+    diet['fields'] = ['date', 'calories', 'protein', 'carbs', 'fat', 'food_summary', 'notes']
+    body = copy.deepcopy(request['datasets'][0])
+    body.pop('filters')
+    body['fields'] = ['date', 'weight', 'body_fat', 'muscle_mass', 'sleep', 'notes']
+    request['datasets'] = [diet, body]
+    result = validate_request(request)
+    assert not result.valid
+    missing = {error.path for error in result.errors if error.code == 'MISSING_REQUIRED_PROPERTY'}
+    assert missing == {'datasets[0].filters', 'datasets[1].filters'}
+    unknown = {error.message.split()[1] for error in result.errors if error.code == 'UNKNOWN_FIELD'}
+    assert unknown == {'calories', 'protein', 'carbs', 'fat', 'notes', 'weight', 'body_fat', 'muscle_mass', 'sleep'}
+    protocol = AnalysisExportProtocolService(AnonymousFixtureProvider(
+        ROOT / 'tools/fixtures/analysis_export_anonymous/fixture.json'))
+    assert protocol.preview({'request': request})['status'] == 'invalid_request'
 
 
 if __name__ == '__main__':
-    for test in (test_all_data_round_trip, test_capabilities_cover_runtime_contract, test_prompt_boundaries):
+    for test in (test_all_data_round_trip, test_capabilities_cover_runtime_contract, test_prompt_boundaries,
+                 test_failed_comparison_request_is_not_silently_accepted):
         test()
         print(f'PASS {test.__name__}')

@@ -42,7 +42,7 @@
 ## LLM initialization
 
 The actual initialization endpoint now returns `prompt_revision:
-export-conversation-v2`. Its prompt separates initialization, request building,
+export-conversation-v3`. Its prompt separates initialization, request building,
 clarification, and analysis after the user supplies a real downloaded bundle.
 It contains validator-grounded fields, per-dataset modes, Notes permissions,
 filter shapes, identifiers, structural limits, and a complete valid example.
@@ -71,7 +71,7 @@ external providers or a guarantee for arbitrary speech.
 ## Validation and evidence
 
 Passed: `restricted_export_integration_test.py` (5 tests),
-`analysis_llm_prompt_test.py` (3 checks),
+`analysis_llm_prompt_test.py` (4 checks),
 `export_conversation_semantic_test.py`, `export_conversation_browser_test.py`,
 `analysis_export_protocol_web_test.py`,
 `analysis_export_request_protocol_test.py`, `analysis_export_materializer_test.py`,
@@ -89,3 +89,35 @@ Model responses, prompts, and anonymous bundles are retained outside Git at
 ```powershell
 python tools/export_conversation_semantic_test.py --responses D:/FitnessLedger/task_outputs/export-conversation-upgrade/final_responses.json
 ```
+
+## Complex comparison follow-up
+
+The user's six-dataset request reproduced `invalid_request` with 26 validator
+errors: six missing filters objects (also reported as type errors), unsupported
+diet aliases/notes fields, and unsupported body aliases/composition/sleep fields.
+Even after structural repair, an unfiltered history dataset would select all
+movements, not only those observed in the requested recent week.
+
+Revision v3 explicitly covers these failure modes. It requires disclosure of
+unsupported measurements and a two-stage request for historical same-movement
+comparison. A fresh independent agent first explained the limits. Under an
+explicitly labeled supported-subset test clarification, its first-stage JSON
+was executed unchanged against formal records through the candidate API:
+
+- First-stage bundle: 86 rows (recent diet 5, training 5, movement progress 23;
+  historical diet 24; weight/daily Notes 29).
+- The actual recent bundle contained 17 distinct movement IDs. The agent then
+  generated three independent history requests with 8, 8, and 1 datasets.
+- Those requests returned 54, 57, and 0 rows: 111 historical rows for 13 of the
+  17 requested movements. All 17 IDs were requested exactly once; four had no
+  matching history. Every returned movement ID and date was checked against
+  the requested ID set and original June 15–October 5 interval.
+- October 6 and 7 have no daily, diet, or training rows in the current formal
+  tracker; the recent-week export therefore has five days rather than seven.
+- Body fat, muscle mass, and sleep remain unavailable in v1.1. This test does
+  not imply the user's complete analysis requirements have been met.
+- Formal tracker/dictionary hashes and modification times were unchanged.
+  This was a temporary candidate service, not deployment of the formal app.
+
+Local request files, actual exports, agent replies, and verification evidence:
+`D:/FitnessLedger/task_outputs/export-request-case-20261015/` (outside Git).

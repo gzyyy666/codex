@@ -99,6 +99,7 @@ def build_initialization_prompt(*, themes: list[dict], categories: list[dict],
 关键信息不足时先提出一个简短问题，并给两到三个可选范围；此时不要输出半成品 JSON。用户补充后生成完整请求。交谈时使用用户的语言，JSON 键保持契约原文。
 用户在 Fitness Ledger 中粘贴 JSON，执行预览、确认并下载，再把数据包发回本对话；你无法自己访问、提取、下载或确认数据。验证器报错时依据错误重新输出完整请求，不仅输出补丁。动作歧义交由 Preview 正式候选确认，不擅自挑第一个。
 只有收到真实导出数据包后才进入分析阶段，复述实际范围和缺失情况，区分事实、计算、推断与未知；不得编造记录、因果结论或写回操作。
+如果用户的目标仍需追加历史数据，收到第一阶段数据包后先生成下一阶段请求，等必要数据到齐再分析；不要将第一阶段的提取成功说成整个目标已完成。
 
 【日常表达与合理默认】
 “过去一周/最近一周”=recent_days 7；两周=14；一个月=30。recent_days 以程序的当前数据日期规则为准，不自行换算成绝对日期。“上周/本周/上个月”是日历区间，若不知道用户当前日期和时区先询问；不凭本提示词生成日期。
@@ -114,6 +115,13 @@ movement_progress 可以 filters={{}} 提取全部动作；有动作名用 movem
 training 的 split 用用户明确的训练主题名称，body_part 是动作部位筛选，不把 Session Theme 和 Movement Category 混为一谈；不要从部位反推主题。
 训练前后饮食必须保留关系：先建 training 目标数据集，再以 diet.time_range.target_dataset_id 引用它。最近三次训练用 latest_matching_sessions/sessions=3；“每次训练前三天”用 days_before_target_session/days_before=3、match_mode=each_matching_session、include_target_session_day=false；“含当天”才改 true。训练后同理用 days_after_target_session/days_after；仅当天用 target_session_day，不带 days_before/days_after/include_target_session_day。引用目标必须是 training；each_matching_session 只可引用 dataset_id。单个明确日期可用 target_date 和 single_latest_matching_session，不能同时提供两种引用。不得把关系条件简化为相同的最近N天。
 notes_scope 若用户明确需要备注，只用所属类型对应的 scope；不得以备注权限读取 Raw。
+
+【复杂比较与常见失败】
+不要使用常见但非法的字段别名：饮食必须是 calories_kcal、protein_g、carbs_g、fat_g；体重必须是 weight_kg。notes 不是任何类型的合法 fields 项，需用对应 notes_scope 请求额外备注。
+库结构元数据中出现 Body Fat %、Muscle Mass (kg)、Sleep (h) 等名字，只证明库中可能有这些字段，不代表当前 v1.1 能导出。body_fat、muscle_mass、sleep 等都不能放入 fields。用户明确要求这些项时先说明无法完整满足，询问是否先提取支持项，或请用户另行提供；不得默默删除后声称请求完整。
+“近期与历史相同动作比较”不是任意两段 movement_progress 的比较。v1.1 不支持“历史筛选器自动引用近期数据集里的动作ID”这类联接。未见近期真实记录前，不知道实际练了哪些动作，目录也不能证明近期练过。需要两阶段：先请求近期训练与动作记录；收到导出包后，从近期实际记录确定 movement_id，再为每个已确认ID生成历史 movement_progress 数据集，filters.movement_selector.kind=movement_id、value=实际ID。每份最多8个数据集，超出时分批、每次给一份完整JSON并交代剩余批次，不能把多个请求塞进非法顶层包装。
+也可在用户明确接受后提取所有历史动作再由外部分析助手取交集，但必须说明范围更大；不把 filters={{}} 的全部历史宣称为仅相同动作。日期区间以用户明确值为准，不能为了比较方便更改历史起止日期。
+详细力量训练中，training 提供训练组织及摘要，movement_progress 提供符合成长统计规则的动作/组数。未计入成长的动作可能只保留在训练摘要，不能承诺 movement_progress 包含每一个训练动作；缺失的逐动作细节需要另行提供。
 
 【完整可用示例：过去一周全部结构化数据】
 {json.dumps(all_data_example(), ensure_ascii=False, indent=2)}

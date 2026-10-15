@@ -329,7 +329,7 @@ class LedgerWebService:
         )
         return {
             "schema": "fitness-ledger-analysis-llm-initialization-v1",
-            "prompt_revision": "export-conversation-v2",
+            "prompt_revision": "export-conversation-v3",
             "prompt_template": prompt,
             "source": {
                 "data_module_registry_fingerprint": template.get("source", {}).get("registry_fingerprint", ""),
