@@ -84,6 +84,10 @@ Legacy labels must not override the independent research/verification/closure
 decisions above. Resolve material uncertainty with a targeted inspection
 before choosing additional steps; do not automatically escalate a whole route.
 
+Historical memory, old chat summaries and prior release reports are evidence
+of earlier work, not current workflow mandates. Read the current task rules
+before reusing their former Full Seal, research or testing requirements.
+
 Use an existing task Worktree. Create an isolated one when needed to protect
 main or separate concurrent edits; no nested Worktree solely because a route
 label says so. Read the experiments index when related implementations might
