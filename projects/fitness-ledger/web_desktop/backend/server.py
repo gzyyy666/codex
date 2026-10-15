@@ -32,7 +32,7 @@ from mobile_viewer.data_access import LedgerDataAccess  # noqa: E402
 from ledger_commands import DuplicateDateError, LedgerCommandError, LedgerCommandService  # noqa: E402
 from fitness_ledger_core.data_quality_view import SilentHealthCheck, acknowledge_issue, collect_issues  # noqa: E402
 from fitness_ledger_core.analysis_export import build_export  # noqa: E402
-from fitness_ledger_core.analysis_llm_prompt import all_data_example, build_initialization_prompt  # noqa: E402
+from fitness_ledger_core.analysis_llm_prompt import PROMPT_REVISION, all_data_example, build_initialization_prompt  # noqa: E402
 from fitness_ledger_core.intelligent_export import IntelligentExportService  # noqa: E402
 from fitness_ledger_core.local_model_adapter import FakeLocalModelAdapter  # noqa: E402
 from fitness_ledger_core.shared_view_models import LedgerViewModels  # noqa: E402
@@ -329,7 +329,7 @@ class LedgerWebService:
         )
         return {
             "schema": "fitness-ledger-analysis-llm-initialization-v1",
-            "prompt_revision": "export-conversation-v3",
+            "prompt_revision": PROMPT_REVISION,
             "prompt_template": prompt,
             "source": {
                 "data_module_registry_fingerprint": template.get("source", {}).get("registry_fingerprint", ""),

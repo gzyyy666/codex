@@ -42,7 +42,7 @@
 ## LLM initialization
 
 The actual initialization endpoint now returns `prompt_revision:
-export-conversation-v3`. Its prompt separates initialization, request building,
+export-conversation-v4`. Its prompt separates initialization, request building,
 clarification, and analysis after the user supplies a real downloaded bundle.
 It contains validator-grounded fields, per-dataset modes, Notes permissions,
 filter shapes, identifiers, structural limits, and a complete valid example.
@@ -71,7 +71,7 @@ external providers or a guarantee for arbitrary speech.
 ## Validation and evidence
 
 Passed: `restricted_export_integration_test.py` (5 tests),
-`analysis_llm_prompt_test.py` (4 checks),
+`analysis_llm_prompt_test.py` (5 checks),
 `export_conversation_semantic_test.py`, `export_conversation_browser_test.py`,
 `analysis_export_protocol_web_test.py`,
 `analysis_export_request_protocol_test.py`, `analysis_export_materializer_test.py`,
@@ -121,3 +121,56 @@ was executed unchanged against formal records through the candidate API:
 
 Local request files, actual exports, agent replies, and verification evidence:
 `D:/FitnessLedger/task_outputs/export-request-case-20261015/` (outside Git).
+
+## Goal-oriented initialization follow-up (v4)
+
+The product target is a reusable new-chat initialization: understand everyday
+goals and questions, plan the necessary evidence, and emit paste-ready JSON
+matching the current application contract. Historical case dates are test
+inputs, not the interpretation of future requests.
+
+- Interpret goals and infer relevant datasets without requiring export verbs,
+  field names, exact templates, or movement IDs from the user.
+- Produce a useful, independently executable first stage when possible.
+  Unresolved later comparisons do not block that stage. Ask only a material
+  question when the current stage cannot be safely specified.
+- Use bounded, disclosed comparison defaults when the user delegates choosing
+  examples; preserve evidence against improvement as well as supporting it.
+- Preserve conversation choices through follow-up changes; keep exclusions,
+  detail requirements, and the original goal across stages.
+- Self-check both contract correctness and goal coverage. Do not claim actual
+  validation, extraction, or an improvement conclusion before evidence exists.
+- The capability snapshot includes its schema version and deterministic
+  contract fingerprint. Its field lists follow current validator constants;
+  a regression verifies that adding a supported field updates the snapshot.
+  An app update requires a fresh initialization snapshot; an old external chat
+  cannot automatically discover a newer app contract.
+- Stop repeated empty-history requests and disclose unmet requirements.
+
+An independent fresh agent received the actual anonymous candidate endpoint
+prompt and seven user scenarios, with one two-message follow-up. It did not
+read source, evaluation expectations, prior model outputs, or formal records.
+Six replies were JSON: all passed the current Validator. Five completed
+anonymous Preview/Confirm/export with semantic assertions on datasets, detail
+fields, periods, exclusions, and follow-up scope. One Chinese bench-name
+request correctly reached movement resolution because that anonymous catalog
+has no such alias; no export success is claimed for it. The other two replies
+clarified an unsupported sleep item and the onset of a cardio change.
+
+The English original and a differently worded Chinese progress question both
+produced diet + training + detailed movements, seven-day scopes, and a pending
+evidence-based historical stage. The model did not assume progress. A follow-up
+changed fourteen days to thirty and removed diet while retaining the training
+and same-movement comparison goal.
+
+Raw prompts, user cases, model responses and evaluation are outside Git at
+`D:/FitnessLedger/task_outputs/export-intent-v4-20261015/`. Replay without
+repairing the model outputs:
+
+```powershell
+python tools/analysis_llm_intent_eval.py --responses D:/FitnessLedger/task_outputs/export-intent-v4-20261015/responses.json --report D:/FitnessLedger/task_outputs/export-intent-v4-20261015/evaluation.json
+```
+
+This bounded experiment verifies request interpretation and executable JSON,
+not universal provider accuracy or the quality of a completed personal fitness
+analysis report. The candidate remains unmerged and unpublished for joint seal.

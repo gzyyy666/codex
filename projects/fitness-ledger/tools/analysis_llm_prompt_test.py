@@ -5,6 +5,7 @@ import copy
 import json
 from pathlib import Path
 import sys
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -86,8 +87,22 @@ def test_failed_comparison_request_is_not_silently_accepted() -> None:
     assert protocol.preview({'request': request})['status'] == 'invalid_request'
 
 
+def test_capability_snapshot_tracks_current_contract() -> None:
+    original = request_capabilities()
+    assert len(original['contract_fingerprint']) == 64
+    assert original == request_capabilities()
+    # A new supported field must appear in the generated prompt contract,
+    # without relying on a hand-maintained example or historical field list.
+    with patch.dict(DATASET_FIELDS, {'body': (*DATASET_FIELDS['body'], 'future_metric')}):
+        changed = request_capabilities()
+        assert 'future_metric' in changed['datasets']['body']['fields']
+        assert changed['contract_fingerprint'] != original['contract_fingerprint']
+    assert request_capabilities() == original
+
+
 if __name__ == '__main__':
     for test in (test_all_data_round_trip, test_capabilities_cover_runtime_contract, test_prompt_boundaries,
-                 test_failed_comparison_request_is_not_silently_accepted):
+                 test_failed_comparison_request_is_not_silently_accepted,
+                 test_capability_snapshot_tracks_current_contract):
         test()
         print(f'PASS {test.__name__}')
