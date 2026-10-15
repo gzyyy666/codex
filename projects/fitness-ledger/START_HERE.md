@@ -14,20 +14,29 @@ This is the authoritative source and context entry for Fitness Ledger. It is des
 
 ## User-facing workflow
 
-You can work in any dedicated long-running specialist conversation. At the start of every task, that conversation reads the live project status; you do not need to provide the latest SHA or copy files between conversations.
+You can work in any dedicated specialist conversation. It checks the relevant
+live Git or runtime facts for the task; you do not need to provide the latest
+SHA or copy files between conversations.
 
-Use one of these two phrases when the desired stopping point matters:
+State the desired stopping point when it matters:
 
 - **“先开发/先让我验收”**: the conversation changes only its task Worktree, runs focused tests, and stops for review. It does not Push, Tag, merge, or write to the formal directory.
-- **“按规范封板”**: after tests and review pass, the conversation may finish the full closeout itself: Commit, integrate and Push when authorized, precisely update the formal directory, verify protected data, restart affected services, and update `.codex/task-handoff.json`.
+- **“先发布供我 review，接受返工”**: authorize only the named review deployment with rollback and actual-target verification; final integration/publication remains separate.
+- **“按规范封板”**: after relevant checks and review pass, complete the applicable source-only, Quick or Full closeout. Integrate, publish or Push only within authorization; runtime/data checks and shared handoff apply only where relevant.
 
 You do not have to return a sealed task to this central conversation. Return it here only when several Worktrees must be coordinated, a conflict is unexplained, or you want a final cross-task audit.
 
 If no closure phrase is given, default to **先开发/先让我验收**. This prevents a normal small fix from unexpectedly changing `main` or the formal environment.
 
+Use `docs/agent/FL_TASK_ROUTING.md` to judge research, verification and release
+independently. Source-only work has a short closeout; a known bounded local
+publication uses Quick Seal; consequential boundaries add relevant Full Seal
+checks. See `docs/maintenance/CODEX_RELEASE_CLOSEOUT.md`. Do not add community
+research, unrelated regression suites or Worktree cleanup to a routine fix.
+
 ## Five-Minute Restore
 
-1. Run `python tools/project_status.py --write --json` and use the live result instead of an old prompt SHA.
+1. Check live Git scope/baseline. Run `python tools/project_status.py --write --json` for runtime diagnosis, formal publication or data/provider work; source-only changes can skip the runtime scan.
 2. Read `FITNESS_LEDGER_MAINTENANCE.md` for safety boundaries.
 3. Read `PROJECT_BOOTSTRAP.md` for architecture and request routing.
 4. Read `docs/INDEX.md` and open only the task-specific references.

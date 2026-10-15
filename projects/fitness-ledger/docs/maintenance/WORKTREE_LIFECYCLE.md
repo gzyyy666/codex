@@ -5,10 +5,10 @@ project `AGENTS.md` remains authoritative for task behavior.
 
 ## Create
 
-1. Run `python tools/project_status.py --write --json`.
-2. Use the live local `main` reported by the command, not an older detached
+1. Check Git baseline/scope; run live project status when runtime or publication is involved.
+2. Use the verified live local `main`, not an older detached
    Worktree or an unverified remote-tracking snapshot.
-3. Create one `codex/<task-name>` branch and one dedicated Worktree.
+3. Reuse the task's existing Worktree; create an isolated `codex/<task-name>` Worktree when needed to protect main or concurrent work. Do not nest Worktrees merely for a route label.
 4. Read `docs/experiments/EXPERIMENTS_INDEX.md` before reusing any experiment.
 
 ## Develop
@@ -20,6 +20,11 @@ project `AGENTS.md` remains authoritative for task behavior.
   authorizes sealing.
 
 ## Seal
+
+Use `CODEX_RELEASE_CLOSEOUT.md` as the authority. The steps below apply only
+when relevant and authorized; source-only work needs no formal deployment,
+service restart, protected-data scan or shared runtime handoff. Cleanup of
+unrelated Worktrees is separate maintenance, not a release gate.
 
 1. Run the scoped tests, syntax checks, `git diff --check`, and actual Diff
    review.

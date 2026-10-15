@@ -1,13 +1,38 @@
 # Fitness Ledger Regression Checklist
 
-Always run:
+## Select checks by change impact
+
+This is the authoritative test-selection entry. Use the smallest set that can
+detect a meaningful regression; the sections below are a menu, not a requirement
+to run every suite. Explain unusual omissions or residual risk briefly.
+
+| Change | Minimum useful validation |
+| --- | --- |
+| Documentation/rules/skill references | Links, consistency, encoding and actual diff; no application regression or formal health checks |
+| Isolated copy/CSS | Syntax when relevant, affected rendered state and obvious layout impact |
+| Existing Web interaction/logic | Affected user action, focused existing test and changed JS/Python syntax |
+| Desktop/parser/shared ledger logic | Baseline below plus affected behavior/contract suites |
+| Save/schema/identity/recovery/auth | Relevant contract, rejection and rollback cases using temporary data; widen only to affected consumers |
+| PWA/cloud/provider publication | Relevant boundary checks in `docs/maintenance/CODEX_RELEASE_CLOSEOUT.md` |
+
+For all edited source, inspect the actual diff and run `git diff --check`.
+Reuse passing checks for the unchanged candidate; repeat only after relevant
+edits, failures, runtime changes or new uncertainty. Do not add tests that merely
+mirror low-impact edits. Documentation-only changes need no runtime handoff.
+
+## Desktop/parser/shared ledger baseline
+
+For changes affecting these behaviors, run:
 
 ```text
 python -m py_compile stable_app.pyw
 python tools/regression_test.py
 ```
 
-For web desktop changes, also run:
+## Web desktop checks
+
+Choose from the following for affected Web behavior. A frontend-only copy/CSS
+change does not require compiling unchanged backend files or a full write suite:
 
 ```text
 python -m py_compile web_desktop/launcher.pyw web_desktop/backend/server.py

@@ -4,17 +4,20 @@ These rules apply to every task under this project.
 
 ## Start from live facts
 
-Before reviewing or editing, run:
+For source-only work, check Git scope and `HEAD/main/origin/main` once. Before
+runtime diagnosis, formal publication, or data/provider work, run:
 
 ```powershell
 python tools/project_status.py --write --json
 ```
 
-Use its live Git, formal-directory, Cloud Sync, service, and deployment results as the authority. Prompt SHAs and old chat summaries are expectations only; report and stop on an unexplained mismatch.
+Use live facts as authority. Stop actions affected by unexplained baseline or
+deployment drift; unrelated runtime drift does not block source-only work.
+Do not repeat an unchanged full scan for each phase of a small task.
 
 An automatically created Codex Worktree may be detached from an older
-`origin/main`. If its `HEAD` is not the live local `main` reported by the status
-command, do not use it as the development baseline. Create or switch to a
+`origin/main`. If its `HEAD` is not the verified live local `main`, do not use
+it as the development baseline. Create or switch to a
 task-specific `codex/<task-name>` branch from the live local `main` first.
 
 Before starting work that touches an existing module, data structure, or architecture extension, inspect `docs/experiments/EXPERIMENTS_INDEX.md`. Unless the user explicitly resumes an experiment, do not continue, merge, copy, or depend on a paused experiment.
@@ -23,21 +26,12 @@ Do not copy formal `data/**` into Git or a Worktree. The status file contains ha
 
 ## Task routing before skill invocation
 
-Before selecting a research-heavy skill, subagent, external tool, or release
-action, read `docs/agent/FL_TASK_ROUTING.md` and classify the task as S, M, L,
-or R3.
-
-- S tasks skip `two-role-community-first`, broad web research, and parallel
-  agent machinery.
-- M tasks use a short context/plan/implementation/verification path; use Lite
-  research only when unfamiliarity or reuse risk justifies it.
-- L tasks use the full two-role workflow and independent review.
-- R3 tasks additionally require the release/data gates below and never receive
-  formal writeback or provider upload authorization implicitly.
-
-If the route is uncertain, escalate one level. Do not use a longer route merely
-because it is available; use it only when the task's risk or uncertainty calls
-for it.
+Use `docs/agent/FL_TASK_ROUTING.md` to judge knowledge gaps, verification risk,
+and authorized publication separately. Familiar work skips community research;
+a concrete gap uses targeted research. Complexity, L/R3 labels, or sealing
+alone never require two roles, broad research, or parallel agents. Investigate
+material uncertainty with a targeted check instead of escalating the whole
+workflow. Use `REGRESSION_CHECKLIST.md` to select affected checks.
 
 ## Deployment and service rules
 
@@ -49,7 +43,8 @@ for it.
 
 ## Task handoff
 
-After tests and the task commit, run:
+After formal application publication or cross-task integration needing a
+shared runtime handoff, run:
 
 ```powershell
 python tools/project_status.py --write --handoff --json
@@ -59,28 +54,33 @@ This writes the shared local handoff at:
 
 `D:\FitnessLedger\source\projects\fitness-ledger\.codex\task-handoff.json`
 
-Return the handoff path and full Commit SHA. Development / review mode does not itself authorize publication. A separately authorized Review Deployment may publish a reversible candidate for human review before sealing, under the limits below.
+Return the handoff path and Commit SHA when applicable. Source-only work may
+end with a reviewed diff or commit and does not require this runtime handoff.
+Development / review does not itself authorize publication.
 
 ## Closure levels
 
 For the executable sealing checklist, read
 `docs/maintenance/CODEX_RELEASE_CLOSEOUT.md` before any Seal / finalise action.
-Use its **Quick Seal** only when every low-risk eligibility condition is met;
-otherwise use the **Full Seal** checklist. Quick Seal is a shorter evidence
-path, not a relaxation of explicit authorization, source review, rollback, or
-formal verification.
+Use source-only closeout for unpublished work, **Quick Seal** for a known
+bounded local publication, and **Full Seal** for consequential boundaries or
+unclear provenance. Full Seal adds only risk-relevant checks. A file being in
+Core or PWA does not alone require a heavier route. The closeout guide is the
+single authority for check selection; do not recreate a second checklist here.
 
 Every task conversation must identify its closure level from the user's wording:
 
 - **Development / review**: work only in the task Worktree; run the relevant tests and leave a clean, reviewable task commit or an explicit uncommitted diff. Do not merge, Push, create Tags, or write to the formal directory unless the user separately authorizes a Review Deployment.
 - **Review Deployment / temporary release**: when the user explicitly asks to publish for review, or the surface cannot be fully reviewed without the formal runtime/device (notably an installed phone PWA), publish the review candidate before final acceptance. The user accepts that review feedback may require rework. This permission covers only the named target and reviewed files. Preserve a recoverable copy/rollback point, run the scoped preflight and checks, publish with coherent asset versions, and verify the actual formal URL/device-facing resources. Do not treat this as human acceptance or Seal / finalise; do not merge, Push, Tag, alter protected data, change Cloud Sync/provider state, or deploy unrelated files unless separately authorized. After review, continue development or wait for explicit seal authorization.
-- **Seal / finalise / 封板**: after review and required tests pass, the same task conversation may complete the applicable closeout route. Quick Seal is available only for a source-clear, isolated, low-risk change; all other releases use Full Seal. Commit/integrate into `main`, Push only when authorized, derive any deployment list from Git, write back only reviewed files, restart affected services, run formal checks, protect data, and generate the handoff as required by that route.
+- **Seal / finalise / 封板**: after review and relevant checks pass, complete the applicable source-only, Quick, or Full closeout. Integrate and Push only as authorized; deploy only reviewed files and run only affected runtime/data checks. Reuse acceptance and authorization already given; do not ask again for the same scope.
 
 The task does not need to be handed back to a central Git conversation. A specialist Worktree conversation may seal its own work when the user explicitly authorizes sealing. The central conversation remains the preferred place for cross-Worktree integration, unexplained conflicts, broad architecture changes, or a final multi-task audit.
 
 If the user only asks to modify, fix, develop, or prepare a review, treat it as **Development / review**. Do not infer publication. A request such as “先发布供我 review，接受返工” explicitly authorizes only a **Review Deployment**; it does not authorize Seal / finalise.
 
-Before claiming a sealed task, report the full Commit SHA, `HEAD/main/origin/main`, clean task Worktree, exact deployment scope, relevant formal/data verification, test results, and handoff path. Quick Seal may use the shorter report defined in the closeout guide; Full Seal retains the complete evidence report.
+Report the change, relevant checks, and candidate/published status. Add commit,
+deployment scope, rollback, formal/data evidence and handoff only when relevant
+to the actual work. Follow the concise receipt in the closeout guide.
 
 ## Worktree lifecycle
 

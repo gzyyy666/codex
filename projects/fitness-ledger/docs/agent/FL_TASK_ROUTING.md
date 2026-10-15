@@ -1,114 +1,97 @@
-# Fitness Ledger Agent Task Routing
+# Fitness Ledger task routing
 
-This document is the routing gate for Codex and other coding agents working on
-Fitness Ledger. Classify the task before selecting a research skill, subagent,
-worktree, external tool, or release action.
+Choose the smallest useful workflow. Judge three questions independently:
+**What knowledge is missing? What behavior/data can change? What publication
+has the user authorized?** Complexity, file count, and release work alone do
+not require community research, multiple roles, or parallel agents.
 
-The purpose is to keep small changes short while reserving research-heavy
-multi-role work for changes where it reduces real risk.
+## Start with local evidence
 
-## Routing rule
+Read the relevant source/index and existing tests; reproduce a reported issue
+when practical. Explain only decisions that matter, not a separate task brief
+for every small change. For source-only work, identify HEAD/main/origin/main
+and the changed scope. Use the live project status for runtime diagnosis,
+formal deployment, data/provider actions, or an unexplained baseline mismatch.
+An unrelated documented runtime drift does not block source-only documentation
+work; never overwrite it or claim it resolved.
 
-Choose the smallest route that safely covers the task. If the scope or risk is
-unclear, move up one level. Never downgrade a task because the change looks
-small when it touches protected data, a write boundary, a schema, a migration,
-or a formal release.
+## Research: based on the knowledge gap
 
-| Route | Use for | Default workflow | Research skill |
-| --- | --- | --- | --- |
-| **S — Small** | Text, copy, one known CSS value, a local test assertion, or a mechanical edit with no behavior/data-contract change | Worker → focused check → diff review | Skip; no web/community scan |
-| **M — Normal** | A bounded change in an existing module, page, route, or test with no schema/migration/formal-data change | Context Navigator → short plan → Worker → focused QA | Lite only when the implementation or context is unfamiliar |
-| **L — Substantial** | Parser, save boundary, movement identity/dictionary, cross-surface behavior, architecture, dependency, migration, redesign, or an expensive-to-reverse decision | Role A Operator → Role B Worker → independent review → verification | Full `two-role-community-first` |
-| **R3 — Release/Data** | Formal directory, protected data, Cloud Sync/provider, deployment, service restart, or release integration | L route plus the applicable Quick or Full Seal gate, protected-data checks, and handoff | Use Quick Seal only when its strict eligibility conditions pass; never bypass release authorization or verification |
+- **None:** existing code and evidence explain a familiar implementation/fix.
+- **Targeted:** an unfamiliar API, unresolved runtime failure, or meaningful
+  external implementation choice can change the next step. Use the targeted
+  mode of `two-role-community-first`.
+- **Deep:** targeted work exposes competing consequential approaches, or the
+  user asks for a broad study. Add an operator role only if agent operation
+  itself is an unresolved question.
 
-R3 is an escalation flag and cannot be treated as S. A task may be both L and
-R3.
+New features do not automatically require research. High-risk fixes can need
+strict local verification with no web research. Stop searching when the next
+action and its verification are clear; report unresolved facts honestly.
 
-## Route details
+## Verification: based on the affected behavior
 
-### S — Small
+Use `REGRESSION_CHECKLIST.md` as the single test-selection entry.
+A changed file does not automatically require all tests for its directory.
 
-Do not invoke `two-role-community-first`, broad web research, parallel agents,
-or a new worktree for an S task. Use the existing task Worktree and run only
-the checks relevant to the changed file, plus `git diff --check` and a final
-diff review.
+| Impact | Default approach |
+| --- | --- |
+| Documentation, copy, known isolated CSS | Diff/link or syntax check; inspect visible result if applicable |
+| Bounded existing interaction or logic | Focused tests and the actual affected user action |
+| Shared save/parser/identity/schema/auth/recovery contract | Relevant contract, adverse-case and rollback tests; independent review when uncertainty or consequence justifies it |
+| PWA/cache/cloud/provider | The changed contract plus the relevant resource, cache, authentication or provider readback checks |
 
-Use an explicit prompt such as:
+Select independent review for meaningful residual risk, not merely because a
+file lives in Core. Use subagents only when authorized and when an independent
+question or separable work justifies the overhead. A reviewer can be a separate
+human review; do not claim independence for the same pass reviewing its own work.
 
-```text
-S route. Make only the requested mechanical change. Do not browse or run
-research-heavy skills. Run the relevant syntax/test check and git diff --check.
-```
+For runtime-only failures, consider `local-program-debugging` when available:
+trace the actual launcher/process/resources and user action. Do not invoke it
+for an understood copy edit.
 
-### M — Normal
+Use Product Design skills for an actual UX/design audit or substantial visual
+work, not ordinary source review or a known button fix. Existing-project fixes
+should preserve the established UI and use the actual rendered result; do not
+add design research, image generation or external redesign tools by default.
+Firecrawl/XCrawl are retrieval options when research needs them, not additional
+mandatory research passes. Codex repair, workbook, video and artifact skills
+apply to their named tasks, not ordinary Fitness Ledger source maintenance.
 
-Read the project index and the task-relevant source/test map. Produce a short
-plan before editing. Use the Lite form of a research skill only when there is
-an unfamiliar implementation choice, external dependency, or meaningful
-reuse question. Do not turn a bounded familiar change into a Full research
-pass.
+## Closure: based on publication scope
 
-### L — Substantial
+Use `docs/maintenance/CODEX_RELEASE_CLOSEOUT.md` for authorized publication.
 
-Use the complete two-role boundary:
+- **Source-only closeout:** relevant checks, reviewed diff, candidate/commit.
+  No formal health, data hashes, restart, upload, or shared runtime handoff.
+- **Quick Seal:** known bounded local publication; baseline/scope, focused
+  checks, rollback, exact deployment, actual changed behavior, concise receipt.
+- **Full Seal:** consequential contract/data/security/cloud/cache changes or
+  unresolved deployment provenance. Add only the relevant risk checks.
 
-1. Role A decides how the agent should operate, what context and verification
-   are needed, and what user checkpoint is required.
-2. Role B independently researches the actual solution and records
-   ADOPT/EXTEND/COMPOSE/BUILD before implementation.
-3. Independent reviewers check data safety, behavior, visual output, or
-   architecture according to the changed surface.
+Formal publication, protected data, provider upload, and remote Push retain
+their explicit authorization boundaries. Reuse authorization already given in
+the conversation; do not ask again for the same scope. Review Deployment and
+final sealing remain separate permissions. Formal publication does not imply
+all-L research.
 
-Do not write to the formal directory or protected data during development /
-review mode.
+## Compatibility with older prompts
 
-### R3 — Release/Data
+S/M/L are optional scope labels, not execution machinery:
+S = isolated mechanical; M = bounded behavior; L = wider contract/uncertainty.
+R3 is a publication/data modifier, not a requirement to perform all L work.
+Legacy labels must not override the independent research/verification/closure
+decisions above. Resolve material uncertainty with a targeted inspection
+before choosing additional steps; do not automatically escalate a whole route.
 
-Before any formal or provider action:
+Use an existing task Worktree. Create an isolated one when needed to protect
+main or separate concurrent edits; no nested Worktree solely because a route
+label says so. Read the experiments index when related implementations might
+reuse a paused experiment.
 
-- run `python tools/project_status.py --write --json`;
-- derive deployment scope from `git diff --name-status`;
-- preserve and compare protected data fingerprints;
-- restart affected services after deployed Python backend changes;
-- run formal regression and write the task handoff;
-- distinguish Review Deployment from Seal / finalise. If the user explicitly
-  requests a formal/device review release and accepts possible rework, publish
-  only the scoped candidate to the named target before human acceptance; keep
-  a rollback point, run preflight, and verify the live result.
-- require separate explicit `按规范封板` / seal authorization before merge,
-  push, tag, final formal writeback, protected-data mutation, or provider upload.
+## Evidence to return
 
-For source-clear, low-risk releases, the Quick Seal route in
-`docs/maintenance/CODEX_RELEASE_CLOSEOUT.md` may narrow the checks to the
-changed surface. It does not grant additional permission or waive the live
-baseline, scoped diff review, explicit release authorization, rollback point,
-focused formal verification, or handoff. Data/API/schema/migration, security,
-Cloud Sync, PWA/mobile, or ambiguous multi-worktree changes remain Full Seal.
-
-## Required task brief
-
-For M, L, and R3 tasks, record these fields in the task prompt or a temporary
-brief:
-
-- outcome and acceptance evidence;
-- route and why it was selected;
-- in-scope files/surfaces and explicit non-goals;
-- data and deployment boundary;
-- required tests, screenshots, or runtime checks;
-- rollback/checkpoint plan;
-- user approval required, if any; record Review Deployment permission
-  separately from Seal / finalise permission.
-
-For S tasks, the prompt itself may be the brief.
-
-## Exit evidence
-
-- **S:** changed-file check, `git diff --check`, and reviewed diff.
-- **M:** short plan, focused tests, reviewed diff, and remaining uncertainty.
-- **L:** Operator Plan, reuse decision, implementation evidence, independent
-  review, and relevant regression/visual checks.
-- **R3:** all L evidence plus live status, deployment scope, service state,
-  protected-data comparison, and handoff path.
-
-The route is a control on agent machinery, not permission to skip correctness
-checks. A small change still needs the smallest relevant verification.
+For small work: what changed, focused checks, and candidate/published status.
+For higher impact: add remaining uncertainty, relevant adverse-case evidence
+and the deployment receipt. Keep reports proportional; do not manufacture
+research registries, plans, screenshots, or tests that add no decision value.

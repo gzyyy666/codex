@@ -1,5 +1,11 @@
 # Fitness Ledger Maintenance Workflow
 
+Project task routing, test selection and publication rules are maintained in
+`projects/fitness-ledger/AGENTS.md`, `docs/agent/FL_TASK_ROUTING.md`,
+`REGRESSION_CHECKLIST.md` and `docs/maintenance/CODEX_RELEASE_CLOSEOUT.md`
+(paths after AGENTS are relative to the project). They override this older
+summary. Read only the references relevant to the actual change.
+
 ## Start
 
 1. Read `memory/fitness-ledger-state.md`.
@@ -24,11 +30,12 @@
 
 ## Checkpoint
 
-1. Sync current source to `projects/fitness-ledger/` without local data, backups, caches, profiles, or intermediate QA images.
-2. Update `CHANGELOG.md` and `memory/fitness-ledger-state.md`.
-3. Review the diff.
-4. Commit and push.
-5. Add a Git tag for major stable milestones.
+1. Review the diff and relevant checks; preserve a candidate diff or commit.
+2. Update only documentation made stale by the change. Memory changes require
+   the user's explicit request; do not update memory as routine closeout.
+3. Integrate, publish or Push only within authorization already given.
+4. Use the applicable closeout route; Tags and broad cleanup are not routine
+   requirements for small fixes. Do not copy formal data into source.
 
 ## Recover
 

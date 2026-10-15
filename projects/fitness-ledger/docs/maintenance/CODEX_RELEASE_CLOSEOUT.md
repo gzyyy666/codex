@@ -1,156 +1,96 @@
-# Codex release closeout
+# Proportionate release closeout
 
-This document is the mandatory closeout checklist for a Fitness Ledger task that
-has reached formal release / sealing. It applies to repositories with a formal
-business directory, generated indexes, multiple Worktrees, and optional PWA or
-Cloud Sync surfaces.
+Choose closure from the actual diff, affected behavior, and authorization.
+Use one common short path, then add risk-specific checks. Research is governed
+by `../agent/FL_TASK_ROUTING.md`; sealing does not activate it.
 
-## Closure level
+## Authorization
 
-Classify the task before acting:
+- **Development / review:** prepare and verify a candidate in the task
+  Worktree. A reviewable diff or commit is sufficient; no implicit merge,
+  Push, Tag, formal deployment, service restart, data change, or cloud upload.
+- **Review Deployment:** an explicit request permits scoped reversible
+  publication to the named target before final acceptance. Keep a rollback
+  point and verify the actual target. It does not authorize final integration,
+  remote Push, unrelated files, protected-data mutation, or provider changes.
+- **Seal / finalise / 封板:** the user's authorization permits the named
+  integration/publication scope. Honor acceptance already given; do not add
+  a second approval ceremony or repeat permission questions. Push, data
+  changes and provider uploads must be covered by the actual authorization.
 
-- **Development / review:** work only in the task Worktree. Run tests and leave
-  a reviewable commit or explicit diff. This does not itself authorize formal
-  publication.
-- **Review Deployment / temporary release:** after an explicit user request,
-  publish the scoped candidate to the named formal target so the user can
-  review the real runtime or device. This may happen before acceptance; the
-  user accepts possible rework. Keep a rollback point, publish only the
-  reviewed scope, run preflight, and verify the actual live resources. It is
-  not acceptance or Seal / finalise and does not authorize merge, push, tags,
-  protected-data or provider changes, or unrelated deployment.
-- **Seal / finalise:** continue only after explicit user authorization for
-  formal release. Select Quick Seal only when every eligibility condition below
-  is satisfied; otherwise complete the Full Seal gates. Do not infer
-  authorization from “完成”“finish” or a review URL alone. A Review Deployment
-  request does not grant seal authorization.
+A request to finish implementation is not publication authorization. Conversely,
+do not demand an exact phrase when the intended publication scope is explicit.
 
-## Review Deployment sequence
+## Source-only closeout
 
-Use this short path only when the user explicitly requests temporary formal
-publication for review or confirms that device/runtime review requires it. It
-is separate from both Development / review and Seal / finalise.
+For docs/tests or an unpublished implementation candidate:
+review scope and the actual diff, run relevant checks and `git diff --check`,
+then report the diff/commit and its location. Only update documentation made
+stale by the change. Skip runtime/data status, formal service checks, deployment
+backups, release Tags, and shared runtime handoff. They cannot verify a
+documentation-only edit. Preserve a useful candidate; do not require commit
+or integration when an explicit uncommitted diff is the agreed output.
 
-1. Confirm the live baseline, exact target, and scoped files. Derive source
-   scope from Git and record hashes/fingerprints for the current live assets.
-2. Preserve a recoverable snapshot or equivalent rollback point before upload.
-   For a PWA, run `python tools/pwa_deployment_preflight.py --deployment` and
-   update the entry, manifest, app imports, Service Worker registration/cache
-   shell, and cache name as one asset group.
-3. Upload only the files needed for the review candidate. Do not change
-   protected data, Cloud Sync/provider state, authentication rules, or APIs
-   unless the user separately authorizes that scope.
-4. Read back the formal URL resources and verify their exact version/hash,
-   authentication boundary, and changed behavior. A successful CLI upload is
-   not sufficient evidence.
-5. Report the review URL, published scope, rollback point, verification, and
-   any evidence the user must inspect. Leave final acceptance and Seal /
-   finalise pending.
+## Quick Seal: bounded local publication
 
-If review feedback requires changes, return to development, make a new
-reviewable candidate, and repeat this sequence. Do not require the user to issue
-the seal instruction merely to perform a specifically authorized review upload.
+Use when source and target provenance are clear, the change is isolated, and
+there is no consequential change to saving, identity, schema, migration,
+recovery, security, cloud/provider state, cache lifecycle, or cross-surface
+contract. File location alone is not a risk category: a Core wording change or
+PWA copy change is not automatically a data-contract release.
 
-## Quick Seal for source-clear, low-risk changes
+1. **Confirm once:** live status, source baseline, authorized target, reviewed
+   Git-derived A/M/D/R file list, and rollback point. Stop only for unexplained
+   drift that could affect this publication; do not overwrite unrelated
+   candidates or clean their Worktrees.
+2. **Check the change:** focused syntax/test and actual diff review; reuse
+   passing evidence for the same candidate. Re-run when code, candidate
+   identity, runtime, or relevant assumptions changed.
+3. **Publish the reviewed scope:** integrate/Push only as authorized; back up
+   changed deployed files, apply precisely that list, and restart only an
+   affected loaded service. Source-only files need no application writeback.
+4. **Verify and receipt:** check actual changed behavior/resources on the named
+   formal entry and relevant runtime health. Compare protected data only when
+   deployment/test paths can touch it. Produce the concise receipt below.
 
-Quick Seal is intended for small fixes whose source, behavior, and deployment
-scope are already clear (for example, a localized UI interaction or copy fix).
-It avoids repeating broad audits that cannot change the release decision.
+Do not audit unrelated Worktrees, run unrelated suites, clean the repository,
+refresh every document, create a Tag, or repeat a full baseline scan by default.
 
-Every condition must be true:
+## Full Seal: add checks for the actual risk
 
-- The live baseline is understood, `main` and the intended remote baseline have
-  no unexplained divergence, and the task Worktree is clean apart from this
-  reviewed change.
-- The diff is small, isolated, and limited to a known UI/client behavior,
-  wording, test, or documentation scope. The exact source-to-formal file map is
-  known before writeback.
-- No protected data, data model/schema, API contract, parser/save boundary,
-  migration, import/export/recovery behavior, security/auth, Cloud Sync,
-  provider, PWA/mobile viewport/service worker, or cross-surface contract is
-  changed.
-- Focused automated/browser tests and relevant syntax checks pass; the diff is
-  reviewed and `git diff --check` passes.
+Use for consequential boundary changes or unclear provenance. It means the
+common publication path plus the applicable checks below, not every row.
 
-Quick Seal still requires explicit release authorization. Its sequence is:
+| Changed boundary | Additional evidence |
+| --- | --- |
+| Parser/save/movement identity/shared data contract | Relevant contract/adverse-case regressions; temporary data for writes; preserve raw input and identity; data fingerprints for affected formal verification |
+| Schema/migration/import/export/recovery | Reviewed source/target mapping, checkpoint, fixture replay, rejection/rollback, recovery verification; explicit formal-data authorization |
+| Security/authentication | Allowed and rejected access, reviewed permissions; no unrelated rule/provider changes |
+| Loaded Python backend | Restart the named service after deployment; verify actual process/build and affected behavior |
+| Cloud Sync/provider | Explicit provider scope, payload/state comparison and provider readback; an upload exit code alone is insufficient; local SYNCED is not device proof |
+| PWA/static resource/cache changes | Coherent entry/import/manifest/Service Worker versions when relevant; deployment preflight, live version/hash readback and actual upgrade/cache behavior for the change |
+| Cross-surface contract | Relevant desktop/Web/PWA/Mini consumers and compatible behavior; identify unverified surfaces |
+| Combining divergent candidates | Inspect the specific participating diffs and baselines; exclude unrelated active work |
 
-1. Run `python tools/project_status.py --write --json`; confirm live Git,
-   formal deployment, protected-data fingerprints, and service state. Stop on
-   unexplained drift.
-2. Review `git diff --name-status` and the full diff. Confirm no data, PWA,
-   Cloud, or unrelated files are included. This scoped proof replaces an
-   exhaustive comparison of unrelated Worktrees; do not merge, clean, or stop
-   their work.
-3. Run only the focused tests, syntax checks, and `git diff --check` relevant
-   to this change. Record the results.
-4. After explicit authorization, commit and integrate the reviewed change
-   using the least invasive operation. Push only when authorized. Create a
-   release tag only when required by the runtime identity or explicitly
-   requested; the commit remains the source of truth either way.
-5. If the change is source-only (docs/tests), do not write to the formal app.
-   Otherwise create a recoverable backup of only the changed deployed files,
-   then deploy only those files. Restart only the affected service when needed.
-6. Verify formal health and the changed behavior on the formal entry point;
-   confirm deployment status and protected-data fingerprints are unchanged.
-   Do not perform Cloud or PWA uploads unless they are explicitly in scope and
-   separately authorized.
-7. Run `python tools/project_status.py --write --handoff --json`, confirm the
-   task Worktree is clean and `HEAD/main/origin/main` are understood, then
-   report the commit, exact scope, focused test results, rollback point,
-   protected-data result, and handoff path.
+A pure PWA copy/CSS release may use Quick Seal, but must retain the relevant
+asset version group, preflight and live-resource/cache verification. A cache,
+read/write contract or authentication change uses Full Seal.
 
-If any eligibility condition fails or new risk appears, stop the Quick Seal
-route and use Full Seal. Quick Seal must not be used to shorten verification
-for a change that touches the excluded boundaries above.
+If risk cannot be bounded, investigate the uncertainty and expand verification.
+Do not shorten essential checks to meet an arbitrary time limit. Document
+non-blocking limits without expanding the accepted change into unrelated fixes.
 
-## Full Seal: mandatory sequence
+## Concise release receipt
 
-1. Confirm the live baseline with `python tools/project_status.py --write --json`.
-   Record `HEAD`, local `main`, `origin/main`, all Worktrees, and the formal
-   directory fingerprint. Stop on an unexplained mismatch.
-2. Read `AGENTS.md`, `START_HERE.md`, `PROJECT_CONTEXT.md`,
-   `docs/experiments/EXPERIMENTS_INDEX.md`, and the relevant schema/API and PWA
-   deployment documents.
-3. Derive the candidate scope from `git diff --name-status`. Inspect the actual
-   diff, including deleted/renamed files, generated artifacts, and binary assets.
-4. Run the relevant unit, contract, browser, export/import, PWA, and formal
-   regression tests. Run syntax checks and `git diff --check`.
-5. Obtain and record human acceptance of the candidate.
-6. Obtain explicit user authorization to seal / publish.
-7. Commit the candidate, merge it into `main` using the least invasive allowed
-   operation, and push the intended remote branch.
-8. If a formal business directory exists, create a recoverable backup point and
-   synchronise only the files derived from the reviewed Git diff. Never copy
-   formal `data/**` into Git or a Worktree.
-9. Restart affected services. Run formal health checks and regression tests;
-   verify protected data hashes and expected file fingerprints before/after.
-10. Update only documentation made factually stale by the release: this file,
-    `START_HERE.md`, `PROJECT_CONTEXT.md`, schema/API docs, `CHANGELOG.md`, and
-    the experiments index as applicable. Search for and resolve contradictory
-    old instructions; do not mechanically refresh dates.
-11. Create the project-required Tag only after formal verification passes.
-12. Remove only merged, inactive Worktrees/branches after confirming no active
-    task owns them. Preserve valuable unmerged work on an explicit archive
-    branch or status document.
-13. Re-run `git worktree list` and `python tools/project_status.py --write
-    --handoff --json`. Confirm local `main`, `origin/main`, and the production
-    baseline match the project's defined identity.
+Report: source commit/candidate; exact published target/scope; relevant checks
+and live evidence; rollback point; any unverified boundary. Include remote
+state only when integration/Push is part of the task. Include data results only
+when data could be affected. Tags are optional unless project runtime identity
+or the user requires one.
 
-## Required final report
+Run `python tools/project_status.py --write --handoff --json` after a formal
+application release or cross-task integration that needs the shared runtime
+handoff. A normal source-only change does not rewrite that shared handoff.
 
-Report the full baseline commit and Tag (if required), `HEAD/main/origin/main`,
-clean Worktree status, exact deployment files, formal fingerprints before and
-after, test commands/results, rollback point, and the generated handoff path.
-
-## PWA and parallel Worktree gate
-
-Before sealing, enumerate every active Worktree and compare PWA files against
-the candidate baseline. Explicitly identify whether a PWA implementation is:
-
-- included in the candidate and tested;
-- an older or divergent attempt that must not be copied; or
-- intentionally out of scope and documented as such.
-
-Do not merge or copy a second PWA implementation merely because its directory
-looks newer. Compare its API contract, data model, session semantics, movement
-category mapping, assets, tests, and deployment notes first.
+Worktree cleanup is separate maintenance unless this task's own retirement is
+needed. Preserve active/unmerged work; follow `WORKTREE_LIFECYCLE.md`.

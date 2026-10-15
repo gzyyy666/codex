@@ -56,7 +56,9 @@ Use these rules only for the local Fitness Ledger desktop tool.
 
 ## Validation
 
-Always run:
+Select checks by actual impact using `REGRESSION_CHECKLIST.md`. The following
+baseline applies to desktop/parser/shared ledger behavior changes, not every
+documentation, wording, or isolated Web style edit:
 
 ```text
 python -m py_compile stable_app.pyw
