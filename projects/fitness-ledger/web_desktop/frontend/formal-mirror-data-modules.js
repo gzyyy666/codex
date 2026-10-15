@@ -265,7 +265,7 @@ const surfaceEnhanceWithTrainingDates=reviewEnhanceSurfacePageFinal;reviewEnhanc
      const facts=$$('.structured-facts>div',section);
      const hasModule=facts.some(item=>item.hasAttribute('data-dm-detail-module-id'));
      const hasNativeValue=facts.some(item=>{const value=$('strong',item)?.textContent?.trim()||'';return value&&!['—','-'].includes(value)});
-     if(!hasModule&&((facts.length&&!hasNativeValue)||section.querySelector('.structured-empty')))section.remove();
+     if(!hasModule&&((facts.length&&!hasNativeValue)||section.querySelector(':scope > .structured-empty')))section.remove();
    });
    const record=$('.structured-record',panel),firstSection=$('.structured-section',record);
    const moduleSections=$$('.structured-section',record).filter(section=>section.querySelector('[data-dm-detail-module-id]'));

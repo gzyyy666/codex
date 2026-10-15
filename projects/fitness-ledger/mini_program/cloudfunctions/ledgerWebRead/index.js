@@ -154,8 +154,12 @@ function themeNames(record, organization) {
   const themes = Array.isArray(organization && organization.session_themes) ? organization.session_themes : [];
   const byId = Object.fromEntries(themes.map(item => [String(item.theme_id || ""), String(item.display_name || item.theme_id || "")]));
   const names = themeIds(record, organization).map(id => byId[id]).filter(Boolean);
-  const persisted = String((record && record.session_theme_name) || "").trim();
-  if (persisted && !names.includes(persisted)) names.push(persisted);
+  const storedIds = [record && record.session_theme_id, ...(Array.isArray(record && record.session_theme_ids) ? record.session_theme_ids : [])].map(value => String(value || "").trim()).filter(Boolean);
+  if (names.length && storedIds.every(id => byId[id])) return [...new Set(names)];
+  const supplied = Array.isArray(record && record.theme_names) ? record.theme_names.map(value => String(value || "").trim()).filter(Boolean) : [];
+  if (supplied.length) return [...new Set(supplied)];
+  const persisted = String((record && (record.session_theme_name || record["Session Theme"] || record.Split || record.split)) || "").trim();
+  if (persisted) return [persisted];
   return names;
 }
 
@@ -193,7 +197,7 @@ async function trainingOrganizationPayload(trainingRows) {
   const organization = stored && stored.training_organization;
   if (!organization) return fallbackTrainingOrganization(trainingRows);
   return {
-    session_themes: Array.isArray(organization.session_themes) ? organization.session_themes.filter(item => item && item.active !== false) : [],
+    session_themes: Array.isArray(organization.session_themes) ? organization.session_themes.filter(item => item) : [],
     movement_categories: mergeMovementCategories(organization.movement_categories)
   };
 }
@@ -369,6 +373,7 @@ function sessionMovementRows(session, movementMap) {
         muscle_group: definition.muscle_group || "",
         order: item.order_in_session || item.order || index + 1,
         sets: Array.isArray(item.sets) ? item.sets : [],
+        exclude_from_progress: Boolean(item.exclude_from_progress),
         notes: item.notes || "",
         date: String(session.Date || "").slice(0, 10),
         training_session_id: String(session.id || session._id || ""),
@@ -502,9 +507,11 @@ async function getTrainingDayDetail(sessionId, entryDate, organization) {
     || trainingRows.find(item => !requestedId && String(item.Date || "").slice(0, 10) === date)
     || null;
   const sessionDate = String(session?.Date || date).slice(0, 10);
+  if (!session) return { date: sessionDate, session: null, movements: [] };
+  const oneSessionOnDate = trainingRows.filter(item => String(item.Date || "").slice(0, 10) === sessionDate).length === 1;
   const historyRows = await allOnDate(COLLECTIONS.history, "date", sessionDate);
   const history = requestedId
-    ? historyRows.filter(item => !item.training_session_id || String(item.training_session_id) === String(session?.id || session?._id || requestedId))
+    ? historyRows.filter(item => (!item.training_session_id && oneSessionOnDate) || String(item.training_session_id) === String(session?.id || session?._id || requestedId))
     : historyRows;
   const movementIds = [...new Set([
     ...(session ? sessionMovementRows(session, {}).map(item => item.movement_id) : []),
@@ -522,6 +529,7 @@ async function getTrainingDayDetail(sessionId, entryDate, organization) {
     muscle_group: movementById[String(item.movement_id || "")]?.muscle_group || "",
     order: item.order,
     sets: Array.isArray(item.sets) ? item.sets : [],
+    exclude_from_progress: Boolean(item.exclude_from_progress),
     notes: item.notes || "",
     date: sessionDate,
     training_session_id: String(session?.id || session?._id || "")
@@ -536,6 +544,7 @@ async function getTrainingDayDetail(sessionId, entryDate, organization) {
       muscle_group: item.muscle_group || movement.muscle_group || "",
       order_in_session: item.order === undefined || item.order === null ? index + 1 : item.order,
       sets: Array.isArray(item.sets) ? item.sets : [],
+      exclude_from_progress: Boolean(item.exclude_from_progress),
       notes: item.notes || "",
       _source_index: index
     };

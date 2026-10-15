@@ -1,4 +1,4 @@
-import { apiDescription, call, privateAccountIdentity, privateDatabase, signIn } from "./api.js?v=20260924-02";
+import { apiDescription, call, privateAccountIdentity, privateDatabase, signIn } from "./api.js?v=20261015-training-content-r1";
 
 const BODY_PARTS = [
   { id: "shoulders", cn: "肩", en: "SHOULDERS", tone: "amber" },
@@ -20,7 +20,7 @@ const DEFAULT_ACTIVE_BODY_PART_IDS = new Set(["chest", "shoulders", "back", "leg
 const DEFAULT_BODY_PART_ORDER = ["chest", "shoulders", "back", "legs", "arms", "glutes", "core", "cardio"];
 const NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current-training";
 const LEGACY_NOTE_KEY = "fitness-ledger:freeform-notepad:v2:current";
-const BUILD_VERSION = "1.1.38";
+const BUILD_VERSION = "1.1.39";
 const PHONE_INBOX_COLLECTION = "fl_web_share_inbox";
 const PHONE_INBOX_RECENT_DAYS = 7;
 const PHONE_INBOX_QUERY_LIMIT = 50;
@@ -206,8 +206,11 @@ function sessionThemeNames(record) {
     const name = byId.get(id);
     if (name && !names.includes(name)) names.push(name);
   });
-  const persistedName = String(record?.session_theme_name || "").trim();
-  if (persistedName && !names.includes(persistedName)) names.push(persistedName);
+  if (names.length && ids.every(id => byId.has(id))) return names;
+  const suppliedNames = Array.isArray(record?.theme_names) ? record.theme_names.map(value => String(value || "").trim()).filter(Boolean) : [];
+  if (suppliedNames.length) return [...new Set(suppliedNames)];
+  const persistedName = String(record?.session_theme_name || record?.["Session Theme"] || record?.Split || record?.split || "").trim();
+  if (persistedName) return [persistedName];
   return names.length ? names : ["未设置主题"];
 }
 function sessionThemeName(record) { return sessionThemeNames(record)[0]; }
@@ -316,6 +319,8 @@ function backRoute() {
     return part ? `reference?part=${encodeURIComponent(part)}` : "reference";
   }
   if (name === "record") {
+    const parentDate = state.route.params.get("parentDate");
+    if (parentDate) return `record?date=${encodeURIComponent(parentDate)}&from=${encodeURIComponent(state.route.params.get("from") || "body")}`;
     const from = state.route.params.get("from");
     if (["body", "diet", "training", "status", "reference"].includes(from)) return from;
     const part = state.route.params.get("part");
@@ -714,19 +719,19 @@ function renderRecord() {
   const mode = state.route.params.get("mode") === "training"; const dateValue = state.route.params.get("date") || state.record?.date || state.trainingDay?.date || "";
   if (mode) {
     const session = state.trainingDay?.session; const movements = state.trainingDay?.movements || [];
-    const themeNames = Array.isArray(session?.theme_names) && session.theme_names.length ? session.theme_names : ["未设置主题"];
+    const themeNames = sessionThemeNames(session);
     const movementMarkup = movements.length ? movements.map((item, index) => {
       const order = item.order_in_session || item.order || index + 1;
       const name = item.movement_name || item.display_name || item.movement_id || "未命名动作";
       const relations = Array.isArray(item.organization_relations) ? item.organization_relations : [];
       const relationDetails = sessionRelationDetails(relations, item);
-      const content = `<span class="movement-order">第 ${esc(order)} 个动作</span><strong>${esc(name)}</strong>${item.english_name ? `<small class="movement-english">${esc(item.english_name)}</small>` : ""}${relationDetails}<div class="movement-summary-block"><span class="eyebrow">MOVEMENT SUMMARY / 本次摘要</span><p>${esc(item.summary || setSummary(item))}</p></div>${item.notes ? `<div class="movement-notes-block"><span class="eyebrow">NOTES / 动作备注</span><p>${esc(item.notes)}</p></div>` : ""}${item.movement_id ? `<button type="button" class="training-action movement-track-link" data-action="movement" data-id="${esc(item.movement_id)}">查看动作轨迹 →</button>` : `<span class="training-action muted">自定义动作记录</span>`}`;
+      const content = `<span class="movement-order">第 ${esc(order)} 个动作</span><strong>${esc(name)}</strong>${item.english_name ? `<small class="movement-english">${esc(item.english_name)}</small>` : ""}${relationDetails}<div class="row training-progress-field"><span>计入成长轨迹</span><b>${typeof item.exclude_from_progress !== "boolean" ? "未提供" : item.exclude_from_progress ? "否 · 仅保留训练记录" : "是"}</b></div><div class="movement-summary-block"><span class="eyebrow">MOVEMENT SUMMARY / 本次摘要</span><p>${esc(item.summary || setSummary(item))}</p></div>${item.notes ? `<div class="movement-notes-block"><span class="eyebrow">NOTES / 动作备注</span><p>${esc(item.notes)}</p></div>` : ""}${item.movement_id ? `<button type="button" class="training-action movement-track-link" data-action="movement" data-id="${esc(item.movement_id)}">查看动作轨迹 →</button>` : `<span class="training-action muted">自定义动作记录</span>`}`;
       return `<article class="training-action-card session-movement-card">${content}</article>`;
     }).join("") : stateMessage("该 session 暂无动作明细。");
     return `${pageStart("record-page")}${header("SESSION / READ ONLY", dateValue || "训练 session 详情")}${state.loading ? stateMessage("读取中…") : state.error ? stateMessage(state.error, true) : !session ? stateMessage("没有找到这个 training session。") : `<section class="record-section training-session-only"><div class="session-context-head"><div><div class="eyebrow">TRAINING SESSION</div><h2>${esc(dateValue)} · 第 ${esc(session.session_sequence || 1)} 次</h2></div><span class="session-count">${movements.length} 个动作</span></div><div class="session-theme-summary"><span class="eyebrow">SESSION THEME / 训练主题</span><div class="chips">${themeNames.map(theme => `<span>${esc(theme)}</span>`).join("")}</div></div>${session.summary ? `<div class="session-summary"><span class="eyebrow">SESSION SUMMARY / 训练摘要</span><p>${esc(session.summary)}</p></div>` : ""}${movementMarkup}${session.notes ? `<div class="session-notes"><span class="eyebrow">SESSION NOTES / 训练备注</span><p>${esc(session.notes)}</p></div>` : ""}</section>`}${pageEnd()}`;
   }
   const detail = state.record;
-  return `${pageStart("record-page")}${header("DAILY ARCHIVE / READ ONLY", dateValue || "记录详情")}${state.loading ? stateMessage("读取中…") : state.error ? stateMessage(state.error, true) : !detail ? stateMessage("该日期没有记录。") : `${(detail.body || []).map(item => `<section class="record-section body-section"><div class="record-head"><div><div class="eyebrow">BODY</div><h2>身体与当天状态</h2></div><button data-action="toggle" data-key="body">${state.expanded.body ? "收起" : "展开"}</button></div><div class="signal-grid"><span>WEIGHT<strong>${esc(item["Weight (kg)"] || "-")}kg</strong></span><span>BOWEL<strong>${esc(item["Bowel Movement"] || "-")}</strong></span></div><div class="row"><span>训练</span><b>${esc(item.Training || "未记录")}</b></div><div class="row"><span>有氧</span><b>${esc(item.Cardio || "未记录")}</b></div>${state.expanded.body ? `<p class="detail-text">${esc(item.Notes || "没有身体备注")}</p>` : ""}</section>`).join("")}${(detail.diet || []).map(item => `<section class="record-section diet-section"><div class="record-head"><div><div class="eyebrow">NUTRITION</div><h2>饮食</h2></div><button data-action="toggle" data-key="diet">${state.expanded.diet ? "收起" : "展开"}</button></div><div class="macro-line"><strong>${esc(item["Calories (kcal)"] || "-")} kcal</strong><span>P ${esc(item["Protein (g)"] || "-")} · C ${esc(item["Carbs (g)"] || "-")} · F ${esc(item["Fat (g)"] || "-")}</span></div><p class="detail-text ${state.expanded.diet ? "" : "clamp-3"}">${esc(item["Food Summary"] || "没有饮食摘要")}</p></section>`).join("")}${(detail.training || []).map(item => { const summary = item.standardized_summary || item["Standardized Summary"] || (Array.isArray(item.movements) ? item.movements.map(movement => movement.display_name || movement.movement_id).filter(Boolean).join("；") : "") || "没有动作摘要"; const split = item.split || item.Split || "训练记录"; const notes = item.notes || item.Notes || ""; return `<section class="record-section training-section"><div class="record-head"><div><div class="eyebrow">TRAINING</div><h2>${esc(split)}</h2></div><button data-action="toggle" data-key="training">${state.expanded.training ? "收起" : "展开"}</button></div><p class="detail-text ${state.expanded.training ? "" : "clamp-3"}">${esc(summary)}</p>${state.expanded.training && notes ? `<div class="training-note">${esc(notes)}</div>` : ""}</section>`; }).join("")}`}${pageEnd()}`;
+  return `${pageStart("record-page")}${header("DAILY ARCHIVE / READ ONLY", dateValue || "记录详情")}${state.loading ? stateMessage("读取中…") : state.error ? stateMessage(state.error, true) : !detail ? stateMessage("该日期没有记录。") : `${(detail.body || []).map(item => `<section class="record-section body-section"><div class="record-head"><div><div class="eyebrow">BODY</div><h2>身体与当天状态</h2></div><button data-action="toggle" data-key="body">${state.expanded.body ? "收起" : "展开"}</button></div><div class="signal-grid"><span>WEIGHT<strong>${esc(item["Weight (kg)"] || "-")}kg</strong></span><span>BOWEL<strong>${esc(item["Bowel Movement"] || "-")}</strong></span></div><div class="row"><span>训练</span><b>${esc(item.Training || "未记录")}</b></div><div class="row"><span>有氧</span><b>${esc(item.Cardio || "未记录")}</b></div>${state.expanded.body ? `<p class="detail-text">${esc(item.Notes || "没有身体备注")}</p>` : ""}</section>`).join("")}${(detail.diet || []).map(item => `<section class="record-section diet-section"><div class="record-head"><div><div class="eyebrow">NUTRITION</div><h2>饮食</h2></div><button data-action="toggle" data-key="diet">${state.expanded.diet ? "收起" : "展开"}</button></div><div class="macro-line"><strong>${esc(item["Calories (kcal)"] || "-")} kcal</strong><span>P ${esc(item["Protein (g)"] || "-")} · C ${esc(item["Carbs (g)"] || "-")} · F ${esc(item["Fat (g)"] || "-")}</span></div><p class="detail-text ${state.expanded.diet ? "" : "clamp-3"}">${esc(item["Food Summary"] || "没有饮食摘要")}</p></section>`).join("")}${(detail.training || []).map(item => { const summary = item.standardized_summary || item["Standardized Summary"] || (Array.isArray(item.movements) ? item.movements.map(movement => movement.display_name || movement.movement_id).filter(Boolean).join("；") : "") || "没有动作摘要"; const split = item.split || item.Split || "训练记录"; const notes = item.notes || item.Notes || ""; return `<section class="record-section training-section"><div class="record-head"><div><div class="eyebrow">TRAINING</div><h2>${esc(split)}</h2></div><button data-action="daily-session" data-session-id="${esc(item.id || item.training_session_id || item._id || "")}" data-date="${esc(item.Date || item.date || dateValue)}">查看训练详情 →</button></div><p class="detail-text ${state.expanded.training ? "" : "clamp-3"}">${esc(summary)}</p>${state.expanded.training && notes ? `<div class="training-note">${esc(notes)}</div>` : ""}</section>`; }).join("")}`}${pageEnd()}`;
 }
 
 function renderMovement() {
@@ -1150,6 +1155,7 @@ document.addEventListener("click", event => {
   if (action === "candidate") { const candidate = event.target.closest("[data-id]"); if (candidate) openNoteCandidate(candidate.dataset.id); }
   if (action === "movement") { navigate(`movement?id=${encodeURIComponent(event.target.closest("[data-id]").dataset.id)}&part=${encodeURIComponent(event.target.closest("[data-part]")?.dataset.part || state.route.params.get("part") || "")}`); }
   if (action === "session" || action === "training-session") { const target = event.target.closest("[data-date]"); const sessionId = target?.dataset.sessionId || ""; const dateValue = target?.dataset.date || ""; navigate(`record?mode=training&sessionId=${encodeURIComponent(sessionId)}&date=${encodeURIComponent(dateValue)}&from=${encodeURIComponent(state.route.name)}&part=${encodeURIComponent(event.target.closest("[data-part]")?.dataset.part || "")}`); }
+  if (action === "daily-session") { const target = event.target.closest('[data-action="daily-session"]'); const params = new URLSearchParams({ mode: "training", sessionId: target.dataset.sessionId || "", date: date(target.dataset.date), parentDate: state.route.params.get("date") || date(target.dataset.date), from: state.route.params.get("from") || "body" }); navigate(`record?${params.toString()}`); }
   if (action === "training-record" || action === "archive-record") { navigate(`record?date=${encodeURIComponent(event.target.closest("[data-date]").dataset.date)}&from=${encodeURIComponent(state.route.name)}`); }
   if (action === "module-record") { navigate(`record?date=${encodeURIComponent(event.target.closest("[data-date]").dataset.date)}&from=${encodeURIComponent(state.route.name === "reference" ? "reference" : state.route.name)}`); }
   if (action === "route-back") { navigate(backRoute()); }
@@ -1172,7 +1178,7 @@ document.addEventListener("wheel", event => {
   if (document.documentElement.classList.contains("pwa-note-scroll-locked") && !isNoteScrollableTarget(event.target)) event.preventDefault();
 }, { passive: false });
 window.addEventListener("hashchange", loadRoute);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw-blur-height-fix.js?v=20260924-02", { updateViaCache: "none" }).catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw-blur-height-fix.js?v=20261015-training-content-r1", { updateViaCache: "none" }).catch(() => {});
 loadIncomingShareIntent();
 window.addEventListener("error", event => {
   if (!app?.innerHTML.trim()) renderStartupError();

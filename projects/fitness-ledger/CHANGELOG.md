@@ -1,5 +1,21 @@
 # Fitness Ledger Changelog
 
+## 2026-10-15 - Training content display review candidate
+
+- PWA daily records link each training session to the existing session detail
+  by persisted session ID, with a return link to the originating daily record.
+- Custom theme names remain visible when translations or cloud theme metadata
+  are missing. Known Push/Pull names retain their built-in bilingual mapping.
+- Carry per-movement progress exclusion into detail projections and render it
+  as an explicit field. Missing API flags remain unknown rather than included.
+- Keep valid training sections when individual movements have no structured
+  sets; nested empty-set placeholders no longer hide the entire section.
+- Candidate PWA assets use version 1.1.39, resource group
+  `20261015-training-content-r1`, and cache `fitness-ledger-pwa-v82`.
+  This entry records development only; formal/cloud deployment remains separate.
+- Verification: actual PWA entry browser navigation, Web bilingual detail,
+  Cloud read projection fixtures, and existing session/history regressions.
+
 ## 2026-09-24 - Respect inactive movement categories in mobile PWA
 
 - The active Mobile Viewer PWA now excludes movement categories disabled in

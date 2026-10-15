@@ -249,6 +249,7 @@ class LedgerDataAccess:
                             ),
                             "order": history.get("order", ""),
                             "sets": history.get("sets", []) or [],
+                            "exclude_from_progress": bool(history.get("exclude_from_progress", False)),
                             "notes": str(history.get("notes", "") or "").strip(),
                             "raw": str(history.get("raw", "") or "").strip(),
                             "date": str(history.get("date", ""))[:10],

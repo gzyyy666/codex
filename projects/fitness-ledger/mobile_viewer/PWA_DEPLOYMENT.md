@@ -74,6 +74,11 @@ review。用户明确要求“先发布供 review”时，可以在封板前上�
 
 上次记录的上线状态（2026-09-24 快照，不是本次实时核验）：
 
+2026-10-15 开发验收包已准备：产品版本 `1.1.39`，资源组
+`20261015-training-content-r1`，缓存 `fitness-ledger-pwa-v82`。
+该包修复整日记录到 session 详情的跳转、自定义主题名称回退及训练状态显示。
+下面的上线状态仍描述已核验的旧版本；新包尚未发布。
+
 - 静态站点：`https://cloud1-d9g35v5s1a904a8ad-1450570992.tcloudbaseapp.com`
 - API 路由：`/api/pwa/read` → `ledgerWebRead`
 - HTTP 身份认证：开启

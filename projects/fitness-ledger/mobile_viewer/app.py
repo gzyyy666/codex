@@ -31,7 +31,7 @@ PWA_BODY_PARTS = {
 def _pwa_training_organization(data_access: LedgerDataAccess) -> dict:
     normalized, _ = normalize_training_organization(data_access._tracker(), data_access._cache.get("dictionary", {}) if data_access._cache else {})
     organization = normalized.get("training_organization", {})
-    return {"session_themes": [item for item in organization.get("session_themes", []) if item.get("active", True)], "movement_categories": organization.get("movement_categories", [])}
+    return {"session_themes": organization.get("session_themes", []), "movement_categories": organization.get("movement_categories", [])}
 
 
 def _empty_data_module_contract() -> dict:
@@ -116,7 +116,7 @@ def _pwa_relation_context(session: dict, item: dict, item_by_instance_id: dict[s
 
 
 def _pwa_session_theme_names(record: dict, organization: dict) -> list[str]:
-    """Resolve only persisted session-theme ids/names; never infer from Split."""
+    """Resolve display names without changing persisted theme membership."""
     themes = organization.get("session_themes", []) if organization else []
     by_id = {str(item.get("theme_id")): str(item.get("display_name") or item.get("theme_id") or "") for item in themes}
     ids = [str(record.get("session_theme_id") or "").strip()]
@@ -125,9 +125,15 @@ def _pwa_session_theme_names(record: dict, organization: dict) -> list[str]:
     for theme_id in ids:
         if theme_id and theme_id in by_id and by_id[theme_id] not in names:
             names.append(by_id[theme_id])
-    persisted_name = str(record.get("session_theme_name") or "").strip()
-    if persisted_name and persisted_name not in names:
-        names.append(persisted_name)
+    complete = all(theme_id in by_id for theme_id in ids if theme_id)
+    if names and complete:
+        return names
+    supplied = [str(value).strip() for value in record.get("theme_names", []) if str(value).strip()]
+    if supplied:
+        return list(dict.fromkeys(supplied))
+    persisted_name = str(record.get("session_theme_name") or record.get("Session Theme") or record.get("Split") or record.get("split") or "").strip()
+    if persisted_name:
+        return [persisted_name]
     return names
 
 
@@ -163,6 +169,7 @@ def _pwa_training_session_detail(data_access: LedgerDataAccess, session_id: str,
             "order_in_session": item.get("order_in_session") or item.get("order") or index + 1,
             "sets": sets,
             "summary": summary,
+            "exclude_from_progress": bool(item.get("exclude_from_progress", False)),
             "notes": str(item.get("notes") or ""),
             "training_session_id": str(session.get("id") or ""),
             "organization_relations": _pwa_relation_context(session, item, item_by_instance_id, catalog),

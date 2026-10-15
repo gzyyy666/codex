@@ -2297,7 +2297,7 @@ table{border-collapse:collapse}thead{background:rgba(18,17,15,.035)}th{font-size
 .training-movement-row-shell.is-excluded{background:rgba(255,218,110,.08)}
 .archive-progress-toggle{display:flex;align-items:center;gap:6px;padding:6px 8px;color:var(--graphite);font-size:9px;line-height:1.2;white-space:nowrap;cursor:pointer}
 .archive-progress-toggle input{width:14px;height:14px;margin:0;accent-color:var(--color-volt)}
-.archive-progress-toggle span{max-width:82px;overflow:hidden;text-overflow:ellipsis}
+.archive-progress-toggle span{white-space:normal}
 .training-theme-slip .archive-progress-toggle{padding:5px 6px;font-size:8px}
 @media(max-width:760px){.training-movement-row-shell{grid-template-columns:1fr}.archive-progress-toggle{padding:2px 6px 7px 34px}.review-decision .instance-progress-toggle{align-items:flex-start}}
 
