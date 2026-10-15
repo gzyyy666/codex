@@ -56,6 +56,10 @@ Never put these in Git:
 
 ## Task startup
 
+Use `AGENTS.md` and `../agent/FL_TASK_ROUTING.md` for current check selection.
+Source-only work checks Git scope/baseline; use the command below for runtime,
+formal publication, data/provider actions or relevant unexplained drift.
+
 From `D:\FitnessLedger\source\projects\fitness-ledger`:
 
 ```powershell
@@ -63,8 +67,9 @@ python tools/project_status.py --write --json
 ```
 
 The live status result is authoritative for Git, the formal directory,
-Cloud Sync, and the Web service. A future task must stop on an unexplained
-baseline mismatch rather than silently copying one side over the other.
+Cloud Sync, and the Web service. Stop actions affected by an unexplained
+baseline mismatch rather than silently copying one side over the other;
+unrelated runtime drift does not block source-only work.
 
 For a source change:
 
@@ -77,11 +82,15 @@ For a source change:
 
 For a formal runtime change:
 
-1. Close the desktop app, Web service, and browser profile first.
-2. Back up `app\data\` before any save or migration operation.
-3. Change only the required formal source files; never bulk-overwrite `data`.
-4. Restart the Web service after Python backend changes.
-5. Compare protected data hashes before and after.
+1. Identify the affected target/process and authorized scope; avoid closing
+   unrelated applications. Source-only work has no formal-runtime step.
+2. Use a recoverable changed-file backup for deployment. For formal data writes
+   or migrations, preserve a paired data checkpoint and exclude concurrent writers.
+3. Deploy only reviewed source files; never bulk-overwrite `data`.
+4. Restart an affected loaded service after backend changes; static-only changes
+   need relevant browser/cache verification rather than a blanket restart.
+5. Compare protected data when the operation/test path could touch it. Follow
+   `CODEX_RELEASE_CLOSEOUT.md` for the applicable publication receipt.
 
 ## Rollback boundary
 

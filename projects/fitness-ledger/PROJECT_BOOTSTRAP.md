@@ -48,7 +48,7 @@ Use this file to restore project context with low token cost.
 1. Read `FITNESS_LEDGER_MAINTENANCE.md`.
 2. Read `PROJECT_BOOTSTRAP.md`.
 3. Read `FUNCTION_INDEX.md`.
-4. Before visual design work, read `docs/design/STYLE_BIBLE.md` and then use root `DESIGN.md` as a secondary Nike interaction and composition reference.
+4. For visual work, read the relevant Style Bible recipe and inspect the affected page. Consult external `DESIGN.md` only for a specific unresolved design question, not for every CSS or copy fix.
 5. Preserve the established Fitness Ledger identity when the generic Nike reference conflicts with the project-specific Style Bible.
 6. Read only the functions relevant to the request.
 7. Do not scan the full `stable_app.pyw` by default.
@@ -64,7 +64,7 @@ Use this short sequence to get oriented without scanning the whole project:
 2. Read `PROJECT_INDEX.md` to locate the relevant module and its tests.
 3. Read `FUNCTION_INDEX.md` for the fields and functions that supply the feature.
 4. Read only the named module files. For Mini Program work, start with
-   `mini_program/README.md`, `mini_program/app.json`, the relevant page/component,
+   `mini_program/README.md`, `mini_program/miniprogram/app.json`, the relevant page/component,
    and the read-only API contract.
 5. Check `REGRESSION_CHECKLIST.md` and the module checklist before changing code.
 6. State the task's allowed files and forbidden boundaries, then make the smallest
@@ -72,17 +72,18 @@ Use this short sequence to get oriented without scanning the whole project:
 7. Run the relevant syntax/tests, inspect `git diff --check` and the actual diff,
    and record user-visible changes in `CHANGELOG.md`.
 
-The formal business directory is the copy used by WeChat DevTools. The tracked
-Git project is a separate record directory. After manual acceptance, sync only
-the selected source and documentation files into Git; do not sync formal data,
-credentials, generated Cloud Sync output, or unrelated desktop/Web changes.
+The tracked Git source is the development authority; the formal application is
+the runtime/deployment target. Do not develop in formal app and mirror it back
+by default. Use the named task's reviewed source and selected deployment target;
+never sync formal data, credentials, generated payloads or unrelated candidates
+into Git. Follow the current closeout guide for authorized publication.
 
 ## Shared Platform Services (maintained)
 
 - `ledger_commands.py` is the only shared write boundary for desktop and Web. Web Undo must call `LedgerCommandService.undo_last_write`; do not recreate restore logic in JavaScript.
 - `fitness_ledger_core/shared_view_models.py` is the read-only projection layer for Pre-Workout Reference, movement insight, Analysis Export, and cloud payloads.
 - `fitness_ledger_core/data_quality_view.py` exposes the desktop Data Check rules to Web and preserves `data/data_check_state.json` acknowledgement semantics.
-- `cloud_sync/` prepares and manually uploads a disposable read-only replica through the configured TencentCloud SDK provider. Local JSON remains the sole source of truth; automatic sync remains disabled.
+- `cloud_sync/` prepares and uploads a disposable read-only replica through the configured provider. Daily Entry may request post-save sync when `auto_sync_enabled` is enabled and the provider is ready; inspect current configuration/status for actual behavior. Local JSON remains authoritative.
 - Generated `cloud_sync/out/*.json` files contain personal data and must remain untracked.
 - `mini_program/` is the maintained WeChat read-only gym reference client with one OpenID-allowlisted `ledgerRead` cloud function.
 - The Mini Program primary flow is `Home body areas -> movement signals -> full movement trajectory`; the second tab is a date-first Training Records archive and Status links to Body/Diet.
@@ -135,8 +136,8 @@ credentials, generated Cloud Sync output, or unrelated desktop/Web changes.
 
 ## Current Cloud Maintenance Boundary (2026-07-16)
 
-- Web `Cloud Sync` manually builds, uploads, and verifies the disposable ten-collection package.
-- Local saves never upload automatically.
+- Web `Cloud Sync` builds, uploads, and verifies the disposable replica package; use the current manifest for its actual collections, including optional Data Module extensions.
+- Daily Entry's post-save upload depends on `auto_sync_enabled` and provider readiness; do not assume it is enabled or disabled from this document. This is not a permanently running background service, and it does not authorize adding upload to other edit paths.
 - A successful upload requires every collection result plus all six `fl_meta` checks.
 - After deploying Python Cloud Sync source, restart the Web service before testing; a running process retains previously imported module code.
 - Mini Program freshness labels come from `fl_meta.generated_at` and `latest_record_date`.
@@ -153,5 +154,5 @@ credentials, generated Cloud Sync output, or unrelated desktop/Web changes.
 - Body main table displays only Date, Weight, Bowel Movement, Training split, Cardio summary, and Notes.
 - Historical `Context` fields are preserved in records/details but not shown in the Body main table.
 - Historical English Diet summaries may be shown in Chinese while the original text is preserved in `Food Summary Original` and `Notes Original`.
-- If movement definitions need adjustment, update `data/movement_dictionary.json` first.
+- Movement-definition changes use the dictionary command service and stable IDs; do not edit the formal dictionary JSON directly as an implementation shortcut.
 - Historical missing bowel records are intentionally ignored by Data Check; Review still warns when a new entry omits bowel information.

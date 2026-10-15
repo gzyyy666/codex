@@ -2,6 +2,10 @@
 
 Use this workflow after changing the Mini Program UI, `ledgerRead`, or the disposable cloud replica.
 
+This is a scoped checklist, not authorization to deploy a cloud function or
+replace a replica after every UI edit. Run only the changed surface's steps;
+use the project closeout guide for authorization and publication boundaries.
+
 ## Boundaries
 
 - Local JSON remains authoritative.
@@ -29,11 +33,11 @@ From the local Fitness Ledger project:
 ## Replica Refresh
 
 1. In Web Export, open the quiet Cloud Sync workbench.
-2. Generate and locally validate the ten-collection package.
+2. Generate and locally validate the current manifest's collection set, including configured Data Module extensions; do not assume a fixed ten-collection package.
 3. Import non-meta collections in the manifest order, using full replacement.
 4. Import `fl_meta` last.
 5. Copy/export the resulting single `fl_meta` row and run post-sync verification in the Web workbench.
-6. A passing report requires matching schema, generation timestamp, and collection counts. It does not authorize cloud writes from the Mini Program.
+6. A passing result requires the current uploader's schema, timestamp, payload/collection hashes, counts and provider readback checks. A timestamp or CLI success alone is insufficient; Mini Program writes remain forbidden.
 
 ## Mobile Acceptance
 

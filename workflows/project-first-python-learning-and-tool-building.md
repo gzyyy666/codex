@@ -22,7 +22,9 @@ Turn a concrete need into a runnable Python tool, while keeping the learning pat
 
 ## Output
 
-Capture durable outcomes in:
+Keep the learning result in the delivered example/explanation. Only when the
+user explicitly requests memory capture, propose the relevant durable node
+and follow the applicable memory-write mechanism. Possible topics include:
 
 - `memory/preferences.md`
 - `memory/projects.md`

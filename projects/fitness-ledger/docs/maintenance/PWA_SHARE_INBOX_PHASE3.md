@@ -79,13 +79,18 @@ cleanup function.
 
 ## Required release evidence
 
+These checks apply to initial rollout or a change to the named boundary. For
+an existing bounded UI fix, reuse valid evidence for unchanged identity,
+permissions, retention and billing; verify affected behavior. Record untested
+device paths rather than claiming cross-platform acceptance.
+
 - CloudBase collection exists with the `PRIVATE` preset or an equivalent private rule;
 - Web login on phone and computer resolves to the same account;
 - two different accounts cannot read or update each other's items;
 - repeated share of the same text is idempotent;
 - no share action changes formal tracker data;
 - desktop Daily Entry preview/edit/confirm still saves normally;
-- physical Android/iOS share-sheet test passes, with paste fallback retained;
+- physical share-sheet behavior passes on the actual targeted Android/iOS platforms, with paste fallback retained and untested platforms stated;
 - current CloudBase billing plan and expected monthly volume are recorded.
 
 No CloudBase collection, security rule, deployment, or Mini Program publish is

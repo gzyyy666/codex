@@ -6,20 +6,27 @@ Create durable GitHub source checkpoints while keeping personal fitness records 
 
 ## Create A Source Checkpoint
 
-1. Run syntax, regression, smoke, and Web tests in the working application folder.
-2. Set `FITNESS_LEDGER_SOURCE_ROOT` to the formal project root, then run `tools/preview-fitness-ledger-mirror.ps1` from this repository before any refresh. It is a default-deny allowlist preview and must report no sensitive-content matches.
-3. Only after reviewing the preview, rerun it with `-Apply` to refresh `projects/fitness-ledger/`. The tool never deletes mirror-only recovery documents or design evidence.
-3. Exclude `data/`, `backups/`, logs, caches, browser profiles, spreadsheets, and temporary files.
-   Also exclude generated `cloud_sync/out/*.json`, because the read-replica payload contains personal fitness data.
-4. Update `memory/fitness-ledger-state.md` when architecture or durable behavior changes.
-5. Update the source mirror `CHANGELOG.md` and design documentation.
-6. Review `git diff --stat` and confirm that no personal JSON or credentials are present.
-7. Commit with a concrete checkpoint message and push to `origin/main`.
-8. Record the commit hash in the user-facing recovery document.
+1. Work in the canonical Git source/task checkout, not the formal runtime.
+2. Select checks from `projects/fitness-ledger/REGRESSION_CHECKLIST.md` according
+   to the changed behavior; do not run every desktop/Web suite by default.
+3. Inspect the actual diff and scope. Exclude personal data, backups, credentials,
+   profiles, caches, temporary files and generated `cloud_sync/out/*.json`.
+4. Update only documentation made stale by the change; memory updates require
+   the user's request and applicable memory-write policy.
+5. Preserve a candidate diff or a meaningful verified source commit. Integrate,
+   deploy or Push only within the user's authorization already given.
+6. Report the relevant commit/candidate and recovery point; use the project
+   closeout guide only when publication is in scope.
 
-## Automatic Checkpoint Triggers
+`tools/preview-fitness-ledger-mirror.ps1` is a legacy import/reconciliation aid,
+not a routine source-refresh step. Use it only for an explicitly requested
+formal-to-source recovery/import with reviewed provenance. Preview first and
+apply only the accepted source scope; never make formal data a Git input.
 
-During an active Codex maintenance turn, create and push a source checkpoint without waiting for a separate reminder when a verified change materially affects one or more of these areas:
+## When a checkpoint is useful
+
+A verified change may justify a local source checkpoint in the following
+areas. This list does not authorize automatic Push, publication or memory writes:
 
 - stable user-facing functionality or interaction behavior;
 - parser, movement dictionary, save, backup, or recovery rules;
@@ -27,22 +34,26 @@ During an active Codex maintenance turn, create and push a source checkpoint wit
 - an accepted visual-system milestone that should be recoverable;
 - maintenance documentation required to understand or restore the project.
 
-Do not create a checkpoint for unverified experiments, minor cosmetic tweaks, generated QA screenshots, browser profiles, caches, local personal data changes, or work that the user has not accepted as stable. When several related changes are in progress, group them into one coherent checkpoint after verification instead of pushing every small edit.
+Do not label unaccepted experiments or cosmetic tweaks as accepted release
+milestones. A candidate commit is still useful when it preserves reviewable
+work. Keep generated QA output, profiles, caches and personal data out of Git;
+group related verified changes coherently without requiring Push for each edit.
 
-This automation applies only while Codex is actively handling a request. It is not a background service and cannot run after the conversation or computer session has ended.
+This document creates no background job. Recurring automation requires a
+separately requested, configured automation.
 
 ## Restore Source Code
 
 1. Identify the desired commit with `git log -- projects/fitness-ledger`.
-2. Create a safety copy of the current working application folder.
+2. Preserve a recoverable copy/commit of the affected source at the intended restore target.
 3. Restore `projects/fitness-ledger/` from the selected commit into a temporary directory.
-4. Copy only source, viewer, asset, documentation, and tool files into the working application folder.
+4. Restore only the selected source scope into the task checkout. Deploy to the formal application only if that target and operation are explicitly authorized.
 5. Do not overwrite the working application's `data/` directory.
-6. Run syntax, regression, smoke, and Web tests before launching normally.
+6. Run checks relevant to the restored behavior; verify the actual formal entry only when deployment/launch is authorized.
 
 ## Restore Personal Data
 
-1. Close all Fitness Ledger desktop, Web, and mobile viewer processes.
+1. Confirm explicit data-restore scope; stop only processes that can write the affected local data.
 2. Copy the current `data/` directory to a new safety folder.
 3. Select a paired tracker and movement-dictionary checkpoint from local `data/backups/`.
 4. Validate both files as JSON before replacement.

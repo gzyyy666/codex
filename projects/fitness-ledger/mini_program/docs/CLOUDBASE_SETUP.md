@@ -10,7 +10,7 @@ The Git mirror intentionally contains no CloudBase credentials or committed envi
 2. Replace `touristappid` in local `project.config.json` with your AppID.
 3. Open **Cloud Development** and create or select one environment.
 4. Copy `miniprogram/config/env.example.js` to the ignored `env.local.js`; set the exact environment ID shown in the console.
-5. Create the ten collections listed in `cloud_sync/CLOUD_REVIEW.md`.
+5. Create the collection set required by the current payload manifest; `cloud_sync/CLOUD_REVIEW.md` lists the base set and optional Data Module extensions.
 6. Verify the selected environment name and ID before importing anything.
 
 ## Review And Import

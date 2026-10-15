@@ -1,5 +1,9 @@
 # PWA Homepage Visual Convergence QA
 
+Historical QA evidence for its captured candidate only. PASS entries do not
+establish today's installed phone/runtime state or require replaying this
+entire checklist for every unrelated homepage edit.
+
 ## Source visual truth
 
 - Neutral: `D:\a\ChatGPT Image 2026年9月10日 16_55_37 (1).png`

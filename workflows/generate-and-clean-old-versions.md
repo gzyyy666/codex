@@ -1,6 +1,7 @@
 # Generate And Clean Old Versions
 
-Use this workflow whenever Codex creates or replaces a durable artifact such as a desktop shortcut, generated file, packaged output, or exported document.
+Use when replacement or cleanup is part of the requested task. Creating an
+artifact alone does not require a separate cleanup pass over the user's files.
 
 ## Goal
 
@@ -15,8 +16,11 @@ Keep the working set tidy by replacing superseded artifacts and removing old ver
    - outdated generated outputs
    - obsolete launcher files
    - redundant copies in output folders
-4. Remove the superseded version if it is safe and no longer needed.
-5. Update memory nodes or decisions if the replacement changes a durable preference or workflow.
+4. Replace/remove only the clearly task-owned superseded output when cleanup
+   is in scope. Preserve user-authored, referenced or uncertain versions and
+   retain a rollback copy when replacement could lose useful work.
+5. Update a workflow/decision only when this task changes it; memory writes
+   require an explicit user request, not merely a useful lesson.
 6. Record the cleanup in Git when the repository is under version control.
 
 ## Safety Rules

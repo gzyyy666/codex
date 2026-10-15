@@ -31,13 +31,18 @@ The right-side stage orb is the only process indicator. Its real states are requ
 
 ## Verification
 
-For a Web export change, start with the live facts:
+Select checks by the actual changed boundary using `REGRESSION_CHECKLIST.md`.
+The list below covers protocol/materialization/runtime changes, not an isolated
+wording/style fix. Use temporary data for source tests. Source-only work does
+not require formal runtime tests or publication.
+
+For runtime diagnosis or authorized formal export verification, start with:
 
 ```powershell
 python tools/project_status.py --write --json
 ```
 
-Then run at minimum:
+For affected contracts, choose relevant suites from:
 
 ```powershell
 node --check web_desktop/frontend/app.js
@@ -49,10 +54,18 @@ python tools/formal_readonly_export_binding_test.py
 python tools/formal_natural_language_runtime_test.py
 ```
 
-Inspect the running page at 1920, 1440, 1280, 1024, and approximately 768px. Check natural-language initial/loading/scope/preview/done/error states, blank JSON, invalid JSON, keyboard focus, candidate selection, multi-batch output, and `prefers-reduced-motion`. Use the existing Web Polish and Analysis Preview Review tests for broader UI regression.
+Inspect the affected page/state and relevant layout breakpoints. Expand to
+loading/error, invalid JSON, candidate selection, multi-batch and reduced-motion
+cases when those behaviors can change. The 1920/1440/1280/1024/~768px widths are
+useful layout coverage, not a per-edit quota. Broader UI suites are appropriate
+for shared navigation, stage flow or layout changes.
 
 ## Closure and handoff
 
-Normal requests stop at a clean review commit. Use the explicit phrase `按规范封板` before writing source into the formal business directory, restarting affected services, generating the runtime build manifest, pushing `origin/main`, and writing `.codex/task-handoff.json`. Never copy the formal `data/` directory into Git or a Worktree.
+Use current `AGENTS.md` and the closeout guide for source-only, Review Deployment
+and final release authorization. Honor equivalent explicit scope and permission
+already given instead of demanding an exact phrase. A reviewed diff/commit is
+sufficient for unpublished source work. Never copy formal `data/` into Git.
 
-Future Codex sessions should read `AGENTS.md`, run `project_status.py --write --json`, then read this handoff before changing Analysis Export.
+Future sessions follow `AGENTS.md` and read the relevant part of this handoff
+for Analysis Export; use runtime status only when that boundary is relevant.

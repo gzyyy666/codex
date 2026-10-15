@@ -42,7 +42,7 @@ Web reads continue through `LedgerDataAccess`. Daily Parse and confirmed Save no
 
 ## Command Bridge
 
-The next migration phase should expose commands rather than direct file writes:
+The maintained Web bridge exposes commands rather than direct file writes:
 
 1. `POST /api/parse` returns a pending Review payload and active movement mapping options.
 2. `POST /api/save` validates the pending identity, merges only allowed edits, and runs the shared save workflow.

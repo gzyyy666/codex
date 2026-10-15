@@ -4,14 +4,17 @@ Use this file when starting a new Codex conversation or recovering from a confus
 
 ## Fast Project Recovery
 
-For Fitness Ledger work, do not reconstruct context from chat history. Read in this order:
+For Fitness Ledger work, start from current project rules and read only the
+task-relevant context:
 
-1. `memory/fitness-ledger-state.md`
-2. `projects/fitness-ledger/START_HERE.md`
-3. `projects/fitness-ledger/docs/INDEX.md`
-4. The task-specific file linked by that index
+1. `AGENTS.md`, then `projects/fitness-ledger/AGENTS.md`
+2. `projects/fitness-ledger/START_HERE.md` when restoring project context
+3. `projects/fitness-ledger/docs/INDEX.md` to locate task-specific references
+4. A relevant memory/decision only when a historical choice needs explanation
 
-For WeChat or CloudBase work, also read `memory/fitness-ledger-wechat-preparation.md` before making claims about deployment or sync state.
+For WeChat or CloudBase operations, use the current runtime/provider evidence
+required by the task. Memory and dated reports explain previous work; they do
+not establish today's deployment, configuration or sync state.
 
 The public repository contains source and documentation, but never the user's live `data/` directory.
 
@@ -21,16 +24,13 @@ The public repository contains source and documentation, but never the user's li
 Please restore my working context from my GitHub memory repository:
 https://github.com/gzyyy666/codex
 
-Read these first:
-- memory/preferences.md
-- memory/projects.md
-- memory/people-and-context.md
-- memory/codex-thread-roles.md
-- decisions/
-- workflows/
-
-Then summarize the restored context in 5 bullets or fewer before continuing.
-If this task creates durable preferences, decisions, or reusable workflows, ask whether they should be added back to the memory repository.
+Read the current AGENTS.md and the target project's entry/index.
+Read only the memory, decision or workflow relevant to this request.
+Continue authorized work from verified facts; ask only for material missing
+information. Do not require a separate recovery confirmation or scan entire
+memory/decisions/workflows directories for an ordinary task.
+Do not update memory or publish issues merely because work produced a useful
+lesson. Those actions require the user's request and applicable permissions.
 ```
 
 ## Recovery Prompt
@@ -39,13 +39,16 @@ If this task creates durable preferences, decisions, or reusable workflows, ask 
 State recovery instruction:
 
 Your current understanding may be off. Do not continue repairing previous reasoning.
-Discard assumptions from this conversation that I have not explicitly confirmed.
+Recheck disputed or stale assumptions while preserving the user's explicit
+scope, constraints and authorization already given in this conversation.
 
 Restore context from:
 https://github.com/gzyyy666/codex
 
-Read memory/, decisions/, and workflows/ first.
-Then briefly restate the recovered working state and wait for confirmation before taking action.
+Read current project instructions and the relevant source/index first.
+Use historical memory only where it explains the disputed context.
+Continue independent authorized work; ask about unresolved facts only when
+their answer changes the next action. Do not insert a mandatory approval pause.
 ```
 
 ## Prompt Request Pattern

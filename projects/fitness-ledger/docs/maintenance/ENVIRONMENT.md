@@ -12,9 +12,9 @@ The source worktree is the modification and review authority. The formal
 application is the only directory allowed to contain live personal JSON and
 local provider configuration. Never copy `app\data\` into Git.
 
-## Working Copy
+## Runtime directory
 
-Recommended local working path:
+Formal launch and protected-data path (not the development checkout):
 
 `D:\FitnessLedger\app`
 
@@ -41,7 +41,11 @@ The desktop shortcut and the user environment variable
 The shortcut remains a local convenience file; the Git source tree is the
 repository authority.
 
-## Required Validation
+## Validation examples
+
+Select relevant checks from `../../REGRESSION_CHECKLIST.md`. The examples below
+are not an additional mandatory suite for every task. Documentation-only work
+needs no application compilation, Web save tests or runtime restart.
 
 ```powershell
 python -m py_compile stable_app.pyw
@@ -51,7 +55,7 @@ python tools/regression_test.py
 
 Run `python tools/smoke_test.py` after parser, save, duplicate-date, dictionary, or migration changes.
 
-For Web changes also run:
+For affected Web logic, select relevant checks from:
 
 ```powershell
 node --check web_desktop/frontend/app.js
@@ -103,8 +107,9 @@ These must not be copied into the public GitHub memory repository.
 
 1. Open `D:\FitnessLedger\source` as the Codex workspace.
 2. Read `projects/fitness-ledger/START_HERE.md`.
-3. Run `python projects/fitness-ledger/tools/project_status.py --write --json`
-   from the FL project directory.
+3. Check Git baseline/scope. For runtime, formal publication or data/provider
+   work, run `python tools/project_status.py --write --json` from the FL project
+   directory (or use the project-prefixed script path from repository root).
 4. For visual changes, read `docs/design/STYLE_BIBLE.md` and inspect only the
    relevant evidence under `docs/design/evidence/`.
 5. Treat `D:\FitnessLedger\app\data\` as protected local state; use fixtures

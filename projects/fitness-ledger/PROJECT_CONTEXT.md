@@ -1,6 +1,9 @@
 # Fitness Ledger Project Context
 
-> This file contains durable product context, not a live Git or deployment baseline. At task startup use `python tools/project_status.py --write --json`, then follow `AGENTS.md` and `START_HERE.md`. Historical notes below must not override the live status or current source.
+> This file contains product context, not a live Git or deployment baseline.
+> Follow `AGENTS.md` for scoped startup checks; run project status when runtime,
+> publication or data/provider work is relevant. Historical build markers and
+> feature descriptions below must not override current source or live evidence.
 
 ## Current App
 
@@ -52,9 +55,10 @@
 In plain terms: read the bootstrap for the rules, the index for the file map,
 the function index for data ownership, then read only the files named by the
 task. Choose the smallest relevant checklist, make the change only inside the
-allowed boundary, run its checks, and write a short changelog entry. The formal
-business directory is for DevTools acceptance; the separate Git directory is
-the durable project record and receives only the selected accepted files.
+allowed boundary, run relevant checks, and update documents made stale by the
+change. The Git checkout is the development authority; the formal business
+directory is the runtime/deployment target. Do not reverse this direction by
+treating formal app as the default source for new development.
 
 ## Data Safety
 

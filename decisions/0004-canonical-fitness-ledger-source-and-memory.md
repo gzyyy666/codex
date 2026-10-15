@@ -2,7 +2,7 @@
 id: 0004-canonical-fitness-ledger-source-and-memory
 type: decision
 status: active
-updated: 2026-07-05
+updated: 2026-10-15
 tags: [fitness-ledger, source, memory, backup, cleanup]
 ---
 
@@ -13,6 +13,12 @@ tags: [fitness-ledger, source, memory, backup, cleanup]
 Use `projects/fitness-ledger/` in `gzyyy666/codex` as the durable source checkpoint and documentation authority. Keep live personal JSON only in the local working application.
 
 Use one canonical local clone at `%USERPROFILE%\Documents\Codex\github-memory`.
+
+Implementation-location note (2026-10-15): the path above records the original decision.
+The standardized checkout is now `D:\FitnessLedger\source`; current source,
+runtime and data boundaries are maintained in
+`projects/fitness-ledger/docs/maintenance/PROJECT_LAYOUT.md`. This historical
+path is not an instruction to create or switch to a second clone.
 
 ## Consequences
 

@@ -2,6 +2,10 @@
 
 Use this workflow when a rough idea needs to become concrete implementation work.
 
+Draft the slices locally unless the user explicitly requests creating issues
+in a named repository. A request for ideas or implementation does not by
+itself authorize publishing, messaging or labeling external work items.
+
 ## Steps
 
 1. Restate the idea in one sentence.

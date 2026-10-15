@@ -48,8 +48,9 @@ research, unrelated regression suites or Worktree cleanup to a routine fix.
 
 ## Current Authority
 
-Read `docs/CURRENT_STATUS.md` for the latest durable handoff summary, then
-confirm its Git, formal, and CloudBase values with `project_status.py`.
+Use `docs/CURRENT_STATUS.md` as a dated handoff when its history is relevant,
+not as today's baseline. Confirm runtime/provider claims with live evidence
+when the task needs them; source-only work follows the scoped startup rules.
 
 - Desktop application and parser: `stable_app.pyw`
 - Shared safe write boundary: `ledger_commands.py`

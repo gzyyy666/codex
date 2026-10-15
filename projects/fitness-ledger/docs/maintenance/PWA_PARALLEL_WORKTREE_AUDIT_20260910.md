@@ -1,5 +1,10 @@
 # PWA parallel Worktree audit — 2026-09-10
 
+Historical integration evidence only. The candidate paths, cache markers and
+release decision below apply to that dated task; they do not require auditing
+all Worktrees or resurrecting these candidates in a new PWA task. Check current
+rules and only participating diffs when a task actually combines candidates.
+
 ## Conclusion
 
 There are two materially different PWA implementations in the local Worktrees;

@@ -3,7 +3,7 @@
 - [ ] Project opens from `mini_program/` without missing-page errors.
 - [ ] Local `project.config.json` contains the intended AppID.
 - [ ] Ignored `config/env.local.js` contains the intended CloudBase env_id.
-- [ ] Ten replica collections exist and match `fl_meta.collection_counts`.
+- [ ] The current manifest's required collections, including configured extensions, exist and match the applicable metadata/counts/hashes.
 - [ ] `ledgerRead` is deployed to the same environment.
 - [ ] `FITNESS_LEDGER_ALLOWED_OPENIDS` contains the testing account.
 - [ ] Simulator opens Home and shows loading, empty, or real data cleanly.

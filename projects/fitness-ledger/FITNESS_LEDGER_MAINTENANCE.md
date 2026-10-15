@@ -1,6 +1,7 @@
 # Fitness Ledger Safe Maintenance
 
-Use these rules only for the local Fitness Ledger desktop tool.
+Use these rules for the local Fitness Ledger desktop/Web business application.
+Select maintained source modules from the current project/function indexes.
 
 ## Project Boundary
 
@@ -13,18 +14,18 @@ Use these rules only for the local Fitness Ledger desktop tool.
 
 ## Safety Rules
 
-1. Never clear, rebuild, or replace `data/tracker.json`.
+1. Never casually clear or rebuild formal `data/tracker.json`. Normal validated command-service saves and explicitly authorized recovery/migration may replace files atomically under the reviewed backup/rollback contract.
 2. Preserve every `raw_entries[*].text` value.
 3. Back up the database before saving user changes.
-4. Keep JSON writes atomic through `write_json`.
+4. Keep ledger writes atomic through the shared command service and its maintained storage helpers; a request handler or UI must not bypass that transaction.
 5. Do not generate alternate main programs such as `stable_app_new.pyw`.
 6. Do not modify the original Excel source.
-7. Do not add AI analysis, cloud sync, or EXE packaging unless explicitly requested.
+7. Do not introduce unsolicited AI coaching, a new sync mechanism, or packaging work. Maintaining already supported Cloud Sync or analysis-export behavior is allowed when it is the requested task.
 8. UI columns may change, but existing database fields must remain compatible.
 9. Display-invalid records may be skipped in the UI but must not be deleted.
 10. Before changing save, parser, or migration behavior, decide whether a manual project/database backup is needed.
 11. Do not default to AI diet analysis or training advice. The tool records user-provided data unless a future task explicitly asks for analysis.
-12. Do not create alternate main-program copies. Modify only `stable_app.pyw` unless the request is documentation, tests, or data dictionary maintenance.
+12. Do not create alternate main-program copies. Modify the maintained modules that own the behavior (`stable_app.pyw`, command/Core, Web or mobile as appropriate); do not force unrelated changes into the desktop file.
 
 ## Current Functional Model
 

@@ -43,6 +43,7 @@ Use this index instead of scanning the project.
 | Confirmed cleanup and retained-resource audit | `maintenance/RESOURCE_AUDIT.md` |
 | Agent task routing, route-specific workflows, and exit evidence | `agent/FL_TASK_ROUTING.md` |
 | Source-only closeout, Quick/Full Seal and scoped publication | `maintenance/CODEX_RELEASE_CLOSEOUT.md` |
+| Rule/method scope, historical reports and preserved contracts | `agent/RULES_AND_METHODS.md` |
 
 ## 2026-07 Maintenance Entry
 

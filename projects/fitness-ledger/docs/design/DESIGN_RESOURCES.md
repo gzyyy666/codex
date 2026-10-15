@@ -32,7 +32,10 @@ Core characteristics:
 - `web_desktop/frontend/app.js`: HTML rendering, page state, search, sort, details, and API interaction.
 - `web_desktop/frontend/assets/`: local offline imagery and fonts.
 
-Do not add a new override file. Future work should consolidate accepted rules into the existing style files.
+Prefer existing owned stylesheets and consolidate redundant overrides.
+A genuinely separate component/surface may justify a bounded stylesheet with
+explicit ownership and load order; do not create another global override file
+merely to win specificity. Do not bundle broad CSS cleanup into a small fix.
 
 ## Approved Evidence
 
@@ -45,6 +48,9 @@ Do not add a new override file. Future work should consolidate accepted rules in
 These images are evidence of hierarchy and material quality, not pixel-perfect fixed layouts.
 
 ## Design QA Checklist
+
+Select affected items; this is not a mandatory full pass for every copy/CSS
+edit. Expand viewport/state coverage for layout, navigation or motion changes.
 
 - 1280 px and 1440/1600 px desktop widths
 - Chinese line wrapping and clipping

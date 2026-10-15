@@ -10,3 +10,8 @@ These rules apply to tasks started from the repository root.
   formal publication, data/provider actions, or unexplained drift is relevant;
   source-only work follows the project's lighter startup rules.
 - Project-specific instructions override this routing file within their scope.
+
+Workflow documents are task-selected methods, not standing authorization for
+remote publication, deletion, memory updates, or recurring jobs. Dated status
+reports and ADR paths are historical evidence; use the current project layout
+and task rules when they differ. See `workflows/README.md` for workflow scope.

@@ -1,6 +1,6 @@
 # Fitness Ledger Web Style Bible
 
-Version: 2026-08-10 / current formal baseline
+Visual reference snapshot: 2026-08-10; not a live deployment/version marker.
 
 This is the visual and interaction authority for future Fitness Ledger Web
 work. It is intentionally concrete: a new screen should feel like it belongs
@@ -20,6 +20,17 @@ review fixtures at a 1600 x 1000 viewport. Accepted evidence is in:
 
 The evidence is visual grounding only; it contains no personal records. The
 live implementation remains the final authority for behavior and data.
+
+## Scope of use
+
+This file preserves product identity, not a fixed implementation or mandatory
+whole-product design audit. Read the relevant recipe for the changed surface.
+Use current source tokens and the user's accepted customization when dated
+examples differ; five built-in themes are examples, not a ban on configured
+categories. Material layers describe visual hierarchy, not a DOM layer limit.
+For a known copy/CSS fix, inspect the affected state at a representative width;
+expand to breakpoints, input modes and adverse states when the change can
+affect them. Do not load every design reference or redesign an unrelated page.
 
 ## Product character
 
@@ -255,12 +266,14 @@ Always implement `prefers-reduced-motion: reduce` as a real behavior fallback.
   route and semantic order.
 - Around 640px/560px: reduce title size and padding, keep touch targets large,
   and avoid preserving desktop whitespace.
-- Check 1280px, 1440px, 1600px, current Windows DPI, Chinese clipping, long
-  movement names, and keyboard focus.
+- Choose representative widths and relevant breakpoints for the changed
+  composition; check Windows DPI, Chinese clipping, long names and keyboard
+  focus where affected. A known wording fix does not require all widths.
 
 ## Future design-dialog contract
 
-Before generating a new interface, the responsible conversation must:
+For a new interface or substantial composition change, use the following
+design path. A bounded existing-page fix uses the scoped checks above:
 
 1. Read this file, `docs/design/DESIGN_RESOURCES.md`, and
    `docs/design/AI_DESIGN_REVIEW_CONTRACT.md`.

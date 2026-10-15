@@ -38,9 +38,10 @@
 - `mobile_viewer/pwa/sw.js`: Caches only the app shell and never caches `/api/` responses.
 - `mobile_viewer/app.py` `/pwa/`: Serves the PWA shell from the local Flask viewer for safe local verification.
 
-The PWA is a presentation layer only. A future Web authentication gateway must
-be reviewed before it exposes the private CloudBase replica; do not call the
-WeChat-only `wx.cloud.callFunction` API from browser code.
+The PWA is a presentation layer. The Web gateway implementation is
+`mini_program/cloudfunctions/ledgerWebRead/`; review affected auth/read boundaries
+before deploying changes, and verify actual deployment separately. Do not call
+WeChat-only `wx.cloud.callFunction` from browser code.
 
 - `quickPage`: Renders the Daily Entry writing workbench while preserving the shared Parse/Review/Save workflow.
 - `compactEntryAside`: Renders the floating Today receipt and layered Recent Saved archive slips from existing local data.

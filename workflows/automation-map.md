@@ -2,6 +2,10 @@
 
 Use this file to decide which recurring tasks should become reminders, monitors, or GitHub workflows.
 
+The examples below are proposals, not configured jobs or standing memory-write
+permission. Create/update an automation only when requested, using the current
+app automation tools; preserve quiet notification intent for unchanged states.
+
 ## Good Automation Candidates
 
 - Weekly review and memory cleanup

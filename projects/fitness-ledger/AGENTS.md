@@ -20,7 +20,20 @@ An automatically created Codex Worktree may be detached from an older
 it as the development baseline. Create or switch to a
 task-specific `codex/<task-name>` branch from the live local `main` first.
 
-Before starting work that touches an existing module, data structure, or architecture extension, inspect `docs/experiments/EXPERIMENTS_INDEX.md`. Unless the user explicitly resumes an experiment, do not continue, merge, copy, or depend on a paused experiment.
+This checks the starting baseline of a fresh task. An existing task branch's
+own reviewed commits ahead of main are expected; do not recreate its Worktree
+or discard those changes merely because its current HEAD differs from main.
+
+Before reusing related historical/experimental code or extending a structure
+that may depend on it, inspect `docs/experiments/EXPERIMENTS_INDEX.md`. Unless
+the user explicitly resumes an experiment, do not continue, merge, copy, or
+depend on a paused experiment.
+
+Read the experiments index when related historical or experimental code might
+be reused, not for every isolated copy/style fix. Project indexes and dated
+reports help locate context; they do not require all referenced workflows.
+For document scope and authority, see `docs/agent/RULES_AND_METHODS.md` when
+classification is unclear. Preserve current user scope and existing permissions.
 
 Do not copy formal `data/**` into Git or a Worktree. The status file contains hashes and dates only, never training-record content.
 
@@ -71,7 +84,7 @@ single authority for check selection; do not recreate a second checklist here.
 Every task conversation must identify its closure level from the user's wording:
 
 - **Development / review**: work only in the task Worktree; run the relevant tests and leave a clean, reviewable task commit or an explicit uncommitted diff. Do not merge, Push, create Tags, or write to the formal directory unless the user separately authorizes a Review Deployment.
-- **Review Deployment / temporary release**: when the user explicitly asks to publish for review, or the surface cannot be fully reviewed without the formal runtime/device (notably an installed phone PWA), publish the review candidate before final acceptance. The user accepts that review feedback may require rework. This permission covers only the named target and reviewed files. Preserve a recoverable copy/rollback point, run the scoped preflight and checks, publish with coherent asset versions, and verify the actual formal URL/device-facing resources. Do not treat this as human acceptance or Seal / finalise; do not merge, Push, Tag, alter protected data, change Cloud Sync/provider state, or deploy unrelated files unless separately authorized. After review, continue development or wait for explicit seal authorization.
+- **Review Deployment / temporary release**: when the user explicitly authorizes publication to the named review target (including a real runtime/device needed for review), publish the scoped candidate before final acceptance. The user accepts that review feedback may require rework. This permission covers only the named target and reviewed files. Preserve a recoverable copy/rollback point, run the scoped preflight and checks, publish with coherent asset versions, and verify the actual formal URL/device-facing resources. Do not treat this as human acceptance or Seal / finalise; do not merge, Push, Tag, alter protected data, change Cloud Sync/provider state, or deploy unrelated files unless separately authorized. After review, continue development or wait for explicit seal authorization.
 - **Seal / finalise / 封板**: after review and relevant checks pass, complete the applicable source-only, Quick, or Full closeout. Integrate and Push only as authorized; deploy only reviewed files and run only affected runtime/data checks. Reuse acceptance and authorization already given; do not ask again for the same scope.
 
 The task does not need to be handed back to a central Git conversation. A specialist Worktree conversation may seal its own work when the user explicitly authorizes sealing. The central conversation remains the preferred place for cross-Worktree integration, unexplained conflicts, broad architecture changes, or a final multi-task audit.
