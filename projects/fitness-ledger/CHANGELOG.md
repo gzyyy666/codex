@@ -1,6 +1,6 @@
 # Fitness Ledger Changelog
 
-## 2026-10-15 - Training content display review candidate
+## 2026-10-15 - Training content display review deployment
 
 - PWA daily records link each training session to the existing session detail
   by persisted session ID, with a return link to the originating daily record.
@@ -12,7 +12,9 @@
   sets; nested empty-set placeholders no longer hide the entire section.
 - Candidate PWA assets use version 1.1.39, resource group
   `20261015-training-content-r1`, and cache `fitness-ledger-pwa-v82`.
-  This entry records development only; formal/cloud deployment remains separate.
+  Published for review to the formal desktop entry, PWA static hosting and
+  the read-only ledgerWebRead function. No training-data upload, Cloud Sync,
+  authentication change, merge or Push was performed.
 - Verification: actual PWA entry browser navigation, Web bilingual detail,
   Cloud read projection fixtures, and existing session/history regressions.
 
