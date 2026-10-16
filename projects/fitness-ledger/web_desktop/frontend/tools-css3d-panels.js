@@ -873,6 +873,9 @@ function mountMousePet() {
   };
   const onGuardianIntent = event => {
     const detail = event.detail || {};
+    // A startup greeting can be queued before the requested archive route is
+    // ready. Do not replay that home-only pose on a different page.
+    if (detail.type === 'home-entry' && currentView() !== 'home') return;
     if (detail.phase === 'finish') {
       if (guardianPet) void guardianPet.finishIntent?.(detail.id, detail.reason || 'completed');
       return;
@@ -888,12 +891,14 @@ function mountMousePet() {
   window.addEventListener('fitness-ledger-pet:body-regions', onBodyRegions);
 
   const petQuery = new URLSearchParams(window.location.search);
-  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20261015-fluidity-r1';
+  const petController = './motion-lab/guardian/pet-guardian-static.js?v=20261016-fluidity-r3';
   const guardianModule = archiveEffectEnabled('flGuardianPet') ? import(petController) : null;
   guardianModule?.then(({ mountGuardianPet }) => {
     if (disposed) return;
     guardianPet = mountGuardianPet(guardian, {
       petMode: true,
+      initialPose: pendingPose?.pose || (guardianPetRoutePoses[currentView()] || guardianPetRoutePoses.home).poseId,
+      initialCameraPreset: pendingPose?.cameraPreset || (guardianPetRoutePoses[currentView()] || guardianPetRoutePoses.home).cameraPreset,
       showOverlay: presentationSurface.showOverlay,
       hideOverlay: presentationSurface.hideOverlay,
       playEffect: presentationSurface.playEffect,

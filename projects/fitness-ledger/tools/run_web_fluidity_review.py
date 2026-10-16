@@ -109,7 +109,9 @@ def main():
             def do_POST(self):
                 self.send_json({'error':'体验预览仅支持浏览与输入，保存和云同步未启用。'},backend.HTTPStatus.METHOD_NOT_ALLOWED)
             def end_headers(self):
-                self.send_header('Content-Security-Policy',"connect-src 'self'; script-src 'self' 'unsafe-inline'; object-src 'none'")
+                # GLB embeds textures as local blob URLs; permit their decoding
+                # while keeping external provider scripts/connections blocked.
+                self.send_header('Content-Security-Policy',"connect-src 'self' blob:; script-src 'self' 'unsafe-inline'; object-src 'none'")
                 super().end_headers()
             def send_file(self, path):
                 relative=path.relative_to(frontend) if path.is_relative_to(frontend) else None

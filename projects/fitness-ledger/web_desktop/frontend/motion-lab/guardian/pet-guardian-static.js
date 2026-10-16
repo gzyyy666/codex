@@ -286,8 +286,12 @@ export function mountGuardianPet(canvas, options = {}) {
     }
     if (state.disposed || token !== poseToken) return getState();
     modelRecords.forEach(record => { record.group.visible = record === next; });
+    if (activeRecord !== next) {
+      next.transitionAt = poseOptions.immediate || state.reducedMotion ? 0 : performance.now();
+      // Async model/texture work may finish after the idle render window.
+      renderActiveUntil = performance.now() + 1200;
+    }
     activeRecord = next;
-    activeRecord.transitionAt = poseOptions.immediate || state.reducedMotion ? 0 : performance.now();
     state.poseId = poseId;
     updateMeta(poseId);
     const detail = { pose: poseId, index: POSE_ORDER.indexOf(poseId), name: next.cfg.name, source: poseOptions.source || 'api' };
@@ -560,7 +564,7 @@ export function mountGuardianPet(canvas, options = {}) {
       configuration = await configurationPromise;
       presentation.setPriorities?.(configuration.intentConfig?.priorities || {});
       await renderPoseButtons();
-      await setCameraPreset('idle');
+      await setCameraPreset(options.initialCameraPreset || 'idle');
       await setPose(options.initialPose || 'standing', { source: 'ready', immediate: true });
       if (state.failed) return;
       state.ready = true;
