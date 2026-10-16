@@ -41,9 +41,12 @@ from the actual formal validation API. No personal records were exported.
 
 The second pasted fragment has translated machine literals, smart quotes and
 missing separators. Two adjacent objects are invalid JSON even if the first
-is valid. The supplied text cannot establish whether corruption happened in
-the model output, browser translation, copying, or assembly of the user message.
-Do not attribute it to one of these without additional evidence.
+is valid. The user subsequently confirmed that the malformed text was already
+visible in the original chat, before it entered the application. For this
+reported fragment, application-side paste transformation is therefore not the
+origin. Treat it as a malformed original-chat output when assessing prompt
+robustness. Raw model output versus translation/rendering within that chat
+remains unverified; do not claim either specific mechanism as proven.
 
 ## Verification
 
