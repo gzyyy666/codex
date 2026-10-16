@@ -100,9 +100,48 @@ def test_capability_snapshot_tracks_current_contract() -> None:
     assert request_capabilities() == original
 
 
+def test_real_complex_request_and_serialization_guards() -> None:
+    purpose = '评估2026年10月8日起增肌阶段的饮食、体重与训练表现。提取10月1日至16日体重及10月8日至16日饮食，判断热量维持或轻微盈余的可能性。重点比较增肌期与此前可比训练阶段的表现：先提取9月1日至29日的历史训练组织及单次训练摘要，以及10月8日至16日的完整训练与动作记录。9月30日至10月7日因更换健身房且记录残缺，不纳入力量、训练量和进步速度的直接比较，但不排除该阶段对恢复与后续表现的影响。取得近期真实动作ID后，再定向提取历史相同动作，比较可比条件下的重量、次数、组数、单动作容量及单次训练总容量，关注整体趋势而非只挑最佳表现。考虑增肌期目前较短，区分短期训练适应、波动与可持续进步，不预设肌肉增长或进步速度已达到理想水平。'
+    assert len(purpose) == 319
+    capabilities = request_capabilities()
+    assert len(purpose) <= capabilities['purpose']['maxLength'] == 500
+    request = all_data_example()
+    request['purpose'] = purpose
+    request['datasets'] = [
+        {'dataset_id': dataset_id, 'type': kind,
+         'time_range': {'mode': 'explicit_range', 'start': start, 'end': end},
+         'filters': {}, 'fields': list(DATASET_FIELDS[kind])}
+        for dataset_id, kind, start, end in (
+            ('body_transition', 'body', '2026-10-01', '2026-10-16'),
+            ('diet_muscle_gain', 'diet', '2026-10-08', '2026-10-16'),
+            ('training_baseline', 'training', '2026-09-01', '2026-09-29'),
+            ('training_muscle_gain', 'training', '2026-10-08', '2026-10-16'),
+            ('movement_muscle_gain', 'movement_progress', '2026-10-08', '2026-10-16'))]
+    serialized = json.dumps(request, ensure_ascii=False)
+    assert validate_request(json.loads(serialized)).valid
+    # Concatenated complete objects are invalid even if the first one is valid.
+    try:
+        json.loads(serialized + serialized)
+    except json.JSONDecodeError as error:
+        assert error.msg == 'Extra data'
+    else:
+        raise AssertionError('Two request objects must not parse as one JSON')
+    translated = copy.deepcopy(request)
+    translated['目的'] = translated.pop('purpose')
+    assert not validate_request(translated).valid
+    protocol = AnalysisExportProtocolService(AnonymousFixtureProvider(
+        ROOT / 'tools/fixtures/analysis_export_anonymous/fixture.json'))
+    assert protocol.preview({'request': request})['status'] == 'preview_ready'
+    prompt = build_initialization_prompt(themes=[], categories=[], modules=[], library_shape={})
+    for guard in ('purpose.maxLength', '建议不超过200', 'U+0022', '不能翻译这些机器字面量',
+                  '禁止接着输出第二个对象', '关闭网页自动翻译', '不把新旧对象拼接'):
+        assert guard in prompt, guard
+
+
 if __name__ == '__main__':
     for test in (test_all_data_round_trip, test_capabilities_cover_runtime_contract, test_prompt_boundaries,
                  test_failed_comparison_request_is_not_silently_accepted,
-                 test_capability_snapshot_tracks_current_contract):
+                 test_capability_snapshot_tracks_current_contract,
+                 test_real_complex_request_and_serialization_guards):
         test()
         print(f'PASS {test.__name__}')
