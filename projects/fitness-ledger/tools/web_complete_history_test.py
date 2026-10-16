@@ -60,8 +60,15 @@ def main() -> None:
                 page.evaluate("name => { location.hash = name }", collection)
                 page.wait_for_function("([selector,count]) => document.querySelectorAll(selector).length === count",
                                        arg=[selector, 250])
+                # Deferred offscreen cards must render when actually reached.
+                page.locator(selector).last.scroll_into_view_if_needed()
+                page.wait_for_function("([selector,day]) => document.querySelectorAll(selector)[249].innerText.includes(day)",
+                                       arg=[selector, rows[0]["Date"]])
                 assert rows[0]["Date"] in page.locator(selector).last.inner_text()
                 page.locator(f"#{collection}-order").select_option("oldest")
+                page.locator(selector).first.scroll_into_view_if_needed()
+                page.wait_for_function("([selector,day]) => document.querySelector(selector).innerText.includes(day)",
+                                       arg=[selector, rows[0]["Date"]])
                 assert rows[0]["Date"] in page.locator(selector).first.inner_text()
                 page.locator(f"#{collection}-search").fill(rows[0]["Date"])
                 page.wait_for_function("selector => document.querySelectorAll(selector).length === 1", arg=selector)

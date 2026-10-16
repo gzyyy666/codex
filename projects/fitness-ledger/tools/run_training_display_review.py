@@ -42,7 +42,8 @@ def main():
                     "exclude_from_progress": index == 2, "notes": "匿名验收记录"}],
                 "Notes": "模拟记录，不是你的正式训练数据。"})
         database = {"daily_records": [{"id": "review-body", "Date": "2099-01-01", "Weight (kg)": 70, "Notes": "匿名验收记录"}],
-            "diet_records": [], "training_sessions": sessions, "raw_entries": [], "movements": {},
+            "diet_records": [{"id": "review-diet", "Date": "2099-01-01", "Calories": 2000, "Notes": "匿名验收记录"}],
+            "training_sessions": sessions, "raw_entries": [], "movements": {},
             "training_organization": {"session_theme_catalog_locked": True, "session_themes": themes, "movement_categories": []}}
         tracker.write_text(json.dumps(database, ensure_ascii=False), encoding="utf-8")
         dictionary.write_text(json.dumps({"version": "1.0", "movements": [{"movement_id": "REVIEW_PRESS", "display_name": "模拟推举", "english_name": "Review Press", "muscle_group": "Shoulders", "active": True}]}), encoding="utf-8")
