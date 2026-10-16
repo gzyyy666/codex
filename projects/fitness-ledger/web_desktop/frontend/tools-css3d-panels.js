@@ -570,6 +570,7 @@ function mountMousePet() {
   archivePetRegistry.set(instanceId, instanceRecord);
   const width = window.matchMedia?.('(max-width: 760px)').matches ? 208 : 256;
   const height = width;
+  const pointerGeometry = { width, height, left: 0, top: 0, navigatorWidth: 58, navigatorHeight: 78 };
   const margin = 18;
   const position = readGuardianPetPosition();
   const manualOverrides = new Map();
@@ -813,11 +814,13 @@ function mountMousePet() {
     }, 1700);
   };
 
-  const viewportMax = () => ({ x: Math.max(0, window.innerWidth - width - margin * 2), y: Math.max(0, window.innerHeight - height - margin * 2) });
+  const viewportMax = () => ({ x: Math.max(0, window.innerWidth - pointerGeometry.width - margin * 2), y: Math.max(0, window.innerHeight - pointerGeometry.height - margin * 2) });
   const applyPosition = () => {
     const max = viewportMax();
     const x = margin + position.x * max.x;
     const y = margin + position.y * max.y;
+    pointerGeometry.left = Math.round(x);
+    pointerGeometry.top = Math.round(y);
     body.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`;
   };
   const savePosition = () => {
@@ -981,11 +984,10 @@ function mountMousePet() {
   const updatePointerFollow = time => {
     followFrame = requestAnimationFrame(updatePointerFollow);
     if (document.hidden || (!championSequenceActive && time > followUntil)) return;
-    const rect = body.getBoundingClientRect();
-    const centerX = rect.left + rect.width * 0.5;
-    const centerY = rect.top + rect.height * 0.5;
-    const navigatorWidth = navigator.offsetWidth || 74;
-    const navigatorHeight = navigator.offsetHeight || 104;
+    const centerX = pointerGeometry.left + pointerGeometry.width * 0.5;
+    const centerY = pointerGeometry.top + pointerGeometry.height * 0.5;
+    const navigatorWidth = pointerGeometry.navigatorWidth;
+    const navigatorHeight = pointerGeometry.navigatorHeight;
     navigatorFollower.tx = clamp(pointer.x + 22, 8, window.innerWidth - navigatorWidth - 8);
     navigatorFollower.ty = clamp(pointer.y + 20, 8, window.innerHeight - navigatorHeight - 8);
     navigatorFollower.x += (navigatorFollower.tx - navigatorFollower.x) * 0.12;
@@ -1086,7 +1088,27 @@ function mountMousePet() {
     viewRotation = { x: 0, y: 0 };
     void guardianPet?.resetView?.();
   };
-  const onResize = applyPosition;
+  const pointerGeometryObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(entries => {
+    for (const entry of entries) {
+      const box = entry.borderBoxSize?.[0];
+      if (!box) continue;
+      if (entry.target === body) { pointerGeometry.width = box.inlineSize; pointerGeometry.height = box.blockSize; }
+      else { pointerGeometry.navigatorWidth = box.inlineSize; pointerGeometry.navigatorHeight = box.blockSize; }
+    }
+    applyPosition();
+  }) : null;
+  pointerGeometryObserver?.observe(body);
+  pointerGeometryObserver?.observe(navigator);
+  const onResize = () => {
+    if (!pointerGeometryObserver) {
+      pointerGeometry.width = body.offsetWidth || width;
+      pointerGeometry.height = body.offsetHeight || height;
+      pointerGeometry.navigatorWidth = navigator.offsetWidth || 58;
+      pointerGeometry.navigatorHeight = navigator.offsetHeight || 78;
+    }
+    applyPosition();
+  };
+  onResize();
   body.addEventListener('wheel', onPetWheel, { passive: false });
   body.addEventListener('keydown', onPetKeyDown);
   body.addEventListener('pointerdown', onPointerDown);
@@ -1106,6 +1128,7 @@ function mountMousePet() {
     window.removeEventListener('fitness-ledger-pet:intent', onGuardianIntent);
     window.removeEventListener('fitness-ledger-pet:body-regions', onBodyRegions);
     window.removeEventListener('resize', onResize);
+    pointerGeometryObserver?.disconnect();
     body.removeEventListener('wheel', onPetWheel);
     body.removeEventListener('keydown', onPetKeyDown);
     body.removeEventListener('pointerdown', onPointerDown);

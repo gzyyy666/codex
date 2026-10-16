@@ -20,7 +20,7 @@ from urllib.parse import urlparse
 
 sys.dont_write_bytecode = True
 PROJECT = Path(__file__).resolve().parents[1]
-FILES = ['app.js', 'tools-css3d-panels.js', 'motion-lab/guardian/pet-guardian-static.js']
+FILES = ['app.js', 'formal-mirror-data-modules.js', 'tools-css3d-panels.js', 'motion-lab/guardian/pet-guardian-static.js']
 
 
 def apply_source_changes(base: str, candidate: str, installed: str) -> str:
@@ -36,6 +36,16 @@ def apply_source_changes(base: str, candidate: str, installed: str) -> str:
                 raise ValueError('Insertion must have stable surrounding context')
             needle = old[start-1] + old[end]
             replacement = old[start-1] + replacement + old[end]
+        if installed.count(needle) > 1:
+            # Identical helpers may occur in both language branches. Require
+            # exact surrounding lines rather than choosing an arbitrary match.
+            for context in range(1,4):
+                lo, hi = max(0,start-context), min(len(old),end+context)
+                extended = ''.join(old[lo:hi])
+                if installed.count(extended) == 1:
+                    needle = extended
+                    replacement = ''.join(old[lo:start])+''.join(new[nstart:nend])+''.join(old[end:hi])
+                    break
         if installed.count(needle) != 1:
             raise ValueError(f'Installed/source overlap: expected one unchanged region at source line {start+1}')
         installed = installed.replace(needle, replacement, 1)
@@ -106,8 +116,12 @@ def main():
                 if relative == Path('index.html'):
                     html=path.read_text(encoding='utf-8-sig')
                     if self.is_candidate:
-                        html,count=re.subn(r'app\.js\?v=[^"\s]+','app.js?v=20261015-fluidity-r1',html)
-                        if count != 1:raise ValueError('Expected one app module')
+                        source_index=(PROJECT/'web_desktop/frontend/index.html').read_text(encoding='utf-8-sig')
+                        for module in ['app.js','formal-mirror-data-modules.js']:
+                            reference=re.search(re.escape(module)+r'\?v=[^"\s]+',source_index)
+                            if reference is None:raise ValueError('Missing candidate module reference')
+                            html,count=re.subn(re.escape(module)+r'\?v=[^"\s]+',lambda _:reference.group(0),html)
+                            if count != 1:raise ValueError('Expected one '+module)
                     label='优化版' if self.is_candidate else '当前版本对照'
                     html=html.replace('<body>',f'<body><div style="position:fixed;bottom:8px;left:12px;z-index:1000000;padding:6px 12px;background:#fff8df;border:1px solid #b49b63;border-radius:8px;font:12px sans-serif;pointer-events:none">{label} · 体验预览 · 保存和云同步未启用</div>')
                     self.send_bytes(html.encode('utf-8'),'text/html; charset=utf-8');return

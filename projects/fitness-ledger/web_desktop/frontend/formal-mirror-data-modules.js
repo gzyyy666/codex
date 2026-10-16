@@ -429,7 +429,8 @@ function ensureReviewHub(){return}
       ensureEmptyModuleSlots();
     }finally{finalSurfaceRunning=false}
   };
-  const scheduleFinalSurface=()=>setTimeout(queueFinalSurface,0);
+  let finalSurfaceSchedule=0;
+  const scheduleFinalSurface=()=>{if(finalSurfaceSchedule)return;finalSurfaceSchedule=setTimeout(()=>{finalSurfaceSchedule=0;queueFinalSurface()},0)};
   window.addEventListener('fitness-ledger:data-ready',scheduleFinalSurface);
   window.addEventListener('fitness-ledger-pet:route-change',scheduleFinalSurface);
   const refreshNativeSurface=event=>{if(surfaceControlIds.has(event.target?.id))queueFinalSurface()};

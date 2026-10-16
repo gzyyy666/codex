@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const source=fs.readFileSync(new URL('../web_desktop/frontend/app.js',import.meta.url),'utf8');
 const lines=source.split(/\r?\n/);
 const named=prefix=>{const found=lines.filter(line=>line.startsWith(prefix));assert.equal(found.length,1,prefix);return found[0]};
-const sandbox={state:{dictionary:[{movement_id:'a',display_name:'推',aliases:['ＰＲＥＳＳ']},{movement_id:'b',display_name:'肩部 推举',english_name:'Shoulder Press'}],movements:[]}};
+const sandbox={archiveCardSizes:new Map(),state:{dictionary:[{movement_id:'a',display_name:'推',aliases:['ＰＲＥＳＳ']},{movement_id:'b',display_name:'肩部 推举',english_name:'Shoulder Press'}],movements:[]}};
 vm.createContext(sandbox);
 vm.runInContext([
   named('const normalizeTrainingText='),named('const movementDefinitions='),named('const movementNames='),
@@ -37,4 +37,7 @@ assert.equal(typeof resolveSync,'function');
 resolveSync({sync_status:'SYNCED'});
 await new Promise(resolve=>setTimeout(resolve,0));
 assert.equal(sandbox.state.syncStatus.sync_status,'SYNCED');
+sandbox.archiveCardSizes.set('previous-record-size',{content:500,span:30});
+await vm.runInContext("refreshWebState({slots:['training']})",sandbox);
+assert.equal(sandbox.archiveCardSizes.size,0,'training refresh invalidates remembered layout heights');
 console.log('web_fluidity_test: PASS (matching refresh, aliases, fallback, nonblocking auxiliary hydration)');
