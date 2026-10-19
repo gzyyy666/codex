@@ -1,14 +1,24 @@
-/* Input-surface styling only. Native title, mode switch, actions and page shell
-   are intentionally not styled or moved by this file. */
+/* Shared export sizing and the JSON editor surface. */
+.analysis-export-page{--export-input-height:360px;padding-top:18px}
+.analysis-export-page>header{padding:40px 4px 22px}
+.analysis-export-hero h1{font-size:clamp(34px,3.2vw,50px);line-height:1.04;letter-spacing:-.045em}
+.analysis-export-hero p{margin-top:12px}
+.analysis-export-compose-head{margin-bottom:20px}
+.analysis-export-page[data-input-mode="json"] .analysis-export-mode-indicator{transform:translateX(0)}
+.analysis-export-page[data-input-mode="guided"] .analysis-export-mode-indicator{transform:translateX(100%)}
+.analysis-export-natural-pane{gap:14px}
+.analysis-export-natural-pane .entry-template-note{margin:0;font-size:12px;line-height:1.7}
+.analysis-export-natural-pane .analysis-export-question-shell{flex:none;box-sizing:border-box;height:var(--export-input-height);min-height:0}
+.analysis-export-natural-pane .analysis-export-question{display:block;box-sizing:border-box;height:100%;min-height:0}
 .analysis-export-json-pane{--json-window:#302e29;--json-text:#eee9dc;gap:0}
 .analysis-export-json-pane.is-active{display:block;animation:none}
-.analysis-export-json-layout{display:flex;min-height:407px;height:100%;padding:10px 0 18px}
+.analysis-export-json-layout{display:flex;box-sizing:border-box;height:var(--export-input-height);min-height:0;padding:0}
 .analysis-export-json-card{display:flex;flex:1;flex-direction:column;position:relative;isolation:isolate;min-width:0;min-height:0;border:1px solid #736b5d;border-radius:14px;background:var(--json-window);box-shadow:0 0 0 1px #fff7,inset 0 1px #ffffff15,0 4px 7px #4237250d,0 14px 22px -13px #42372545}
 .analysis-export-json-card::before{content:"";position:absolute;z-index:-1;left:-10px;bottom:-10px;width:68%;height:45%;border-radius:11px;background:#f1df9f}
 .analysis-export-json-card-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 20px;border-bottom:1px solid #ffffff0c;border-radius:13px 13px 0 0;background:var(--json-window);color:#b8ae9d;font:11px/20px var(--font-mono,Consolas,monospace)}
 .analysis-export-json-card-head button{padding:0;border:0;background:none;color:#c8bdab;font:11px/20px var(--font);cursor:pointer}
 .analysis-export-json-card-head button:hover{color:#ffda6e}
-.analysis-export-json-pane .analysis-export-json-shell{position:relative;flex:1 1 auto;min-height:280px;border:0;border-radius:0;background:var(--json-window);box-shadow:none}
+.analysis-export-json-pane .analysis-export-json-shell{position:relative;flex:1 1 auto;min-height:0;border:0;border-radius:0;background:var(--json-window);box-shadow:none}
 .analysis-export-json-pane .analysis-export-json-highlight,.analysis-export-json-pane .analysis-export-json-editor{display:block;box-sizing:border-box;position:absolute;inset:0;width:100%;height:100%;min-height:0;margin:0;padding:24px;border:0;border-radius:0;background:transparent;white-space:pre;overflow:auto;font:400 12px/22px var(--font-mono,Consolas,monospace);letter-spacing:0;tab-size:2}
 .analysis-export-json-pane .analysis-export-json-highlight{pointer-events:none;color:var(--json-text);scrollbar-width:none}
 .analysis-export-json-pane .analysis-export-json-editor{color:transparent;caret-color:var(--sun);scrollbar-color:#756e60 transparent}

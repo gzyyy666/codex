@@ -914,8 +914,8 @@ function analysisExportProtocolPage(){
           <h2>这次想导出什么？</h2>
           <div class="analysis-export-mode-switch" id="analysis-export-mode-switch" role="tablist" aria-label="输入方式">
             <span class="analysis-export-mode-indicator" aria-hidden="true"></span>
-            <button class="analysis-export-mode-btn is-active" id="analysis-export-natural-tab" type="button" role="tab" aria-selected="true" aria-controls="analysis-export-natural-pane" data-analysis-export-mode="guided">自然语言</button>
             <button class="analysis-export-mode-btn" id="analysis-export-json-tab" type="button" role="tab" aria-selected="false" aria-controls="analysis-export-json-pane" data-analysis-export-mode="json">JSON</button>
+            <button class="analysis-export-mode-btn is-active" id="analysis-export-natural-tab" type="button" role="tab" aria-selected="true" aria-controls="analysis-export-natural-pane" data-analysis-export-mode="guided">自然语言</button>
           </div>
         </div>
         <div class="analysis-export-mode-stage" id="analysis-export-mode-stage">
