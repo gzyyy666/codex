@@ -1,0 +1,29 @@
+/* Input-surface styling only. Native title, mode switch, actions and page shell
+   are intentionally not styled or moved by this file. */
+.analysis-export-json-pane{--json-window:#302e29;--json-text:#eee9dc;gap:0}
+.analysis-export-json-pane.is-active{display:block;animation:none}
+.analysis-export-json-layout{display:flex;min-height:407px;height:100%;padding:10px 0 18px}
+.analysis-export-json-card{display:flex;flex:1;flex-direction:column;position:relative;isolation:isolate;min-width:0;min-height:0;border:1px solid #736b5d;border-radius:14px;background:var(--json-window);box-shadow:0 0 0 1px #fff7,inset 0 1px #ffffff15,0 4px 7px #4237250d,0 14px 22px -13px #42372545}
+.analysis-export-json-card::before{content:"";position:absolute;z-index:-1;left:-10px;bottom:-10px;width:68%;height:45%;border-radius:11px;background:#f1df9f}
+.analysis-export-json-card-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 20px;border-bottom:1px solid #ffffff0c;border-radius:13px 13px 0 0;background:var(--json-window);color:#b8ae9d;font:11px/20px var(--font-mono,Consolas,monospace)}
+.analysis-export-json-card-head button{padding:0;border:0;background:none;color:#c8bdab;font:11px/20px var(--font);cursor:pointer}
+.analysis-export-json-card-head button:hover{color:#ffda6e}
+.analysis-export-json-pane .analysis-export-json-shell{position:relative;flex:1 1 auto;min-height:280px;border:0;border-radius:0;background:var(--json-window);box-shadow:none}
+.analysis-export-json-pane .analysis-export-json-highlight,.analysis-export-json-pane .analysis-export-json-editor{display:block;box-sizing:border-box;position:absolute;inset:0;width:100%;height:100%;min-height:0;margin:0;padding:24px;border:0;border-radius:0;background:transparent;white-space:pre;overflow:auto;font:400 12px/22px var(--font-mono,Consolas,monospace);letter-spacing:0;tab-size:2}
+.analysis-export-json-pane .analysis-export-json-highlight{pointer-events:none;color:var(--json-text);scrollbar-width:none}
+.analysis-export-json-pane .analysis-export-json-editor{color:transparent;caret-color:var(--sun);scrollbar-color:#756e60 transparent}
+.analysis-export-json-pane .analysis-export-json-editor::placeholder{color:#b6ad9d;font:14px/28px var(--font)}
+.analysis-export-json-pane .analysis-export-json-editor:focus-visible{outline:0;box-shadow:inset 0 0 0 2px #ffda6e70}
+.analysis-export-json-pane .json-token-key{color:#bdcbd7}.analysis-export-json-pane .json-token-string{color:#c9d39d}.analysis-export-json-pane .json-token-value{color:#e3bc86}
+.analysis-export-json-pane .analysis-export-json-tools{display:block;box-sizing:border-box;position:relative;flex:none;min-height:41px;margin:0;padding:10px 20px;border-top:1px solid #ffffff0c;border-radius:0 0 13px 13px;background:var(--json-window);color:#b9af9e;font:11px/20px var(--font)}
+.analysis-export-json-tools summary{width:max-content;cursor:pointer;list-style:none}
+.analysis-export-json-tools summary::marker{content:""}
+.analysis-export-json-tools summary:hover{color:#f5e8c7}
+.analysis-export-json-tools>div{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.analysis-export-json-pane .analysis-export-json-tools .btn{min-height:29px;padding:4px 9px;border:1px solid #ffffff20;border-radius:5px;background:#ffffff08;box-shadow:none;color:#e3dbc9;font:11px/20px var(--font)}
+/* Invisible original content retains its native height during mode switching. */
+.analysis-export-page[data-input-mode="json"] .analysis-export-mode-stage{display:grid}
+.analysis-export-page[data-input-mode="json"] .analysis-export-mode-stage>.analysis-export-pane{grid-area:1/1}
+.analysis-export-page[data-input-mode="json"] .analysis-export-natural-pane[hidden]{display:flex!important;visibility:hidden;pointer-events:none}
+@media(max-width:720px){.analysis-export-json-card::before{left:-6px;bottom:-8px}.analysis-export-json-card-head{padding-inline:16px}.analysis-export-json-pane .analysis-export-json-editor,.analysis-export-json-pane .analysis-export-json-highlight{padding:20px 16px;font-size:11px}.analysis-export-json-pane .analysis-export-json-editor::placeholder{font-size:12px;line-height:25px}}
+@media(prefers-reduced-motion:reduce){.analysis-export-json-pane *{animation:none!important;transition:none!important}}

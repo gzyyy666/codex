@@ -931,14 +931,19 @@ function analysisExportProtocolPage(){
             </div>
           </section>
           <section class="analysis-export-pane analysis-export-json-pane" id="analysis-export-json-pane" data-analysis-export-mode-panel="json" role="tabpanel" aria-labelledby="analysis-export-json-tab" hidden>
+            <div class="analysis-export-json-layout">
+              <div class="analysis-export-json-card">
+                <div class="analysis-export-json-card-head"><span>request.json</span><button type="button" data-analysis-export-file>读取 JSON 文件</button></div>
             <div class="analysis-export-json-shell">
-              <textarea class="analysis-export-json-editor notranslate" id="analysis-export-request" translate="no" aria-label="JSON 请求" spellcheck="false" placeholder="粘贴或编写 AnalysisExportRequest v1.1。&#10;&#10;这里默认保持空白。"></textarea>
+              <pre class="analysis-export-json-highlight notranslate" translate="no" aria-hidden="true"></pre>
+              <textarea class="analysis-export-json-editor notranslate" id="analysis-export-request" translate="no" aria-label="JSON 请求" spellcheck="false" placeholder="粘贴 JSON 请求&#10;&#10;从分析对话中复制完整内容，放在这里。"></textarea>
             </div>
-            <div class="analysis-export-json-tools protocol-composer-tools">
-              <button class="btn btn-light" type="button" data-analysis-export-file>读取文件</button>
+            <details class="analysis-export-json-tools protocol-composer-tools"><summary>更多操作</summary><div>
               <button class="btn btn-light" type="button" data-analysis-export-example>载入示例</button>
               <button class="btn btn-light" type="button" data-analysis-export-format>格式化</button>
               <button class="btn btn-quiet" type="button" data-analysis-export-clear>清空</button>
+            </div></details>
+              </div>
             </div>
             <input id="analysis-export-file" type="file" accept=".json,application/json,text/plain" hidden>
           </section>
@@ -978,9 +983,10 @@ function analysisExportProtocolPage(){
       </aside>
     </section>
   </section>`;
-  setAnalysisExportProtocolMode('guided');
+  setAnalysisExportProtocolMode(state.routeParams?.mode==='guided'?'guided':'json');
   setAnalysisExportProtocolStage('request');
   bindAnalysisExportMotion();
+  bindAnalysisExportJsonEditor();
   requestAnimationFrame(()=>$('.analysis-export-page')?.classList.add('is-entered'));
 }
 
@@ -992,11 +998,17 @@ function analysisExportTransitionText(number,label,caption){const copy=$('#analy
 function analysisExportSetProgress(degrees){$('#analysis-export-stage-orb')?.style.setProperty('--orb-progress',`${degrees}deg`)}
 function analysisExportInputProgress(){const value=analysisExportActiveInput()?.value.trim()||'';return Math.min(118,Math.max(0,value.length*2.6))}
 function analysisExportSetScopeReady(ready){const root=analysisExportRoot();if(root)root.dataset.scopeReady=ready?'true':'false'}
+function bindAnalysisExportJsonEditor(){
+  const input=$('#analysis-export-request'),highlight=$('.analysis-export-json-highlight');if(!input||!highlight)return;
+  const sync=()=>{const text=input.value;let html='',offset=0;for(const match of text.matchAll(/"(?:[^"\\]|\\.)*"\s*:|"(?:[^"\\]|\\.)*"|\b(?:true|false|null|\d+(?:\.\d+)?)\b/g)){html+=esc(text.slice(offset,match.index));const token=match[0],kind=token.endsWith(':')?'key':token.startsWith('"')?'string':'value';html+=`<span class="json-token-${kind}">${esc(token)}</span>`;offset=match.index+token.length}highlight.innerHTML=html+esc(text.slice(offset))+'\n';highlight.scrollTop=input.scrollTop;highlight.scrollLeft=input.scrollLeft};
+  input.addEventListener('input',sync);input.addEventListener('scroll',()=>{highlight.scrollTop=input.scrollTop;highlight.scrollLeft=input.scrollLeft});sync();
+}
 function setAnalysisExportProtocolMode(mode='guided'){
   const root=analysisExportRoot();if(!root)return;const active=mode==='json'?'json':'guided';root.dataset.inputMode=active;
   $$('[data-analysis-export-mode]',root).forEach(button=>{const selected=button.dataset.analysisExportMode===active;button.classList.toggle('is-active',selected);button.setAttribute('aria-selected',String(selected))});
   const panels=[['guided','#analysis-export-natural-pane'],['json','#analysis-export-json-pane']];panels.forEach(([panelMode,selector])=>{const panel=$(selector);if(!panel)return;const selected=panelMode===active;panel.hidden=!selected;panel.classList.toggle('is-active',selected)});
-  const natural=active==='guided';const note=$('#analysis-export-local-note');if(note)note.textContent=natural?'只在本地解释，不上传':'本地校验 JSON，不上传';analysisExportSetPrimaryLabel(natural?'解释需求':'验证 JSON');analysisExportResetEvidence();
+  const natural=active==='guided';
+  const note=$('#analysis-export-local-note');if(note)note.textContent=natural?'只在本地解释，不上传':'本地校验，由你确认后导出';analysisExportSetPrimaryLabel(natural?'解释需求':'验证 JSON');analysisExportResetEvidence();
 }
 function protocolRequestValue(){const text=$('#analysis-export-request')?.value||'';try{return JSON.parse(text)}catch(error){const hints=[];if(/}\s*{/.test(text))hints.push('可能拼接了多份 JSON，请清空后只粘贴一份完整请求。');if(/[“”‘’]/.test(text)||/"(?:目的|数据集|时间范围|字段|输出|格式)"\s*:/.test(text))hints.push('检测到智能引号或可能被翻译的协议内容。请使用原始消息的复制功能取得原文，关闭自动翻译，或读取原始 .json 文件；协议键名、字段和格式值必须保持原文。');throw new Error([`JSON 无法解析：${error.message}`,...hints].join(' '))}}
 function setAnalysisExportProtocolStage(stage='request'){
@@ -1908,6 +1920,7 @@ const TOOLS_COPY_EN={
   '= 不出现在新的主题选择与导航；历史记录仍保留，可从 ALL RECORDS / 搜索查看。取消“启用”后直接点击底部“保存全部变更”即可。':'= Deactivated themes are hidden from new choices and navigation; history remains available in All Records and search. Clear “Active,” then select “Save all changes.”'
 };
 Object.assign(TOOLS_COPY_EN,{'编辑全部记录':'Edit all records','保存修改':'Save changes','当日记录已统一保存。':'The daily record was saved.','没有检测到修改。':'No changes detected.','—（无记录）':'— (No record)','新增记录项':'Added fields','身体记录':'Body records','饮食记录':'Diet records','训练记录':'Training records'});
+Object.assign(TOOLS_COPY_EN,{'本地校验，由你确认后导出':'Validated locally. Export after your confirmation.','读取 JSON 文件':'Read a JSON file','更多操作':'More tools','粘贴 JSON 请求\n\n从分析对话中复制完整内容，放在这里。':'Paste a JSON request\n\nCopy the complete request from your analysis conversation.'});
 const TOOLS_COPY_ZH=Object.fromEntries(Object.entries(TOOLS_COPY_EN).filter(([,english])=>english).map(([chinese,english])=>[english,chinese]));
 function translatedUiCopy(text,language=uiLanguage()){const source=String(text??'');const map=language==='en'?TOOLS_COPY_EN:TOOLS_COPY_ZH;return map[source]??source}
 function localizeKnownUiCopy(scope,language){if(!scope)return;const map=language==='en'?TOOLS_COPY_EN:TOOLS_COPY_ZH,walker=document.createTreeWalker(scope,NodeFilter.SHOW_TEXT);let node;while((node=walker.nextNode())){const parent=node.parentElement;if(!parent||parent.closest('script,style,textarea,pre,code,[contenteditable="true"],[data-user-content]'))continue;const raw=node.nodeValue||'',trimmed=raw.trim(),translated=map[trimmed];if(translated!==undefined){const leading=raw.match(/^\s*/)?.[0]||'',trailing=raw.match(/\s*$/)?.[0]||'';node.nodeValue=`${leading}${translated}${trailing}`}}scope.querySelectorAll?.('[placeholder],[aria-label],[title],[data-intent]').forEach(element=>{for(const attr of ['placeholder','aria-label','title','data-intent']){const raw=element.getAttribute(attr);if(raw&&map[raw]!==undefined)element.setAttribute(attr,map[raw])}});scope.querySelectorAll?.('.dm-module-group>header>span,.dm-tools-entry .admin-kicker').forEach(element=>{const match=element.textContent.match(/^(\d+) 项$/);if(match)element.textContent=language==='en'?`${match[1]} fields`:`${match[1]} 项`});scope.querySelectorAll?.('.records-status').forEach(element=>{const match=element.textContent.trim().match(/^显示 (\d+) 个未确认问题 · 已隐藏 (\d+) 个$/);if(match)element.textContent=language==='en'?`Showing ${match[1]} open issues · ${match[2]} hidden`:`显示 ${match[1]} 个未确认问题 · 已隐藏 ${match[2]} 个`})}

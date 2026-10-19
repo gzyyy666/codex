@@ -35,6 +35,8 @@ def exercise(port: int, expect_bug: bool) -> None:
         browser.evaluate("location.hash='tools?panel=export'")
         _wait(browser, "!!document.querySelector('#analysis-export-request')")
         _click(browser, '[data-analysis-export-mode="json"]')
+        if browser.evaluate("!!document.querySelector('.analysis-export-json-tools summary')"):
+            _click(browser, '.analysis-export-json-tools summary')
         if not expect_bug:
             assert browser.evaluate("document.querySelector('#analysis-export-request').getAttribute('translate')") == 'no'
         browser.evaluate("""window.__validationReplies=[];window.__originalExportFetch=window.fetch;
