@@ -126,9 +126,64 @@ def main() -> None:
     assert stable.extract_load_blocks("（7.5＋5）－（6＋8）－3")[0]["segments"] == blocks[0]["segments"]
     assert stable.extract_load_blocks("(7.5+5+2.5)-(6+8)-3") == []
     parser = stable.FitnessTrackerApp.__new__(stable.FitnessTrackerApp)
+    parser.movement_dictionary = {"movements": []}
+    parser.movement_definitions_by_id = {}
     parser.movement_definitions_by_alias = {}
     bare_training = parser.parse_entry("3. y举\n（7.5＋5）－（6＋8）－3")["training"]
     assert len(bare_training["movements"]) == 1 and bare_training["movements"][0]["sets"][0]["segments"] == blocks[0]["segments"]
+
+    # Ordinary rows and complex rows are one ordered sequence, even on one line.
+    mixed = "30-12-1\n30-15-1\n(35+30)-(12+6)-1"
+    expected_mixed = [
+        {"weight": 30.0, "reps": 12, "sets": 1},
+        {"weight": 30.0, "reps": 15, "sets": 1},
+        {"segments": [{"weight": 35.0, "reps": 12}, {"weight": 30.0, "reps": 6}], "sets": 1},
+    ]
+    assert stable.extract_load_blocks(mixed) == expected_mixed
+    assert stable.extract_load_blocks(mixed.replace("\n", " ")) == expected_mixed
+    reversed_mixed = "(35+30)-(12+6)-1 30 x 12 x 1 30-15-1"
+    assert stable.extract_load_blocks(reversed_mixed) == [expected_mixed[2], *expected_mixed[:2]]
+    assert stable.extract_load_blocks("30-12-1\n30-12-1") == [expected_mixed[0]] * 2
+    assert stable.extract_load_blocks("30-12-1\n(7.5+5+2.5)-(6+8)-3") == expected_mixed[:1]
+    assert stable.extract_load_blocks("(7.5+5)-(6+8)") == []
+    assert stable.extract_load_blocks("30-12-1\nsets: 7.5x6+5x8; 7.5x6+5x7")[0] == expected_mixed[0]
+    assert len(stable.extract_load_blocks("30-12-1\nsets: 7.5x6+5x8; 7.5x6+5x7")) == 3
+    assert len(stable.extract_load_blocks("(20-25)x8x1 (7.5+5)-(6+8)-1 30-12-1")) == 4
+
+    fly = "(12.5+10+7.5)-(10+6+6)-2 (12.5+10+7.5+5)-(10+6+6+6)-1"
+    fly_notes = "共3组正式组。起始重量及各档次数均为回忆估算，每档约6次；最后一组递减三档至5。"
+    parser.movement_definitions_by_alias = {
+        stable.normalize_name("哑铃飞鸟"): {"movement_id": "FLY", "display_name": "哑铃飞鸟"},
+    }
+    fly_sets = stable.extract_load_blocks(fly)
+    assert [len(row["segments"]) for row in fly_sets] == [3, 4]
+    assert [row["sets"] for row in fly_sets] == [2, 1]
+    for heading in ("1. 哑铃飞鸟", "哑铃飞鸟"):
+        for separator in (" ", "\n"):
+            entry = f"2099-01-01\ntraining: test\n{heading}{separator}{fly}\n notes: {fly_notes}"
+            training = parser.parse_entry(entry)["training"]
+            assert len(training["movements"]) == 1
+            movement = training["movements"][0]
+            assert movement["name"] == "哑铃飞鸟" and movement["sets"] == fly_sets
+            assert movement["notes"] == fly_notes and not training["_structure_issues"]
+    # A malformed complex line before a valid set must never become a movement.
+    malformed = parser.parse_entry("training: test\n1. Press\n(7.5+5+2.5)-(6+8)-3\n30-12-1")
+    assert len(malformed["training"]["movements"]) == 1
+    assert malformed["training"]["_structure_issues"][0]["code"] == "SEGMENT_COUNT_MISMATCH"
+
+    with tempfile.TemporaryDirectory(prefix="fitness-ledger-mixed-save-") as root:
+        root = Path(root)
+        tracker, dictionary = root / "tracker.json", root / "dictionary.json"
+        write(tracker, {"daily_records": [], "diet_records": [], "training_sessions": [], "movements": {}, "raw_entries": []})
+        write(dictionary, {"version": "1", "movements": [{"movement_id": "A", "display_name": "Press", "aliases": ["Press"], "muscle_group": "shoulders", "active": True}]})
+        service = LedgerCommandService(tracker, dictionary, root / "backups", parser.parse_for_shared_service)
+        raw = f"2099-01-01\ntraining: test\n1. Press\n{mixed}"
+        result = service.save(service.parse(raw)["review"])
+        assert result["status"] == "CREATED"
+        stored = json.loads(tracker.read_text(encoding="utf-8"))
+        assert stored["training_sessions"][0]["movement_items"][0]["sets"] == expected_mixed
+        history = next(iter(stored["movements"].values()))["history"][0]
+        assert history["sets"] == expected_mixed and stored["raw_entries"][0]["text"] == raw
 
     with tempfile.TemporaryDirectory(prefix="fitness-ledger-structure-") as root:
         root = Path(root)

@@ -27,6 +27,7 @@ from fitness_ledger_core.training_structure import (
     format_set_item,
     has_segmented_syntax,
     parse_segmented_blocks,
+    segmented_block_spans,
     parse_superset_directives,
 )
 
@@ -323,6 +324,9 @@ def is_cardio_line(text: str) -> bool:
 
 def strip_movement_metrics(text: str) -> str:
     value = re.sub(r"^\s*\d+\s*[.、)]\s*", "", text)
+    segmented_spans = segmented_block_spans(value)
+    if segmented_spans:
+        value = value[:segmented_spans[0][0]]
     metric_start = re.search(
         r"\d+(?:\.\d+)?\s*(?:kg|公斤|千克)?\s*(?:[x×*－-]|\d+\s*次)",
         value,
@@ -3309,10 +3313,15 @@ def _safe_build_set_item(weight_text: str, reps: str, sets: str) -> dict:
 
 
 def extract_load_blocks(text: str) -> list[dict]:
-    segmented, _issues = parse_segmented_blocks(text)
-    if segmented or has_segmented_syntax(text):
-        return segmented
-    blocks = []
+    text = str(text or "")
+    positioned = []
+    consumed = segmented_block_spans(text)
+    for start, end in consumed:
+        segmented, _issues = parse_segmented_blocks(text[start:end])
+        positioned.extend((start, item) for item in segmented)
+    # Mask only complex expressions; ordinary sets in the same action survive.
+    for start, end in reversed(consumed):
+        text = text[:start] + (" " * (end - start)) + text[end:]
     normalized = (
         str(text or "")
         .replace("\u00d7", "x")
@@ -3329,8 +3338,7 @@ def extract_load_blocks(text: str) -> list[dict]:
     for match in re.finditer(progression_pattern, normalized, re.I):
         for weight in re.split(r"\s*[-,;]\s*", match.group("weights")):
             item = _safe_build_set_item(weight, match.group("reps"), match.group("sets"))
-            if item not in blocks:
-                blocks.append(item)
+            positioned.append((match.start(), item))
         consumed.append(match.span())
 
     searchable = normalized
@@ -3345,9 +3353,8 @@ def extract_load_blocks(text: str) -> list[dict]:
     for pattern in patterns:
         for match in re.finditer(pattern, searchable, re.I):
             item = _safe_build_set_item(match.group("weight"), match.group("reps"), match.group("sets"))
-            if item not in blocks:
-                blocks.append(item)
-    return blocks
+            positioned.append((match.start(), item))
+    return [item for _start, item in sorted(positioned, key=lambda row: row[0])]
 
 
 def extract_bodyweight_blocks(text: str) -> list[dict]:
@@ -3517,6 +3524,7 @@ def _patched_parse_training_movements(self, training_text: str) -> list[dict]:
         starts_unnumbered_movement = (
             not note_match
             and not inline_loads
+            and not has_segmented_syntax(stripped)
             and not is_cardio_line(stripped)
             and (definition is not None or bool(extract_load_blocks(next_line)))
         )

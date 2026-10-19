@@ -112,6 +112,20 @@ def has_segmented_syntax(text: str) -> bool:
     return bool(_COMPACT.search(value) or _UNEQUAL.search(value) or re.search(r"\([^()]+\)\s*[-–]\s*\([^()]+\)", value))
 
 
+def segmented_block_spans(text: str) -> list[tuple[int, int]]:
+    """Locate complex expressions, including invalid ones, without eating scalar rows.
+
+    Punctuation normalization preserves offsets into the original text. Invalid
+    expressions are included so their numbers cannot become ordinary sets.
+    """
+    value = _normalize_structure_punctuation(text)
+    spans = [match.span() for pattern in (_COMPACT, _UNEQUAL) for match in pattern.finditer(value)]
+    for match in re.finditer(r"\([^()]+\)\s*[-–]\s*\([^()]+\)", value):
+        if not any(start <= match.start() and match.end() <= end for start, end in spans):
+            spans.append(match.span())
+    return sorted(spans)
+
+
 def set_volume(item: dict[str, Any]) -> float:
     segments = item.get("segments")
     if isinstance(segments, list) and segments:
