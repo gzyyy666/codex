@@ -1095,6 +1095,20 @@ class RegistryDrivenParser:
         occupied_until = -1
         for occurrence in occurrences:
             if occurrence[0] >= occupied_until:
+                # The same field's alias inside an explicitly labelled text
+                # value is content, unless it starts another field or line.
+                if selected:
+                    previous = selected[-1]
+                    value_prefix = raw[previous[1]:occurrence[0]]
+                    if (
+                        previous[2].module_id == occurrence[2].module_id
+                        and previous[2].data_type == "text"
+                        and re.match(r"[^\S\r\n]*[:：]", value_prefix)
+                        and "\n" not in value_prefix
+                        and "\r" not in value_prefix
+                        and not re.match(r"[^\S\r\n]*[:：]", raw[occurrence[1]:])
+                    ):
+                        continue
                 selected.append(occurrence)
                 occupied_until = occurrence[1]
         candidates = []
