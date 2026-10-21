@@ -17,7 +17,8 @@ class TrainingStructureError(ValueError):
 
 
 _NUMBER = r"\d+(?:\.\d+)?"
-_LOAD = rf"(?:自重|body\s*weight|bw|{_NUMBER})(?:\s*(?:kg|公斤|千克))?"
+_UNIT = r"(?:kg|kgs|kilograms?|公斤|千克|lb|lbs|pounds?|磅)"
+_LOAD = rf"(?:自重|body\s*weight|bw|{_NUMBER})(?:\s*{_UNIT})?"
 _SEGMENT = re.compile(rf"(?P<weight>{_LOAD})\s*[x×*]\s*(?P<reps>\d+)", re.I)
 _COMPACT = re.compile(
     rf"\((?P<weights>[^()]+)\)\s*[-–]\s*\((?P<reps>[^()]+)\)\s*[-–]\s*(?P<sets>\d+)",
@@ -43,10 +44,17 @@ def _normalize_structure_punctuation(value: str) -> str:
     }))
 
 
-def _weight(value: str) -> dict[str, Any]:
+def normalize_weight(value: str) -> dict[str, Any]:
     text = str(value).strip()
-    if re.fullmatch(rf"{_NUMBER}", text):
-        return {"weight": float(text)}
+    match = re.fullmatch(rf"(?P<number>{_NUMBER})(?:\s*(?P<unit>{_UNIT}))?", text, re.I)
+    if match:
+        weight = float(match.group("number"))
+        unit = (match.group("unit") or "kg").lower()
+        if unit in {"lb", "lbs", "pound", "pounds", "磅"}:
+            weight = round(weight * 0.45359237, 3)
+        return {"weight": weight}
+    if text.lower() in {"bodyweight", "body weight", "bw"}:
+        return {"weight": 0.0, "weight_text": text}
     return {"weight": 0.0, "weight_text": "自重"}
 
 
@@ -62,7 +70,7 @@ def _segments_from_pairs(text: str) -> list[dict[str, Any]]:
         raise TrainingStructureError("complex set segment 必须使用 + 明确连接。", "SEGMENT_MARKER_REQUIRED")
     segments = []
     for match in matches:
-        item = _weight(match.group("weight"))
+        item = normalize_weight(match.group("weight"))
         item["reps"] = int(match.group("reps"))
         segments.append(item)
     return segments
@@ -86,9 +94,10 @@ def parse_segmented_blocks(text: str) -> tuple[list[dict[str, Any]], list[dict[s
         try:
             segments = []
             for weight, repetition in zip(weights, reps):
-                if not re.fullmatch(_NUMBER, weight) or not repetition.isdigit():
+                parsed_weight = normalize_weight(weight)
+                if "weight_text" in parsed_weight or not repetition.isdigit():
                     raise TrainingStructureError("复杂组只接受确定的数字重量与次数。", "SEGMENT_PARSE_FAILED")
-                segments.append({"weight": float(weight), "reps": int(repetition)})
+                segments.append({**parsed_weight, "reps": int(repetition)})
             if len(segments) < 2:
                 raise TrainingStructureError("复杂组至少需要两个 segment。", "SEGMENT_MARKER_REQUIRED")
             blocks.append({"segments": segments, "sets": int(match.group("sets"))})

@@ -26,6 +26,7 @@ from fitness_ledger_core.record_relations import movement_items, rebuild_movemen
 from fitness_ledger_core.training_structure import (
     format_set_item,
     has_segmented_syntax,
+    normalize_weight,
     parse_segmented_blocks,
     segmented_block_spans,
     parse_superset_directives,
@@ -328,13 +329,18 @@ def strip_movement_metrics(text: str) -> str:
     if segmented_spans:
         value = value[:segmented_spans[0][0]]
     metric_start = re.search(
-        r"(?:自重|bodyweight|\d+(?:\.\d+)?)\s*(?:kg|公斤|千克)?\s*(?:[x×*－-]|\d+\s*次)",
+        r"(?:自重|body\s*weight|bodyweight|bw|\d+(?:\.\d+)?)\s*(?:kg|kgs|kilograms?|公斤|千克|lb|lbs|pounds?|磅)?\s*(?:[x×*－-]|\d+\s*次)",
         value,
         re.I,
     )
     if metric_start:
         value = value[: metric_start.start()]
     return title_case_movement(value)
+
+
+def inline_movement_note(text: str) -> str:
+    match = re.search(r"(?:^|\s)(?:notes?|备注)\s*[:：]\s*(.*)$", str(text or ""), re.I)
+    return match.group(1).strip() if match else ""
 
 
 def build_set_item(weight_text: str, reps: str, sets: str) -> dict:
@@ -3298,15 +3304,15 @@ class FitnessTrackerApp(tk.Tk):
 
 def _safe_build_set_item(weight_text: str, reps: str, sets: str) -> dict:
     raw_weight = str(weight_text).strip()
-    if re.fullmatch(r"\d+(?:\.\d+)?", raw_weight):
+    normalized = normalize_weight(raw_weight)
+    if "weight_text" not in normalized:
         return {
-            "weight": float(raw_weight),
+            "weight": normalized["weight"],
             "reps": int(reps),
             "sets": int(sets),
         }
     return {
-        "weight": 0.0,
-        "weight_text": raw_weight,
+        **normalized,
         "reps": int(reps),
         "sets": int(sets),
     }
@@ -3314,6 +3320,8 @@ def _safe_build_set_item(weight_text: str, reps: str, sets: str) -> dict:
 
 def extract_load_blocks(text: str) -> list[dict]:
     text = str(text or "")
+    # Explicit note suffixes belong to the movement, not to set-count scanning.
+    text = re.sub(r"(?im)(?<!\S)(?:notes?|备注)\s*[:：].*$", "", text)
     positioned = []
     consumed = segmented_block_spans(text)
     for start, end in consumed:
@@ -3345,10 +3353,11 @@ def extract_load_blocks(text: str) -> list[dict]:
     for start, end in reversed(consumed):
         searchable = searchable[:start] + (" " * (end - start)) + searchable[end:]
 
+    metric_weight = r"(?P<weight>(?:自重|body\s*weight|bodyweight|bw|\d+(?:\.\d+)?)(?:\s*(?:kg|kgs|kilograms?|公斤|千克|lb|lbs|pounds?|磅))?)"
     patterns = [
-        r"(?P<weight>(?:\u81ea\u91cd)|bodyweight|\d+(?:\.\d+)?)\s*(?:kg|\u516c\u65a4|\u5343\u514b)?\s*x\s*(?P<reps>\d+)\s*(?:reps?)?\s*x\s*(?P<sets>\d+)\s*(?:sets?)?",
-        r"(?P<weight>(?:\u81ea\u91cd)|bodyweight|\d+(?:\.\d+)?)\s*(?:kg|\u516c\u65a4|\u5343\u514b)?\s*-\s*(?P<reps>\d+)\s*-\s*(?P<sets>\d+)",
-        r"(?P<weight>(?:\u81ea\u91cd)|bodyweight|\d+(?:\.\d+)?)\s*(?:kg|\u516c\u65a4|\u5343\u514b)?\s*(?P<reps>\d+)\s*\u6b21\s*(?P<sets>\d+)\s*\u7ec4?",
+        metric_weight + r"\s*x\s*(?P<reps>\d+)\s*(?:reps?)?\s*x\s*(?P<sets>\d+)\s*(?:sets?)?",
+        metric_weight + r"\s*-\s*(?P<reps>\d+)\s*-\s*(?P<sets>\d+)",
+        metric_weight + r"\s*(?P<reps>\d+)\s*次\s*(?P<sets>\d+)\s*组?",
     ]
     for pattern in patterns:
         for match in re.finditer(pattern, searchable, re.I):
@@ -3482,12 +3491,13 @@ def _patched_parse_training_movements(self, training_text: str) -> list[dict]:
         if order_match:
             finish_current()
             pending_order = None
+            inline_note = inline_movement_note(order_match.group(2))
             current = {
                 "order": int(order_match.group(1)),
                 "name": order_match.group(2).strip(),
                 "raw_lines": [stripped],
-                "notes": [],
-                "note_mode": False,
+                "notes": [inline_note] if inline_note else [],
+                "note_mode": bool(inline_note),
             }
             continue
 
@@ -3530,12 +3540,13 @@ def _patched_parse_training_movements(self, training_text: str) -> list[dict]:
         )
         if starts_inline_movement:
             finish_current()
+            inline_note = inline_movement_note(stripped)
             current = {
                 "order": pending_order if pending_order is not None else len(movements) + 1,
                 "name": inline_name,
                 "raw_lines": [stripped],
-                "notes": [],
-                "note_mode": False,
+                "notes": [inline_note] if inline_note else [],
+                "note_mode": bool(inline_note),
             }
             pending_order = None
             continue
