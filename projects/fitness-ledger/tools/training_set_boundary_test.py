@@ -2,19 +2,23 @@
 from __future__ import annotations
 
 import importlib.machinery
+import json
 import math
 from pathlib import Path
 import sys
+import tempfile
 
 PROJECT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT))
+from ledger_commands import LedgerCommandService
 
 loader = importlib.machinery.SourceFileLoader("fitness_ledger_stable_app", str(PROJECT / "stable_app.pyw"))
 stable = loader.load_module()
 
 DICTIONARY = {"movements": [
-    {"movement_id": "DIP", "display_name": "双杠臂屈伸", "aliases": ["双杠臂屈伸"], "active": True},
-    {"movement_id": "FLY", "display_name": "哑铃飞鸟", "aliases": ["哑铃飞鸟"], "active": True},
+    {"movement_id": "DIP", "display_name": "双杠臂屈伸", "aliases": ["双杠臂屈伸"], "muscle_group": "chest", "active": True},
+    {"movement_id": "FLY", "display_name": "哑铃飞鸟", "aliases": ["哑铃飞鸟"], "muscle_group": "shoulders", "active": True},
+    {"movement_id": "PULL", "display_name": "杠铃提拉", "aliases": ["杠铃提拉"], "muscle_group": "shoulders", "active": True},
 ]}
 
 
@@ -73,6 +77,29 @@ def main():
     dip = parser().parse_entry("training: test\n双杠臂屈伸 自重-10-2")['training']['movements']
     assert len(dip) == 1 and dip[0]["movement_id"] == "DIP"
     assert dip[0]["sets"] == [{"weight": 0.0, "weight_text": "自重", "reps": 10, "sets": 2}]
+
+    # Save into an isolated fixture: normalized loads persist, notes remain
+    # movement-scoped, and the exact source text remains in the audit record.
+    save_raw = (
+        "2099-01-01\nweight: 64.8\ncalories: 2150\nprotein: 133\ncarbs: 274\nfat: 55\n"
+        f"training: test\n1. 哑铃飞鸟 {fly} notes: 共3组正式组；回忆估算，每档约6次。\n"
+        "2. 双杠臂屈伸 自重-10-2 notes: 愉悦组。\n3. 杠铃提拉 88 lb-12-1"
+    )
+    with tempfile.TemporaryDirectory(prefix="fl-training-boundary-save-") as temporary:
+        root = Path(temporary)
+        tracker_path = root / "tracker.json"
+        dictionary_path = root / "dictionary.json"
+        tracker_path.write_text(json.dumps({"daily_records": [], "diet_records": [], "training_sessions": [], "movements": {}, "raw_entries": []}), encoding="utf-8")
+        dictionary_path.write_text(json.dumps(DICTIONARY, ensure_ascii=False), encoding="utf-8")
+        service = LedgerCommandService(tracker_path, dictionary_path, root / "backups", parser().parse_for_shared_service)
+        result = service.save(service.parse(save_raw)["review"])
+        assert result["status"] == "CREATED"
+        saved = json.loads(tracker_path.read_text(encoding="utf-8"))
+        items = saved["training_sessions"][0]["movement_items"]
+        assert len(items[0]["sets"]) == 2 and [row["sets"] for row in items[0]["sets"]] == [2, 1]
+        assert items[1]["notes"] == "愉悦组。"
+        assert items[2]["sets"] == [{"weight": round(88 * 0.45359237, 3), "reps": 12, "sets": 1}]
+        assert saved["raw_entries"][0]["text"] == save_raw
     print("FITNESS_LEDGER_TRAINING_SET_BOUNDARY_OK")
 
 
