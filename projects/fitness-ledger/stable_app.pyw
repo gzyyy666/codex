@@ -328,7 +328,7 @@ def strip_movement_metrics(text: str) -> str:
     if segmented_spans:
         value = value[:segmented_spans[0][0]]
     metric_start = re.search(
-        r"\d+(?:\.\d+)?\s*(?:kg|公斤|千克)?\s*(?:[x×*－-]|\d+\s*次)",
+        r"(?:自重|bodyweight|\d+(?:\.\d+)?)\s*(?:kg|公斤|千克)?\s*(?:[x×*－-]|\d+\s*次)",
         value,
         re.I,
     )
